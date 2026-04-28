@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="utf-8" />
+    <title>Račun <%= invoice.invoiceData.invoice_no %></title>
+    <style>
+        @page { margin: 20mm 15mm; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            color: #1e293b;
+            line-height: 1.4;
+            margin: 0;
+        }
+        .uuid-strip {
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #94a3b8;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+        }
+        .header {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 14px;
+        }
+        .header td {
+            vertical-align: top;
+            width: 33.33%;
+            padding: 0 8px;
+        }
+        .header td + td { border-left: 1px solid #e2e8f0; }
+        .header .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .header .party { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+        .title {
+            text-align: center;
+            margin: 8px 0 14px;
+            padding: 10px 0;
+            border-top: 2px solid #0f172a;
+            border-bottom: 2px solid #0f172a;
+        }
+        .title h1 {
+            font-size: 22px;
+            margin: 0 0 4px;
+            letter-spacing: 0.5px;
+        }
+        .title .num {
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .title .muted { color: #64748b; font-size: 11px; margin-top: 4px; }
+        .title .f2-badge {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-top: 4px;
+        }
+        table.items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 14px;
+        }
+        table.items thead th {
+            text-align: left;
+            font-weight: 700;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #475569;
+            border-bottom: 1.5px solid #0f172a;
+            padding: 6px 4px;
+        }
+        table.items tbody td {
+            padding: 5px 4px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        table.items .num { text-align: right; white-space: nowrap; }
+        table.items .idx { width: 26px; text-align: right; color: #64748b; }
+        .totals {
+            width: 45%;
+            margin-left: 55%;
+            border-collapse: collapse;
+            margin-bottom: 14px;
+        }
+        .totals th {
+            text-align: left;
+            font-weight: 600;
+            padding: 4px 8px;
+            color: #475569;
+        }
+        .totals td {
+            text-align: right;
+            padding: 4px 8px;
+            white-space: nowrap;
+        }
+        .totals .total th,
+        .totals .total td {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+            border-top: 1.5px solid #0f172a;
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+        .remark {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 10px;
+            color: #94a3b8;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<%
+    var d = invoice.invoiceData;
+    var pad2 = function (n) { return String(n).padStart(2, '0'); };
+    var dateStr = pad2(d.invoice_date.getDate()) + '.' + pad2(d.invoice_date.getMonth() + 1) + '.' + d.invoice_date.getFullYear();
+    var timeStr = pad2(d.invoice_date.getHours()) + ':' + pad2(d.invoice_date.getMinutes());
+    var fmtEur = function (n) { return (Number(n) || 0).toFixed(2) + ' EUR'; };
+    var hasCompanyBuyer = d.buyer_company_name || d.buyer_oib;
+    var invoiceNoFull = d.invoice_fiskal_no
+        ? d.invoice_fiskal_no + '/' + (d.invoice_business_premise_fiscal_mark || '—') + '/' + (d.invoice_billing_device_fiscal_mark || '—')
+        : d.invoice_no + '/' + d.invoice_year;
+    var isStorno = d.invoice_canceled === true;
+%>
+
+<div class="uuid-strip"><%= d.invoice_uuid %></div>
+
+<table class="header">
+    <tr>
+        <td>
+            <div class="label">Izdavatelj / Issuer</div>
+            <div class="party"><%= d.company_name || '' %></div>
+            <%= d.company_address || '' %><br/>
+            <%= (d.company_postal_code || '') %> <%= (d.company_town || '') %><br/>
+            <% if (d.company_id) { %>OIB: <%= d.company_id %><br/><% } %>
+            <% if (d.company_vatid && d.company_vatid !== d.company_id) { %>VAT: <%= d.company_vatid %><br/><% } %>
+            www.krilo.hr
+        </td>
+        <td>
+            <div class="label">Kupac / Buyer</div>
+            <% if (hasCompanyBuyer) { %>
+                <div class="party"><%= d.buyer_company_name || d.buyer_name || '' %></div>
+                <% if (d.buyer_name && d.buyer_company_name) { %><%= d.buyer_name %><br/><% } %>
+                <% if (d.buyer_oib) { %>OIB: <%= d.buyer_oib %><br/><% } %>
+                <% if (d.buyer_address) { %><%= d.buyer_address %><br/><% } %>
+                <%= (d.buyer_postal_code || '') %> <%= (d.buyer_town || '') %><br/>
+                <% if (d.buyer_country) { %><%= d.buyer_country %><br/><% } %>
+                <% if (d.buyer_email) { %><%= d.buyer_email %><% } %>
+            <% } else if (d.buyer_name) { %>
+                <div class="party"><%= d.buyer_name %></div>
+                <% if (d.buyer_email) { %><%= d.buyer_email %><br/><% } %>
+            <% } else { %>
+                <span style="color: #94a3b8;">—</span>
+            <% } %>
+        </td>
+        <td>
+            <div class="label">Podaci / Data</div>
+            <strong>Datum:</strong> <%= dateStr %><br/>
+            <strong>Vrijeme:</strong> <%= timeStr %><br/>
+            <strong>Način plaćanja:</strong> <%= d.invoice_payment_method_name || '—' %><br/>
+            <% if (d.invoice_business_premise_name) { %>
+                <strong>Poslovnica:</strong> <%= d.invoice_business_premise_name %><br/>
+            <% } %>
+            <% if (d.invoice_operator_name) { %>
+                <strong>Operater:</strong> <%= d.invoice_operator_name %><% if (d.operator_mark) { %> (<%= d.operator_mark %>)<% } %>
+            <% } %>
+        </td>
+    </tr>
+</table>
+
+<div class="title">
+    <h1><%= isStorno ? 'STORNO RAČUNA / CANCELLATION INVOICE' : 'RAČUN / INVOICE' %></h1>
+    <div class="num">Broj: <%= invoiceNoFull %></div>
+    <% if (d.fiskal_required) { %>
+        <div class="f2-badge">Fiskalizacija 2.0</div>
+    <% } else if (!d.invoice_fiskal_no) { %>
+        <div class="muted">Interni broj: <%= d.invoice_no %>/<%= d.invoice_year %></div>
+    <% } %>
+</div>
+
+<table class="items">
+    <thead>
+        <tr>
+            <th class="idx">#</th>
+            <th>Stavka / Item</th>
+            <th class="num">Cijena / Price</th>
+            <th class="num">Kol. / Qty</th>
+            <th class="num">Iznos / Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% invoice.invoiceItemsData.forEach(function (item) { %>
+            <% item.details.forEach(function (it) { %>
+                <tr>
+                    <td class="idx"><%= it.index %>.</td>
+                    <td>
+                        <strong><%= it.ticket_type_name %></strong><br/>
+                        <span style="color: #64748b;">
+                            <%= item.departure_harbor_name %> → <%= item.arrival_harbor_name %>
+                            <% if (item.departure) { %> · <%= item.departure %><% } %>
+                        </span>
+                    </td>
+                    <td class="num"><%= fmtEur(it.single_price) %></td>
+                    <td class="num"><%= Number(it.quantity) %></td>
+                    <td class="num"><strong><%= fmtEur(it.item_amount) %></strong></td>
+                </tr>
+            <% }); %>
+        <% }); %>
+    </tbody>
+</table>
+
+<table class="totals">
+    <tr>
+        <th>Osnovica / Base:</th>
+        <td><%= fmtEur(d.invoice_vat_base) %></td>
+    </tr>
+    <tr>
+        <th>PDV / VAT (25%):</th>
+        <td><%= fmtEur(d.invoice_vat) %></td>
+    </tr>
+    <tr>
+        <th>Lučka pristojba / Port fee (6%):</th>
+        <td><%= fmtEur(d.invoice_harbor_tax) %></td>
+    </tr>
+    <tr class="total">
+        <th>UKUPNO / TOTAL:</th>
+        <td><%= fmtEur(d.invoice_amount) %></td>
+    </tr>
+</table>
+
+<div class="remark">
+    U cijenu je uračunato 6% naknade za lučku pristojbu. / The price includes a 6% port fee.<br/>
+    Lučke takse u cijeni su prolazne stavke. Oslobođeno PDV-a prema čl. 33. st. 3. Zakona o PDV-u. /<br/>
+    Port taxes in the price are a passing item. Exempt from VAT under Art. 33 para. 3 of the VAT Act.
+</div>
+
+<div class="footer">
+    Hvala na ukazanom povjerenju — sretno putovanje! / Thank you for your trust — have a safe journey!
+</div>
+
+</body>
+</html>

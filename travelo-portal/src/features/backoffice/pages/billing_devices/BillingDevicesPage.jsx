@@ -1,0 +1,831 @@
+import { Box, Button, Checkbox, Drawer, Grid, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import { useDispatch, useSelector } from "react-redux";
+import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
+import { useT } from "../../../../i18n/useT";
+import { useEffect, useState } from "react";
+import { setAuthData } from "../../../auth/authSlice";
+
+
+export default function BillingDevicesPage (){
+    const dispatch = useDispatch()
+    const backofficeData = useSelector(backofficeSliceData)
+    const { t } = useT();
+
+    const [selectedRow, setSelectedRow] = useState(null)
+    const [openAdd, setOpenAdd] = useState(false)
+    const [newData, setNewData] = useState({})
+    const [editedData, setEditedData] = useState({})
+
+    const syncData = async () =>{
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value:'Preuzimanje podataka o naplatnim uređajima'}))
+        await dispatch(getBackofficeThunk({path:'billing_devices'}))
+        await dispatch(getBackofficeThunk({path:'business_premises'}))
+        await dispatch(getBackofficeThunk({path:'payment_methods'}))
+        await dispatch(getBackofficeThunk({path:'users'}))
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+    
+    useEffect(()=>{
+        syncData()
+    },[])
+
+    const handleChange = async (e) => {
+        setNewData({...newData, [e.target.name] : e.target.value})
+    };
+    const handleChangeEdit = async (e) => {
+        setEditedData({...editedData, [e.target.name] : e.target.value})
+    };
+
+    const handleSubmit = async(e)=>{
+        e.preventDefault();
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value:'Dodavanje novog naplatnog uređaja'}))
+        await dispatch(postBackofficeThunk({path:'billing_devices', data:newData}))
+        setNewData({})
+        setOpenAdd(false)
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+
+    const handleSubmitEdit = async(e)=>{
+        e.preventDefault();
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value:'Ažuriranje podataka o naplatnog uređaja'}))
+        await dispatch(patchBackofficeThunk({path:'billing_devices', data:editedData}))
+        setEditedData({})
+        setSelectedRow(null)
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+
+     useEffect(()=>{
+        setEditedData(selectedRow)
+     },[selectedRow])
+
+
+
+    function not(a, b) {
+        return a.filter((value) => b.indexOf(value) === -1);
+    }
+
+    function intersection(a, b) {
+        return a.filter((value) => b.indexOf(value) !== -1);
+    }
+
+    const [checked, setChecked] = useState([]);
+
+    const [left, setLeft] = useState([])
+    const [right, setRight] = useState([])
+
+    const leftChecked = intersection(checked, left);
+    const rightChecked = intersection(checked, right);
+
+    const handleToggle = (value) => () => {
+        const currentIndex = checked.indexOf(value);
+        const newChecked = [...checked];
+
+        if (currentIndex === -1) {
+        newChecked.push(value);
+        } else {
+        newChecked.splice(currentIndex, 1);
+        }
+
+        setChecked(newChecked);
+    };
+
+    const handleAllRight = () => {
+        setRight(right.concat(left));
+        setLeft([]);
+        setEditedData(prev => ({
+            ...prev,
+            payment: (right.concat(left))
+        }));
+    };
+
+    const handleCheckedRight = () => {
+        setRight(right.concat(leftChecked));
+        setLeft(not(left, leftChecked));
+        setChecked(not(checked, leftChecked));
+        setEditedData(prev => ({
+            ...prev,
+            payment: (right.concat(leftChecked))
+        }));
+    };
+
+    const handleCheckedLeft = () => {
+        setLeft(left.concat(rightChecked));
+        setRight(not(right, rightChecked));
+        setChecked(not(checked, rightChecked));
+        setEditedData(prev => ({
+            ...prev,
+            payment: (not(right, rightChecked))
+        }));
+    };
+
+    const handleAllLeft = () => {
+        setLeft(left.concat(right));
+        setRight([]);
+        setEditedData(prev => ({
+            ...prev,
+            payment: []
+        }));
+    };
+
+     const customList = (items) => (
+        <Paper sx={{ width: 200, height: 230, overflow: 'auto' }}>
+        <List dense component="div" role="list">
+            {items.map((value) => {
+            const labelId = `transfer-list-item-${value}-label`;
+
+            return (
+                <ListItemButton
+                key={value.id}
+                role="listitem"
+                onClick={handleToggle(value)}
+                >
+                <ListItemIcon>
+                    <Checkbox
+                    checked={checked.indexOf(value) !== -1}
+                    tabIndex={-1}
+                    disableRipple
+                    inputProps={{
+                        'aria-labelledby': labelId,
+                    }}
+                    />
+                </ListItemIcon>
+                <ListItemText id={labelId} primary={value.name} />
+                </ListItemButton>
+            );
+            })}
+        </List>
+        </Paper>
+    );
+
+    //OPERATORS
+
+    const [checkedOP, setCheckedOP] = useState([]);
+
+    const [leftOP, setLeftOP] = useState([])
+    const [rightOP, setRightOP] = useState([])
+
+    const leftCheckedOP = intersection(checkedOP, leftOP);
+    const rightCheckedOP = intersection(checkedOP, rightOP);
+
+    const handleToggleOP = (value) => () => {
+        const currentIndex = checkedOP.indexOf(value);
+        const newChecked = [...checkedOP];
+
+        if (currentIndex === -1) {
+        newChecked.push(value);
+        } else {
+        newChecked.splice(currentIndex, 1);
+        }
+
+        setCheckedOP(newChecked);
+    };
+
+    const handleAllRightOP = () => {
+        setRightOP(rightOP.concat(leftOP));
+        setLeftOP([]);
+        setEditedData(prev => ({
+            ...prev,
+            permissions: (rightOP.concat(leftOP))
+        }));
+    };
+
+    const handleCheckedRightOP = () => {
+        setRightOP(rightOP.concat(leftCheckedOP));
+        setLeftOP(not(leftOP, leftCheckedOP));
+        setCheckedOP(not(checkedOP, leftCheckedOP));
+        setEditedData(prev => ({
+            ...prev,
+            permissions: (rightOP.concat(leftCheckedOP))
+        }));
+    };
+
+    const handleCheckedLeftOP = () => {
+        setLeftOP(leftOP.concat(rightCheckedOP));
+        setRightOP(not(rightOP, rightCheckedOP));
+        setCheckedOP(not(checkedOP, rightCheckedOP));
+        setEditedData(prev => ({
+            ...prev,
+            permissions: (not(rightOP, rightCheckedOP))
+        }));
+    };
+
+    const handleAllLeftOP = () => {
+        setLeftOP(leftOP.concat(rightOP));
+        setRightOP([]);
+        setEditedData(prev => ({
+            ...prev,
+            permissions: []
+        }));
+    };
+
+     const customListOP = (items) => (
+        <Paper sx={{ width: 200, height: 230, overflow: 'auto' }}>
+        <List dense component="div" role="list">
+            {items.map((value) => {
+            const labelId = `transfer-list-item-${value}-label`;
+
+            return (
+                <ListItemButton
+                key={value.id}
+                role="listitem"
+                onClick={handleToggleOP(value)}
+                >
+                <ListItemIcon>
+                    <Checkbox
+                    checked={checkedOP.indexOf(value) !== -1}
+                    tabIndex={-1}
+                    disableRipple
+                    inputProps={{
+                        'aria-labelledby': labelId,
+                    }}
+                    />
+                </ListItemIcon>
+                <ListItemText id={labelId} primary={value.name + ' ' + value.surname} />
+                </ListItemButton>
+            );
+            })}
+        </List>
+        </Paper>
+    );
+
+
+    useEffect(()=>{
+        if(selectedRow){
+        setEditedData(selectedRow)
+        console.log(selectedRow)
+        const forLeft = (backofficeData.backofficeData.payment_methods.filter(d => !selectedRow?.payment.some(s => s.uuid === d.uuid)))
+        const forRight = (backofficeData.backofficeData.payment_methods.filter(d => selectedRow?.payment.some(s => s.uuid === d.uuid)))
+        const forLeftOP = (backofficeData.backofficeData.users.filter(d => !selectedRow?.permissions.some(s => s.uuid === d.uuid)))
+        const forRightOP = (backofficeData.backofficeData.users.filter(d => selectedRow?.permissions.some(s => s.uuid === d.uuid)))
+        setLeft(forLeft)
+        setRight(forRight)
+        setLeftOP(forLeftOP)
+        setRightOP(forRightOP)
+    }
+    },[selectedRow])
+
+     const columns = [
+        { field: 'name', headerName:t('backoffice.billing_devices.name') , flex: 4},
+        { field: 'fiscal_mark', headerName:t('backoffice.billing_devices.fiscal_mark') , flex: 2},
+        { field: 'business_premise_name', headerName:t('backoffice.billing_devices.business_premises') , flex: 2 },
+        { field: 'cost_center', headerName:t('backoffice.billing_devices.cost_center') , flex: 2 },
+        { field: 'tid', headerName:t('backoffice.billing_devices.tid') , flex: 2 },
+        { field: 'otp', headerName:t('backoffice.billing_devices.otp') , flex: 2},
+        { field: 'description', headerName:t('backoffice.billing_devices.description'), flex: 3 },
+        { field: 'type', headerName:t('backoffice.billing_devices.type'), flex: 2 },
+        { field: 'auto_validate', type: 'boolean', headerName:t('backoffice.billing_devices.auto_validate'), flex: 2},
+        { field: 'is_active', type: 'boolean', headerName:t('backoffice.billing_devices.is_active'), flex: 2},
+    ];
+
+    return(
+        <>
+       <Box sx={{
+            mt:2,
+            ml:2,
+            width: "98%", 
+            overflowX: "auto"
+        }}>            
+            <>
+                <Box
+                    sx={{
+                        height:"80vh",
+                        minWidth: 1200
+                    }}
+                >
+                    <DataGrid
+                        rows={backofficeData.backofficeData.billing_devices || ''}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                        onCellClick={(params) => setSelectedRow(params.row)}
+                    />
+                </Box>                
+            </>
+        </Box>    
+            <Drawer
+                anchor="right"
+                open={openAdd}
+                onClose={() => setOpenAdd(false)}
+                PaperProps={{
+                sx: { width: { xs: "100vw", sm: 520, md: 680 }, maxWidth: "100vw" },
+                }}
+            >
+                <Box
+                    sx={{mx:5}}
+                >   
+                <Stack
+                    direction='row'
+                    justifyContent='space-between'
+                    sx={{ mb:3 }}
+                >
+                    <Typography
+                        variant="h5"
+                        fontWeight="bold"
+                        >
+                        {t('backoffice.billing_devices.add_new_title')}
+                    </Typography>
+                    <Button onClick={()=>setOpenAdd(false)}>{t('backoffice.billing_devices.close')}</Button>
+                </Stack>
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.name')}
+                        placeholder={t('backoffice.billing_devices.name')}
+                        required
+                        value={newData.name || ""}
+                        onChange={handleChange}
+                        name="name"
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.mark')}
+                        placeholder={t('backoffice.billing_devices.mark')}
+                        required
+                        value={newData.mark || ""}
+                        onChange={handleChange}
+                        name="mark"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.fiscal_mark')}
+                        placeholder={t('backoffice.billing_devices.fiscal_mark')}
+                        
+                        value={newData.fiscal_mark || ""}
+                        onChange={handleChange}
+                        name="fiscal_mark"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.type')}
+                        placeholder={t('backoffice.billing_devices.type')}
+                        select
+                        required
+                        value={newData.type || ""}
+                        onChange={handleChange}
+                        name="type"
+                        sx={{ mt: 1 }}
+                    >
+                        <MenuItem value="pc">PC blagajna</MenuItem>
+                        <MenuItem value="mobile">Mobilna blagajna</MenuItem>
+                        <MenuItem value="web">Web prodaja</MenuItem>
+                    </TextField>
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.cost_center')}
+                        placeholder={t('backoffice.billing_devices.cost_center')}
+                        value={newData.cost_center || ""}
+                        onChange={handleChange}
+                        name="cost_center"
+                        sx={{ mt: 1 }}
+                    />
+                    {(newData.type === 'pc' || newData.type === 'mobile') && (
+                        <>
+                            <TextField
+                                type="text"
+                                variant="outlined"
+                                fullWidth
+                                label={t('backoffice.billing_devices.tid')}
+                                placeholder={t('backoffice.billing_devices.tid')}
+                                required
+                                value={newData.tid || ""}
+                                onChange={handleChange}
+                                name="tid"
+                                sx={{ mt: 1 }}
+                            />
+                            <TextField
+                                type="text"
+                                variant="outlined"
+                                fullWidth
+                                label={t('backoffice.billing_devices.otp')}
+                                placeholder={t('backoffice.billing_devices.otp')}
+                                required
+                                value={newData.otp || ""}
+                                onChange={handleChange}
+                                name="otp"
+                                sx={{ mt: 1 }}
+                            />
+                        </>
+                    )}
+                    {newData.type === 'mobile' && (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Auto-validacija"
+                            select
+                            required
+                            value={
+                                newData.auto_validate === true || newData.auto_validate === 'true'
+                                    ? 'true' : 'false'
+                            }
+                            onChange={handleChange}
+                            name="auto_validate"
+                            sx={{ mt: 1 }}
+                        >
+                            <MenuItem value="false">Ne (karta se ručno validira na ulazu)</MenuItem>
+                            <MenuItem value="true">Da (karta se automatski validira pri prodaji)</MenuItem>
+                        </TextField>
+                    )}
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.description')}
+                        placeholder={t('backoffice.billing_devices.description')}
+                        value={newData.description || ""}
+                        onChange={handleChange}
+                        name="description"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.business_premises')}
+                        placeholder={t('backoffice.billing_devices.business_premises')}
+                        select
+                        required
+                        value={newData.business_premises || ""}
+                        onChange={handleChange}
+                        name="business_premises"
+                        sx={{
+                            mt:1
+                        }}
+                        >
+                        {backofficeData.backofficeData.business_premises.map((bp)=>(
+                            <MenuItem key={bp.id} value={bp}>{bp.name}</MenuItem>
+                        ))}
+                    </TextField>
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.is_active')}
+                        placeholder={t('backoffice.billing_devices.is_active')}
+                        select
+                        value={newData.is_active || ""}
+                        onChange={handleChange}
+                        name="is_active"
+                        sx={{
+                            mt:1
+                        }}
+                        >
+                        <MenuItem value='true'>{t('backoffice.billing_devices.is_active_yes')}</MenuItem>
+                        <MenuItem value='false'>{t('backoffice.billing_devices.is_active_no')}</MenuItem>
+                    </TextField>
+                    <Button
+                        type="submit"
+                        
+                        onClick={handleSubmit}
+                        disabled={
+                            !newData.name 
+                            || !newData.fiscal_mark
+                            || !newData.tid
+                            || !newData.otp
+                            || !newData.type
+                            || !newData.business_premises
+                        }
+                        sx={{ height: 60, mt: 2, width: "100%" }}
+                        variant="contained"
+                        >
+                            {t('backoffice.billing_devices.add_button')}
+                    </Button>
+                </Box>
+            </Drawer>
+            <Drawer
+                anchor="right"
+                open={selectedRow}
+                onClose={() => setSelectedRow(null)}
+                PaperProps={{
+                sx: { width: { xs: "100vw", sm: 520, md: 680 }, maxWidth: "100vw" },
+                }}
+            >
+                <Box
+                    sx={{mx:5}}
+                >
+                <Stack
+                    direction='row'
+                    justifyContent='space-between'
+                    sx={{ mb:3 }}
+                    >
+                    <Typography
+                        variant="h5"
+                        fontWeight="bold"
+                        >
+                            {t('backoffice.billing_devices.edit_title')}
+                    </Typography>
+                    <Button onClick={()=>setSelectedRow(null)}>{t('backoffice.billing_devices.close')}</Button>
+                </Stack>
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.name')}
+                        placeholder={t('backoffice.billing_devices.name')}
+                        required
+                        value={editedData?.name || ""}
+                        onChange={handleChangeEdit}
+                        name="name"
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        disabled
+                        label={t('backoffice.billing_devices.mark')}
+                        placeholder={t('backoffice.billing_devices.mark')}
+                        required
+                        value={editedData?.mark || ""}
+                        name="mark"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        disabled
+                        label={t('backoffice.billing_devices.fiscal_mark')}
+                        placeholder={t('backoffice.billing_devices.fiscal_mark')}
+                        value={editedData?.fiscal_mark || ""}
+                        name="fiscal_mark"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        disabled
+                        label={t('backoffice.billing_devices.cost_center')}
+                        placeholder={t('backoffice.billing_devices.cost_center')}
+                        value={editedData?.cost_center || ""}
+                        name="cost_center"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        disabled
+                        label={t('backoffice.billing_devices.tid')}
+                        placeholder={t('backoffice.billing_devices.tid')}
+                        required
+                        value={editedData?.tid || ""}
+                        name="tid"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.otp')}
+                        placeholder={t('backoffice.billing_devices.otp')}
+                        required
+                        value={editedData?.otp || ""}
+                        onChange={handleChangeEdit}
+                        name="otp"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.description')}
+                        placeholder={t('backoffice.billing_devices.description')}
+                        value={editedData?.description || ""}
+                        onChange={handleChangeEdit}
+                        name="description"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        disabled
+                        label={t('backoffice.billing_devices.type')}
+                        placeholder={t('backoffice.billing_devices.type')}
+                        required
+                        value={editedData?.type || ""}
+                        name="type"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.auto_validate')}
+                        placeholder={t('backoffice.billing_devices.auto_validate')}
+                        select
+                        required
+                        value={editedData?.auto_validate || ""}
+                        onChange={handleChangeEdit}
+                        name="auto_validate"
+                        sx={{
+                            mt:1
+                        }}
+                        >
+                        <MenuItem value='true'>{t('backoffice.billing_devices.auto_validate_yes')}</MenuItem>
+                        <MenuItem value='false'>{t('backoffice.billing_devices.auto_validate_no')}</MenuItem>
+                    </TextField>
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        disabled
+                        label={t('backoffice.billing_devices.business_premises')}
+                        placeholder={t('backoffice.billing_devices.business_premises')}
+                        required
+                        value={editedData?.business_premises || ""}
+                        name="business_premises"
+                        sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.billing_devices.is_active')}
+                        placeholder={t('backoffice.billing_devices.is_active')}
+                        select
+                        value={editedData?.is_active || ""}
+                        onChange={handleChangeEdit}
+                        name="is_active"
+                        sx={{
+                            mt:1
+                        }}
+                        >
+                        <MenuItem value='true'>{t('backoffice.billing_devices.is_active_yes')}</MenuItem>
+                        <MenuItem value='false'>{t('backoffice.billing_devices.is_active_no')}</MenuItem>
+                    </TextField>
+                    <Typography textAlign='center' sx={{my:2}}>Sredstva plaćanja</Typography>
+                    <Stack
+                        direction='row'
+                        alignItems="center"
+                        sx={{
+                            mt:2,
+                            overflowX: "auto"
+                        }}
+                        justifyContent='center'
+                    >
+                        <Grid sx={{minWidth:200}}>{customList(left)}</Grid>
+                        <Stack
+                            direction='column'
+                            sx={{
+                                mx:2,
+                                minWidth:60
+                            }}
+                        >
+
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleAllRight}
+                                disabled={left.length === 0}
+                                aria-label="move all right"
+                                >
+                                ≫
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5}}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleCheckedRight}
+                                disabled={leftChecked.length === 0}
+                                aria-label="move selected right"
+                                >
+                                &gt;
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleCheckedLeft}
+                                disabled={rightChecked.length === 0}
+                                aria-label="move selected left"
+                                >
+                                &lt;
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleAllLeft}
+                                disabled={right.length === 0}
+                                aria-label="move all left"
+                                >
+                                ≪
+                            </Button>
+                        </Stack>
+                        <Grid sx={{minWidth:200}}>{customList(right)}</Grid>
+                    </Stack>
+                    <Typography textAlign='center' sx={{my:2}}>Operateri</Typography>
+                    <Stack
+                        direction='row'
+                        alignItems="center"
+                        sx={{
+                            mt:2,
+                            overflowX: "auto"
+                        }}
+                        justifyContent='center'
+                    >
+                        <Grid sx={{minWidth:200}}>{customListOP(leftOP)}</Grid>
+                        <Stack
+                            direction='column'
+                            sx={{
+                                mx:2,
+                                minWidth:60
+                            }}
+                        >
+
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleAllRightOP}
+                                disabled={leftOP.length === 0}
+                                aria-label="move all right"
+                                >
+                                ≫
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5}}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleCheckedRightOP}
+                                disabled={leftCheckedOP.length === 0}
+                                aria-label="move selected right"
+                                >
+                                &gt;
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleCheckedLeftOP}
+                                disabled={rightCheckedOP.length === 0}
+                                aria-label="move selected left"
+                                >
+                                &lt;
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleAllLeftOP}
+                                disabled={rightOP.length === 0}
+                                aria-label="move all left"
+                                >
+                                ≪
+                            </Button>
+                        </Stack>
+                        <Grid sx={{minWidth:200}}>{customListOP(rightOP)}</Grid>
+                    </Stack>
+                    <Button
+                        type="submit"
+                        onClick={handleSubmitEdit}
+                        sx={{ height: 60, mt: 2, mb:2, width: "100%" }}
+                        variant="contained"
+                        >
+                            {t('backoffice.billing_devices.edit_button')}
+                    </Button>
+                </Box>   
+            </Drawer>
+            <Stack sx={{width:'96%', ml:1}} alignItems='flex-start'>
+                <Button onClick={()=>setOpenAdd(true)}>
+                    {t('backoffice.billing_devices.add_terminal')}
+                </Button>
+            </Stack>
+        </>    
+    )
+}

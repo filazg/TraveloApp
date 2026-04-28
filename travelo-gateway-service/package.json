@@ -1,0 +1,22 @@
+{
+  "name": "travelo-gateway-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "startService": "nodemon travelo-gateway_service.js"
+  },
+  "keywords": [],
+  "author": "t4b_dev_team",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

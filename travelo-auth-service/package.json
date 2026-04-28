@@ -1,0 +1,28 @@
+{
+  "name": "travelo-auth-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "startService": "nodemon travelo_auth_service.js"
+  },
+  "keywords": [],
+  "author": "t4b_dev_team",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "amqplib": "^0.10.9",
+    "axios": "^1.13.2",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.17.2",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

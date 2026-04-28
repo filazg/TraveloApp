@@ -1,0 +1,65 @@
+{
+    "auth_service": {
+        "service":"auth-service-db",
+        "db_name":"travelo-auth-db",
+        "db_username":"doadmin",
+        "db_pass":"",
+        "db_port":25060,
+        "db_host":"kl-t4b-test-db-cluster-do-user-14047342-0.b.db.ondigitalocean.com"
+    },
+    "backoffice_service": {
+        "service":"backoffice-service-db",
+        "db_name":"travelo-backoffice-db",
+        "db_username":"doadmin",
+        "db_pass":"",
+        "db_port":25060,
+        "db_host":"kl-t4b-test-db-cluster-do-user-14047342-0.b.db.ondigitalocean.com"
+    },
+    "boat_service": {
+        "service":"boat-service-db",
+        "db_name":"travelo-boat-db",
+        "db_username":"doadmin",
+        "db_pass":"",
+        "db_port":25060,
+        "db_host":"kl-t4b-test-db-cluster-do-user-14047342-0.b.db.ondigitalocean.com"
+    },
+    "transactions_service": {
+        "service":"transactions-service-db",
+        "db_name":"travelo-transactions-db",
+        "db_username":"doadmin",
+        "db_pass":"",
+        "db_port":25060,
+        "db_host":"kl-t4b-test-db-cluster-do-user-14047342-0.b.db.ondigitalocean.com"
+    },
+    "sales_service": {
+        "service":"sales-service-db",
+        "db_name":"travelo-sales-db",
+        "db_username":"doadmin",
+        "db_pass":"",
+        "db_port":25060,
+        "db_host":"kl-t4b-test-db-cluster-do-user-14047342-0.b.db.ondigitalocean.com"
+    },
+    "booking_service": {
+        "service":"booking-service-db",
+        "db_name":"travelo-booking-db",
+        "db_username":"doadmin",
+        "db_pass":"",
+        "db_port":25060,
+        "db_host":"kl-t4b-test-db-cluster-do-user-14047342-0.b.db.ondigitalocean.com"
+    },
+    "web_sales_service": {
+        "service":"web-sales-service-db",
+        "db_name":"travelo-web-sales-db",
+        "db_username":"doadmin",
+        "db_pass":"",
+        "db_port":25060,
+        "db_host":"kl-t4b-test-db-cluster-do-user-14047342-0.b.db.ondigitalocean.com"
+    },
+    "fiscalization_service": {
+        "service":"",
+        "db_name":"",
+        "db_username":"",
+        "db_pass":"",
+        "db_host":""
+    }
+}

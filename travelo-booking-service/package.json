@@ -1,0 +1,23 @@
+{
+  "name": "travelo-booking-service",
+  "version": "1.0.0",
+  "main": "travelo_booking_service.js",
+  "scripts": {
+    "startService": "nodemon travelo_booking_service"
+  },
+  "author": "t4b_dev_team",
+  "license": "ISC",
+  "description": "Capacity + booking service: tracks real-time occupancy per voyage leg and category",
+  "dependencies": {
+    "axios": "^1.13.5",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "pg": "^8.18.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

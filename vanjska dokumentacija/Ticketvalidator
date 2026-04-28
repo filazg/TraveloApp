@@ -1,0 +1,295 @@
+import {ScrollView, StyleSheet, TouchableOpacity, View} from 'react-native';
+import {Button, Text} from 'react-native-paper';
+import {useDispatch, useSelector} from 'react-redux';
+import {
+  appSelectedData,
+  appSettingsData,
+  appValidationData,
+  postTerminalThunk,
+  setStatesData,
+  setVailidateData,
+} from '../controllers/mobileTerminalSlice';
+import {useEffect, useState} from 'react';
+
+import SoundPlayer from 'react-native-sound-player'
+
+const TicketValidatorView = () => {
+  const dispatch = useDispatch();
+  const validateData = useSelector(appValidationData);
+  const settingsData = useSelector(appSettingsData);
+  const selectedData = useSelector(appSelectedData)
+  const ticketsData = validateData.ticketData.related_tickets;
+  const ticketData = validateData.ticketData.ticket;
+  const validationStatus = validateData.validationStatus;
+  
+  const handleBack = async () => {
+    dispatch(setStatesData({path: 'viewToShow', value: 'SCANER'}));
+    dispatch(
+      setVailidateData({
+        path: 'validationStatus',
+        value: {validate_status: 'NONE'},
+      }),
+    );
+  };
+
+
+  const handleValidateSingle = async () => {
+    console.log('VALIODIRAMO SINGLE')
+    let ticketsData = []
+    const data = selectedData.checked_tickets_data.ticket
+    ticketsData = [...ticketsData, data]
+    //const parsedData = data.split(';');
+    const dataToSend = {
+      //ticket_uuid: parsedData[0],
+      tickets_data:ticketsData,
+      action:'VALIDATE'
+    };
+    await dispatch(
+      postTerminalThunk({
+        path: 'terminal/terminal/validator_validate_ticket',
+        value: dataToSend,
+      }))
+    handleBack()
+  };
+
+
+  const handleValidateAll = async()=>{
+    const ticketsData = selectedData.checked_tickets_data.related_tickets
+    const dataToSend = {
+      tickets_data:ticketsData,
+      action:'VALIDATE'
+    }
+    await dispatch(
+      postTerminalThunk({
+        path: 'terminal/terminal/validator_validate_ticket',
+        value: dataToSend,
+      }))
+    handleBack()
+  }
+ 
+
+  const checkTicketVithServer = async(data)=>{
+    const parsedData = data.split(';');
+    const dataToSend = {
+      ticket_uuid: parsedData[0],
+    };
+    await dispatch(
+      postTerminalThunk({
+        path: 'terminal/terminal/validator_check_ticket',
+        value: dataToSend,
+      }))
+    await dispatch(setSelectedData({path:'scaned_data',value:data}))
+    //await dispatch(setStatesData({path: 'viewToShow', value: 'TICKET VALIDATE'}));
+  }
+
+  useEffect(()=>{
+      checkTicketVithServer(selectedData.scaned_data)
+  },[selectedData.scaned_data])
+
+  
+
+
+  
+  const CheckTicket = ()=>{
+    let ticketScanedData = {} 
+    const scan = selectedData.scaned_data;
+    const parsedData = scan.split(';');
+    console.log(selectedData.checked_tickets_data.ticket)
+    console.log(selectedData.tickets_data)
+    console.log(selectedData.selected_sailing)
+    console.log(selectedData.selected_departure_harbor)
+    if(selectedData.checked_tickets_data.ticket.ticket_uuid === parsedData[0]){
+      const selectSailingHarborItem = selectedData.tickets_data.find((dep)=>dep.departure_harbor_id === selectedData.checked_tickets_data.ticket.departure_harbor_id)
+
+      //linija
+      if(selectedData.checked_tickets_data.ticket.line_code != selectedData.selected_sailing.line_code){
+        return (
+          <>
+            <View style={{height:'85%', backgroundColor:'red', borderWidth:2, justifyContent:'center',alignItems:'center'}}>
+              <Text style={{fontSize:30, fontWeight:'bold'}}>NEODGOVARAJUCA LINIJ</Text>
+            </View>
+          </>
+          )
+      }
+      else if(!selectSailingHarborItem){
+        //luka se nalazi na ruti
+        return (
+          <>
+            <View style={{height:'85%', backgroundColor:'red', borderWidth:2, justifyContent:'center',alignItems:'center'}}>
+              <Text style={{fontSize:30, fontWeight:'bold'}}>POLAZNA LUKA NIJE NA PUTOVANJU</Text>
+            </View>
+          </>
+          )
+      }
+      else if(selectedData.checked_tickets_data.ticket.departure_harbor_id != selectedData.selected_departure_harbor.departure_harbor_id){
+        return (
+          <>
+            <View style={{height:'85%', backgroundColor:'red', borderWidth:2, justifyContent:'center',alignItems:'center'}}>
+              <Text style={{fontSize:30, fontWeight:'bold'}}>UKURCAJ NA KRIVOJ LUCI</Text>
+            </View>
+          </>
+          )
+      }
+      else if(selectSailingHarborItem.departure != selectedData.checked_tickets_data.ticket.departure){
+        //vrijeme polaska
+        return (
+          <>
+            <View style={{height:'85%', backgroundColor:'red', borderWidth:2, justifyContent:'center',alignItems:'center'}}>
+              <Text style={{fontSize:30, fontWeight:'bold'}}>VRIJEME POLASKA NE ODGOVARA</Text>
+            </View>
+          </>
+          )
+      }
+      else if(selectedData.checked_tickets_data.ticket.status != 'ISSUED'){
+        return (
+          <>
+            <View style={{height:'85%'}}>
+            <TouchableOpacity style={{height:'100%', width:'100%', backgroundColor:'red', borderWidth:5,justifyContent:'center',alignItems:'center'}}
+                onPress={handleBack}
+              >
+                <Text style={{fontSize:30, fontWeight:'bold'}}>KARTA NIJE VALJANA</Text>
+
+              </TouchableOpacity>
+              
+             
+            </View>
+          </>
+          )
+      }
+      else if(selectedData.checked_tickets_data.related_tickets.length > 0){
+        return (
+          <>
+            <View style={{height:'85%', justifyContent:'flex-start',alignItems:'center'}}>
+              <View style={{height:'65%', width:'100%',  marginTop:10, justifyContent:'flex-start',alignItems:'center'}}>
+              <ScrollView style={{height:'65%', width:'100%', marginLeft:20}}>
+              {selectedData.checked_tickets_data.related_tickets.map((ticket)=>(
+                 <TouchableOpacity
+                  key={ticket.id}
+                  style={{width:'90%',marginBottom:2, height:85, backgroundColor:ticket.status !='ISSUED' ? 'red' :'grey'}}
+                 >
+                    <Text style={{marginLeft:3, fontSize:20, fontWeight:'bold'}}>{ticket.ticket_type_name}</Text>
+                    <Text style={{marginLeft:3, fontSize:20, }}>kod karte:</Text>
+                    <Text style={{fontSize:20, fontWeight:'bold', textAlign:'center'}}>{ticket.ticket_code}</Text>
+
+                 </TouchableOpacity>
+              ))}
+              </ScrollView>
+            </View>
+            <View style={{flexDirection: 'row', height:'35%', width:'100%', justifyContent:'space-around',alignItems:'center'}}>
+              
+              <TouchableOpacity 
+                style={{height:'80%',width:'45%', backgroundColor:'#EFBA3E',justifyContent:'center',alignItems:'center'}}
+                onPress={handleValidateAll}
+                >
+                <Text style={{fontSize:20, fontWeight:'bold'}}>VALIDIRAJ SVE</Text>
+                <Text style={{fontSize:20, fontWeight:'bold'}}>KARTE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{height:'80%',width:'45%', backgroundColor:'green',justifyContent:'center',alignItems:'center'}}
+                onPress={handleValidateSingle}
+                >
+                <Text style={{fontSize:20, fontWeight:'bold'}}>VALIDIRAJ</Text>
+                <Text style={{fontSize:20, fontWeight:'bold'}}>SAMO KARTU</Text>
+                <Text style={{fontSize:25, fontWeight:'bold', marginTop:20}}>{selectedData.checked_tickets_data.ticket.ticket_code}</Text>
+              </TouchableOpacity>
+              
+            </View>
+            </View>
+          </>
+          )
+      }
+      else if(selectedData.checked_tickets_data.related_tickets.length < 1){
+        //handleValidateSingle()
+        SoundPlayer.playAsset(require('../assets/soundok.mp3'))
+        return (
+          <>
+            <View style={{height:'85%'}}>
+            <TouchableOpacity style={{height:'100%', width:'100%', backgroundColor:'green', borderWidth:5,justifyContent:'center',alignItems:'center'}}
+                onPress={handleValidateSingle}
+              >
+              <Text style={{fontSize:30, fontWeight:'bold'}}>{selectedData.checked_tickets_data.ticket.ticket_type_name}</Text>
+              <Text style={{fontSize:30, fontWeight:'bold'}}>KARTA JE VALJANA</Text>
+              <Text style={{fontSize:30, fontWeight:'bold'}}>PRITISNI ZA VALIDACIJU</Text>
+
+              </TouchableOpacity>
+            </View>
+          </>
+          )
+      }
+      else{
+        return (
+          <>
+            <View style={{height:'85%', backgroundColor:'green', borderWidth:2, justifyContent:'center',alignItems:'center'}}>
+              <TouchableOpacity style={{height:'100%', width:'100%', borderWidth:5}}
+                onPress={handleBack}
+              >
+
+              </TouchableOpacity>
+              <Text style={{fontSize:30, fontWeight:'bold'}}>nemam pojma kaj se dogada</Text>
+            </View>
+          </>
+          )
+      }
+
+    
+    }else{
+      //const routeForTicket = selectedData.tickets_data.find((route)=> route.departure_harbor_id === selectedData.selected_sailing.)
+      console.log('ili smo tu smo')
+    
+    }
+  }
+
+
+  return (
+    <>
+      <View style={{height: '100%', justifyContent: 'flex-start', borderWidth:2}}>
+        <TouchableOpacity
+          style={{...styles.button, height: 60, backgroundColor:'red'}}
+          onPress={handleBack}
+        >
+          <Text style={styles.text}>POVRATAK</Text>
+        </TouchableOpacity>
+
+        <CheckTicket/>
+      </View>
+
+    
+       
+    
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    marginTop: 15,
+    backgroundColor: '#DDDDDD',
+    justifyContent: 'center',
+  },
+  viewBox: {
+    backgroundColor: '#EFBA3E',
+    height: 80,
+    marginBottom: 5,
+  },
+  viewResult: {
+    flex: 1,
+    backgroundColor: 'red',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  button: {
+    marginBottom: 10,
+    height: 75,
+    backgroundColor: '#EFBA3E',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+  },
+  text: {
+    marginBottom: 10,
+    alignSelf: 'center',
+    fontSize: 20,
+  },
+});
+
+export default TicketValidatorView;

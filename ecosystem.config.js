@@ -1,0 +1,68 @@
+// PM2 ecosystem for TraveloApp
+// Usage:
+//   pm2 start ecosystem.config.js                  # starts everything
+//   pm2 start ecosystem.config.js --only travelo-control-service
+//   pm2 logs <name>
+//   pm2 restart <name> | pm2 stop <name> | pm2 delete all
+//
+// Startup order note:
+//   travelo-control-service (port 5000) must be up first — every other
+//   service fetches its config from it at boot. Use the start-all.bat /
+//   start-all.sh helpers which start control-service, wait, then the rest.
+//
+// Excluded: travelo-boat-desk — Electron desktop app, not meant to run as a
+// headless background process under PM2.
+
+const node = (name, entry) => ({
+  name,
+  cwd: `./${name}`,
+  script: entry,
+  instances: 1,
+  autorestart: true,
+  restart_delay: 3000,
+  max_restarts: 20,
+  watch: false,
+  env: { NODE_ENV: 'development' },
+});
+
+const vite = (name, port) => ({
+  name,
+  cwd: `./${name}`,
+  script: './node_modules/vite/bin/vite.js',
+  args: `--host --port ${port}`,
+  instances: 1,
+  autorestart: true,
+  restart_delay: 3000,
+  max_restarts: 20,
+  watch: false,
+  env: { NODE_ENV: 'development' },
+});
+
+module.exports = {
+  apps: [
+    // Config hub — must be first
+    node('travelo-control-service', 'travelo_control_service.js'),
+
+    // Core backend services
+    node('travelo-auth-service', 'travelo_auth_service.js'),
+    node('travelo-backoffice-service', 'travelo_backoffice_service.js'),
+    node('travelo-boat-service', 'travelo_boat_service.js'),
+    node('travelo-gateway-service', 'travelo-gateway_service.js'),
+    node('travelo-sales-service', 'travelo_sales_service.js'),
+    node('travelo-transactions-service', 'travelo_transactions_service.js'),
+    node('travelo-booking-service', 'travelo_booking_service.js'),
+
+    // Channel services
+    node('travelo-channel-api-service', 'travelo-channel-api-service.js'),
+    node('travelo-channel-terminals-service', 'travelo-channel-terminals-services.js'),
+
+    // Web-facing backends
+    node('travelo-web-sales-service', 'travelo_web_sales_service.js'),
+    node('travelo-web_portal-service', 'travelo-web_portal-service.js'),
+
+    // Frontends (Vite dev servers)
+    vite('travelo-portal', 5180),
+    vite('travelo-web-sales', 5181),
+    vite('travelo-partner-sales', 5183),
+  ],
+};

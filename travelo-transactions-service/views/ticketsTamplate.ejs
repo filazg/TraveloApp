@@ -1,0 +1,149 @@
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd" html>
+
+<html lang="en">
+  <head>
+    <title>Krilo karte</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+      integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.4/dist/JsBarcode.all.min.js"></script>
+    <style>
+      body {
+        width: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      h1 {
+        font-size: 40px;
+      }
+
+      h2 {
+        font-size: 30px;
+      }
+      h3 {
+        font-size: 16px;
+      }
+      b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 16px;
+        font-weight: bold;
+      }
+      h4 {
+        margin: 0 0 0 5px;
+        font-size: 12px;
+        line-height: 1.25;
+      }
+      /* Tighter spacing at the bottom of each ticket */
+      tbody tr:last-child td {
+        padding-bottom: 0;
+      }
+      table { margin-bottom: 0; }
+
+      p {
+        font-size: 14px;
+      }
+      .flex-container {
+        display: flex;
+        direction: row;
+        justify-content: right;
+        height: 25%;
+        width: 100%;
+        border-radius: 6px;
+      }
+      .flex-container div {
+        width: 100px;
+        text-align: center;
+        line-height: 75px;
+        font-size: 30px;
+      }
+      table {
+        width: 100%;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      table, th, td {
+        border: none;
+      }
+      .table td {
+        font-size: 14px;
+      }
+      .alignR {
+        text-align: right;
+      }
+      .border-bottom {
+        background-color: #eeeeee;
+        border-bottom-style: dashed;
+        border-bottom-width: 7px;
+      }
+      .logo{
+        height: 150px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <%ticketsData.forEach(ti =>{%>
+      <table class="table">
+        <tbody>
+          <tr class="border-bottom">
+            <td colspan="4" width="80%">KAPETAN LUKA - KRILO</td>
+            <td colspan="1" width="20%">
+              <h4 class="alignR">
+                <%=ti.ticket_code%>
+              </h4>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="1" width=" 20%">Departure/Polazak</td>
+            <td colspan="3" width=" 60%"><b><%=ti.departure%> -- <%=ti.departure_harbor_name%></b></td>
+            <td colspan="1" width="20%" rowspan="4" class="alignR">
+              <img
+                src="<%=ti.qr_data_url%>"
+                width="150" height="150"
+                />
+            </td>
+          </tr>
+          <tr>
+            <td colspan="1" width=" 20%">Arrival/Dolazak</td>
+            <td colspan="3" width=" 60%"><h3><%=ti.arrival%> -- <%=ti.arrival_harbor_name%></h3></td>
+          </tr>
+          <tr>
+            <td colspan="1" width=" 20%">Ticket/Karta</td>
+            <td colspan="3" width=" 60%">
+              <h3>
+                <%= ti.ticket_type_name %><% if (ti.is_island && ti.seop_card_no) { %> &mdash; <strong><%= ti.seop_card_no %></strong><% } %>
+              </h3>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="1" width="20%">Line/Linija:</td>
+            <td colspan="2" width=" 40%"><h3><%=ti.line_name%></h3></td>
+
+          </tr>
+          <tr>
+            <td colspan="5" width="100%">
+              <h4>
+                Dozvoljena osobna prtljaga do 23kg / Maximum luggage weight up to 23kg<br/>
+                Dužni ste predočiti kartu s kodom prilikom ukrcaja / You are obligated to present the code printed on the ticket while boarding
+              </h4>
+
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+   <%})%>
+  </body>
+</html>

@@ -1,0 +1,81 @@
+# ======================
+# Node / npm
+# ======================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ======================
+# Build output
+# ======================
+dist/
+out/
+build/
+release/
+*.exe
+*.dmg
+*.msi
+*.AppImage
+*.blockmap
+
+# ======================
+# Electron
+# ======================
+*.asar
+electron-builder.yml
+builder-effective-config.yaml
+
+# ======================
+# Vite / React
+# ======================
+renderer/dist/
+renderer/.vite/
+renderer/node_modules/
+
+# ======================
+# Environment variables
+# ======================
+.env
+.env.*
+!.env.example
+
+# ======================
+# SQLite / DB
+# ======================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# ======================
+# Logs
+# ======================
+logs/
+*.log
+
+# ======================
+# OS / IDE
+# ======================
+.DS_Store
+Thumbs.db
+
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+.idea/
+
+# ======================
+# Cache / temp
+# ======================
+.cache/
+.tmp/
+temp/
+coverage/
+
+# ======================
+# Electron native rebuilds
+# ======================
+.node-gyp/

@@ -1,0 +1,226 @@
+const crypto = require("crypto");
+const axios = require("axios");
+const { Op } = require("sequelize");
+const { getCoreServiceConfigData } = require("../configSyncController");
+const { releaseBookings } = require("../../helpers/bookingClient");
+
+// Match legacy split: port tax 6%, VAT 25% on the rest.
+const HARBOR_RATE = 0.06;
+const VAT_RATE = 0.25;
+const splitAmount = (amount) => {
+    const port = +(amount * HARBOR_RATE).toFixed(2);
+    const net = amount - port;
+    const base = +(net / (1 + VAT_RATE)).toFixed(2);
+    const vat = +(net - base).toFixed(2);
+    return { port, base, vat };
+};
+
+// HR fisk: broj računa mora biti kontinuirani unutar (uređaj × godina).
+const nextInvoiceNo = async (InvoiceModel, year, billingDeviceUuid) => {
+    const max = await InvoiceModel.max("invoice_no", {
+        where: { invoice_year: year, invoice_billing_device_uuid: billingDeviceUuid },
+    });
+    return Number.isFinite(max) ? max + 1 : 1;
+};
+
+const nextInvoiceFiskalNo = async (InvoiceModel, year, billingDeviceUuid) => {
+    const max = await InvoiceModel.max("invoice_fiskal_no", {
+        where: { invoice_year: year, invoice_billing_device_uuid: billingDeviceUuid },
+    });
+    return Number.isFinite(max) ? max + 1 : 1;
+};
+
+const loadStornoContext = async (terminalUuid) => {
+    const coreConfig = await getCoreServiceConfigData();
+    const backofficeUrl = coreConfig?.services?.backoffice?.url;
+    if (!backofficeUrl) throw new Error("backoffice URL missing in core config");
+
+    const [companyResp, bpResp, bdResp] = await Promise.all([
+        axios.get(`${backofficeUrl}/company`, { timeout: 5000, validateStatus: () => true }),
+        axios.get(`${backofficeUrl}/business_premises`, { timeout: 5000, validateStatus: () => true }),
+        axios.get(`${backofficeUrl}/billing_devices`, { timeout: 5000, validateStatus: () => true }),
+    ]);
+
+    const company = companyResp.data?.data?.company || {};
+    const bps = bpResp.data?.data?.business_premises || [];
+    const bds = bdResp.data?.data?.billing_devices || [];
+    const bd = bds.find((x) => x.uuid === terminalUuid);
+    if (!bd) throw new Error(`billing device ${terminalUuid} not found`);
+    const bp = bps.find((x) => x.uuid === bd.business_premise_uuid) || {};
+    return { company, businessPremise: bp, billingDevice: bd };
+};
+
+const cancelTicketsController = async (req, res) => {
+    const models = req.app.locals.models;
+    const { TicketsModel, InvoiceModel, InvoiceItemsModel, InvoiceItemDetailsModel } = models;
+    try {
+        const { ticket_uuids, terminal_uuid, payment_method_uuid, percentage } = req.body || {};
+
+        if (!Array.isArray(ticket_uuids) || !ticket_uuids.length) {
+            return res.status(400).json({ status: 400, data: { message: "ticket_uuids required" } });
+        }
+        if (!terminal_uuid) {
+            return res.status(400).json({ status: 400, data: { message: "terminal_uuid required" } });
+        }
+        if (!payment_method_uuid) {
+            return res.status(400).json({ status: 400, data: { message: "payment_method_uuid required" } });
+        }
+        const pct = Math.max(0, Math.min(100, parseFloat(percentage) || 0));
+        if (pct <= 0) {
+            return res.status(400).json({ status: 400, data: { message: "percentage must be > 0" } });
+        }
+
+        const tickets = await TicketsModel.findAll({ where: { ticket_uuid: { [Op.in]: ticket_uuids } } });
+        if (tickets.length !== ticket_uuids.length) {
+            return res.status(404).json({
+                status: 404,
+                data: { message: `only ${tickets.length}/${ticket_uuids.length} tickets found` },
+            });
+        }
+        const alreadyCanceled = tickets.filter((t) => t.is_canceled === true || t.status === "canceled");
+        if (alreadyCanceled.length) {
+            return res.status(409).json({
+                status: 409,
+                data: {
+                    message: "some tickets already canceled",
+                    canceled_ticket_codes: alreadyCanceled.map((t) => t.ticket_code),
+                },
+            });
+        }
+
+        const { company, businessPremise: bp, billingDevice: bd } = await loadStornoContext(terminal_uuid);
+        const pmList = bd.payment || bd.payment_methods || [];
+        const pm = pmList.find((x) => x.uuid === payment_method_uuid);
+        if (!pm) {
+            return res.status(400).json({
+                status: 400,
+                data: { message: "payment method does not belong to selected terminal" },
+            });
+        }
+
+        const invoice_uuid = crypto.randomUUID();
+        const invoiceDate = new Date();
+        const invoice_year = invoiceDate.getFullYear();
+        const invoice_no = await nextInvoiceNo(InvoiceModel, invoice_year, bd.uuid);
+        const invoice_fiskal_no = await nextInvoiceFiskalNo(InvoiceModel, invoice_year, bd.uuid);
+
+        let total_amount = 0;
+        let total_vat_base = 0;
+        let total_vat = 0;
+        let total_harbor_tax = 0;
+
+        const invoiceItemsToAdd = [];
+        const invoiceItemDetailsToAdd = [];
+
+        // One invoice_item per ticket (refund line). Amount is negative = refund.
+        for (const t of tickets) {
+            const refundPos = +(Number(t.single_price || 0) * (pct / 100)).toFixed(2);
+            const refund = -refundPos;
+            const { port, base, vat } = splitAmount(refund);
+
+            total_amount += refund;
+            total_vat_base += base;
+            total_vat += vat;
+            total_harbor_tax += port;
+
+            const itemUuid = crypto.randomUUID();
+            invoiceItemsToAdd.push({
+                item_uuid: itemUuid,
+                invoice_uuid,
+                route_uuid: t.route_uuid || "",
+                line_code: t.line_code || "",
+                line_name: t.line_name || "",
+                departure: t.departure || "",
+                departure_harbor_id: t.departure_harbor_id || "",
+                departure_harbor_name: t.departure_harbor_name || "",
+                arrival: t.arrival || "",
+                arrival_harbor_id: t.arrival_harbor_id || "",
+                arrival_harbor_name: t.arrival_harbor_name || "",
+                item_amount: refund,
+                item_vat_base: base,
+                item_vat: vat,
+                item_harbor_fee: port,
+            });
+            invoiceItemDetailsToAdd.push({
+                item_details_uuid: crypto.randomUUID(),
+                item_uuid: itemUuid,
+                ticket_type_name: t.ticket_type_name || "",
+                ticket_type_uuid: t.ticket_type_uuid || "",
+                quantity: 1,
+                single_price: refund,
+                item_amount: refund,
+                item_vat_base: base,
+                item_vat: vat,
+                item_harbor_fee: port,
+            });
+        }
+
+        total_amount = +total_amount.toFixed(2);
+        total_vat_base = +total_vat_base.toFixed(2);
+        total_vat = +total_vat.toFixed(2);
+        total_harbor_tax = +total_harbor_tax.toFixed(2);
+
+        await InvoiceModel.create({
+            invoice_uuid,
+            invoice_no,
+            invoice_fiskal_no,
+            invoice_code: bp.fiskal_mark && bd.fiscal_mark
+                ? `STORNO ${invoice_fiskal_no}/${bp.fiskal_mark}/${bd.fiscal_mark}`
+                : "STORNO",
+            invoice_year,
+            invoice_date: invoiceDate,
+            invoice_is_pay: true,
+            invoice_payment_method_uuid: pm.uuid,
+            invoice_payment_method_name: pm.name,
+            invoice_payment_method_fiscal_mark: pm.payment_type_acr || null,
+            company_name: company.name || null,
+            company_address: company.address || null,
+            company_postal_code: company.postal_code || null,
+            company_town: company.town || null,
+            company_id: company.legal_id || null,
+            company_vatid: company.vat_id || null,
+            invoice_business_premise_uuid: bp.uuid || null,
+            invoice_business_premise_name: bp.name || null,
+            invoice_business_premise_fiscal_mark: bp.fiskal_mark || null,
+            invoice_billing_device_uuid: bd.uuid || null,
+            invoice_billing_device_fiscal_mark: bd.fiscal_mark || null,
+            invoice_operator_name: "STORNO",
+            invoice_amount: total_amount,
+            invoice_vat_base: total_vat_base,
+            invoice_vat: total_vat,
+            invoice_harbor_tax: total_harbor_tax,
+            invoice_status: "canceled",
+            invoice_canceled: true,
+        });
+        await InvoiceItemsModel.bulkCreate(invoiceItemsToAdd);
+        await InvoiceItemDetailsModel.bulkCreate(invoiceItemDetailsToAdd);
+
+        const ticketIds = tickets.map((t) => t.id);
+        await TicketsModel.update(
+            { is_canceled: true, status: "canceled", deactivate: true, deactivate_data: invoiceDate },
+            { where: { id: ticketIds } }
+        );
+
+        // Release capacity in booking service (per ticket, qty=1 each since ticket rows are singular)
+        const releaseItems = tickets
+            .filter((t) => t.route_uuid && t.ticket_type_uuid)
+            .map((t) => ({ route_uuid: t.route_uuid, ticket_type_uuid: t.ticket_type_uuid, qty: 1 }));
+        if (releaseItems.length) await releaseBookings(releaseItems);
+
+        res.status(200).json({
+            status: 200,
+            data: {
+                invoice_uuid,
+                invoice_no,
+                invoice_year,
+                total_amount,
+                canceled_ticket_uuids: tickets.map((t) => t.ticket_uuid),
+            },
+        });
+    } catch (error) {
+        console.log("cancelTicketsController error:", error?.message || error);
+        res.status(500).json({ status: 500, data: { message: error.message } });
+    }
+};
+
+module.exports = { cancelTicketsController };

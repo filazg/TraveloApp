@@ -1,0 +1,28 @@
+{
+    "tenant": {
+        "oib": "32137068117"
+    },
+    "yescor": {
+        "environment": "demo",
+        "token_url": "https://erp.yescor.hr/app/identity/realms/demo-exchange-provider/protocol/openid-connect/token",
+        "api_url": "https://demo.exchangehub.yescor.hr/api/v1",
+        "client_id": "hr_32137068117_3e970",
+        "client_secret": "dbQtIeFEWRtuJgCIMOThmBUPMNa9jura",
+        "app_secret": "Tech4Beez-31E0B4F5-9789-46DF-94D9-4E52B9DB92FF"
+    },
+    "akd": {
+        "seop": {
+            "environment": "mock",
+            "url_test": "https://seop.akd.hr:9444/PlovKarte.svc",
+            "url_prod": "https://seop.akd.hr:7444/PlovKarte.svc",
+            "wsdl_test": "https://seop.akd.hr:9444/PlovKarte.svc?singleWsdl",
+            "wsdl_prod": "https://seop.akd.hr:7444/PlovKarte.svc?singleWsdl",
+            "brodarev_oib": "",
+            "lozinka": "",
+            "p12_path": "../travelo-akd-service/cert/kapetan-luka.p12",
+            "p12_password": "123456",
+            "akd_ca_cert_path": "",
+            "seop_sign_cert_path": ""
+        }
+    }
+}

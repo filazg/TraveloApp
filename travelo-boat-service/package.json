@@ -1,0 +1,25 @@
+{
+  "name": "travelo-boat-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "startService": "nodemon travelo_boat_service.js"
+  },
+  "keywords": [],
+  "author": "t4b_dev_team",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.13.4",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "pg": "^8.18.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

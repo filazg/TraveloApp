@@ -1,0 +1,247 @@
+const express = require('express');
+const { handleGetCompanyFeature } = require('../features/backoffice/companyHandlers');
+const { handleGetBusinessPremisesFeature, handleAddBusinessPremisesFeature, handleUpdateBusinessPremisesFeature } = require('../features/backoffice/businessPremisesHandlers');
+const { handleGetPaymentMethodsFeature, handleAddPaymentMethodsFeature, handleUpdatePaymentMethodsFeature } = require('../features/backoffice/paymentMethodsHandlers');
+const { handleGetPaymentTypesFeature } = require('../features/backoffice/paymentTypesHandlers');
+const { handleGetUsersFeature, handleAddUsersFeature, handleUpdateUsersFeature } = require('../features/backoffice/usersHandlers');
+const { handleGetBillingDevicesFeature, handleAddBillingDevicesFeature, handleUpdateBillingDevicesFeature } = require('../features/backoffice/billingDevicesHandlers');
+const { handleAddTimetablesFeatures, handleGetTimetablesFeature, handleGetTimetableDetailsFeatures } = require('../features/boat/timetablesHandlers');
+const { handleGetHarborsFeature, handleAddHarborFeature, handleUpdateHarborFeature } = require('../features/boat/harborsHandlers');
+const { handleGetBoatsFeature, handleAddBoatsFeature, handleUpdateBoatsFeature } = require('../features/boat/boatsHandlers');
+const { handleGetLinesFeature, handleAddLinesFeature, handleUpdateLinesFeature } = require('../features/boat/linesHandlers');
+const { handleGetRegionsFeature, handleAddRegionFeature, handleUpdateRegionFeature } = require('../features/boat/regionsHandlers');
+const { handleGetTicketTypesFeature, handleAddTicketTypesFeature, handleUpdateTicketTypesFeature } = require('../features/boat/ticketTypesHandlers');
+const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrFeature } = require('../features/backoffice/partnersHandlers');
+const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
+const { handleGetHolidaysFeature, handleAddHolidaysFeature, handleUpdateHolidaysFeature } = require('../features/backoffice/holidaysHandlers');
+const { handleGetCountriesFeature, handleAddCountryFeature, handleUpdateCountryFeature } = require('../features/backoffice/countriesHandlers');
+const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
+const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
+const { handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
+const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
+const { handleGetHarborTaxReportFeature } = require('../features/transactions/harborTaxReportHandler');
+const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
+const { handleCancelSailingFeature, handleSendSailingMessageFeature } = require('../features/transactions/dispatcherHandler');
+const { handleGetShiftsFeature } = require('../features/transactions/shiftsHandlers');
+const {
+    handleGetCapacityCategoriesFeature,
+    handleAddCapacityCategoryFeature,
+    handleUpdateCapacityCategoryFeature,
+    handleGetBookingsFeature,
+    handleGetTicketTypeMappingsFeature,
+    handleAddTicketTypeMappingFeature,
+    handleUpdateTicketTypeMappingFeature,
+} = require('../features/booking/bookingHandlers');
+const {
+    handleGetSailingsFeature,
+    handleGetSailingDetailsFeature,
+    handleStartSailingFeature,
+    handleUpdateLegStatusFeature,
+    handleCancelHarborArrivalFeature,
+} = require('../features/boat/sailingHandlers');
+const router = express.Router();
+
+//BACKOFFICE ROUTES
+router
+    .route('/backoffice/company')
+    .get(handleGetCompanyFeature)
+
+router
+    .route('/backoffice/business_premises')
+    .get(handleGetBusinessPremisesFeature)
+    .post(handleAddBusinessPremisesFeature)
+    .patch(handleUpdateBusinessPremisesFeature)
+
+router
+    .route('/backoffice/billing_devices')
+    .get(handleGetBillingDevicesFeature)
+    .post(handleAddBillingDevicesFeature)
+    .patch(handleUpdateBillingDevicesFeature)
+
+router
+    .route('/backoffice/payment_methods')
+    .get(handleGetPaymentMethodsFeature)
+    .post(handleAddPaymentMethodsFeature)
+    .patch(handleUpdatePaymentMethodsFeature)
+
+router
+    .route('/backoffice/users')
+    .get(handleGetUsersFeature)
+    .post(handleAddUsersFeature)
+    .patch(handleUpdateUsersFeature)
+
+router
+    .route('/backoffice/payment_types')
+    .get(handleGetPaymentTypesFeature)
+
+router
+    .route('/backoffice/partners')
+    .get(handleGetPartnersFeature)
+    .post(handleAddPartnerFeature)
+    .patch(handleUpdatePartnerrFeature)
+
+router
+    .route('/backoffice/addressbook')
+    .get(handleGetAddressbookFeature)
+    .post(handleAddAddressbookFeature)
+    .patch(handleUpdateAddressbookFeature)
+
+router
+    .route('/backoffice/holidays')
+    .get(handleGetHolidaysFeature)
+    .post(handleAddHolidaysFeature)
+    .patch(handleUpdateHolidaysFeature)
+
+router
+    .route('/backoffice/countries')
+    .get(handleGetCountriesFeature)
+    .post(handleAddCountryFeature)
+    .patch(handleUpdateCountryFeature)
+
+//BOAT ROUTES
+router
+    .route('/boat/boats')
+    .get(handleGetBoatsFeature)
+    .post(handleAddBoatsFeature)
+    .patch(handleUpdateBoatsFeature)
+
+router
+    .route('/boat/harbors')
+    .get(handleGetHarborsFeature)
+    .post(handleAddHarborFeature)
+    .patch(handleUpdateHarborFeature)
+
+router
+    .route('/boat/lines')
+    .get(handleGetLinesFeature)
+    .post(handleAddLinesFeature)
+    .patch(handleUpdateLinesFeature)
+
+router
+    .route('/boat/regions')
+    .get(handleGetRegionsFeature)
+    .post(handleAddRegionFeature)
+    .patch(handleUpdateRegionFeature)
+
+router
+    .route('/boat/tickets_types')
+    .get(handleGetTicketTypesFeature)
+    .post(handleAddTicketTypesFeature)
+    .patch(handleUpdateTicketTypesFeature)
+
+router
+    .route('/boat/timetables')
+    .get(handleGetTimetablesFeature)
+    .post(handleAddTimetablesFeatures)
+
+router
+    .route('/boat/timetable_details')
+    .post(handleGetTimetableDetailsFeatures)
+
+//FINANCE / TRANSACTIONS ROUTES
+router
+    .route('/transactions/invoices')
+    .get(handleGetInvoicesFeature)
+
+router
+    .route('/transactions/invoice_pdf/:invoice_uuid')
+    .get(handleGetInvoicePdfFeature)
+
+router
+    .route('/transactions/invoice/:invoice_uuid')
+    .get(handleGetInvoiceDetailsFeature)
+
+router
+    .route('/transactions/email_invoice_tickets')
+    .post(handleEmailInvoiceTicketsFeature)
+
+router
+    .route('/transactions/management_report')
+    .get(handleGetManagementReportFeature)
+
+router
+    .route('/transactions/partner_invoices')
+    .get(handleGetPartnerInvoicesFeature)
+
+router
+    .route('/transactions/partner_invoice/:partner_invoice_uuid')
+    .get(handleGetPartnerInvoiceDetailsFeature)
+
+router
+    .route('/transactions/tickets_search')
+    .get(handleSearchTicketsFeature)
+
+router
+    .route('/transactions/tickets_pdf/:order_uuid')
+    .get(handleGetTicketsPdfFeature)
+
+router
+    .route('/transactions/cancel_tickets')
+    .post(handleCancelTicketsFeature)
+
+router
+    .route('/transactions/shifts')
+    .get(handleGetShiftsFeature)
+
+router
+    .route('/transactions/harbor_tax_report')
+    .get(handleGetHarborTaxReportFeature)
+
+router
+    .route('/transactions/finalize_terminal_sale')
+    .post(handleFinalizeTerminalSaleFeature)
+
+router
+    .route('/sales/routes')
+    .get(handleGetSalesRoutesFeature)
+
+router
+    .route('/sales/prices')
+    .get(handleGetSalesPricesFeature)
+
+router
+    .route('/dispatcher/cancel_sailing')
+    .post(handleCancelSailingFeature)
+
+router
+    .route('/dispatcher/send_sailing_message')
+    .post(handleSendSailingMessageFeature)
+
+router
+    .route('/booking/capacity_categories')
+    .get(handleGetCapacityCategoriesFeature)
+    .post(handleAddCapacityCategoryFeature)
+    .patch(handleUpdateCapacityCategoryFeature)
+
+router
+    .route('/booking/ticket_type_mappings')
+    .get(handleGetTicketTypeMappingsFeature)
+    .post(handleAddTicketTypeMappingFeature)
+    .patch(handleUpdateTicketTypeMappingFeature)
+
+router
+    .route('/booking/bookings')
+    .get(handleGetBookingsFeature)
+
+//SAILING (Kapetan)
+router
+    .route('/sailing/sailings')
+    .get(handleGetSailingsFeature)
+
+router
+    .route('/sailing/sailings/:uuid')
+    .get(handleGetSailingDetailsFeature)
+
+router
+    .route('/sailing/start')
+    .post(handleStartSailingFeature)
+
+router
+    .route('/sailing/update_leg')
+    .post(handleUpdateLegStatusFeature)
+
+router
+    .route('/sailing/cancel_arrival')
+    .post(handleCancelHarborArrivalFeature)
+
+module.exports = router

@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Local env / secrets
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Build outputs
+dist/
+build/
+.vite/
+
+# Local SQLite (boat-desk)
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+
+# Tooling
+.claude/
+
+# Misc
+old/
+
+# pm2 (in case anyone runs pm2 inside the repo dir)
+.pm2/

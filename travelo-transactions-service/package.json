@@ -1,0 +1,30 @@
+{
+  "name": "travelo-transactions-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "startService": "nodemon travelo_transactions_service"
+  },
+  "author": "t4b_dev_team",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "amqplib": "^0.10.9",
+    "axios": "^1.13.5",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "ejs": "^5.0.2",
+    "express": "^5.2.1",
+    "node-cron": "^4.2.1",
+    "pdfkit": "^0.18.0",
+    "pg": "^8.18.0",
+    "pg-hstore": "^2.3.4",
+    "puppeteer": "^24.42.0",
+    "qrcode": "^1.5.4",
+    "resend": "^6.12.0",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

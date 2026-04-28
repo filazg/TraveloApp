@@ -1,0 +1,76 @@
+const { getCompanyController, getBusinessPremisesController, getBillingDevicesController, getUsersController, getPaymentMethodsController } = require("../controllers/coreServiceControllers/backofficeServiceControllers")
+
+const getTerminalBasicDataHandler = async(data)=>{
+    try {
+        const companyData = await getCompanyController()
+        const businessPremisesData = await getBusinessPremisesController()
+        const billingDevicesData = await getBillingDevicesController()
+        const usersData = await getUsersController()
+        const paymentsData = await getPaymentMethodsController()
+        const terminaData = billingDevicesData.data.billing_devices.find((terminal)=> terminal.uuid === data.header.data.t && terminal.is_active)
+        if(terminaData){
+            let usersForTerminal = []
+            let paymentsForTerminal = []
+            for(const user of terminaData.permissions){
+                const userData = usersData.data.users.find((us)=>us.uuid === user.uuid)
+                const newUser = {
+                    id:userData.id,
+                    user_uuid:userData.uuid,
+                    user_name:userData.name,
+                    user_surname:userData.surname,
+                    user_username:userData.username,
+                    user_password:userData.password,
+                    user_code:userData.code,
+                    user_mark:userData.mark,
+                    user_legal_id:userData.legal_id, // OIB operatera za F2
+                }
+
+                usersForTerminal = [...usersForTerminal, newUser]
+            }
+            for(const payment of terminaData.payment){
+                const paymentData = paymentsData.data.payment_methods.find((pay)=>pay.uuid === payment.uuid)
+                paymentsForTerminal = [...paymentsForTerminal,paymentData]
+            }
+            const businessPremiseDataForTerminal =  businessPremisesData.data.business_premises.find((bp)=>bp.uuid === terminaData.business_premise_uuid)
+            const basicData = {
+                basic_data_uuid:data.header.data.t,
+                client_name:companyData.data.company.name || '',
+                client_address:companyData.data.company.address || '',
+                client_postal_code:companyData.data.company.postal_code || '',
+                client_town:companyData.data.company.town || '',
+                client_country:'Hrvatska',
+                client_legal_id:companyData.data.company.legal_id || '',
+                client_vat_id:companyData.data.company.vat_id || '',
+                client_email:'',
+                business_premise_uuid:businessPremiseDataForTerminal.uuid || '',
+                business_premise_name:businessPremiseDataForTerminal.name || '',
+                business_premise_fiscal_mark:businessPremiseDataForTerminal.fiskal_mark || '',
+                business_premise_address:businessPremiseDataForTerminal.address || '',
+                business_premise_town:businessPremiseDataForTerminal.town || '',
+                business_premise_country:businessPremiseDataForTerminal.country || '',
+                business_premise_description:businessPremiseDataForTerminal.description || '',
+                business_premise_working_time:businessPremiseDataForTerminal.working_time || '',
+                billing_device_uuid:terminaData.uuid || '',
+                billing_device_fiscal_mark:terminaData.fiscal_mark || '',
+                billing_device_name:terminaData.name || '',
+                billing_device_description:terminaData.description || '',
+                billing_device_header:terminaData.header || '',
+                billing_device_footer:terminaData.footer || '',
+                billing_device_auto_validate:terminaData.auto_validate || ''
+            }
+            dataToSend = {
+                basic_data:basicData,
+                users:usersForTerminal,
+                payment_method:paymentsForTerminal
+            }
+            return(dataToSend)
+            }
+    } catch (error) {
+        console.log(error)
+        return
+    }
+}
+
+module.exports = {
+    getTerminalBasicDataHandler
+}

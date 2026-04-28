@@ -1,0 +1,54 @@
+{
+  "name": "travelo-boat-desk",
+  "version": "1.0.16",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
+    "dev:renderer": "cd renderer && npm run dev",
+    "dev:electron": "wait-on http://localhost:5182 && electron .",
+    "build:renderer": "cd renderer && npm run build",
+    "rebuild:sqlite3": "set npm_config_runtime=electron&& set npm_config_target=27.3.11&& set npm_config_disturl=https://electronjs.org/headers&& npm rebuild sqlite3 --build-from-source",
+    "package": "npm run build:renderer && npm run rebuild:sqlite3 && electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "electron": "^27.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "productName": "Travelo Boat Desk",
+    "npmRebuild": false,
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "renderer/dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "extraResources": [
+      {
+        "from": "resources/tessera-cli",
+        "to": "tessera-cli",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "bcryptjs": "^3.0.3",
+    "node-thermal-printer": "^4.5.0",
+    "sequelize": "^6.37.7",
+    "serialport": "^12.0.0",
+    "sqlite3": "^5.1.7"
+  }
+}

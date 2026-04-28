@@ -1,0 +1,23 @@
+{
+  "name": "travelo-akd-service",
+  "version": "1.0.0",
+  "main": "travelo_akd_service.js",
+  "scripts": {
+    "startService": "nodemon travelo_akd_service",
+    "test": "node scripts/test_sign_example.js"
+  },
+  "author": "t4b_dev_team",
+  "license": "ISC",
+  "description": "AKD integracije: SEOP (otočne iskaznice) i MOSI (e-Pomorac)",
+  "dependencies": {
+    "axios": "^1.13.5",
+    "body-parser": "^1.20.3",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "fast-xml-parser": "^5.7.2",
+    "node-forge": "^1.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
