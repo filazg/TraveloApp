@@ -12,7 +12,7 @@
             "port": 5200,
             "is_login": true,
             "cookie": true,
-            "domain": "46.101.176.117"
+            "domain": "bookingtest.krilo.hr"
         },
         "terminal_auth": {
             "service_name": "auth_service",
