@@ -1,4 +1,4 @@
-const prod = false
+const prod = true
 
 export const backendURL = prod
   ? 'https://bookingtest.krilo.hr/app'

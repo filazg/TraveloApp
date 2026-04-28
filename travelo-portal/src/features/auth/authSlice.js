@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit"
 
-const prod = false
+const prod = true
 
 const initialState = {
     backendURL :prod ? "https://bookingtest.krilo.hr/app" :"http://localhost:5100",
