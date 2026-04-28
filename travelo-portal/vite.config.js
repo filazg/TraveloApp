@@ -5,6 +5,9 @@ export default defineConfig({
   base: '/portal/',
   //base: '/',
   plugins: [react()],
+  server: {
+    allowedHosts: ['bookingtest.krilo.hr'],
+  },
   build: {
     chunkSizeWarningLimit: 1500
   }

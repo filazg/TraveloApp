@@ -6,6 +6,9 @@ export default defineConfig({
   //base: '/web-sales/',
   base: '/',
   plugins: [react()],
+  server: {
+    allowedHosts: ['bookingtest.krilo.hr'],
+  },
   build: {
     chunkSizeWarningLimit: 1500
   }
