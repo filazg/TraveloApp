@@ -34,7 +34,6 @@ const webPortalLoginController = async (req, res) => {
             httpOnly: true,
             sameSite: "lax",
             secure: false,
-            domain: "localhost"
         });
         return res.json({ ok: true, user: { id: user.id, username: user.username, roles: user.roles } });
     } catch (error) {
