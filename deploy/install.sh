@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-SERVICES=(
+BACKEND=(
   travelo-control-service
   travelo-auth-service
   travelo-backoffice-service
@@ -24,16 +24,32 @@ SERVICES=(
   travelo-web_portal-service
 )
 
+# SPAs koje vrtimo kao Vite dev — Vite je devDependency pa BEZ --omit=dev.
+FRONTEND=(
+  travelo-portal
+  travelo-web-sales
+  travelo-partner-sales
+)
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-for s in "${SERVICES[@]}"; do
+for s in "${BACKEND[@]}"; do
   if [ ! -d "$s" ]; then
     echo "SKIP  $s (directory missing)"
     continue
   fi
-  echo "==> $s"
+  echo "==> backend: $s"
   ( cd "$s" && npm ci --omit=dev )
+done
+
+for s in "${FRONTEND[@]}"; do
+  if [ ! -d "$s" ]; then
+    echo "SKIP  $s (directory missing)"
+    continue
+  fi
+  echo "==> frontend (with devDeps for Vite): $s"
+  ( cd "$s" && npm ci )
 done
 
 echo

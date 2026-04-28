@@ -32,6 +32,21 @@ const node = (name, entry, extraEnv = {}) => ({
   },
 });
 
+// Vite dev server (za test fazu — kasnije zamijeniti static buildom).
+// `npm install` mora biti pokrenut u SPA folderu da postoji ./node_modules/vite.
+const vite = (name, port, basePath) => ({
+  name,
+  cwd: `./${name}`,
+  script: './node_modules/vite/bin/vite.js',
+  args: `--host 127.0.0.1 --port ${port} --base ${basePath}`,
+  instances: 1,
+  autorestart: true,
+  restart_delay: 3000,
+  max_restarts: 20,
+  watch: false,
+  env: { NODE_ENV: 'development' },
+});
+
 module.exports = {
   apps: [
     // Config hub — first
@@ -54,5 +69,10 @@ module.exports = {
     // Web-facing BFF backends
     node('travelo-web-sales-service', 'travelo_web_sales_service.js'),
     node('travelo-web_portal-service', 'travelo-web_portal-service.js'),
+
+    // SPA-ovi (Vite dev) — portovi i base se poklapaju s nginx config-om
+    vite('travelo-portal',         5174, '/portal/'),
+    vite('travelo-partner-sales',  5175, '/partner-sale/'),
+    vite('travelo-web-sales',      5176, '/'),
   ],
 };
