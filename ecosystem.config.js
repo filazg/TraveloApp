@@ -1,19 +1,18 @@
-// PM2 ecosystem for TraveloApp
-// Usage:
-//   pm2 start ecosystem.config.js                  # starts everything
-//   pm2 start ecosystem.config.js --only travelo-control-service
-//   pm2 logs <name>
-//   pm2 restart <name> | pm2 stop <name> | pm2 delete all
+// PM2 ecosystem za DO test, jedan VM (46.101.176.117)
+// Sadrži sve backend servise. Web (3 SPA-a) servira nginx kao static.
 //
-// Startup order note:
-//   travelo-control-service (port 5000) must be up first — every other
-//   service fetches its config from it at boot. Use the start-all.bat /
-//   start-all.sh helpers which start control-service, wait, then the rest.
+// Usage on VM:
+//   pm2 start ecosystem.test_do.js
+//   pm2 save
+//   pm2 startup        # one-time, da preživi reboot
 //
-// Excluded: travelo-boat-desk — Electron desktop app, not meant to run as a
-// headless background process under PM2.
+// Startup order: control-service mora biti prvi (na :5000); ostali servisi ga
+// fetchaju pri bootu. PM2 startuje sve istovremeno — auth/backoffice/itd. imaju
+// retry kod na fetch-u config-a, ali ako vidiš inicijalne greške to je očekivano.
 
-const node = (name, entry) => ({
+const CONTROL_URL = 'http://localhost:5000';
+
+const node = (name, entry, extraEnv = {}) => ({
   name,
   cwd: `./${name}`,
   script: entry,
@@ -22,28 +21,23 @@ const node = (name, entry) => ({
   restart_delay: 3000,
   max_restarts: 20,
   watch: false,
-  env: { NODE_ENV: 'development' },
-});
-
-const vite = (name, port) => ({
-  name,
-  cwd: `./${name}`,
-  script: './node_modules/vite/bin/vite.js',
-  args: `--host --port ${port}`,
-  instances: 1,
-  autorestart: true,
-  restart_delay: 3000,
-  max_restarts: 20,
-  watch: false,
-  env: { NODE_ENV: 'development' },
+  env: {
+    NODE_ENV: 'production',
+    APP_ENV: 'test_do',
+    CONTROL_URL,
+    // DB_PASS prolazi iz shell env-a na VM-u — control-service ga injektira
+    // u response na /database_services_config. Ne hardkodirati ovdje.
+    DB_PASS: process.env.DB_PASS,
+    ...extraEnv,
+  },
 });
 
 module.exports = {
   apps: [
-    // Config hub — must be first
+    // Config hub — first
     node('travelo-control-service', 'travelo_control_service.js'),
 
-    // Core backend services
+    // Core
     node('travelo-auth-service', 'travelo_auth_service.js'),
     node('travelo-backoffice-service', 'travelo_backoffice_service.js'),
     node('travelo-boat-service', 'travelo_boat_service.js'),
@@ -51,18 +45,14 @@ module.exports = {
     node('travelo-sales-service', 'travelo_sales_service.js'),
     node('travelo-transactions-service', 'travelo_transactions_service.js'),
     node('travelo-booking-service', 'travelo_booking_service.js'),
+    node('travelo-akd-service', 'travelo_akd_service.js'),
 
-    // Channel services
+    // Channel
     node('travelo-channel-api-service', 'travelo-channel-api-service.js'),
     node('travelo-channel-terminals-service', 'travelo-channel-terminals-services.js'),
 
-    // Web-facing backends
+    // Web-facing BFF backends
     node('travelo-web-sales-service', 'travelo_web_sales_service.js'),
     node('travelo-web_portal-service', 'travelo-web_portal-service.js'),
-
-    // Frontends (Vite dev servers)
-    vite('travelo-portal', 5180),
-    vite('travelo-web-sales', 5181),
-    vite('travelo-partner-sales', 5183),
   ],
 };

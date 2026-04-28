@@ -12,7 +12,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-ECO="ecosystem.test_do.js"
+ECO="ecosystem.config.js"
 
 echo "==> control-service first"
 pm2 start "$ECO" --only travelo-control-service --update-env

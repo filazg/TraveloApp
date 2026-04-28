@@ -11,7 +11,7 @@ scope-a ovog README-a.
 | control-service | `travelo-control-service/config/configResolver.js` | bira config po `APP_ENV` env varijabli |
 | control-service | `travelo-control-service/config/*.test_do.json` | profili za test (sve URL-ovi `localhost`, DB ide na DO managed cluster) |
 | svi servisi (×12) | `travelo-*/config/config.js` | čita `process.env.CONTROL_URL`; default ostaje `http://localhost:5000` |
-| pm2 | `ecosystem.test_do.js` | startup spec sa `APP_ENV=test_do` i `CONTROL_URL=http://localhost:5000` za sve apps |
+| pm2 | `ecosystem.config.js` | startup spec sa `APP_ENV=test_do` i `CONTROL_URL=http://localhost:5000` za sve apps |
 | skripte | `deploy/install.sh`, `deploy/start.sh` | one-shot install i start (s ordering control-first) |
 
 ## Tajne (DB lozinka)
@@ -22,7 +22,7 @@ Lozinka DB-a **nije** u repo-u. Pri startu pm2-a iz svog shell-a postavi env:
 export DB_PASS='<paste-pass-here>'   # iz DO panela / password managera
 ```
 
-Ili dodaj u `~/.bashrc` (ili `/etc/environment`) da preživi reboot. pm2 prosljeđuje `DB_PASS` kroz `ecosystem.test_do.js` u sve servise; control-service ga injektira u `/database_services_config` response.
+Ili dodaj u `~/.bashrc` (ili `/etc/environment`) da preživi reboot. pm2 prosljeđuje `DB_PASS` kroz `ecosystem.config.js` u sve servise; control-service ga injektira u `/database_services_config` response.
 
 ## Prvi put na VM-u
 
@@ -61,7 +61,7 @@ bash deploy/start.sh      # restart svih servisa s novim kodom
 Ili minimalno (kad se mijenja samo kod, bez deps):
 
 ```bash
-git pull && pm2 reload ecosystem.test_do.js --update-env
+git pull && pm2 reload ecosystem.config.js --update-env
 ```
 
 ## Troubleshooting
