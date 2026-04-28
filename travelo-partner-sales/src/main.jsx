@@ -12,7 +12,7 @@ import App from './App'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Provider store={store}>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="hr">
           <CssBaseline />
           <App />
