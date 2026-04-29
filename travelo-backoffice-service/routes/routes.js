@@ -3,7 +3,7 @@ const { getCompanyDataController, updateCompanyDataController } = require('../co
 const { getBusinessPremisesDataController, addBusinessPremiseDataController, updateBusinessPremiseDataController } = require('../controllers/dataControllers/businessPremisesDataControllers');
 const { getBillingDevicesController, addBillingDeviceController, updateBillingDeviceController } = require('../controllers/dataControllers/billingDevicesDataControllers');
 const { getUsersDataController, addUserDataController, updateUserDataController } = require('../controllers/dataControllers/usersDataControllers');
-const { getPartnersDataController, addPartnerDataController, updatePartnerDataController, getPartnersWebUsersDataController } = require('../controllers/dataControllers/partnersDataControllers');
+const { getPartnersDataController, addPartnerDataController, updatePartnerDataController, getPartnersWebUsersDataController, getPartnersAPIUsersDataController } = require('../controllers/dataControllers/partnersDataControllers');
 const { getHolidaysDataController, addHolidayDataController, updateHolidayDataController } = require('../controllers/dataControllers/holidaysDataControllers');
 const { getPaymentMethodsDataController, addPaymentMethodDataController, updatePaymentMethodDataController } = require('../controllers/dataControllers/paymentMethodsDataControllers');
 const { getPaymentTypesDataController } = require('../controllers/dataControllers/paymentTypeDataControllers');
@@ -43,6 +43,10 @@ router
 router
     .route('/partners_web_users')
     .get(getPartnersWebUsersDataController)
+
+router
+    .route('/partners_api_users')
+    .get(getPartnersAPIUsersDataController)
 
 router
     .route('/holidays')

@@ -20,6 +20,7 @@ const { listBuyersController } = require('../controllers/dataControllers/buyersL
 const { yescorHealthController } = require('../controllers/dataControllers/yescorHealthController');
 const { yescorTestSubmitController } = require('../controllers/dataControllers/yescorTestSubmitController');
 const { upsertTerminalShiftController, listShiftsController } = require('../controllers/dataControllers/terminalShiftControllers');
+const { apiCreateOrderController, apiGetOrderController, apiConfirmOrderController, apiCancelOrderController, apiTripDetailsController } = require('../controllers/dataControllers/apiOrderControllers');
 const router = express.Router();
 
 router
@@ -125,5 +126,26 @@ router
 router
     .route('/shifts')
     .get(listShiftsController)
+
+// API channel (T4B Transport API v1.05) — partner orders
+router
+    .route('/api_create_order')
+    .post(apiCreateOrderController)
+
+router
+    .route('/api_get_order')
+    .post(apiGetOrderController)
+
+router
+    .route('/api_confirm_order')
+    .post(apiConfirmOrderController)
+
+router
+    .route('/api_cancel_order')
+    .post(apiCancelOrderController)
+
+router
+    .route('/api_trip_details')
+    .post(apiTripDetailsController)
 
 module.exports = router

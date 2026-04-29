@@ -48,6 +48,25 @@ const partnerLimiter = rateLimit({
   }
 });
 
+// Per-IP global limiter for end-user web sales endpoints (search/order/checkout).
+// Higher max than partner limiter because this is per browser session (real user clicks).
+const webPublicLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Try again in a minute.' },
+});
+
+// PDF/proxy endpoints — slightly stricter (rendering is expensive).
+const webPdfLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many PDF requests. Try again in a minute.' },
+});
+
 // ===== MIDDLEWARE =====
 function validatePartnerApiKey(req, res, next) {
   const apiKey = req.headers['x-api-key'];
@@ -92,69 +111,70 @@ function validateSearchPayload(req, res, next) {
 
 router
     .route('/harbors')
-    .get(getHarborsDataController)
+    .get(webPublicLimiter, getHarborsDataController)
 
 router
     .route('/countries')
-    .get(getCountriesController)
+    .get(webPublicLimiter, getCountriesController)
 
 router
     .route('/search_trips')
-    .post(searchTripsController)
+    .post(webPublicLimiter, searchTripsController)
 
 router
     .route('/order_confirmation')
-    .post(createOrderConfirmationController)
+    .post(webPublicLimiter, createOrderConfirmationController)
 
 router
     .route('/orders_by_reference')
-    .get(getOrdersByReferenceController)
+    .get(webPublicLimiter, getOrdersByReferenceController)
 
 router
     .route('/tickets_pdf/:order_uuid')
-    .get(ticketsPdfProxyController)
+    .get(webPdfLimiter, ticketsPdfProxyController)
 
+// Monri webhooks — NO rate limiter; comes from fixed processor IPs and dropping
+// a webhook means losing the payment confirmation.
 router
     .route('/monri_webhook')
     .post(monriWebhookController)
 
-// Legacy alias — Monri panel je historijski konfiguriran na /monri_response
 router
     .route('/monri_response')
     .post(monriWebhookController)
 
 router
     .route('/simulate_payment')
-    .post(simulatePaymentController)
+    .post(webPublicLimiter, simulatePaymentController)
 
 router
     .route('/invoice_pdf/:invoice_uuid')
-    .get(invoicePdfProxyController)
+    .get(webPdfLimiter, invoicePdfProxyController)
 
 
 router
     .route('/web_page_harbors')
-    .get(getWebPageHarborsDataController)
+    .get(webPublicLimiter, getWebPageHarborsDataController)
 
 router
     .route('/web_page_search_trips')
-    .post(searchWebPageTripsController)
+    .post(webPublicLimiter, searchWebPageTripsController)
 
 router
     .route('/web_page_business_premises')
-    .get(getBusinesPremisessData)
+    .get(webPublicLimiter, getBusinesPremisessData)
 
 router
     .route('/web_page_info')
-    .get(getInfoData)
+    .get(webPublicLimiter, getInfoData)
 
 router
     .route('/web_page_documentations')
-    .get(downloadWebPageApiDocumentation)
+    .get(webPublicLimiter, downloadWebPageApiDocumentation)
 
 router
     .route('/check_island_card')
-    .post(checkIslandCardController)
+    .post(webPublicLimiter, checkIslandCardController)
 
 router
   .route('/web_page_redirect')

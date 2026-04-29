@@ -1,5 +1,6 @@
 const { getSequelize } = require("../../config/database")
 const { Op } = require("sequelize");
+const { publishBackofficeEvent } = require("../../message_broker/publisher");
 
 const sequelize = getSequelize();
 
@@ -141,6 +142,7 @@ const addBillingDeviceController = async(req,res)=>{
                         footer:data.footer,
                         is_active:data.is_active
                     })
+                    publishBackofficeEvent('update_terminals')
                     res.send({
                         status:201,
                     })
@@ -272,6 +274,7 @@ const updateBillingDeviceController = async(req,res)=>{
                     }
                     
                     console.log('TU SMO KRAJ')
+                publishBackofficeEvent('update_terminals')
                 res.send({
                     status:202,
                 })

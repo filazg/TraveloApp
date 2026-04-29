@@ -8,8 +8,9 @@ const { syncDatabaseConfigData, syncMainServiceConfigData, syncChannalServiceCon
 const { initModels, syncModels } = require('./dbModels');
 const { initSequelize } = require('./config/database');
 const { travelo_subscriber } = require('./controllers/subscriberController');
-const { syncUsersDataController, syncTerminalsDataController, syncPartnersWebUsersDataController } = require('./controllers/syncControllers/syncBackOfficeServiceController');
+const { syncUsersDataController, syncTerminalsDataController, syncPartnersWebUsersDataController, syncPartnersApiUsersDataController } = require('./controllers/syncControllers/syncBackOfficeServiceController');
 
+app.set('trust proxy', 1);
 app.use(express.json({ limit: "10mb" }))
 app.use(bodyParser.json({ limit: "10mb" }))
 app.use(cookieParser());
@@ -27,6 +28,7 @@ const syncData = ()=>{
     syncUsersDataController()
     syncTerminalsDataController()
     syncPartnersWebUsersDataController()
+    syncPartnersApiUsersDataController()
 }
 
 const startService = async ()=>{

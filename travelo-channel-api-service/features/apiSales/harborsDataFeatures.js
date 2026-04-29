@@ -1,35 +1,21 @@
-const { getHarborsController } = require("../../controllers/coreServiceControllers/salesServiceControllers")
+const { getHarborsController } = require("../../controllers/coreServiceControllers/salesServiceControllers");
 
-
-const handleGetHarborsDataFeature = async(req,res)=>{
+const handleGetHarborsDataFeature = async (req, res) => {
     try {
-        const harborsData = await getHarborsController()
-        let harborsToSend = []
-        for(const newHarbor of harborsData.data.harbors){
-            const harborToAdd = {
-                harbor_name:newHarbor.name,
-                harbor_code:newHarbor.code,
-                harbor_longitude:newHarbor.longitude,
-                harbor_latitude:newHarbor.latitude,
-                harbor_region:newHarbor.region,
-                harbor_country:newHarbor.country,
-            }
-            harborsToSend = [...harborsToSend, harborToAdd]
-        }
-        res.send({
-            status:200,
-            data:{
-                harbors:harborsToSend
-            }
-        })
+        const harborsData = await getHarborsController();
+        const harbors = (harborsData?.data?.harbors || []).map((h) => ({
+            harbor_name: h.name,
+            harbor_code: h.code,
+            harbor_longitude: h.longitude,
+            harbor_latitude: h.latitude,
+            harbor_region: h.region,
+            harbor_country: h.country,
+        }));
+        return res.status(200).json({ harbors });
     } catch (error) {
-        console.log(error)
-        res.send({
-            status:500
-        })
+        console.log("harborsDataFeature error:", error?.message || error);
+        return res.status(500).json({ msg: "Internal error" });
     }
-}
+};
 
-module.exports = {
-    handleGetHarborsDataFeature
-}
+module.exports = { handleGetHarborsDataFeature };

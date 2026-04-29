@@ -1,4 +1,5 @@
 const { getSequelize } = require("../../config/database")
+const { publishBackofficeEvent } = require("../../message_broker/publisher");
 
 const sequelize = getSequelize();
 
@@ -166,6 +167,7 @@ const addUserDataController = async(req,res)=>{
                         code:data.code,
                         is_active:true
                     })
+                    publishBackofficeEvent('update_users')
                     res.send({
                         status:201,
                     })
@@ -250,6 +252,7 @@ const updateUserDataController = async(req,res)=>{
                     })
                     const addUserPermissions = await UsersPermissionsModel.bulkCreate(premissionsToAdd)
                 //}
+                publishBackofficeEvent('update_users')
                 res.send({
                     status:202,
                 })

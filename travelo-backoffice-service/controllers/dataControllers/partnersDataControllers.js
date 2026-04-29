@@ -1,4 +1,5 @@
 const { getSequelize } = require("../../config/database")
+const { publishBackofficeEvent } = require("../../message_broker/publisher");
 
 const sequelize = getSequelize();
 
@@ -99,6 +100,7 @@ const addPartnerDataController = async(req,res)=>{
                     f2_required:data.f2_required ?? false,
                     is_active:true,
                 })
+                publishBackofficeEvent('update_partners')
                 res.send({
                     status:201,
                 })
@@ -193,6 +195,7 @@ const updatePartnerDataController = async(req,res)=>{
                     })
                     await PartnersAPIUsersModel.bulkCreate(apiPermissionToAdd)
                 }
+                publishBackofficeEvent('update_partners')
                 res.send({
                     status:200
                 })
@@ -247,9 +250,40 @@ const getPartnersWebUsersDataController = async (req, res) => {
     }
 };
 
+const getPartnersAPIUsersDataController = async (req, res) => {
+    const { PartnersModel, PartnersAPIUsersModel } = req.app.locals.models;
+    try {
+        const apiUsers = await PartnersAPIUsersModel.findAll({
+            where: { is_active: true },
+            attributes: { exclude: ['createdAt', 'updatedAt'] },
+            order: ['id'],
+        });
+        const partnerUuids = [...new Set(apiUsers.map(u => u.partner_uuid))];
+        const partners = partnerUuids.length
+            ? await PartnersModel.findAll({
+                  where: { uuid: partnerUuids },
+                  attributes: ['uuid', 'partner_name'],
+              })
+            : [];
+        const partnerMap = Object.fromEntries(partners.map(p => [p.uuid, p.partner_name]));
+        const enriched = apiUsers.map(u => ({
+            ...u.toJSON(),
+            partner_name: partnerMap[u.partner_uuid] || null,
+        }));
+        res.send({
+            status: 200,
+            data: { partners_api_users: enriched },
+        });
+    } catch (error) {
+        console.log(error);
+        res.send({ status: 500, data: { error } });
+    }
+};
+
 module.exports = {
     getPartnersDataController,
     addPartnerDataController,
     updatePartnerDataController,
     getPartnersWebUsersDataController,
+    getPartnersAPIUsersDataController,
 }

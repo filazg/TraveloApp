@@ -4,6 +4,7 @@ const ticketsModelsFactory = require("./tickets.models");
 const bookingModelsFactory = require("./booking.models");
 const partnerInvoiceModelsFactory = require("./partnerInvoice.models");
 const shiftModelsFactory = require("./shift.models");
+const apiOrdersModelsFactory = require("./apiOrders.models");
 
 let models = null;
 
@@ -16,7 +17,8 @@ function initModels() {
       ...ticketsModelsFactory(sequelize),
       ...bookingModelsFactory(sequelize),
       ...partnerInvoiceModelsFactory(sequelize),
-      ...shiftModelsFactory(sequelize)
+      ...shiftModelsFactory(sequelize),
+      ...apiOrdersModelsFactory(sequelize)
     };
   }
 

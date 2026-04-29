@@ -1,23 +1,13 @@
-const { searchTripsHandlers } = require("../../handlers/searchTripsHandlers")
+const { searchTripsHandler } = require("../../handlers/searchTripsHandler");
 
-const handleSearchTripsDataFeature = async(req,res)=>{
+const handleSearchTripsDataFeature = async (req, res) => {
     try {
-        const data = req.body
-        const tripsData = await searchTripsHandlers(data)
-        if(tripsData.status === 200){
-
-        }else if(tripsData.status === 400){
-
-        }else if(tripsData.status === 500){
-
-        }else{
-            
-        }
+        const trips = await searchTripsHandler(req.body);
+        return res.status(200).json({ trips });
     } catch (error) {
-        
+        console.log("searchTripsFeature error:", error?.message || error);
+        return res.status(500).json({ msg: "Internal error" });
     }
-}
+};
 
-module.exports = {
-    handleSearchTripsDataFeature
-}
+module.exports = { handleSearchTripsDataFeature };

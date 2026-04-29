@@ -2,6 +2,7 @@ const { getSequelize } = require("../config/database");
 const usersModelsFactory  = require("./users.models");
 const terminalsModelsFactory  = require("./terminals.models");
 const partnersWebUsersModelsFactory = require("./partnersWebUsers.models");
+const partnersApiUsersModelsFactory = require("./partnersApiUsers.models");
 
 let models = null;
 
@@ -13,6 +14,7 @@ function initModels() {
       ...usersModelsFactory(sequelize),
       ...terminalsModelsFactory(sequelize),
       ...partnersWebUsersModelsFactory(sequelize),
+      ...partnersApiUsersModelsFactory(sequelize),
     };
   }
 

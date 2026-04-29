@@ -50,8 +50,22 @@ const syncPartnersWebUsersDataController = async () => {
     }
 };
 
+const syncPartnersApiUsersDataController = async () => {
+    try {
+        const { PartnersApiUsersModel } = getModels();
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(coreConfigData.services.backoffice.url + '/partners_api_users');
+        await PartnersApiUsersModel.truncate();
+        const rows = response.data?.data?.partners_api_users || [];
+        if (rows.length) await PartnersApiUsersModel.bulkCreate(rows);
+    } catch (error) {
+        console.log('syncPartnersApiUsersDataController error:', error?.message || error);
+    }
+};
+
 module.exports = {
     syncUsersDataController,
     syncTerminalsDataController,
     syncPartnersWebUsersDataController,
+    syncPartnersApiUsersDataController,
 }
