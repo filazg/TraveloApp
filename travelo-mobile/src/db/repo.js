@@ -435,3 +435,79 @@ export async function loadToken() { return getSetting(STORAGE_KEYS.TOKEN); }
 export async function clearToken() { await setSetting(STORAGE_KEYS.TOKEN, null); }
 export async function saveGateway(url) { await setSetting(STORAGE_KEYS.GATEWAY, url); }
 export async function loadGateway() { return getSetting(STORAGE_KEYS.GATEWAY); }
+
+// ---------- SHIFTS ----------
+// totals stori cijeli payload smjene (uključujući shift_finance, agregate, operatera...)
+// kao JSON. shifts.shift_uuid je primarni ključ. synced=0 dok se snapshot ne dostavi backendu.
+export async function saveShiftLocal(shift) {
+    if (!shift?.shift_uuid) throw new Error('shift_uuid required');
+    await exec(
+        `INSERT OR REPLACE INTO shifts
+         (shift_uuid, operator_uuid, opened_at, closed_at, totals, synced)
+         VALUES (?, ?, ?, ?, ?, ?);`,
+        [
+            shift.shift_uuid,
+            shift.operator_uuid || null,
+            shift.opened_at || shift.shift_start || nowIso(),
+            shift.closed_at || shift.shift_end || null,
+            JSON.stringify(shift),
+            shift.synced ? 1 : 0,
+        ]
+    );
+    return shift;
+}
+
+export async function loadShiftByUuid(shiftUuid) {
+    const r = await queryOne(`SELECT totals, synced FROM shifts WHERE shift_uuid = ?;`, [shiftUuid]);
+    if (!r) return null;
+    const payload = JSON.parse(r.totals);
+    payload._synced = !!r.synced;
+    return payload;
+}
+
+// Otvorena smjena za operatera (closed_at IS NULL). Filtrira se i po billing_device_uuid
+// jer mobile uređaj ima jedan billing_device — ako se isti operater logirao na 2 uređaja,
+// svaki ima svoju otvorenu smjenu.
+export async function loadOpenShiftFor(operatorUuid, billingDeviceUuid) {
+    const rows = await queryAll(
+        `SELECT totals, synced FROM shifts WHERE closed_at IS NULL AND operator_uuid = ? ORDER BY opened_at DESC;`,
+        [operatorUuid]
+    );
+    for (const r of rows) {
+        const p = JSON.parse(r.totals);
+        if (!billingDeviceUuid || p.billing_device_uuid === billingDeviceUuid) {
+            p._synced = !!r.synced;
+            return p;
+        }
+    }
+    return null;
+}
+
+export async function loadRecentShifts(operatorUuid, limit = 30) {
+    const rows = operatorUuid
+        ? await queryAll(
+              `SELECT totals, synced FROM shifts WHERE operator_uuid = ? ORDER BY opened_at DESC LIMIT ?;`,
+              [operatorUuid, limit]
+          )
+        : await queryAll(`SELECT totals, synced FROM shifts ORDER BY opened_at DESC LIMIT ?;`, [limit]);
+    return rows.map((r) => {
+        const p = JSON.parse(r.totals);
+        p._synced = !!r.synced;
+        return p;
+    });
+}
+
+export async function loadPendingShifts() {
+    const rows = await queryAll(`SELECT totals FROM shifts WHERE synced = 0 ORDER BY opened_at ASC;`);
+    return rows.map((r) => JSON.parse(r.totals));
+}
+
+export async function markShiftSynced(shiftUuid) {
+    await exec(`UPDATE shifts SET synced = 1 WHERE shift_uuid = ?;`, [shiftUuid]);
+}
+
+// Sve fakture za zadanu smjenu — koristi se za breakdown po vrsti plaćanja na zatvaranju.
+export async function loadInvoicesForShift(shiftUuid) {
+    const rows = await queryAll(`SELECT payload FROM invoices WHERE shift_uuid = ?;`, [shiftUuid]);
+    return rows.map((r) => JSON.parse(r.payload));
+}

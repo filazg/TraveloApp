@@ -3,6 +3,7 @@ import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { authData, restoreTokenThunk } from '../store/slices/authSlice';
 import { syncBasicDataThunk, syncTransportDataThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
+import { loadCurrentOpenThunk, loadRecentShiftsThunk, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
 import { openDb } from '../db/db';
 import { voyageData } from '../store/slices/voyageSlice';
 import { navData } from '../store/slices/navSlice';
@@ -38,6 +39,15 @@ export default function AppNavigator() {
         if (auth.token && !sync.basicData && !sync.loading) dispatch(syncBasicDataThunk());
         if (auth.token && !sync.salesRoutes.length && !sync.transportLoading) dispatch(syncTransportDataThunk());
     }, [auth.token, sync.hydrated, sync.basicData, sync.loading, sync.salesRoutes.length, sync.transportLoading, dispatch]);
+
+    // Load operator's open shift + recent shifts after operator login. Also push pending
+    // (offline-saved) snapshots to backend best-effort whenever auth+basic_data are ready.
+    useEffect(() => {
+        if (!sync.hydrated || !auth.operator || !sync.basicData) return;
+        dispatch(loadCurrentOpenThunk());
+        dispatch(loadRecentShiftsThunk());
+        dispatch(syncPendingShiftsThunk());
+    }, [sync.hydrated, auth.operator, sync.basicData, dispatch]);
 
     if (auth.booting) {
         return (

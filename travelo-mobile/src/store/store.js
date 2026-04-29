@@ -5,6 +5,7 @@ import voyageReducer from './slices/voyageSlice';
 import navReducer from './slices/navSlice';
 import salesReducer from './slices/salesSlice';
 import validationReducer from './slices/validationSlice';
+import shiftsReducer from './slices/shiftsSlice';
 
 export const store = configureStore({
     reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
         nav: navReducer,
         sales: salesReducer,
         validation: validationReducer,
+        shifts: shiftsReducer,
     },
     // Sync state može imati velike liste (transport_data); serializability check
     // na svaki dispatch blokira JS thread 250-400ms i ruši RN bridge pod scan

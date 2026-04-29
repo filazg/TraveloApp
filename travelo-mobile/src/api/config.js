@@ -22,6 +22,9 @@ export const ENDPOINTS = {
     checkIslandCard: '/terminals/terminal/check_island_card',
     // Storno karata — proxy na transactions /cancel_tickets.
     cancelTickets: '/terminals/terminal/cancel_tickets',
+    // Smjene — upsert (POST) + lista (GET).
+    shift: '/terminals/terminal/shift',
+    shifts: '/terminals/terminal/shifts',
 };
 
 // Today's date as "DD/MM/YYYY" — matches the string format stored in routes.departure_date.

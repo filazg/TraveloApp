@@ -5,13 +5,22 @@ import { saveSale, loadPendingInvoices, countPendingInvoices, markInvoiceSynced,
 import { buildLocalSale } from '../localSale';
 
 const persistSale = async (saleResp, payload) => {
+    const shiftUuid = payload._shift_uuid || saleResp.shift_uuid || null;
     await saveSale({
         invoice: {
             invoice_uuid: saleResp.invoice_uuid,
             order_uuid: saleResp.order_uuid,
+            shift_uuid: shiftUuid,
             operator_uuid: payload.operator?.uuid || null,
             voyage_key: payload._voyageKey || null,
             amount: Number(saleResp.total_amount) || 0,
+            total_amount: Number(saleResp.total_amount) || 0,
+            total_vat_base: Number(saleResp.total_vat_base ?? saleResp.vat_base ?? 0) || 0,
+            total_vat: Number(saleResp.total_vat ?? saleResp.vat ?? 0) || 0,
+            total_harbor_tax: Number(saleResp.total_harbor_tax ?? saleResp.harbor_tax ?? 0) || 0,
+            payment_method_uuid: payload.payment_method_uuid || saleResp.payment_method_uuid || null,
+            payment_method_name: payload._payment_method_name || saleResp.payment_method_name || null,
+            invoice_no: saleResp.invoice_no || saleResp.invoice_fiskal_no || null,
             created_at: new Date().toISOString(),
             synced: saleResp._local ? 0 : 1,
             raw_response: saleResp,
@@ -22,6 +31,7 @@ const persistSale = async (saleResp, payload) => {
             ...t,
             invoice_uuid: saleResp.invoice_uuid,
             order_uuid: saleResp.order_uuid,
+            shift_uuid: shiftUuid,
             created_at: new Date().toISOString(),
         })),
     });
@@ -32,6 +42,12 @@ const persistSale = async (saleResp, payload) => {
 export const finalizeSaleThunk = createAsyncThunk(
     'sales/finalize',
     async (payload, { getState, rejectWithValue }) => {
+        // Guard — bez otvorene smjene se ne smije izdati račun.
+        const { shifts } = getState();
+        if (!shifts?.currentOpen?.shift_uuid) {
+            return rejectWithValue({ message: 'Smjena nije otvorena. Otvorite smjenu prije izdavanja računa.' });
+        }
+        payload._shift_uuid = shifts.currentOpen.shift_uuid;
         // Attempt online sale.
         try {
             const resp = await api.post(ENDPOINTS.finalizeSale, payload, { timeout: 10000 });
