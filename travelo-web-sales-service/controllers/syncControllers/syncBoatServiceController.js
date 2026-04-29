@@ -55,13 +55,17 @@ const syncRoutesDataController = async(data)=>{
 }
 
 const syncAllRoutesDataController = async()=>{
-    const { RoutesModel, TimetablePricesModel } = getModels();
-    const coreConfigData = await getCoreServiceConfigData() 
-    const response = await axios.get(coreConfigData.services.boat.url + '/sales_routes')
-    await RoutesModel.truncate()
-    await TimetablePricesModel.truncate()
-    await RoutesModel.bulkCreate(response.data.data.routes)
-    await TimetablePricesModel.bulkCreate(response.data.data.prices)
+    try {
+        const { RoutesModel, TimetablePricesModel } = getModels();
+        const coreConfigData = await getCoreServiceConfigData()
+        const response = await axios.get(coreConfigData.services.boat.url + '/sales_routes')
+        await RoutesModel.truncate()
+        await TimetablePricesModel.truncate()
+        await RoutesModel.bulkCreate(response.data.data.routes)
+        await TimetablePricesModel.bulkCreate(response.data.data.prices)
+    } catch (error) {
+        console.log('syncAllRoutesDataController error:', error?.message || error)
+    }
 }
 
 module.exports = {
