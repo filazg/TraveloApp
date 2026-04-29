@@ -1,6 +1,7 @@
 import axios from "axios";
-import { Box, Button, Checkbox, Drawer, FormControlLabel, Grid, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Modal, Paper, Stack, TextField, Typography } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { Box, Button, Checkbox, Drawer, FormControlLabel, Grid, IconButton, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Modal, Paper, Stack, TextField, Typography } from "@mui/material";
+import { DataGrid, GridActionsCellItem } from "@mui/x-data-grid";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useDispatch, useSelector } from "react-redux";
 import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
 import { useT } from "../../../../i18n/useT";
@@ -135,13 +136,49 @@ export default function PartnersPage (){
     const columns_web = [
         { field: 'username', headerName: t('backoffice.partners.web_user_username'), flex: 2, editable: true },
         { field: 'password', type: 'password', headerName: t('backoffice.partners.web_user_password'), flex: 2, editable: true },
+        {
+            field: 'actions',
+            type: 'actions',
+            headerName: '',
+            width: 60,
+            getActions: (params) => [
+                <GridActionsCellItem
+                    icon={<DeleteOutlineIcon />}
+                    label="Delete"
+                    onClick={() => remoweSelectedWebUser(params.row)}
+                />,
+            ],
+        },
     ]
 
     const columns_api = [
         { field: 'tid', headerName: t('backoffice.partners.api_user_tid'), flex: 2, editable: true },
         { field: 'otp', type: 'text', headerName: t('backoffice.partners.api_user_otp'), flex: 2, editable: true },
         { field: 'key', type: 'text', headerName: t('backoffice.partners.api_user_key'), flex: 2, editable: true },
+        {
+            field: 'actions',
+            type: 'actions',
+            headerName: '',
+            width: 60,
+            getActions: (params) => [
+                <GridActionsCellItem
+                    icon={<DeleteOutlineIcon />}
+                    label="Delete"
+                    onClick={() => remoweSelectedApiUser(params.row)}
+                />,
+            ],
+        },
     ]
+
+    const handleProcessWebRowUpdate = (newRow) => {
+        setNewWebUser((prev) => prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r)));
+        return newRow;
+    };
+
+    const handleProcessApiRowUpdate = (newRow) => {
+        setNewApiUser((prev) => prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r)));
+        return newRow;
+    };
 
     const handleChangeNewWebUser = async(e)=>{
         setWebUser({
@@ -596,7 +633,8 @@ export default function PartnersPage (){
                             rows={newWebUser || ''}
                             columns={columns_web}
                             getRowId={(row) => row.id}
-                            onCellClick={(params) => remoweSelectedWebUser(params.row)}
+                            processRowUpdate={handleProcessWebRowUpdate}
+                            onProcessRowUpdateError={(err) => console.log('web row update error:', err)}
                         />
                     </Box> 
                     <Stack direction='row' justifyContent= "space-between" sx={{mt:1}} >
@@ -615,7 +653,8 @@ export default function PartnersPage (){
                             rows={newApiUser || ''}
                             columns={columns_api}
                             getRowId={(row) => row.id}
-                            onCellClick={(params) => remoweSelectedApiUser(params.row)}
+                            processRowUpdate={handleProcessApiRowUpdate}
+                            onProcessRowUpdateError={(err) => console.log('api row update error:', err)}
                         />
                     </Box>  
                     <Button
