@@ -118,6 +118,11 @@ router
     .route('/monri_webhook')
     .post(monriWebhookController)
 
+// Legacy alias — Monri panel je historijski konfiguriran na /monri_response
+router
+    .route('/monri_response')
+    .post(monriWebhookController)
+
 router
     .route('/simulate_payment')
     .post(simulatePaymentController)
