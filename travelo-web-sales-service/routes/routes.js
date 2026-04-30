@@ -143,6 +143,12 @@ router
     .route('/monri_response')
     .post(monriWebhookController)
 
+// Monri panel je konfiguriran s URL-om /monricallback (jedna riječ); ostavljamo
+// stara dva alias-a radi povratne kompatibilnosti.
+router
+    .route('/monricallback')
+    .post(monriWebhookController)
+
 router
     .route('/simulate_payment')
     .post(webPublicLimiter, simulatePaymentController)
