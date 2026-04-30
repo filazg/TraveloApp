@@ -65,6 +65,11 @@ export default function DownloadPage() {
     }
 
     let cancelled = false
+    // Order-i postoje od trenutka kreiranja narudžbe (prije plaćanja), ali
+    // invoice_uuid se postavlja tek kad Monri webhook → finalize_web_sale dovrši.
+    // Zato čekamo dok svi order-i nemaju invoice_uuid (a ne samo dok postoje).
+    const isReady = (list) => list.length > 0 && list.every((o) => o.invoice_uuid)
+    const MAX_ATTEMPTS = 12 // 12 × 1.5s = ~18s — webhook + finalize obično < 5s
     const poll = async (attempt = 0) => {
       try {
         const resp = await axios.get(`${url}/orders_by_reference`, {
@@ -73,12 +78,18 @@ export default function DownloadPage() {
         const data = resp.data?.data ?? resp.data
         const list = Array.isArray(data?.orders) ? data.orders : []
         if (cancelled) return
-        if (list.length) {
+        if (isReady(list)) {
           setOrders(list)
           setPayload(data)
           setLoading(false)
-        } else if (attempt < 6) {
+        } else if (attempt < MAX_ATTEMPTS) {
           setTimeout(() => poll(attempt + 1), 1500)
+        } else if (list.length) {
+          // Timeout — pokaži ono što imamo (karte + napomena da račun još dolazi).
+          setOrders(list)
+          setPayload(data)
+          setError(t('download.not_ready'))
+          setLoading(false)
         } else {
           setError(t('download.not_ready'))
           setLoading(false)
