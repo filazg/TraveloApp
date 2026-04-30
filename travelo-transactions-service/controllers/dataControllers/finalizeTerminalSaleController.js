@@ -56,6 +56,15 @@ const loadFiscalContext = async (terminalUuid) => {
 const finalizeTerminalSaleController = async (req, res) => {
     const models = req.app.locals.models;
     const { TicketsModel, InvoiceModel, InvoiceItemsModel, InvoiceItemDetailsModel } = models;
+    console.log('[finalizeSale RX]', JSON.stringify({
+        invoice_uuid: req.body?.invoice_uuid,
+        invoice_no: req.body?.invoice_no,
+        invoice_year: req.body?.invoice_year,
+        invoice_code: req.body?.invoice_code,
+        is_f2: req.body?.is_f2,
+        ticket_count: Array.isArray(req.body?.tickets) ? req.body.tickets.length : 'no-array',
+        first_ticket_uuid: req.body?.tickets?.[0]?.ticket_uuid,
+    }));
     try {
         const {
             items = [],
@@ -63,6 +72,17 @@ const finalizeTerminalSaleController = async (req, res) => {
             payment_method_uuid,
             operator = {},
             buyer = {},
+            // Client-provided fiskalni identifikatori — POS (NU) je autoritativni
+            // izvor brojeva i ID-eva; backend ih SAMO zapisuje 1:1. Fallback na
+            // backend-generaciju samo ako nisu poslani (legacy/non-mobile pozivi).
+            invoice_uuid: client_invoice_uuid,
+            invoice_no: client_invoice_no,
+            invoice_year: client_invoice_year,
+            invoice_fiskal_no: client_invoice_fiskal_no,
+            invoice_code: client_invoice_code,
+            is_f2: client_is_f2,
+            order_uuid: client_order_uuid,
+            tickets: client_tickets,
         } = req.body || {};
 
         if (!terminal_uuid) return res.status(400).json({ status: 400, data: { message: "terminal_uuid required" } });
@@ -93,21 +113,28 @@ const finalizeTerminalSaleController = async (req, res) => {
             }
         }
 
-        const invoice_uuid = crypto.randomUUID();
+        // Klijent (mobile/POS) MORA dodjeljivati fiskalne brojeve sam (HR fisk pravilo
+        // za NU). Sve niže koristimo client_* ako je poslan, inače fallback generacija
+        // za legacy pozivatelje (web, partner backoffice).
         const invoiceDate = new Date();
-        const invoice_year = invoiceDate.getFullYear();
-        const invoice_no = await nextInvoiceNo(InvoiceModel, invoice_year, bd.uuid);
-        const fiskalRequired = Boolean(buyer.f2_required);
-        const invoice_fiskal_no = fiskalRequired
-            ? null
-            : await nextInvoiceFiskalNo(InvoiceModel, invoice_year, bd.uuid);
-        // HR fisk format: <fiskalni_broj>/<BP>/<uređaj>. F2 računi NEMAJU fiskalni
-        // broj (ide preko e-računa), pa invoice_code ostaje null. Sequelize max()
-        // ignorira NULL pa brojač ostaje bez rupa kroz miješane F1/F2 sekvence.
-        const invoice_code = invoice_fiskal_no && bp.fiskal_mark && bd.fiscal_mark
-            ? `${invoice_fiskal_no}/${bp.fiskal_mark}/${bd.fiscal_mark}`
-            : null;
-        const order_uuid = crypto.randomUUID();
+        const invoice_uuid = client_invoice_uuid || crypto.randomUUID();
+        const invoice_year = client_invoice_year || invoiceDate.getFullYear();
+        const fiskalRequired = (client_is_f2 != null) ? Boolean(client_is_f2) : Boolean(buyer.f2_required);
+        const invoice_no = client_invoice_no
+            || (await nextInvoiceNo(InvoiceModel, invoice_year, bd.uuid));
+        const invoice_fiskal_no = client_invoice_fiskal_no != null
+            ? client_invoice_fiskal_no
+            : (fiskalRequired ? null : await nextInvoiceFiskalNo(InvoiceModel, invoice_year, bd.uuid));
+        // F1 → NO/PP/NU, F2 → 8-char random kod (mobile ga šalje u client_invoice_code).
+        const invoice_code = client_invoice_code
+            || (invoice_fiskal_no && bp.fiskal_mark && bd.fiscal_mark
+                ? `${invoice_fiskal_no}/${bp.fiskal_mark}/${bd.fiscal_mark}`
+                : null);
+        const order_uuid = client_order_uuid || crypto.randomUUID();
+        // Map client-provided ticket UUIDs/codes (po redoslijedu items × qty) tako da
+        // POS i backend imaju IDENTIČNE ticket_uuid-e i kasnije cancel_tickets nađe ih.
+        const clientTicketsByOrder = Array.isArray(client_tickets) ? client_tickets : [];
+        let clientTicketIdx = 0;
 
         let total_amount = 0;
         let total_vat_base = 0;
@@ -167,10 +194,10 @@ const finalizeTerminalSaleController = async (req, res) => {
             // ticket is marked validated immediately (typical for mobile/MOBIL POS).
             const autoValidate = Boolean(bd.auto_validate);
             for (let i = 0; i < qty; i++) {
-                const ticket_uuid = crypto.randomUUID();
-                // QR payload: usklađen s portalom (ticketPdfController.qrPayload),
-                // ";"-separated polja koja gate-scanner koristi za validaciju.
-                const ticket_qr = [
+                // Ako je POS poslao ticket-e, povuci po redu (qty se rasipa po jedinicama).
+                const ct = clientTicketsByOrder[clientTicketIdx++];
+                const ticket_uuid = ct?.ticket_uuid || crypto.randomUUID();
+                const fallback_qr = [
                     ticket_uuid,
                     r.line_code || "",
                     r.departure_harbor_name || "",
@@ -179,9 +206,10 @@ const finalizeTerminalSaleController = async (req, res) => {
                     r.route_uuid || "",
                     it.ticket_type_uuid || "",
                 ].join(";");
+                const ticket_qr = ct?.ticket_qr || fallback_qr;
                 ticketsToAdd.push({
                     ticket_uuid,
-                    ticket_code: randomCode(),
+                    ticket_code: ct?.ticket_code || randomCode(),
                     order_uuid,
                     order_number: `POS-${invoice_no}`,
                     ticket_group_uuid: it.ticket_type_uuid || null,
@@ -345,9 +373,8 @@ const finalizeTerminalSaleController = async (req, res) => {
                 invoice_no,
                 invoice_fiskal_no,
                 invoice_year,
-                invoice_code: bp.fiskal_mark && bd.fiscal_mark && invoice_fiskal_no
-                    ? `${invoice_fiskal_no}/${bp.fiskal_mark}/${bd.fiscal_mark}`
-                    : null,
+                invoice_code,
+                is_f2: fiskalRequired,
                 order_uuid,
                 total_amount,
                 total_vat_base,

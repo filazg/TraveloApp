@@ -54,7 +54,20 @@ const cancelTicketsController = async (req, res) => {
     const models = req.app.locals.models;
     const { TicketsModel, InvoiceModel, InvoiceItemsModel, InvoiceItemDetailsModel } = models;
     try {
-        const { ticket_uuids, terminal_uuid, payment_method_uuid, percentage } = req.body || {};
+        const {
+            ticket_uuids,
+            terminal_uuid,
+            payment_method_uuid,
+            percentage,
+            // Client-provided storno identifikatori — POS je autoritativan, backend
+            // samo zapisuje 1:1. Fallback generacija ostaje za legacy pozivatelje.
+            storno_invoice_uuid: client_invoice_uuid,
+            storno_invoice_no: client_invoice_no,
+            storno_invoice_year: client_invoice_year,
+            storno_invoice_fiskal_no: client_invoice_fiskal_no,
+            storno_invoice_code: client_invoice_code,
+            storno_is_f2: client_is_f2,
+        } = req.body || {};
 
         if (!Array.isArray(ticket_uuids) || !ticket_uuids.length) {
             return res.status(400).json({ status: 400, data: { message: "ticket_uuids required" } });
@@ -98,11 +111,15 @@ const cancelTicketsController = async (req, res) => {
             });
         }
 
-        const invoice_uuid = crypto.randomUUID();
         const invoiceDate = new Date();
-        const invoice_year = invoiceDate.getFullYear();
-        const invoice_no = await nextInvoiceNo(InvoiceModel, invoice_year, bd.uuid);
-        const invoice_fiskal_no = await nextInvoiceFiskalNo(InvoiceModel, invoice_year, bd.uuid);
+        const invoice_uuid = client_invoice_uuid || crypto.randomUUID();
+        const invoice_year = client_invoice_year || invoiceDate.getFullYear();
+        const invoice_no = client_invoice_no
+            || (await nextInvoiceNo(InvoiceModel, invoice_year, bd.uuid));
+        const isF2 = Boolean(client_is_f2);
+        const invoice_fiskal_no = client_invoice_fiskal_no != null
+            ? client_invoice_fiskal_no
+            : (isF2 ? null : await nextInvoiceFiskalNo(InvoiceModel, invoice_year, bd.uuid));
 
         let total_amount = 0;
         let total_vat_base = 0;
@@ -160,13 +177,18 @@ const cancelTicketsController = async (req, res) => {
         total_vat = +total_vat.toFixed(2);
         total_harbor_tax = +total_harbor_tax.toFixed(2);
 
+        // F2 storno → POS-ov 8-char invoice_code (preneseno kao client_invoice_code).
+        // F1 storno → "STORNO NO/PP/NU". Ako klijent eksplicitno pošalje invoice_code,
+        // koristi ga doslovno (ne dodaje "STORNO" prefiks — POS sam gradi format).
+        const fallbackStornoCode = bp.fiskal_mark && bd.fiscal_mark && invoice_fiskal_no
+            ? `STORNO ${invoice_fiskal_no}/${bp.fiskal_mark}/${bd.fiscal_mark}`
+            : "STORNO";
+        const finalInvoiceCode = client_invoice_code || fallbackStornoCode;
         await InvoiceModel.create({
             invoice_uuid,
             invoice_no,
             invoice_fiskal_no,
-            invoice_code: bp.fiskal_mark && bd.fiscal_mark
-                ? `STORNO ${invoice_fiskal_no}/${bp.fiskal_mark}/${bd.fiscal_mark}`
-                : "STORNO",
+            invoice_code: finalInvoiceCode,
             invoice_year,
             invoice_date: invoiceDate,
             invoice_is_pay: true,
@@ -213,6 +235,9 @@ const cancelTicketsController = async (req, res) => {
                 invoice_uuid,
                 invoice_no,
                 invoice_year,
+                invoice_fiskal_no,
+                invoice_code: finalInvoiceCode,
+                is_f2: isF2,
                 total_amount,
                 canceled_ticket_uuids: tickets.map((t) => t.ticket_uuid),
             },
