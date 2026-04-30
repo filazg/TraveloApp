@@ -145,8 +145,15 @@ router
 
 // Monri panel je konfiguriran s URL-om /monricallback (jedna riječ); ostavljamo
 // stara dva alias-a radi povratne kompatibilnosti.
+// GET handler — Monri panel je konfiguriran s istim URL-om i za success i za
+// fail browser redirect, pa preusmjeravamo na /download s query stringom.
+// DownloadPage SPA čita `status` i prikazuje uspjeh ili "Payment failed".
 router
     .route('/monricallback')
+    .get((req, res) => {
+        const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        return res.redirect(302, `/download${qs}`);
+    })
     .post(monriWebhookController)
 
 router
