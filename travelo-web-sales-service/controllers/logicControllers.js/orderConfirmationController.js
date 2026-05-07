@@ -77,6 +77,13 @@ const createOrderConfirmationController = async (req, res) => {
             }
         }
 
+        if (createdOrders.length === 0) {
+            return res.status(502).json({
+                status: 502,
+                data: { message: 'order creation failed for all routes — payment not initiated' },
+            });
+        }
+
         const totalAmount = createdOrders.reduce(
             (s, o) => s + Number(o.total_amount || 0),
             0

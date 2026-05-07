@@ -60,7 +60,8 @@ const addLineDataController = async (req, res) =>{
                     subsidised_line:data.type.subsidised_line,
                     is_active:true,
                     updated_by_uuid:user.uuid,
-                    updated_by_username:user.username
+                    updated_by_username:user.username,
+                    saop_cost_bearer: data.saop_cost_bearer || null,
                 }
                 const newLine = await LinesModel.create(lineDataToAdd); 
                 responseData = {
@@ -112,7 +113,8 @@ const updateLineDataController = async (req, res) =>{
                         subsidised_line:lineData.subsidised_line,
                         is_active:lineData.is_active,
                         updated_by_uuid:user.updated_by_uuid,
-                        updated_by_username:user.updated_by_username
+                        updated_by_username:user.updated_by_username,
+                        ...(lineData.saop_cost_bearer !== undefined ? { saop_cost_bearer: lineData.saop_cost_bearer || null } : {}),
                     },
                     {where:{line_code:lineData.line_code}});
                  responseData = {

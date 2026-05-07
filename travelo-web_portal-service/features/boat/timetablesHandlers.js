@@ -54,6 +54,7 @@ const handleAddTimetablesFeatures = async (req, res) => {
         const getTimetables = await getTimetablesController()
         await travelo_publisher('travelo_sales_service', {path:'update_sales_routes',data:dataToSend.data.timetableData.code})
         await travelo_publisher('travelo_transactions_service', {path:'update_sales_routes',data:dataToSend.data.timetableData.code})
+        await travelo_publisher('travelo_web_sales_service', {path:'update_sales_routes',data:dataToSend.data.timetableData.code})
         res.send({
             status:200,
             data:{

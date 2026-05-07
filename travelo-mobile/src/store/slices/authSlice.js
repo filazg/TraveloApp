@@ -17,7 +17,8 @@ export const pairTerminalThunk = createAsyncThunk(
                 return rejectWithValue({ message: body.msg || 'Pairing nije uspio' });
             }
             await storage.setToken(body.token);
-            return { token: body.token };
+            await storage.setTid(tid);
+            return { token: body.token, tid };
         } catch (err) {
             return rejectWithValue({ message: err.response?.data?.msg || err.message });
         }
@@ -37,7 +38,8 @@ export const restoreTokenThunk = createAsyncThunk(
     async () => {
         const token = await storage.getToken();
         const gateway = await storage.getGateway();
-        return { token: token || null, gateway };
+        const tid = await storage.getTid();
+        return { token: token || null, gateway, tid: tid || null };
     }
 );
 
@@ -46,6 +48,7 @@ const authSlice = createSlice({
     initialState: {
         token: null,
         gateway: null,
+        tid: null,
         booting: true,
         pairing: false,
         error: null,
@@ -68,6 +71,7 @@ const authSlice = createSlice({
             .addCase(restoreTokenThunk.fulfilled, (s, a) => {
                 s.token = a.payload.token;
                 s.gateway = a.payload.gateway;
+                s.tid = a.payload.tid;
                 s.booting = false;
             })
             .addCase(restoreTokenThunk.rejected, (s) => { s.booting = false; })
@@ -75,6 +79,7 @@ const authSlice = createSlice({
             .addCase(pairTerminalThunk.fulfilled, (s, a) => {
                 s.pairing = false;
                 s.token = a.payload.token;
+                s.tid = a.payload.tid;
             })
             .addCase(pairTerminalThunk.rejected, (s, a) => {
                 s.pairing = false;

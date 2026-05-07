@@ -3,6 +3,7 @@ const { controlServiceURL } = require('../config/config')
 
 let coreConfigData = {}
 let databaseConfigData = {}
+let integrationsConfigData = {}
 
 const getCoreServiceConfigData = ()=>{
     return coreConfigData
@@ -31,9 +32,22 @@ const syncDatabaseConfigData = async() =>{
     }
 }
 
+const getIntegrationsConfigData = () => integrationsConfigData
+
+const syncIntegrationsConfigData = async () => {
+    try {
+        const resp = await axios.get(controlServiceURL + '/integrations_config')
+        integrationsConfigData = resp.data?.data || {}
+    } catch (error) {
+        console.log('syncIntegrationsConfigData error:', error?.message || error)
+    }
+}
+
 module.exports = {
     getCoreServiceConfigData,
     syncCoreServiceConfigData,
     getDatabaseConfigData,
-    syncDatabaseConfigData
+    syncDatabaseConfigData,
+    getIntegrationsConfigData,
+    syncIntegrationsConfigData
 }

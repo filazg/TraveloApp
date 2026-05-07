@@ -89,8 +89,8 @@ android {
         applicationId "hr.koris.roko"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "2.0.0"
         // Allow HTTP gateway URLs (e.g. 192.168.0.100:5100) in debug/staging.
         // For production switch this to false and use HTTPS.
         manifestPlaceholders = [usesCleartextTraffic:"true"]
@@ -115,6 +115,13 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+
+    // Custom APK ime: travelo_app-v<versionName>.apk umjesto app-<buildType>.apk.
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            output.outputFileName = "travelo_app-v${variant.versionName}.apk"
+        }
+    }
 }
 
 dependencies {
@@ -136,4 +143,9 @@ dependencies {
     // NXP TapLinx interno zove FirebaseAnalytics u svom telemetry block-u —
     // bez ove klase puca s NoClassDefFoundError na onPostExecute.
     implementation("com.google.firebase:firebase-analytics:22.1.2")
+    // Native bcrypt — JS bcryptjs blokira UI thread 0.5-1.5s na Sunmi V2s ARM CPU.
+    // at.favre.lib:bcrypt umjesto org.mindrot:jbcrypt jer jbcrypt 0.4 ne handle-a
+    // ispravno $2b$ hash format (bug iz 2014, library je napušten). Favre lib
+    // strogo prati referentnu C implementaciju i suportira $2a/$2b/$2y.
+    implementation("at.favre.lib:bcrypt:0.10.2")
 }

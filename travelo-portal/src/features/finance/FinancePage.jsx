@@ -5,6 +5,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import AnchorIcon from "@mui/icons-material/Anchor";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -81,7 +82,8 @@ const CARDS = [
     { label: "Pregled karata", subtitle: "Sve prodane karte", icon: ConfirmationNumberIcon, path: "/finance/tickets", enabled: true },
     { label: "Lučke uprave", subtitle: "Izvještaj naplata luka", icon: AnchorIcon, path: "/finance/harbor_tax_report", enabled: true },
     { label: "Smjene", subtitle: "Zaključci smjena", icon: AccessTimeIcon, path: "/finance/shifts", enabled: true },
-    { label: "Izvještaji", subtitle: "Ostali izvještaji", icon: AssessmentIcon, path: "/finance/reports", enabled: false },
+    { label: "Konta", subtitle: "Šifarnik i mapiranja", icon: AccountTreeIcon, path: "/finance/accounts", enabled: true },
+    { label: "Izvještaji", subtitle: "Dnevna realizacija i ostalo", icon: AssessmentIcon, path: "/finance/reports", enabled: true },
 ];
 
 export default function FinancePage() {

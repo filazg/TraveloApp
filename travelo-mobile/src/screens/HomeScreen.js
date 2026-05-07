@@ -16,6 +16,7 @@ import {
     setFontSize,
     sunmiPrinterAvailable,
 } from '../device/printer';
+import { colors, shadows } from '../theme/colors';
 
 export default function HomeScreen() {
     const dispatch = useDispatch();
@@ -114,7 +115,7 @@ export default function HomeScreen() {
                         onPress={printTest}
                     >
                         {printing ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color={colors.textOnPrimary} />
                         ) : (
                             <>
                                 <Text style={styles.tileTitle}>Prodaja</Text>
@@ -123,12 +124,12 @@ export default function HomeScreen() {
                         )}
                     </TouchableOpacity>
                     <View style={[styles.tile, styles.tileScan]}>
-                        <Text style={styles.tileTitle}>Validacija</Text>
-                        <Text style={styles.tileSub}>(uskoro)</Text>
+                        <Text style={styles.tileTitleAlt}>Validacija</Text>
+                        <Text style={styles.tileSubAlt}>(uskoro)</Text>
                     </View>
                     <View style={[styles.tile, styles.tileShift]}>
-                        <Text style={styles.tileTitle}>Smjena</Text>
-                        <Text style={styles.tileSub}>Zaključak prometa (uskoro)</Text>
+                        <Text style={styles.tileTitleAlt}>Smjena</Text>
+                        <Text style={styles.tileSubAlt}>Zaključak prometa (uskoro)</Text>
                     </View>
                 </View>
             </View>
@@ -137,23 +138,22 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#1e293b',
+        backgroundColor: colors.primary,
     },
-    title: { fontSize: 22, fontWeight: '800', color: '#fff' },
-    subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-    logoutBtn: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#334155', borderRadius: 6 },
-    logoutText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+    title: { fontSize: 22, fontWeight: '800', color: colors.textOnPrimary },
+    subtitle: { fontSize: 12, color: colors.secondary, marginTop: 2 },
+    logoutBtn: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.secondary, borderRadius: 6 },
+    logoutText: { color: colors.textOnSecondary, fontSize: 13, fontWeight: '600' },
     content: { flex: 1, padding: 20 },
-    opName: { color: '#fff', fontSize: 24, fontWeight: '700' },
-    opMeta: { color: '#94a3b8', fontSize: 14, marginBottom: 32 },
+    opName: { color: colors.textPrimary, fontSize: 24, fontWeight: '700' },
+    opMeta: { color: colors.textSecondary, fontSize: 14, marginBottom: 32 },
     tilesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     tile: {
         flex: 1,
@@ -163,24 +163,28 @@ const styles = StyleSheet.create({
         padding: 16,
         justifyContent: 'flex-end',
     },
-    tileSale: { backgroundColor: '#059669' },
-    tileScan: { backgroundColor: '#0284c7' },
-    tileShift: { backgroundColor: '#7c3aed' },
+    tileSale: { backgroundColor: colors.primary, ...shadows.elevated },
+    tileScan: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.secondary, ...shadows.card },
+    tileShift: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.secondary, ...shadows.card },
     tileDisabled: { opacity: 0.6 },
-    tileTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
-    tileSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4 },
+    tileTitle: { color: colors.textOnPrimary, fontSize: 20, fontWeight: '700' },
+    tileSub: { color: colors.secondary, fontSize: 12, marginTop: 4 },
+    tileTitleAlt: { color: colors.primary, fontSize: 20, fontWeight: '700' },
+    tileSubAlt: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
     voyageBanner: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#1e293b',
+        backgroundColor: colors.surface,
         borderRadius: 10,
         padding: 14,
         borderLeftWidth: 4,
-        borderLeftColor: '#0ea5e9',
+        borderLeftColor: colors.primary,
+        borderWidth: 1, borderColor: colors.border,
         marginBottom: 20,
+        ...shadows.card,
     },
-    voyageTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-    voyageRoute: { color: '#cbd5e1', fontSize: 14, marginTop: 2 },
-    voyageMeta: { color: '#94a3b8', fontSize: 11, marginTop: 2 },
-    voyageChange: { paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#475569', borderRadius: 6 },
-    voyageChangeText: { color: '#cbd5e1', fontSize: 12, fontWeight: '600' },
+    voyageTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
+    voyageRoute: { color: colors.textSecondary, fontSize: 14, marginTop: 2 },
+    voyageMeta: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+    voyageChange: { paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 6 },
+    voyageChangeText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
 });

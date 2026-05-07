@@ -6,10 +6,15 @@ import { useDispatch, useSelector } from 'react-redux';
 import { resetSection } from '../store/slices/navSlice';
 import { loadInvoicesThunk, loadInvoiceDetailThunk, syncPendingSalesThunk, salesData } from '../store/slices/salesSlice';
 import { syncData } from '../store/slices/syncSlice';
+import { authData } from '../store/slices/authSlice';
+import { shiftsData } from '../store/slices/shiftsSlice';
 import { printReceipt as printReceiptFn, printTickets as printTicketsFn } from '../device/printSale';
 import api from '../api/client';
 import { ENDPOINTS } from '../api/config';
-import { markTicketsCanceled, markInvoiceCanceled } from '../db/repo';
+import { markTicketsCanceled, markInvoiceCanceled, saveSale, markInvoiceSynced } from '../db/repo';
+import { buildLocalStorno } from '../store/localSale';
+import { colors, shadows } from '../theme/colors';
+import HomeButton from '../components/HomeButton';
 
 const fmtEUR = (n) => `${(Number(n) || 0).toFixed(2)} €`;
 const fmtDt = (iso) => {
@@ -26,6 +31,8 @@ export default function DocumentsScreen() {
     const dispatch = useDispatch();
     const sales = useSelector(salesData);
     const sync = useSelector(syncData);
+    const auth = useSelector(authData);
+    const shifts = useSelector(shiftsData);
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selected, setSelected] = useState(null);
@@ -117,6 +124,11 @@ export default function DocumentsScreen() {
     const openStorno = () => {
         if (!selected) return;
         const r = invoiceRaw(selected);
+        // Storno račun NE može biti dalje storniran (vidi memoriju "Pravila storna").
+        if (selected.is_storno || r.is_storno) {
+            Alert.alert('Storno', 'Storno račun se ne može dalje stornirati.');
+            return;
+        }
         if (selected.is_canceled || r.invoice_canceled) {
             Alert.alert('Storno', 'Račun je već storniran.');
             return;
@@ -153,19 +165,71 @@ export default function DocumentsScreen() {
 
         setStornoSubmitting(true);
         try {
-            const resp = await api.post(ENDPOINTS.cancelTickets, {
-                ticket_uuids: ticketUuids,
-                terminal_uuid: terminalUuid,
-                payment_method_uuid: stornoPaymentUuid,
+            // 1) LOCAL — generiraj storno račun samostalno (sljedeći broj iz iste
+            //    sekvence kao prodajni). Backend NE smije utjecati na izdavanje.
+            const ticketsToCancel = detailTickets.filter((t) => stornoTicketUuids[t.ticket_uuid]);
+            const pmName = (sync.paymentMethods || []).find((p) => p.uuid === stornoPaymentUuid)?.name || 'Storno';
+            const stornoLocal = await buildLocalStorno({
+                originalInvoice: selected,
+                ticketsToCancel,
                 percentage: pct,
-            }, { timeout: 20000 });
-            const body = resp.data?.data || resp.data || {};
+                paymentMethodUuid: stornoPaymentUuid,
+                paymentMethodName: pmName,
+                basicData: sync.basicData,
+            });
 
+            const stornoInvoiceLocal = {
+                invoice_uuid: stornoLocal.invoice_uuid,
+                order_uuid: stornoLocal.order_uuid,
+                shift_uuid: shifts.currentOpen?.shift_uuid || selected.shift_uuid || null,
+                operator_uuid: auth.operator?.user_uuid || null,
+                voyage_key: selected.voyage_key || null,
+                amount: stornoLocal.total_amount,
+                total_amount: stornoLocal.total_amount,
+                total_vat_base: stornoLocal.total_vat_base,
+                total_vat: stornoLocal.total_vat,
+                total_harbor_tax: stornoLocal.total_harbor_tax,
+                payment_method_uuid: stornoPaymentUuid,
+                payment_method_name: pmName,
+                invoice_no: stornoLocal.invoice_no,
+                invoice_year: stornoLocal.invoice_year,
+                invoice_fiskal_no: stornoLocal.invoice_fiskal_no,
+                invoice_total_no: stornoLocal.invoice_total_no,
+                invoice_code: stornoLocal.invoice_code,
+                is_f2: !!stornoLocal.is_f2,
+                created_at: new Date().toISOString(),
+                synced: 0, // čeka backend audit push (nije potrebno za izdavanje)
+                cart: stornoLocal.items,
+                local: true,
+                is_storno: true,
+                storno_of_invoice_uuid: selected.invoice_uuid,
+                storno_of_invoice_no: selected.invoice_no || null,
+                storno_percentage: pct,
+                // Payload za sync retry — bez ovoga syncPendingSalesThunk ne zna
+                // koji ticket-i se storniraju ako audit POST padne sad.
+                _storno_payload: {
+                    ticket_uuids: ticketUuids,
+                    terminal_uuid: terminalUuid,
+                    payment_method_uuid: stornoPaymentUuid,
+                    percentage: pct,
+                    storno_invoice_uuid: stornoLocal.invoice_uuid,
+                    storno_invoice_no: stornoLocal.invoice_no,
+                    storno_invoice_code: stornoLocal.invoice_code,
+                },
+            };
+            try {
+                await saveSale({ invoice: stornoInvoiceLocal, tickets: [] });
+            } catch (e) {
+                console.warn('Storno save error:', e?.message || e);
+            }
+
+            // 2) NAZNAKA — flag-aj originalne karte i (ako je sve stornirano) original
+            //    račun. Iznosi originalnog računa se NE mijenjaju.
             const stornoMeta = {
-                storno_invoice_uuid: body.invoice_uuid,
-                storno_invoice_no: body.invoice_no,
-                storno_invoice_year: body.invoice_year,
-                storno_amount: body.total_amount,
+                storno_invoice_uuid: stornoLocal.invoice_uuid,
+                storno_invoice_no: stornoLocal.invoice_no,
+                storno_invoice_year: stornoLocal.invoice_year,
+                storno_amount: stornoLocal.total_amount,
                 percentage: pct,
                 ticket_uuids: ticketUuids,
                 created_at: new Date().toISOString(),
@@ -174,29 +238,39 @@ export default function DocumentsScreen() {
             const allCanceled = detailTickets.every((t) => t.is_canceled || stornoTicketUuids[t.ticket_uuid]);
             if (allCanceled) await markInvoiceCanceled(selected.invoice_uuid, stornoMeta);
 
-            // Ispiši storno račun (negativni iznosi).
+            // 3) BACKEND audit — async (ne blokira UI dalje), na success markiramo
+            //    storno račun kao synced=1 da nestane "Pending" badge u Dokumentima.
+            //    Ako padne, ostaje 0 i pokupit će ga syncPendingSalesThunk kasnije.
+            api.post(ENDPOINTS.cancelTickets, {
+                ticket_uuids: ticketUuids,
+                terminal_uuid: terminalUuid,
+                payment_method_uuid: stornoPaymentUuid,
+                percentage: pct,
+                storno_invoice_uuid: stornoLocal.invoice_uuid,
+                storno_invoice_no: stornoLocal.invoice_no,
+                storno_invoice_code: stornoLocal.invoice_code,
+            }, { timeout: 20000 })
+                .then(async (resp) => {
+                    const body = resp?.data?.data ?? resp?.data ?? {};
+                    await markInvoiceSynced(stornoLocal.invoice_uuid, body);
+                    refresh();
+                })
+                .catch((e) => console.log('[storno] backend audit failed:', e?.message || e));
+
+            // 4) ISPIS — storno račun (negativni iznosi, naznaka "STORNO RAČUNA #X").
             try {
                 const stornoR = {
-                    invoice_no: body.invoice_no,
-                    invoice_year: body.invoice_year,
-                    invoice_code: `STORNO ${body.invoice_no || ''}`,
-                    total_amount: body.total_amount,
-                    total_vat_base: body.total_vat_base,
-                    total_vat: body.total_vat,
-                    total_harbor_tax: body.total_harbor_tax,
-                    payment_method_name: (sync.paymentMethods || []).find((p) => p.uuid === stornoPaymentUuid)?.name,
+                    invoice_no: stornoLocal.invoice_no,
+                    invoice_year: stornoLocal.invoice_year,
+                    invoice_code: stornoLocal.invoice_code,
+                    total_amount: stornoLocal.total_amount,
+                    total_vat_base: stornoLocal.total_vat_base,
+                    total_vat: stornoLocal.total_vat,
+                    total_harbor_tax: stornoLocal.total_harbor_tax,
+                    payment_method_name: pmName,
                     operater_name: 'STORNO',
                 };
-                const items = detailTickets
-                    .filter((t) => stornoTicketUuids[t.ticket_uuid])
-                    .map((t) => ({
-                        ticket_type_name: t.ticket_type_name,
-                        qty: 1,
-                        unit_price: -((Number(t.single_price) || 0) * (pct / 100)),
-                        departure_harbor_name: t.departure_harbor_name,
-                        arrival_harbor_name: t.arrival_harbor_name,
-                        line_code: t.line_code,
-                    }));
+                const items = stornoLocal.items;
                 await printReceiptFn({
                     r: stornoR,
                     items,
@@ -215,7 +289,10 @@ export default function DocumentsScreen() {
             closeStorno();
             closeDetail();
             await refresh();
-            Alert.alert('Storno', `Storno proveden: račun #${body.invoice_no || '-'}, iznos ${(Number(body.total_amount) || 0).toFixed(2)} €.`);
+            const stornoLabel = stornoLocal.is_f2
+                ? (stornoLocal.invoice_code || '-')
+                : `#${stornoLocal.invoice_no || '-'}`;
+            Alert.alert('Storno', `Storno proveden: račun ${stornoLabel}, iznos ${(Number(stornoLocal.total_amount) || 0).toFixed(2)} €.`);
         } catch (e) {
             const msg = e?.response?.data?.data?.message || e?.message || 'Greška u stornu';
             Alert.alert('Greška', msg);
@@ -228,7 +305,9 @@ export default function DocumentsScreen() {
         try {
             const r = await dispatch(syncPendingSalesThunk()).unwrap();
             await refresh();
-            Alert.alert('Sinkronizacija', `Poslano: ${r.pushed}, ostalo: ${r.remaining}`);
+            const reasons = (r.skipReasons || []).join('\n');
+            const msg = `Poslano: ${r.pushed}, ostalo: ${r.remaining}` + (reasons ? `\n\nRazlog:\n${reasons}` : '');
+            Alert.alert('Sinkronizacija', msg);
         } catch (e) {
             Alert.alert('Greška', e?.message || 'Sinkronizacija nije uspjela');
         }
@@ -243,16 +322,19 @@ export default function DocumentsScreen() {
             <TouchableOpacity style={styles.row} onPress={() => openDetail(item)}>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle}>
-                        Račun {r.invoice_no ? `#${r.invoice_no}/${r.invoice_year || ''}` : item.invoice_uuid?.slice(0, 8)}
+                        {r.is_f2 || item.is_f2
+                            ? `Račun ${r.invoice_code || item.invoice_uuid?.slice(0, 8)}`
+                            : `Račun ${r.invoice_no ? `#${r.invoice_no}/${r.invoice_year || ''}` : item.invoice_uuid?.slice(0, 8)}`}
                     </Text>
                     <Text style={styles.rowSub}>{fmtDt(item.created_at)}</Text>
-                    {r.invoice_code ? <Text style={styles.rowSub}>{r.invoice_code}</Text> : null}
+                    {!(r.is_f2 || item.is_f2) && r.invoice_code ? <Text style={styles.rowSub}>{r.invoice_code}</Text> : null}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.rowAmount}>{fmtEUR(item.amount)}</Text>
                     <View style={styles.badgeRow}>
-                        {hasIsland ? <View style={[styles.badge, { backgroundColor: '#1b5e20' }]}><Text style={styles.badgeText}>Otočna</Text></View> : null}
-                        <View style={[styles.badge, { backgroundColor: isSynced ? '#0ea5e9' : (isLocal ? '#f59e0b' : '#64748b') }]}>
+                        {(r.is_f2 || item.is_f2) ? <View style={[styles.badge, { backgroundColor: colors.warning }]}><Text style={styles.badgeText}>F2</Text></View> : null}
+                        {hasIsland ? <View style={[styles.badge, { backgroundColor: colors.success }]}><Text style={styles.badgeText}>Otočna</Text></View> : null}
+                        <View style={[styles.badge, { backgroundColor: isSynced ? colors.primary : (isLocal ? colors.warning : colors.textMuted) }]}>
                             <Text style={styles.badgeText}>{isSynced ? 'Sync' : (isLocal ? 'Pending' : 'OK')}</Text>
                         </View>
                     </View>
@@ -273,6 +355,7 @@ export default function DocumentsScreen() {
                 <TouchableOpacity style={styles.syncBtn} onPress={handleSync} disabled={sales.syncing}>
                     <Text style={styles.syncText}>{sales.syncing ? '...' : `Sync${sales.pendingCount ? ` (${sales.pendingCount})` : ''}`}</Text>
                 </TouchableOpacity>
+                <HomeButton style={{ marginLeft: 8 }} />
             </View>
 
             <View style={styles.summary}>
@@ -299,8 +382,15 @@ export default function DocumentsScreen() {
                             const r = invoiceRaw(selected);
                             return (
                                 <>
-                                    <Text style={styles.modalTitle}>Račun {r.invoice_no ? `#${r.invoice_no}/${r.invoice_year || ''}` : ''}</Text>
-                                    {r.invoice_code ? <Text style={styles.modalSub}>{r.invoice_code}</Text> : null}
+                                    <Text style={styles.modalTitle}>
+                                        {r.is_f2 || selected.is_f2
+                                            ? `Račun ${r.invoice_code || ''}`
+                                            : `Račun ${r.invoice_no ? `#${r.invoice_no}/${r.invoice_year || ''}` : ''}`}
+                                    </Text>
+                                    {(r.is_f2 || selected.is_f2) ? (
+                                        <Text style={[styles.modalSub, { color: colors.warning, fontWeight: '700' }]}>F2 — R1 fiskalizirani račun</Text>
+                                    ) : null}
+                                    {!(r.is_f2 || selected.is_f2) && r.invoice_code ? <Text style={styles.modalSub}>{r.invoice_code}</Text> : null}
                                     <Text style={styles.modalSub}>{fmtDt(selected.created_at)}</Text>
                                     <Text style={styles.modalSub}>{r.payment_method_name || ''}</Text>
 
@@ -330,21 +420,21 @@ export default function DocumentsScreen() {
 
                                     <View style={styles.actions}>
                                         <TouchableOpacity
-                                            style={[styles.actionBtn, { backgroundColor: '#475569' }, printing && { opacity: 0.5 }]}
+                                            style={[styles.actionBtn, styles.actionBtnNeutral, printing && { opacity: 0.5 }]}
                                             disabled={printing}
                                             onPress={handleReprint}
                                         >
-                                            <Text style={styles.actionText}>{printing ? 'Ispis…' : 'Ispis'}</Text>
+                                            <Text style={[styles.actionText, styles.actionTextNeutral]}>{printing ? 'Ispis…' : 'Ispis'}</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.actionBtn, { backgroundColor: '#b91c1c' }, (selected?.is_canceled || invoiceRaw(selected || {}).invoice_canceled) && { opacity: 0.4 }]}
-                                            disabled={selected?.is_canceled || invoiceRaw(selected || {}).invoice_canceled}
+                                            style={[styles.actionBtn, { backgroundColor: colors.error }, (selected?.is_canceled || invoiceRaw(selected || {}).invoice_canceled || selected?.is_storno || invoiceRaw(selected || {}).is_storno) && { opacity: 0.4 }]}
+                                            disabled={selected?.is_canceled || invoiceRaw(selected || {}).invoice_canceled || selected?.is_storno || invoiceRaw(selected || {}).is_storno}
                                             onPress={openStorno}
                                         >
                                             <Text style={styles.actionText}>Storno</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.actionBtn, { backgroundColor: '#0ea5e9' }]}
+                                            style={[styles.actionBtn, { backgroundColor: colors.primary }]}
                                             onPress={closeDetail}
                                         >
                                             <Text style={styles.actionText}>Zatvori</Text>
@@ -406,7 +496,7 @@ export default function DocumentsScreen() {
                                         style={[styles.pmBtn, stornoPaymentUuid === p.uuid && styles.pmBtnOn]}
                                         onPress={() => setStornoPaymentUuid(p.uuid)}
                                     >
-                                        <Text style={styles.pmText}>{p.name}</Text>
+                                        <Text style={[styles.pmText, stornoPaymentUuid === p.uuid && styles.pmTextOn]}>{p.name}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -414,14 +504,14 @@ export default function DocumentsScreen() {
 
                         <View style={styles.actions}>
                             <TouchableOpacity
-                                style={[styles.actionBtn, { backgroundColor: '#475569' }]}
+                                style={[styles.actionBtn, styles.actionBtnNeutral]}
                                 onPress={closeStorno}
                                 disabled={stornoSubmitting}
                             >
-                                <Text style={styles.actionText}>Odustani</Text>
+                                <Text style={[styles.actionText, styles.actionTextNeutral]}>Odustani</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.actionBtn, { backgroundColor: '#b91c1c' }, stornoSubmitting && { opacity: 0.5 }]}
+                                style={[styles.actionBtn, { backgroundColor: colors.error }, stornoSubmitting && { opacity: 0.5 }]}
                                 onPress={submitStorno}
                                 disabled={stornoSubmitting}
                             >
@@ -436,46 +526,69 @@ export default function DocumentsScreen() {
 }
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b',
+        paddingHorizontal: 8, paddingVertical: 12,
+        backgroundColor: colors.primary,
     },
     backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-    backText: { color: '#38bdf8', fontSize: 16, fontWeight: '600' },
-    title: { fontSize: 18, fontWeight: '700', color: '#fff' },
-    syncBtn: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#0ea5e9', borderRadius: 6 },
-    syncText: { color: '#fff', fontWeight: '700' },
-    summary: { flexDirection: 'row', justifyContent: 'space-between', padding: 12, backgroundColor: '#1e293b' },
-    summaryText: { color: '#cbd5e1', fontSize: 14 },
-    b: { fontWeight: '700', color: '#fff' },
+    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    title: { fontSize: 18, fontWeight: '700', color: colors.textOnPrimary },
+    syncBtn: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: colors.secondary, borderRadius: 6 },
+    syncText: { color: colors.textOnSecondary, fontWeight: '700' },
+    summary: {
+        flexDirection: 'row', justifyContent: 'space-between',
+        padding: 12, backgroundColor: colors.surfaceAlt,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    summaryText: { color: colors.textSecondary, fontSize: 14 },
+    b: { fontWeight: '700', color: colors.textPrimary },
 
-    row: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
-    rowTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
-    rowSub: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
-    rowAmount: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    row: {
+        flexDirection: 'row', alignItems: 'center', padding: 12,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
+        backgroundColor: colors.surface,
+    },
+    rowTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+    rowSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+    rowAmount: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
     badgeRow: { flexDirection: 'row', marginTop: 4 },
     badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 4 },
-    badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-    empty: { color: '#64748b', fontSize: 14, textAlign: 'center', padding: 20 },
+    badgeText: { color: colors.textOnPrimary, fontSize: 10, fontWeight: '700' },
+    empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', padding: 20 },
 
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 16 },
-    modalCard: { backgroundColor: '#0f172a', borderRadius: 12, padding: 16, width: '100%', maxWidth: 480, borderWidth: 1, borderColor: '#1e293b' },
-    modalTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-    modalSub: { color: '#94a3b8', fontSize: 13, marginTop: 2 },
-    ticketRow: { flexDirection: 'row', alignItems: 'center', padding: 8, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
-    ticketName: { color: '#fff', fontSize: 14, fontWeight: '600' },
-    ticketSub: { color: '#94a3b8', fontSize: 11, marginTop: 1 },
-    ticketPrice: { color: '#fff', fontSize: 14, fontWeight: '700' },
-    totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#1e293b', marginTop: 6 },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+    modalCard: {
+        backgroundColor: colors.surface, borderRadius: 12, padding: 16, width: '100%', maxWidth: 480,
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.elevated,
+    },
+    modalTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
+    modalSub: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
+    ticketRow: { flexDirection: 'row', alignItems: 'center', padding: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+    ticketName: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+    ticketSub: { color: colors.textSecondary, fontSize: 11, marginTop: 1 },
+    ticketPrice: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 6 },
     actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12, gap: 8 },
     actionBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 6 },
-    actionText: { color: '#fff', fontWeight: '700' },
-    checkbox: { fontSize: 22, color: '#94a3b8' },
-    checkboxOn: { color: '#0ea5e9' },
-    input: { backgroundColor: '#1e293b', color: '#fff', padding: 10, borderRadius: 6, fontSize: 16, marginTop: 4 },
+    actionText: { color: colors.textOnPrimary, fontWeight: '700' },
+    actionBtnNeutral: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+    actionTextNeutral: { color: colors.textPrimary },
+    checkbox: { fontSize: 22, color: colors.textMuted },
+    checkboxOn: { color: colors.primary },
+    input: {
+        backgroundColor: colors.surface, color: colors.textPrimary, padding: 10, borderRadius: 6,
+        fontSize: 16, marginTop: 4, borderWidth: 1, borderColor: colors.border,
+    },
     pmRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
-    pmBtn: { paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#1e293b', borderRadius: 6, marginRight: 8, marginBottom: 4 },
-    pmBtnOn: { backgroundColor: '#0ea5e9' },
-    pmText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+    pmBtn: {
+        paddingVertical: 8, paddingHorizontal: 12, backgroundColor: colors.surface,
+        borderRadius: 6, marginRight: 8, marginBottom: 4,
+        borderWidth: 1, borderColor: colors.border,
+    },
+    pmBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+    pmText: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
+    pmTextOn: { color: colors.textOnPrimary },
 });

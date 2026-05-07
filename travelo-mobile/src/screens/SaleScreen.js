@@ -28,11 +28,14 @@ import { loadRecentBuyers, saveBuyer, findTicketByUuidOrCode } from '../db/repo'
 import { scanOnce, onScan } from '../device/scanner';
 import { startScan as akdStartScan, stopScan as akdStopScan, onCardRead as akdOnCardRead, hideKeyboard as akdHideKeyboard, akdCardAvailable } from '../device/akdCard';
 import { printReceipt as printReceiptFn, printTickets as printTicketsFn } from '../device/printSale';
+import { playSuccess as soundSuccess, playPrompt as soundPrompt, playError as soundError } from '../device/sound';
+import HomeButton from '../components/HomeButton';
 import {
     ALIGN, STYLE, bindPrinter, commitPrinterBuffer, cutPaper, enterPrinterBuffer, exitPrinterBuffer,
     getPrinterStatus, initPrinter, lineWrap, printQRCode, printRawQR, printText, setAlignment, setFontSize,
     setHeatingParams, setPrinterStyle, sunmiPrinterAvailable, waitPrinterIdle,
 } from '../device/printer';
+import { colors, shadows } from '../theme/colors';
 
 const fmtEUR = (n) => `${(Number(n) || 0).toFixed(2)} €`;
 
@@ -149,13 +152,39 @@ export default function SaleScreen() {
                     }
                 } catch (_) {}
             }
+            // Provjera pripada li karta TRENUTNOM polasku. SQLite fallback
+            // (findTicketByUuidOrCode) vraća bilo koju kartu koju je terminal
+            // prodao — može biti za drugi datum/liniju, pa moramo dodatno filtrirati.
+            // voyageRouteUuids je već filtriran po (timetable_uuid, sequence, date)
+            // pa match na route_uuid implicitno potvrđuje i polazak i datum.
+            const voyageMismatch = Boolean(
+                local
+                && voyageRouteUuids.length
+                && local.route_uuid
+                && !voyageRouteUuids.includes(String(local.route_uuid))
+            );
+            // Date fallback: ako karta nema route_uuid, usporedi datum polaska.
+            const dateMismatch = Boolean(
+                local
+                && !local.route_uuid
+                && local.departure_planed
+                && v?.departure_date
+                && String(local.departure_planed).slice(0, 10) !== String(v.departure_date).slice(0, 10)
+            );
+
             let result;
             if (!local) {
                 result = { kind: 'reject', message: 'Karta nije pronađena za ovaj polazak.' };
+                soundError();
+            } else if (voyageMismatch || dateMismatch) {
+                result = { kind: 'reject', message: 'Karta nije za ovaj polazak.', ticket: local };
+                soundError();
             } else if (local.is_canceled) {
                 result = { kind: 'reject', message: 'Karta je stornirana.', ticket: local };
+                soundError();
             } else if (local.status === 'validated' || local.validate_data) {
                 result = { kind: 'already', ticket: local };
+                soundError();
             } else {
                 // Uvijek tražimo ručnu potvrdu — scan samo prikaže info, user tap-ne
                 // gumb za validaciju. Harbor mismatch je flag koji mijenja boju/poruku.
@@ -174,6 +203,7 @@ export default function SaleScreen() {
                     selectedHarborName: selectedHarbor?.name || '',
                     related,
                 };
+                soundPrompt();
             }
             setScanResult({ code, at: new Date(), result });
         } catch (err) {
@@ -183,6 +213,7 @@ export default function SaleScreen() {
 
     // Validira jednu ili više karata — lokalni cache + backend POST (fire-and-forget).
     const doValidate = (tickets) => {
+        soundSuccess();
         const nowIso = new Date().toISOString();
         const operator = auth.operator ? {
             uuid: auth.operator.user_uuid,
@@ -480,7 +511,12 @@ export default function SaleScreen() {
             arrival_harbor_id: matchingRoute.arrival_harbor_id,
             arrival_harbor_name: matchingRoute.arrival_harbor_name,
             departure_planned: matchingRoute.departure || `${matchingRoute.departure_date} ${matchingRoute.departure_time}`,
-            arrival_planned: matchingRoute.arrival || '',
+            arrival_planned: matchingRoute.arrival
+                || (matchingRoute.arrival_date && matchingRoute.arrival_time
+                    ? `${matchingRoute.arrival_date} ${matchingRoute.arrival_time}`
+                    : (matchingRoute.arrival_time
+                        ? `${matchingRoute.departure_date} ${matchingRoute.arrival_time}`
+                        : '')),
         };
         const items = pricesForPair
             .map((p) => ({
@@ -640,17 +676,20 @@ export default function SaleScreen() {
                         <Text style={[styles.modeBtnText, mode === 'validate' && styles.modeBtnTextActive]}>Validacija</Text>
                     </TouchableOpacity>
                 </View>
-                {sales.pendingCount > 0 ? (
-                    <TouchableOpacity
-                        style={styles.pendingBadge}
-                        onPress={() => dispatch(syncPendingSalesThunk())}
-                        disabled={sales.syncing}
-                    >
-                        {sales.syncing
-                            ? <ActivityIndicator color="#fff" size="small" />
-                            : <Text style={styles.pendingText}>↑ {sales.pendingCount}</Text>}
-                    </TouchableOpacity>
-                ) : <View style={{ width: 100 }} />}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 100 }}>
+                    {sales.pendingCount > 0 ? (
+                        <TouchableOpacity
+                            style={styles.pendingBadge}
+                            onPress={() => dispatch(syncPendingSalesThunk())}
+                            disabled={sales.syncing}
+                        >
+                            {sales.syncing
+                                ? <ActivityIndicator color={colors.textOnPrimary} size="small" />
+                                : <Text style={styles.pendingText}>↑ {sales.pendingCount}</Text>}
+                        </TouchableOpacity>
+                    ) : null}
+                    <HomeButton style={{ marginLeft: 8 }} />
+                </View>
             </View>
 
             {mode === 'validate' ? (
@@ -806,7 +845,7 @@ export default function SaleScreen() {
                         onPress={onIssue}
                     >
                         {sales.finalizing
-                            ? <ActivityIndicator color="#fff" />
+                            ? <ActivityIndicator color={colors.textOnPrimary} />
                             : <Text style={styles.issueBtnText}>Izdaj račun</Text>}
                     </TouchableOpacity>
                 </View>
@@ -815,9 +854,9 @@ export default function SaleScreen() {
 
             {/* Printing overlay — tijekom ispisa računa + karata */}
             {printing && (
-                <View style={[overlayStyles.full, { backgroundColor: '#0c4a6e' }]} pointerEvents="none">
+                <View style={[overlayStyles.full, { backgroundColor: colors.primaryDark }]} pointerEvents="none">
                     <View style={overlayStyles.content}>
-                        <ActivityIndicator size="large" color="#fff" />
+                        <ActivityIndicator size="large" color={colors.textOnPrimary} />
                         <Text style={[overlayStyles.bigLine, { marginTop: 24 }]}>ISPIS U TIJEKU</Text>
                         <Text style={overlayStyles.line}>{printingLabel || 'Pričekaj…'}</Text>
                     </View>
@@ -928,25 +967,29 @@ export default function SaleScreen() {
 
 const islandStyles = StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-    card: { backgroundColor: '#fff', borderRadius: 12, padding: 20, width: '100%', maxWidth: 460 },
-    title: { fontSize: 18, fontWeight: 'bold', marginBottom: 12, color: '#1B5E20' },
-    help: { fontSize: 14, color: '#555', marginBottom: 12 },
-    input: { borderWidth: 1, borderColor: '#bbb', borderRadius: 8, padding: 12, fontSize: 18, marginBottom: 8 },
-    error: { color: '#b71c1c', marginTop: 8 },
-    resultOk: { backgroundColor: '#e8f5e9', borderColor: '#a5d6a7', borderWidth: 1, padding: 12, borderRadius: 8 },
-    resultOkTitle: { color: '#1b5e20', fontWeight: 'bold', marginBottom: 4 },
-    resultErr: { backgroundColor: '#ffebee', borderColor: '#ef9a9a', borderWidth: 1, padding: 12, borderRadius: 8 },
-    resultErrTitle: { color: '#b71c1c', fontWeight: 'bold' },
-    resultMsg: { color: '#666', fontStyle: 'italic', marginTop: 4 },
-    resultLine: { fontSize: 14 },
+    card: {
+        backgroundColor: colors.surface, borderRadius: 12, padding: 20, width: '100%', maxWidth: 460,
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.elevated,
+    },
+    title: { fontSize: 18, fontWeight: 'bold', marginBottom: 12, color: colors.success },
+    help: { fontSize: 14, color: colors.textSecondary, marginBottom: 12 },
+    input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 18, marginBottom: 8, color: colors.textPrimary, backgroundColor: colors.surface },
+    error: { color: colors.error, marginTop: 8 },
+    resultOk: { backgroundColor: colors.successLight, borderColor: colors.success, borderWidth: 1, padding: 12, borderRadius: 8 },
+    resultOkTitle: { color: colors.success, fontWeight: 'bold', marginBottom: 4 },
+    resultErr: { backgroundColor: colors.errorLight, borderColor: colors.error, borderWidth: 1, padding: 12, borderRadius: 8 },
+    resultErrTitle: { color: colors.error, fontWeight: 'bold' },
+    resultMsg: { color: colors.textSecondary, fontStyle: 'italic', marginTop: 4 },
+    resultLine: { fontSize: 14, color: colors.textPrimary },
     b: { fontWeight: 'bold' },
-    priceOld: { fontSize: 16, color: '#666', marginRight: 8 },
-    priceNew: { fontSize: 18, fontWeight: 'bold', color: '#1b5e20' },
+    priceOld: { fontSize: 16, color: colors.textMuted, marginRight: 8 },
+    priceNew: { fontSize: 18, fontWeight: 'bold', color: colors.success },
     actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16, gap: 8 },
     btnGhost: { paddingVertical: 10, paddingHorizontal: 16 },
-    btnGhostText: { color: '#666', fontSize: 16 },
-    btnPrimary: { backgroundColor: '#2E7D32', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 8 },
-    btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    btnGhostText: { color: colors.textSecondary, fontSize: 16 },
+    btnPrimary: { backgroundColor: colors.success, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 8 },
+    btnPrimaryText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: 'bold' },
 });
 
 const COUNTRIES = [
@@ -990,7 +1033,7 @@ function CountryPicker({ value, onChange }) {
     return (
         <View>
             <TouchableOpacity style={issueStyles.input} onPress={() => setOpen((v) => !v)}>
-                <Text style={{ color: '#fff', fontSize: 14 }}>
+                <Text style={{ color: colors.textPrimary, fontSize: 14 }}>
                     {current.code} — {current.name}
                 </Text>
             </TouchableOpacity>
@@ -1155,7 +1198,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                             onFocus={markTyping} onBlur={endTyping}
                             style={issueStyles.input}
                             placeholder="Tvrtka d.o.o."
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor={colors.textMuted}
                         />
                         <Text style={issueStyles.fieldLabel}>
                             OIB / VAT ID {buyerOib && !oibValid ? <Text style={issueStyles.err}>(min 3 znaka)</Text> : null}
@@ -1168,7 +1211,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                             autoCorrect={false}
                             style={issueStyles.input}
                             placeholder="12345678901 ili ATU12345678"
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor={colors.textMuted}
                             maxLength={20}
                         />
                         <Text style={issueStyles.fieldLabel}>Adresa</Text>
@@ -1178,7 +1221,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                             onFocus={markTyping} onBlur={endTyping}
                             style={issueStyles.input}
                             placeholder="Ulica i broj"
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor={colors.textMuted}
                         />
                         <View style={{ flexDirection: 'row' }}>
                             <View style={{ width: 100, marginRight: 8 }}>
@@ -1190,7 +1233,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                                     keyboardType="number-pad"
                                     style={issueStyles.input}
                                     placeholder="10000"
-                                    placeholderTextColor="#64748b"
+                                    placeholderTextColor={colors.textMuted}
                                 />
                             </View>
                             <View style={{ flex: 1 }}>
@@ -1201,7 +1244,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                                     onFocus={markTyping} onBlur={endTyping}
                                     style={issueStyles.input}
                                     placeholder="Zagreb"
-                                    placeholderTextColor="#64748b"
+                                    placeholderTextColor={colors.textMuted}
                                 />
                             </View>
                         </View>
@@ -1216,7 +1259,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                             autoCapitalize="none"
                             style={issueStyles.input}
                             placeholder="kupac@example.com"
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor={colors.textMuted}
                         />
                         <TouchableOpacity
                             style={[issueStyles.r1Toggle, { marginTop: 12, paddingVertical: 6 }]}
@@ -1231,16 +1274,16 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                 )}
 
                 <View style={issueStyles.actionsRow}>
-                    <TouchableOpacity style={[issueStyles.actionBtn, { backgroundColor: '#475569' }]} onPress={onCancel}>
-                        <Text style={issueStyles.actionBtnText}>Odustani</Text>
+                    <TouchableOpacity style={[issueStyles.actionBtn, issueStyles.actionBtnNeutral]} onPress={onCancel}>
+                        <Text style={[issueStyles.actionBtnText, issueStyles.actionBtnTextNeutral]}>Odustani</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[issueStyles.actionBtn, { backgroundColor: '#15803d', opacity: canIssue && !finalizing ? 1 : 0.5 }]}
+                        style={[issueStyles.actionBtn, { backgroundColor: colors.success, opacity: canIssue && !finalizing ? 1 : 0.5 }]}
                         onPress={handleSubmit}
                         disabled={!canIssue || finalizing}
                     >
                         {finalizing
-                            ? <ActivityIndicator color="#fff" />
+                            ? <ActivityIndicator color={colors.textOnPrimary} />
                             : <Text style={issueStyles.actionBtnText}>Izdaj</Text>}
                     </TouchableOpacity>
                 </View>
@@ -1252,97 +1295,102 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
 const issueStyles = StyleSheet.create({
     backdrop: {
         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.92)', zIndex: 800, elevation: 18,
+        backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 800, elevation: 18,
         justifyContent: 'center',
         paddingHorizontal: 12,
     },
     modalScroll: {
         flexGrow: 0, maxHeight: '95%',
-        backgroundColor: '#0f172a',
+        backgroundColor: colors.surface,
         borderRadius: 14,
-        borderWidth: 1, borderColor: '#1e293b',
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.elevated,
     },
     modalContent: { padding: 18 },
-    title: { color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' },
-    total: { color: '#fff', fontSize: 44, fontWeight: '900', textAlign: 'center', marginTop: 4, marginBottom: 16 },
-    sectionLabel: { color: '#94a3b8', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 6 },
+    title: { color: colors.textPrimary, fontSize: 18, fontWeight: '800', textAlign: 'center' },
+    total: { color: colors.primary, fontSize: 44, fontWeight: '900', textAlign: 'center', marginTop: 4, marginBottom: 16 },
+    sectionLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 6 },
     pmGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
     pmBtn: {
         paddingHorizontal: 16, paddingVertical: 12,
-        backgroundColor: '#1e293b', borderRadius: 8,
+        backgroundColor: colors.surface, borderRadius: 8,
         marginRight: 8, marginBottom: 8,
-        borderWidth: 2, borderColor: 'transparent',
+        borderWidth: 2, borderColor: colors.border,
     },
-    pmBtnActive: { borderColor: '#0ea5e9', backgroundColor: '#0c4a6e' },
-    pmBtnText: { color: '#cbd5e1', fontSize: 14, fontWeight: '700' },
-    pmBtnTextActive: { color: '#fff' },
+    pmBtnActive: { borderColor: colors.primary, backgroundColor: colors.primaryAlpha },
+    pmBtnText: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
+    pmBtnTextActive: { color: colors.primary },
     r1Toggle: {
         flexDirection: 'row', alignItems: 'center',
         marginTop: 18, paddingVertical: 10,
     },
     checkbox: {
         width: 24, height: 24, borderRadius: 4,
-        borderWidth: 2, borderColor: '#64748b',
+        borderWidth: 2, borderColor: colors.borderStrong,
         marginRight: 10, alignItems: 'center', justifyContent: 'center',
     },
-    checkboxChecked: { backgroundColor: '#0ea5e9', borderColor: '#0ea5e9' },
-    checkmark: { color: '#fff', fontSize: 16, fontWeight: '800' },
-    r1ToggleText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+    checkmark: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '800' },
+    r1ToggleText: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
     r1Box: {
-        backgroundColor: '#0f172a', borderRadius: 8,
+        backgroundColor: colors.surfaceAlt, borderRadius: 8,
         padding: 12, marginBottom: 12,
-        borderWidth: 1, borderColor: '#1e293b',
+        borderWidth: 1, borderColor: colors.border,
     },
     addrBtn: {
-        backgroundColor: '#0ea5e9', paddingHorizontal: 12, paddingVertical: 8,
+        backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8,
         borderRadius: 6, marginLeft: 8,
     },
-    addrBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+    addrBtnText: { color: colors.textOnPrimary, fontWeight: '800', fontSize: 13 },
     addrBox: {
-        backgroundColor: '#0f172a', borderRadius: 8,
+        backgroundColor: colors.surfaceAlt, borderRadius: 8,
         padding: 10, marginBottom: 12,
-        borderWidth: 1, borderColor: '#1e293b',
+        borderWidth: 1, borderColor: colors.border,
     },
     addrItem: {
-        backgroundColor: '#1e293b', paddingHorizontal: 12, paddingVertical: 10,
+        backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 10,
         borderRadius: 6, marginVertical: 3,
+        borderWidth: 1, borderColor: colors.border,
     },
-    addrItemName: { color: '#fff', fontWeight: '700', fontSize: 14 },
-    addrItemMeta: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
+    addrItemName: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
+    addrItemMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
     countryList: {
-        backgroundColor: '#0f172a', borderRadius: 6, marginTop: 4,
-        borderWidth: 1, borderColor: '#1e293b',
+        backgroundColor: colors.surface, borderRadius: 6, marginTop: 4,
+        borderWidth: 1, borderColor: colors.border,
     },
     countryItem: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 12, paddingVertical: 10,
-        borderBottomWidth: 1, borderBottomColor: '#1e293b',
+        borderBottomWidth: 1, borderBottomColor: colors.border,
     },
-    countryItemSel: { backgroundColor: '#0c4a6e' },
-    countryCode: { color: '#38bdf8', fontSize: 14, fontWeight: '800', width: 50 },
-    countryName: { color: '#fff', fontSize: 14 },
-    fieldLabel: { color: '#94a3b8', fontSize: 11, fontWeight: '700', marginTop: 8, marginBottom: 4 },
-    err: { color: '#fca5a5' },
+    countryItemSel: { backgroundColor: colors.primaryAlpha },
+    countryCode: { color: colors.primary, fontSize: 14, fontWeight: '800', width: 50 },
+    countryName: { color: colors.textPrimary, fontSize: 14 },
+    fieldLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 8, marginBottom: 4 },
+    err: { color: colors.error },
     input: {
-        backgroundColor: '#1e293b', color: '#fff',
+        backgroundColor: colors.surface, color: colors.textPrimary,
         borderRadius: 6, paddingHorizontal: 12, paddingVertical: 10,
         fontSize: 14,
+        borderWidth: 1, borderColor: colors.border,
     },
     actionsRow: { flexDirection: 'row', marginTop: 16 },
     actionBtn: {
         flex: 1, marginHorizontal: 4, paddingVertical: 16,
         borderRadius: 8, alignItems: 'center', justifyContent: 'center',
     },
-    actionBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    actionBtnText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '800' },
+    actionBtnNeutral: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border },
+    actionBtnTextNeutral: { color: colors.textPrimary },
 });
 
 // Full-screen loading overlay dok scanner tipka QR sadržaj (između prvog znaka
 // i ENTER-a). Obojen tamno-plavo da user vidi da je skeniranje u tijeku.
 function ScanLoadingOverlay() {
     return (
-        <View style={[overlayStyles.full, { backgroundColor: '#0c4a6e' }]} pointerEvents="none">
+        <View style={[overlayStyles.full, { backgroundColor: colors.primaryDark }]} pointerEvents="none">
             <View style={overlayStyles.content}>
-                <ActivityIndicator size="large" color="#fff" />
+                <ActivityIndicator size="large" color={colors.textOnPrimary} />
                 <Text style={[overlayStyles.bigLine, { marginTop: 24 }]}>PROVJERA KARTE</Text>
                 <Text style={overlayStyles.line}>skeniranje u tijeku…</Text>
             </View>
@@ -1360,7 +1408,7 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
         const t = result.ticket || {};
         const related = result.related || [];
         const hasRelated = related.length > 0;
-        const bg = result.harborMismatch ? '#a16207' : '#1e3a8a';
+        const bg = result.harborMismatch ? colors.warning : colors.primaryDark;
         const title = result.harborMismatch ? '⚠ KRIVA LUKA UKRCAJA' : '✓ KARTA VALJANA';
         return (
             <View style={[overlayStyles.full, { backgroundColor: bg }]}>
@@ -1401,18 +1449,18 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
 
                 {hasRelated ? (
                     <View style={overlayStyles.choiceRow}>
-                        <TouchableOpacity style={[overlayStyles.choiceBtn, { backgroundColor: '#065f46' }]} onPress={onValidateOnlyOne}>
+                        <TouchableOpacity style={[overlayStyles.choiceBtn, { backgroundColor: colors.primaryDark }]} onPress={onValidateOnlyOne}>
                             <Text style={overlayStyles.choiceBtnText}>VALIDIRAJ</Text>
                             <Text style={overlayStyles.choiceBtnSub}>SAMO OVU</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[overlayStyles.choiceBtn, { backgroundColor: '#15803d' }]} onPress={onValidateAll}>
+                        <TouchableOpacity style={[overlayStyles.choiceBtn, { backgroundColor: colors.success }]} onPress={onValidateAll}>
                             <Text style={overlayStyles.choiceBtnText}>VALIDIRAJ</Text>
                             <Text style={overlayStyles.choiceBtnSub}>SVE ({related.length + 1})</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
                     <View style={overlayStyles.choiceRow}>
-                        <TouchableOpacity style={[overlayStyles.choiceBtn, { backgroundColor: '#15803d', flex: 1 }]} onPress={onValidateOnlyOne}>
+                        <TouchableOpacity style={[overlayStyles.choiceBtn, { backgroundColor: colors.success, flex: 1 }]} onPress={onValidateOnlyOne}>
                             <Text style={overlayStyles.choiceBtnText}>VALIDIRAJ</Text>
                         </TouchableOpacity>
                     </View>
@@ -1424,10 +1472,10 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
         );
     }
 
-    let bg = '#14532d';
+    let bg = colors.success;
     let title = '✓ VALIDIRANO';
-    if (result.kind === 'already') { bg = '#b45309'; title = '⚠ VEĆ VALIDIRANO'; }
-    if (result.kind === 'reject')  { bg = '#991b1b'; title = '✗ ODBIJENO'; }
+    if (result.kind === 'already') { bg = colors.warning; title = '⚠ VEĆ VALIDIRANO'; }
+    if (result.kind === 'reject')  { bg = colors.error; title = '✗ ODBIJENO'; }
     const t = result.ticket || {};
     return (
         <TouchableOpacity
@@ -1468,17 +1516,17 @@ const overlayStyles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
     },
     content: { alignItems: 'center', paddingHorizontal: 24 },
-    title: { color: '#fff', fontSize: 48, fontWeight: '900', marginBottom: 24, letterSpacing: 2, textAlign: 'center' },
-    bigLine: { color: '#fff', fontSize: 28, fontWeight: '800', marginVertical: 8, textAlign: 'center' },
-    line: { color: '#fff', fontSize: 22, marginVertical: 4, textAlign: 'center' },
-    code: { color: '#fff', fontSize: 18, fontFamily: 'monospace', marginTop: 18, opacity: 0.85 },
-    hint: { color: '#fff', fontSize: 12, marginTop: 40, opacity: 0.7 },
+    title: { color: colors.textOnPrimary, fontSize: 48, fontWeight: '900', marginBottom: 24, letterSpacing: 2, textAlign: 'center' },
+    bigLine: { color: colors.textOnPrimary, fontSize: 28, fontWeight: '800', marginVertical: 8, textAlign: 'center' },
+    line: { color: colors.textOnPrimary, fontSize: 22, marginVertical: 4, textAlign: 'center' },
+    code: { color: colors.textOnPrimary, fontSize: 18, fontFamily: 'monospace', marginTop: 18, opacity: 0.85 },
+    hint: { color: colors.textOnPrimary, fontSize: 12, marginTop: 40, opacity: 0.7 },
     choiceHeader: {
         alignItems: 'center', paddingTop: 30, paddingHorizontal: 20,
     },
-    choiceTitle: { color: '#fff', fontSize: 32, fontWeight: '900', marginBottom: 8, letterSpacing: 2 },
-    choiceBig: { color: '#fff', fontSize: 22, fontWeight: '800', marginVertical: 4, textAlign: 'center' },
-    choiceCode: { color: '#fff', fontSize: 16, fontFamily: 'monospace', opacity: 0.85 },
+    choiceTitle: { color: colors.textOnPrimary, fontSize: 32, fontWeight: '900', marginBottom: 8, letterSpacing: 2 },
+    choiceBig: { color: colors.textOnPrimary, fontSize: 22, fontWeight: '800', marginVertical: 4, textAlign: 'center' },
+    choiceCode: { color: colors.textOnPrimary, fontSize: 16, fontFamily: 'monospace', opacity: 0.85 },
     relatedBox: {
         flex: 1,
         marginHorizontal: 16, marginTop: 20,
@@ -1486,7 +1534,7 @@ const overlayStyles = StyleSheet.create({
         paddingVertical: 12,
     },
     relatedHeader: {
-        color: '#e0e7ff', fontSize: 14, fontWeight: '700',
+        color: colors.textOnPrimary, fontSize: 14, fontWeight: '700',
         paddingHorizontal: 14, paddingBottom: 8,
     },
     relatedList: { flex: 1, paddingHorizontal: 10 },
@@ -1495,8 +1543,8 @@ const overlayStyles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 3,
         paddingHorizontal: 12, paddingVertical: 10, borderRadius: 6,
     },
-    relatedCode: { color: '#fff', fontSize: 14, fontFamily: 'monospace', fontWeight: '700' },
-    relatedType: { color: '#e0e7ff', fontSize: 14, fontWeight: '600', flex: 1, textAlign: 'right' },
+    relatedCode: { color: colors.textOnPrimary, fontSize: 14, fontFamily: 'monospace', fontWeight: '700' },
+    relatedType: { color: colors.textOnPrimary, fontSize: 14, fontWeight: '600', flex: 1, textAlign: 'right' },
     choiceRow: {
         flexDirection: 'row',
         marginTop: 16, marginHorizontal: 20,
@@ -1506,21 +1554,21 @@ const overlayStyles = StyleSheet.create({
         paddingVertical: 28, borderRadius: 14,
         alignItems: 'center', justifyContent: 'center',
     },
-    choiceBtnText: { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 1 },
-    choiceBtnSub: { color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 4, letterSpacing: 1 },
+    choiceBtnText: { color: colors.textOnPrimary, fontSize: 22, fontWeight: '900', letterSpacing: 1 },
+    choiceBtnSub: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700', marginTop: 4, letterSpacing: 1 },
     cancelBtn: {
         marginTop: 24, paddingVertical: 12, paddingHorizontal: 32,
         alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8,
     },
-    cancelBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+    cancelBtnText: { color: colors.textOnPrimary, fontSize: 14, fontWeight: '700' },
     harborInfo: {
         marginHorizontal: 16, marginTop: 30,
         backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10,
         padding: 16,
     },
     harborRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 6 },
-    harborLabel: { color: '#fef3c7', fontSize: 14, fontWeight: '600' },
-    harborValue: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    harborLabel: { color: colors.warningLight, fontSize: 14, fontWeight: '600' },
+    harborValue: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '800' },
 });
 
 // Status validacije — prikazuje LocalValidationStatus iz lokalnog scan rezultata
@@ -1529,13 +1577,13 @@ function LocalValidationStatus({ result }) {
     if (!result) return null;
     if (result.kind === 'reject') {
         return (
-            <View style={[vs.statusBox, { backgroundColor: '#7f1d1d' }]}>
+            <View style={[vs.statusBox, { backgroundColor: colors.error }]}>
                 <Text style={vs.statusTitle}>✗ ODBIJENO</Text>
                 <Text style={vs.statusText}>{String(result.message || 'Greška')}</Text>
             </View>
         );
     }
-    const bg = result.kind === 'already' ? '#92400e' : '#14532d';
+    const bg = result.kind === 'already' ? colors.warning : colors.success;
     const title = result.kind === 'already' ? '⚠ VEĆ VALIDIRANO' : '✓ VALIDIRANO';
     const t = result.ticket || {};
     return (
@@ -1618,7 +1666,7 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
                     disabled={validation.loading}
                 >
                     {validation.loading
-                        ? <ActivityIndicator color="#fff" />
+                        ? <ActivityIndicator color={colors.textOnPrimary} />
                         : <Text style={vs.refreshText}>↻ Osvježi</Text>}
                 </TouchableOpacity>
             </View>
@@ -1634,7 +1682,7 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
                         }
                     }}
                     placeholder="Pretraga po oznaci karte ili tipu..."
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={colors.textMuted}
                     style={vs.searchInput}
                     autoCapitalize="characters"
                     autoCorrect={false}
@@ -1657,7 +1705,7 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
                 ) : (
                     sorted.map((t) => {
                         const isValidated = t.status === 'validated' || t.validate_data;
-                        const markerColor = isValidated ? '#ef4444' : '#3b82f6';
+                        const markerColor = isValidated ? colors.error : colors.primary;
                         const Row = isValidated ? View : TouchableOpacity;
                         return (
                             <Row
@@ -1690,97 +1738,110 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
 }
 
 const vs = StyleSheet.create({
-    headerBox: { padding: 12, backgroundColor: '#1e293b', marginHorizontal: 12, marginTop: 10, borderRadius: 8 },
-    lineCode: { color: '#fff', fontSize: 16, fontWeight: '700' },
-    dateText: { color: '#94a3b8', fontSize: 13, marginTop: 2 },
+    headerBox: {
+        padding: 12, backgroundColor: colors.surface, marginHorizontal: 12, marginTop: 10, borderRadius: 8,
+        borderWidth: 1, borderColor: colors.border,
+    },
+    lineCode: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+    dateText: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
     harborSelector: {
         marginHorizontal: 12, marginTop: 10,
-        backgroundColor: '#1e293b', borderRadius: 8,
+        backgroundColor: colors.surface, borderRadius: 8,
         padding: 10,
+        borderWidth: 1, borderColor: colors.border,
     },
     harborSelectorLabel: {
-        color: '#94a3b8', fontSize: 10, fontWeight: '800',
+        color: colors.textSecondary, fontSize: 10, fontWeight: '800',
         letterSpacing: 1, marginBottom: 6, marginLeft: 4,
     },
     harborSelectorRow: { flexDirection: 'row', alignItems: 'center' },
     harborArrow: {
         width: 44, height: 44, borderRadius: 6,
         alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#0ea5e9',
+        backgroundColor: colors.primary,
     },
-    harborArrowDisabled: { backgroundColor: '#334155' },
-    harborArrowText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+    harborArrowDisabled: { opacity: 0.5 },
+    harborArrowText: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700' },
     harborSelectorValue: {
-        flex: 1, color: '#fff', fontSize: 18, fontWeight: '700',
+        flex: 1, color: colors.textPrimary, fontSize: 18, fontWeight: '700',
         textAlign: 'center', paddingHorizontal: 8,
     },
     statsRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, marginTop: 10 },
-    statBox: { flex: 1, backgroundColor: '#0f172a', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#1e293b' },
-    statLabel: { color: '#94a3b8', fontSize: 11, fontWeight: '700' },
-    statValue: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 4 },
-    refreshBtn: { backgroundColor: '#0ea5e9', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 8, marginLeft: 10 },
-    refreshText: { color: '#fff', fontWeight: '700' },
+    statBox: {
+        flex: 1, backgroundColor: colors.surface, padding: 12, borderRadius: 8,
+        borderWidth: 1, borderColor: colors.border,
+    },
+    statLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
+    statValue: { color: colors.textPrimary, fontSize: 24, fontWeight: '800', marginTop: 4 },
+    refreshBtn: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 8, marginLeft: 10 },
+    refreshText: { color: colors.textOnPrimary, fontWeight: '700' },
     searchBox: {
         flexDirection: 'row', alignItems: 'center',
         marginHorizontal: 12, marginTop: 10,
-        backgroundColor: '#1e293b', borderRadius: 8,
+        backgroundColor: colors.surface, borderRadius: 8,
         paddingHorizontal: 10,
+        borderWidth: 1, borderColor: colors.border,
     },
     searchInput: {
-        flex: 1, color: '#fff', fontSize: 15,
+        flex: 1, color: colors.textPrimary, fontSize: 15,
         paddingVertical: 10,
     },
     searchClear: { padding: 6, marginLeft: 4 },
-    searchClearText: { color: '#94a3b8', fontSize: 16, fontWeight: '700' },
+    searchClearText: { color: colors.textSecondary, fontSize: 16, fontWeight: '700' },
     ticketList: { flex: 1, marginHorizontal: 12, marginTop: 8 },
     ticketRow: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#1e293b',
+        backgroundColor: colors.surface,
         paddingVertical: 10, paddingRight: 12,
         marginVertical: 3, borderRadius: 6,
         overflow: 'hidden',
+        borderWidth: 1, borderColor: colors.border,
     },
     ticketMarker: { width: 6, alignSelf: 'stretch', marginRight: 10 },
-    ticketCode: { color: '#fff', fontSize: 15, fontWeight: '700', fontFamily: 'monospace' },
-    ticketType: { color: '#94a3b8', fontSize: 13, marginTop: 2 },
-    ticketStatus: { color: '#e2e8f0', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-    emptyText: { color: '#64748b', textAlign: 'center', padding: 30, fontStyle: 'italic' },
+    ticketCode: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', fontFamily: 'monospace' },
+    ticketType: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
+    ticketStatus: { color: colors.textSecondary, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+    emptyText: { color: colors.textMuted, textAlign: 'center', padding: 30, fontStyle: 'italic' },
     scanBtn: {
         marginHorizontal: 12, marginTop: 14,
-        backgroundColor: '#0ea5e9', paddingVertical: 18, borderRadius: 10,
+        backgroundColor: colors.primary, paddingVertical: 18, borderRadius: 10,
         alignItems: 'center',
     },
-    scanBtnText: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 1 },
+    scanBtnText: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '800', letterSpacing: 1 },
     scanArea: { flex: 1, alignItems: 'stretch', justifyContent: 'flex-start', padding: 20 },
-    scanHint: { color: '#94a3b8', fontSize: 14, fontWeight: '700', marginBottom: 8 },
+    scanHint: { color: colors.textSecondary, fontSize: 14, fontWeight: '700', marginBottom: 8 },
     scanInput: {
-        backgroundColor: '#1e293b', color: '#fff',
-        borderWidth: 1, borderColor: '#334155',
+        backgroundColor: colors.surface, color: colors.textPrimary,
+        borderWidth: 1, borderColor: colors.border,
         borderRadius: 8, padding: 12, minHeight: 100,
         fontSize: 13, fontFamily: 'monospace',
     },
-    clearBtn: { marginTop: 8, alignSelf: 'flex-end', backgroundColor: '#475569', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6 },
-    clearBtnText: { color: '#fff', fontWeight: '700' },
+    clearBtn: {
+        marginTop: 8, alignSelf: 'flex-end',
+        backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6,
+        borderWidth: 1, borderColor: colors.border,
+    },
+    clearBtnText: { color: colors.textPrimary, fontWeight: '700' },
     statusBox: { marginTop: 12, padding: 12, borderRadius: 8 },
-    statusTitle: { color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 4, textAlign: 'center' },
-    statusText: { color: '#fff', fontSize: 14, textAlign: 'center', marginVertical: 1 },
-    statusInfo: { color: '#94a3b8', fontStyle: 'italic', marginTop: 8, textAlign: 'center' },
+    statusTitle: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '800', marginBottom: 4, textAlign: 'center' },
+    statusText: { color: colors.textOnPrimary, fontSize: 14, textAlign: 'center', marginVertical: 1 },
+    statusInfo: { color: colors.textSecondary, fontStyle: 'italic', marginTop: 8, textAlign: 'center' },
     hiddenInput: {
         position: 'absolute', top: -1000, left: 0,
         width: 1, height: 1, opacity: 0,
     },
-    lastSync: { color: '#475569', fontSize: 11, marginTop: 12, textAlign: 'center' },
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+    lastSync: { color: colors.textMuted, fontSize: 11, marginTop: 12, textAlign: 'center' },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
     resultCard: { width: '85%', borderRadius: 14, padding: 24, alignItems: 'center' },
-    resultTitle: { color: '#fff', fontSize: 28, fontWeight: '800', marginBottom: 16, letterSpacing: 1 },
-    resultLine: { color: '#fff', fontSize: 18, fontWeight: '700', marginVertical: 4, textAlign: 'center' },
-    resultMeta: { color: '#e2e8f0', fontSize: 13, marginTop: 4 },
-    resultBtn: { marginTop: 18, backgroundColor: '#fff', paddingHorizontal: 28, paddingVertical: 12, borderRadius: 8 },
-    resultBtnText: { color: '#0f172a', fontSize: 16, fontWeight: '800' },
+    resultTitle: { color: colors.textOnPrimary, fontSize: 28, fontWeight: '800', marginBottom: 16, letterSpacing: 1 },
+    resultLine: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700', marginVertical: 4, textAlign: 'center' },
+    resultMeta: { color: colors.textOnPrimary, fontSize: 13, marginTop: 4 },
+    resultBtn: { marginTop: 18, backgroundColor: colors.surface, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 8 },
+    resultBtnText: { color: colors.primary, fontSize: 16, fontWeight: '800' },
 });
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
     hiddenScanInput: {
         position: 'absolute', top: -1000, left: 0,
         width: 1, height: 1, opacity: 0,
@@ -1789,131 +1850,145 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 8, paddingVertical: 12,
-        borderBottomWidth: 1, borderBottomColor: '#1e293b',
+        backgroundColor: colors.primary,
     },
     backBtn: { paddingVertical: 6, paddingHorizontal: 10, width: 100 },
-    backText: { color: '#38bdf8', fontSize: 16, fontWeight: '600' },
-    headerTitle: { flex: 1, textAlign: 'center', color: '#fff', fontSize: 18, fontWeight: '700' },
+    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    headerTitle: { flex: 1, textAlign: 'center', color: colors.textOnPrimary, fontSize: 18, fontWeight: '700' },
     modeToggle: {
-        flex: 1, flexDirection: 'row', backgroundColor: '#1e293b',
+        flex: 1, flexDirection: 'row', backgroundColor: colors.primaryDark,
         borderRadius: 8, padding: 3, marginHorizontal: 4,
     },
     modeBtn: {
         flex: 1, paddingVertical: 8, borderRadius: 6,
         alignItems: 'center', justifyContent: 'center',
     },
-    modeBtnActive: { backgroundColor: '#0ea5e9' },
-    modeBtnText: { color: '#94a3b8', fontSize: 13, fontWeight: '700' },
-    modeBtnTextActive: { color: '#fff' },
+    modeBtnActive: { backgroundColor: colors.surface },
+    modeBtnText: { color: colors.secondary, fontSize: 13, fontWeight: '700' },
+    modeBtnTextActive: { color: colors.primary },
     pendingBadge: {
         width: 100, height: 32,
-        backgroundColor: '#f59e0b',
+        backgroundColor: colors.warning,
         borderRadius: 16,
         alignItems: 'center', justifyContent: 'center',
         marginRight: 8,
     },
-    pendingText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+    pendingText: { color: colors.textOnPrimary, fontSize: 13, fontWeight: '800' },
 
     voyageBoxSlim: {
-        backgroundColor: '#1e293b',
+        backgroundColor: colors.surface,
         marginHorizontal: 12,
         marginTop: 10,
         paddingHorizontal: 14,
         paddingVertical: 8,
         borderRadius: 8,
         borderLeftWidth: 3,
-        borderLeftColor: '#0ea5e9',
+        borderLeftColor: colors.primary,
+        borderWidth: 1, borderColor: colors.border,
     },
-    voyageLineSlim: { color: '#fff', fontSize: 14, fontWeight: '700' },
+    voyageLineSlim: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
 
-    sectionLabel: { color: '#94a3b8', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginLeft: 16, marginTop: 14, marginBottom: 6 },
+    sectionLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginLeft: 16, marginTop: 14, marginBottom: 6 },
 
     selectorRow: {
         flexDirection: 'row', alignItems: 'center',
-        marginHorizontal: 12, backgroundColor: '#1e293b',
+        marginHorizontal: 12, backgroundColor: colors.surface,
         borderRadius: 10, padding: 8,
+        borderWidth: 1, borderColor: colors.border,
     },
     arrow: {
         width: 52, height: 52, borderRadius: 8,
         alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#0ea5e9',
+        backgroundColor: colors.primary,
     },
-    arrowDisabled: { backgroundColor: '#334155' },
-    arrowText: { color: '#fff', fontSize: 22, fontWeight: '700' },
+    arrowDisabled: { opacity: 0.5 },
+    arrowText: { color: colors.textOnPrimary, fontSize: 22, fontWeight: '700' },
     selectorValue: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
-    selectorText: { color: '#fff', fontSize: 20, fontWeight: '700' },
-    selectorTime: { color: '#38bdf8', fontSize: 13, fontWeight: '600', marginTop: 2 },
+    selectorText: { color: colors.textPrimary, fontSize: 20, fontWeight: '700' },
+    selectorTime: { color: colors.primary, fontSize: 13, fontWeight: '600', marginTop: 2 },
 
     emptyCat: { padding: 24, alignItems: 'center' },
-    emptyCatText: { color: '#94a3b8' },
+    emptyCatText: { color: colors.textSecondary },
 
     catRow: {
         flexDirection: 'row', alignItems: 'center',
         marginHorizontal: 12, marginTop: 8,
-        backgroundColor: '#1e293b', borderRadius: 10,
+        backgroundColor: colors.surface, borderRadius: 10,
         padding: 12,
+        borderWidth: 1, borderColor: colors.border,
     },
-    catName: { color: '#fff', fontSize: 16, fontWeight: '700' },
-    catPrice: { color: '#94a3b8', fontSize: 13, marginTop: 2 },
+    catName: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+    catPrice: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
     qtyRow: { flexDirection: 'row', alignItems: 'center' },
     qtyBtn: {
         width: 44, height: 44, borderRadius: 8,
         alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#0ea5e9',
+        backgroundColor: colors.primary,
     },
-    qtyBtnDisabled: { backgroundColor: '#334155' },
-    qtyBtnText: { color: '#fff', fontSize: 22, fontWeight: '800' },
-    qtyValue: { color: '#fff', fontSize: 20, fontWeight: '800', width: 44, textAlign: 'center' },
+    qtyBtnDisabled: { opacity: 0.5 },
+    qtyBtnText: { color: colors.textOnPrimary, fontSize: 22, fontWeight: '800' },
+    qtyValue: { color: colors.textPrimary, fontSize: 20, fontWeight: '800', width: 44, textAlign: 'center' },
 
     bottom: {
         position: 'absolute', left: 0, right: 0, bottom: 0,
-        backgroundColor: '#1e293b',
-        borderTopWidth: 1, borderTopColor: '#334155',
+        backgroundColor: colors.surface,
+        borderTopWidth: 1, borderTopColor: colors.border,
         paddingTop: 8, paddingHorizontal: 12, paddingBottom: 12,
+        ...shadows.elevated,
     },
     pmRow: { paddingVertical: 4, gap: 6 },
     pmChip: {
         paddingHorizontal: 14, paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: '#0f172a',
-        borderWidth: 1, borderColor: '#334155',
+        backgroundColor: colors.surface,
+        borderWidth: 1, borderColor: colors.border,
         marginRight: 6,
     },
     pmChipActive: {
-        backgroundColor: '#0ea5e9',
-        borderColor: '#0ea5e9',
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
     },
-    pmChipText: { color: '#cbd5e1', fontSize: 13, fontWeight: '600' },
-    pmChipTextActive: { color: '#fff' },
+    pmChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+    pmChipTextActive: { color: colors.textOnPrimary },
     bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },
     totalBox: { flex: 1 },
-    totalLabel: { color: '#94a3b8', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-    totalValue: { color: '#fff', fontSize: 24, fontWeight: '800' },
+    totalLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+    totalValue: { color: colors.textPrimary, fontSize: 24, fontWeight: '800' },
     issueBtn: {
-        backgroundColor: '#10b981', paddingHorizontal: 24, paddingVertical: 14,
+        backgroundColor: colors.success, paddingHorizontal: 24, paddingVertical: 14,
         borderRadius: 10,
     },
-    issueBtnDisabled: { backgroundColor: '#334155' },
-    issueBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    issueBtnDisabled: { opacity: 0.5 },
+    issueBtnText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '800' },
 
     modalBackdrop: {
-        flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+        flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
         alignItems: 'center', justifyContent: 'center',
     },
     modalCard: {
-        backgroundColor: '#1e293b', padding: 24, borderRadius: 12,
+        backgroundColor: colors.surface, padding: 24, borderRadius: 12,
         width: '85%', alignItems: 'center',
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.elevated,
     },
-    modalTitle: { color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 12 },
-    modalCode: { color: '#38bdf8', fontSize: 14, marginBottom: 10, textAlign: 'center' },
-    modalHint: { color: '#94a3b8', fontSize: 12, textAlign: 'center' },
-    modalBtn: { marginTop: 20, backgroundColor: '#0ea5e9', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
-    modalBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-    islandSection: { marginHorizontal: 16, marginTop: 14, padding: 12, borderRadius: 12, borderWidth: 2, borderStyle: 'dashed', borderColor: '#2E7D32', backgroundColor: '#E8F5E9' },
-    islandBtn: { backgroundColor: '#2E7D32', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 4 },
-    islandBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-    islandRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 10, borderRadius: 8, marginTop: 8, borderWidth: 1, borderColor: '#a5d6a7' },
-    islandRowTitle: { fontWeight: '700', color: '#1b5e20', fontSize: 14 },
-    islandRowSub: { color: '#666', fontSize: 12, marginTop: 2 },
-    islandRowPrice: { fontWeight: '700', fontSize: 16, color: '#1b5e20' },
+    modalTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '800', marginBottom: 12 },
+    modalCode: { color: colors.primary, fontSize: 14, marginBottom: 10, textAlign: 'center' },
+    modalHint: { color: colors.textSecondary, fontSize: 12, textAlign: 'center' },
+    modalBtn: { marginTop: 20, backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+    modalBtnText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 14 },
+    islandSection: {
+        marginHorizontal: 16, marginTop: 14, padding: 12, borderRadius: 12,
+        borderWidth: 2, borderStyle: 'dashed', borderColor: colors.success,
+        backgroundColor: colors.successLight,
+    },
+    islandBtn: { backgroundColor: colors.success, paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 4 },
+    islandBtnText: { color: colors.textOnPrimary, fontWeight: 'bold', fontSize: 16 },
+    islandRow: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: colors.surface, padding: 10, borderRadius: 8, marginTop: 8,
+        borderWidth: 1, borderColor: colors.success,
+    },
+    islandRowTitle: { fontWeight: '700', color: colors.success, fontSize: 14 },
+    islandRowSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+    islandRowPrice: { fontWeight: '700', fontSize: 16, color: colors.success },
 });

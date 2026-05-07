@@ -53,12 +53,16 @@ module.exports = (sequelize) =>{
                 type:DataTypes.STRING,
                 allowNull:true
             },
+            saop_clerk_id:{
+                type:DataTypes.STRING,
+                allowNull:true
+            },
             is_active:{
                 type:DataTypes.BOOLEAN,
                 allowNull:false
             },
         },
-        { freezeTableName:true, tableName: "users", timestamps: true } 
+        { freezeTableName:true, tableName: "users", timestamps: true }
     )
     const UsersPermissionsModel = sequelize.define(
         "users_permissions",

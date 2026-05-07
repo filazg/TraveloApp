@@ -1,5 +1,5 @@
 const express = require('express');
-const { handleGetCompanyFeature } = require('../features/backoffice/companyHandlers');
+const { handleGetCompanyFeature, handleUpdateCompanyFeature } = require('../features/backoffice/companyHandlers');
 const { handleGetBusinessPremisesFeature, handleAddBusinessPremisesFeature, handleUpdateBusinessPremisesFeature } = require('../features/backoffice/businessPremisesHandlers');
 const { handleGetPaymentMethodsFeature, handleAddPaymentMethodsFeature, handleUpdatePaymentMethodsFeature } = require('../features/backoffice/paymentMethodsHandlers');
 const { handleGetPaymentTypesFeature } = require('../features/backoffice/paymentTypesHandlers');
@@ -15,6 +15,8 @@ const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrF
 const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
 const { handleGetHolidaysFeature, handleAddHolidaysFeature, handleUpdateHolidaysFeature } = require('../features/backoffice/holidaysHandlers');
 const { handleGetCountriesFeature, handleAddCountryFeature, handleUpdateCountryFeature } = require('../features/backoffice/countriesHandlers');
+const { handleGetAccountsFeature, handleAddAccountFeature, handleUpdateAccountFeature, handleGetAccountMappingsFeature, handleUpsertAccountMappingFeature } = require('../features/backoffice/accountsHandlers');
+const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature, handleGetDailyRealizationDemoFeature, handleSendDailyRealizationDemoToErpFeature } = require('../features/transactions/dailyRealizationHandlers');
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
 const { handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
@@ -45,6 +47,7 @@ const router = express.Router();
 router
     .route('/backoffice/company')
     .get(handleGetCompanyFeature)
+    .patch(handleUpdateCompanyFeature)
 
 router
     .route('/backoffice/business_premises')
@@ -97,6 +100,17 @@ router
     .get(handleGetCountriesFeature)
     .post(handleAddCountryFeature)
     .patch(handleUpdateCountryFeature)
+
+router
+    .route('/backoffice/accounts')
+    .get(handleGetAccountsFeature)
+    .post(handleAddAccountFeature)
+    .patch(handleUpdateAccountFeature)
+
+router
+    .route('/backoffice/account_mappings')
+    .get(handleGetAccountMappingsFeature)
+    .post(handleUpsertAccountMappingFeature)
 
 //BOAT ROUTES
 router
@@ -186,6 +200,22 @@ router
 router
     .route('/transactions/harbor_tax_report')
     .get(handleGetHarborTaxReportFeature)
+
+router
+    .route('/transactions/daily_realization')
+    .get(handleGetDailyRealizationFeature)
+
+router
+    .route('/transactions/daily_realization/send_to_erp')
+    .post(handleSendDailyRealizationToErpFeature)
+
+router
+    .route('/transactions/daily_realization_demo')
+    .get(handleGetDailyRealizationDemoFeature)
+
+router
+    .route('/transactions/daily_realization_demo/send_to_erp')
+    .post(handleSendDailyRealizationDemoToErpFeature)
 
 router
     .route('/transactions/finalize_terminal_sale')

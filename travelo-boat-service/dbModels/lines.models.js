@@ -65,6 +65,10 @@ module.exports =  (sequelize) =>{
             type: DataTypes.STRING,
             allowNull: true
         },
+        saop_cost_bearer:{
+            type: DataTypes.STRING,
+            allowNull: true
+        },
     },{
         freezeTableName:true, tableName: "lines", timestamps: true
     }

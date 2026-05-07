@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { authData, clearError, pairTerminalThunk } from '../store/slices/authSlice';
 import { syncBasicDataThunk } from '../store/slices/syncSlice';
 import { DEFAULT_GATEWAY_URL } from '../api/config';
+import { colors, shadows } from '../theme/colors';
 
 export default function PairingScreen() {
     const dispatch = useDispatch();
@@ -86,7 +87,7 @@ export default function PairingScreen() {
                         disabled={!tid || !otp || auth.pairing}
                     >
                         {auth.pairing ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color={colors.textOnPrimary} />
                         ) : (
                             <Text style={styles.btnText}>Upari uređaj</Text>
                         )}
@@ -98,29 +99,33 @@ export default function PairingScreen() {
 }
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-    logo: { fontSize: 32, fontWeight: '800', color: '#fff', textAlign: 'center' },
-    subtitle: { fontSize: 15, color: '#94a3b8', textAlign: 'center', marginTop: 4, marginBottom: 32 },
-    form: { backgroundColor: '#1e293b', padding: 20, borderRadius: 12 },
-    label: { color: '#cbd5e1', fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+    logo: { fontSize: 32, fontWeight: '800', color: colors.primary, textAlign: 'center' },
+    subtitle: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 32 },
+    form: {
+        backgroundColor: colors.surface, padding: 20, borderRadius: 12,
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.card,
+    },
+    label: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
     input: {
-        backgroundColor: '#0f172a',
-        color: '#fff',
+        backgroundColor: colors.surface,
+        color: colors.textPrimary,
         paddingHorizontal: 14,
         paddingVertical: 12,
         borderRadius: 8,
         fontSize: 16,
         borderWidth: 1,
-        borderColor: '#334155',
+        borderColor: colors.border,
     },
     btn: {
         marginTop: 24,
-        backgroundColor: '#0ea5e9',
+        backgroundColor: colors.primary,
         paddingVertical: 16,
         borderRadius: 8,
         alignItems: 'center',
     },
-    btnDisabled: { backgroundColor: '#475569' },
-    btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    btnDisabled: { opacity: 0.5 },
+    btnText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 16 },
 });

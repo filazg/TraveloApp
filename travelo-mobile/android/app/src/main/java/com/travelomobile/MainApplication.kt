@@ -13,6 +13,8 @@ import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
 import com.travelomobile.sunmi.SunmiScannerPackage
 import com.travelomobile.akd.AkdCardPackage
+import com.travelomobile.sound.AppSoundPackage
+import com.travelomobile.auth.AppAuthPackage
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 
@@ -31,6 +33,8 @@ class MainApplication : Application(), ReactApplication {
                 PackageList(this).packages.apply {
                     add(SunmiScannerPackage())
                     add(AkdCardPackage())
+                    add(AppSoundPackage())
+                    add(AppAuthPackage())
                 }
 
             override fun getJSMainModuleName(): String = "index"

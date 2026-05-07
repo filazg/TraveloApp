@@ -198,14 +198,25 @@ export default function LinesPage (){
                         >
                         {boatData.boatData?.linesTypes?.map((type) => (
                                 <MenuItem key={type.id} value={type} >{type.name}</MenuItem>
-                            ))} 
+                            ))}
                     </TextField>
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label="Nositelj troška (SAOP)"
+                        placeholder="npr. NT-9141"
+                        value={newData.saop_cost_bearer || ""}
+                        onChange={handleChange}
+                        name="saop_cost_bearer"
+                        sx={{ mt:1 }}
+                    />
                     <Button
                         type="submit"
-                        
+
                         onClick={handleSubmit}
                         disabled={
-                            !newData.name 
+                            !newData.name
                             || !newData.code
                             || !newData.first_harbor_name
                             || !newData.last_harbor_name
@@ -308,6 +319,17 @@ export default function LinesPage (){
                         sx={{
                             mt:1
                         }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label="Nositelj troška (SAOP)"
+                        placeholder="npr. NT-9141"
+                        value={editedData?.saop_cost_bearer || ""}
+                        onChange={(e)=>setEditedData({...editedData, saop_cost_bearer: e.target.value})}
+                        name="saop_cost_bearer"
+                        sx={{ mt:1 }}
                     />
                     <Button
                         type="submit"

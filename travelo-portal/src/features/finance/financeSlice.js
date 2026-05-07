@@ -1,7 +1,7 @@
 import axios from "axios";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-const prod = true;
+const prod = false;
 const backendURL = prod ? "https://bookingtest.krilo.hr/app" : "http://localhost:5100";
 
 const api = axios.create({
@@ -218,6 +218,54 @@ export const fetchShiftsThunk = createAsyncThunk(
     }
 );
 
+export const fetchDailyRealizationThunk = createAsyncThunk(
+    "finance/fetchDailyRealization",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/daily_realization", { params });
+            return unwrapBff(resp) || {};
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
+export const sendDailyRealizationToErpThunk = createAsyncThunk(
+    "finance/sendDailyRealizationToErp",
+    async (payload, { rejectWithValue }) => {
+        try {
+            const resp = await api.post("/portal/transactions/daily_realization/send_to_erp", payload);
+            return { date: payload?.date, response: resp.data || {} };
+        } catch (err) {
+            return rejectWithValue({ date: payload?.date, error: err.response?.data || { message: err.message } });
+        }
+    }
+);
+
+export const fetchDailyRealizationDemoThunk = createAsyncThunk(
+    "finance/fetchDailyRealizationDemo",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/daily_realization_demo", { params });
+            return unwrapBff(resp) || {};
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
+export const sendDailyRealizationDemoToErpThunk = createAsyncThunk(
+    "finance/sendDailyRealizationDemoToErp",
+    async (payload, { rejectWithValue }) => {
+        try {
+            const resp = await api.post("/portal/transactions/daily_realization_demo/send_to_erp", payload);
+            return { date: payload?.date, response: resp.data || {} };
+        } catch (err) {
+            return rejectWithValue({ date: payload?.date, error: err.response?.data || { message: err.message } });
+        }
+    }
+);
+
 export const cancelTicketsThunk = createAsyncThunk(
     "finance/cancelTickets",
     async (payload, { rejectWithValue }) => {
@@ -281,6 +329,26 @@ const financeSlice = createSlice({
             billing_device_uuid: "",
             shift_open: "",
         },
+        dailyRealization: null,
+        dailyRealizationLoading: false,
+        dailyRealizationError: null,
+        dailyRealizationFilters: (() => {
+            const now = new Date();
+            const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+            return {
+                from: first.toISOString().slice(0, 10),
+                to: now.toISOString().slice(0, 10),
+            };
+        })(),
+        dailyRealizationSendByDay: {}, // { [date]: { loading, result, error } }
+        dailyRealizationDemo: null,
+        dailyRealizationDemoLoading: false,
+        dailyRealizationDemoError: null,
+        dailyRealizationDemoFilters: {
+            from: "2026-05-01",
+            to: "2026-05-05",
+        },
+        dailyRealizationDemoSendByDay: {},
         managementReport: null,
         managementReportLoading: false,
         managementReportError: null,
@@ -344,6 +412,27 @@ const financeSlice = createSlice({
         setShiftsFilter(state, action) {
             const { path, value } = action.payload || {};
             if (path) state.shiftsFilters[path] = value;
+        },
+        setDailyRealizationFilter(state, action) {
+            const { path, value } = action.payload || {};
+            if (path) state.dailyRealizationFilters[path] = value;
+        },
+        clearDailyRealizationSendResult(state, action) {
+            const date = action.payload;
+            if (date) {
+                delete state.dailyRealizationSendByDay[date];
+            } else {
+                state.dailyRealizationSendByDay = {};
+            }
+        },
+        setDailyRealizationDemoFilter(state, action) {
+            const { path, value } = action.payload || {};
+            if (path) state.dailyRealizationDemoFilters[path] = value;
+        },
+        clearDailyRealizationDemoSendResult(state, action) {
+            const date = action.payload;
+            if (date) delete state.dailyRealizationDemoSendByDay[date];
+            else state.dailyRealizationDemoSendByDay = {};
         },
     },
     extraReducers: (builder) => {
@@ -485,12 +574,82 @@ const financeSlice = createSlice({
             .addCase(fetchShiftsThunk.rejected, (s, a) => {
                 s.shiftsLoading = false;
                 s.shiftsError = a.payload?.message || "Greška pri dohvatu smjena";
+            })
+            .addCase(fetchDailyRealizationThunk.pending, (s) => {
+                s.dailyRealizationLoading = true;
+                s.dailyRealizationError = null;
+            })
+            .addCase(fetchDailyRealizationThunk.fulfilled, (s, a) => {
+                s.dailyRealizationLoading = false;
+                s.dailyRealization = a.payload || null;
+            })
+            .addCase(fetchDailyRealizationThunk.rejected, (s, a) => {
+                s.dailyRealizationLoading = false;
+                s.dailyRealizationError = a.payload?.message || "Greška pri dohvatu izvještaja";
+            })
+            .addCase(sendDailyRealizationToErpThunk.pending, (s, a) => {
+                const date = a.meta?.arg?.date;
+                if (!date) return;
+                s.dailyRealizationSendByDay[date] = { loading: true, result: null, error: null };
+            })
+            .addCase(sendDailyRealizationToErpThunk.fulfilled, (s, a) => {
+                const date = a.payload?.date;
+                if (!date) return;
+                s.dailyRealizationSendByDay[date] = {
+                    loading: false,
+                    result: a.payload?.response || {},
+                    error: null,
+                };
+            })
+            .addCase(sendDailyRealizationToErpThunk.rejected, (s, a) => {
+                const date = a.payload?.date || a.meta?.arg?.date;
+                if (!date) return;
+                s.dailyRealizationSendByDay[date] = {
+                    loading: false,
+                    result: null,
+                    error: a.payload?.error?.message || a.error?.message || "Slanje u ERP nije uspjelo",
+                };
+            })
+            .addCase(fetchDailyRealizationDemoThunk.pending, (s) => {
+                s.dailyRealizationDemoLoading = true;
+                s.dailyRealizationDemoError = null;
+            })
+            .addCase(fetchDailyRealizationDemoThunk.fulfilled, (s, a) => {
+                s.dailyRealizationDemoLoading = false;
+                s.dailyRealizationDemo = a.payload || null;
+            })
+            .addCase(fetchDailyRealizationDemoThunk.rejected, (s, a) => {
+                s.dailyRealizationDemoLoading = false;
+                s.dailyRealizationDemoError = a.payload?.message || "Greška pri dohvatu DEMO izvještaja";
+            })
+            .addCase(sendDailyRealizationDemoToErpThunk.pending, (s, a) => {
+                const date = a.meta?.arg?.date;
+                if (!date) return;
+                s.dailyRealizationDemoSendByDay[date] = { loading: true, result: null, error: null };
+            })
+            .addCase(sendDailyRealizationDemoToErpThunk.fulfilled, (s, a) => {
+                const date = a.payload?.date;
+                if (!date) return;
+                s.dailyRealizationDemoSendByDay[date] = {
+                    loading: false,
+                    result: a.payload?.response || {},
+                    error: null,
+                };
+            })
+            .addCase(sendDailyRealizationDemoToErpThunk.rejected, (s, a) => {
+                const date = a.payload?.date || a.meta?.arg?.date;
+                if (!date) return;
+                s.dailyRealizationDemoSendByDay[date] = {
+                    loading: false,
+                    result: null,
+                    error: a.payload?.error?.message || a.error?.message || "Slanje u ERP nije uspjelo",
+                };
             });
     },
 });
 
 export const financeSliceData = (state) => state.finance;
-export const { setFilter, resetFilters, setPartnerInvoiceFilter, setTicketsFilter, setHarborTaxReportFilter, setManagementReportMonth, setPurchaseReportMonth, setShiftsFilter } = financeSlice.actions;
+export const { setFilter, resetFilters, setPartnerInvoiceFilter, setTicketsFilter, setHarborTaxReportFilter, setManagementReportMonth, setPurchaseReportMonth, setShiftsFilter, setDailyRealizationFilter, clearDailyRealizationSendResult, setDailyRealizationDemoFilter, clearDailyRealizationDemoSendResult } = financeSlice.actions;
 export const invoicePdfUrl = (invoice_uuid) => `${backendURL}/portal/transactions/invoice_pdf/${invoice_uuid}`;
 
 // Download the invoice PDF forcing it to save (not open in a tab). Fetches as

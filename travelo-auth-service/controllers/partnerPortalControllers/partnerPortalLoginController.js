@@ -8,7 +8,6 @@ const cookieOptions = {
     httpOnly: true,
     sameSite: "lax",
     secure: false,
-    domain: "localhost",
 };
 
 const comparePassword = async (plain, stored) => {

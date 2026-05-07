@@ -152,4 +152,19 @@ export async function exitPrinterBuffer(commit = true) {
     return SunmiPrinter.exitPrinterBuffer(commit);
 }
 
+// High-level native ispisi — sav layout (font, alignment, kolone) je u Kotlin modulu.
+// Vidi `SunmiPrinterModule.printReceipt` / `printShiftReport` / `printTickets` za detalje.
+export async function nativePrintReceipt(data) {
+    await bindPrinter();
+    return SunmiPrinter.printReceipt(data);
+}
+export async function nativePrintShiftReport(data) {
+    await bindPrinter();
+    return SunmiPrinter.printShiftReport(data);
+}
+export async function nativePrintTickets(data) {
+    await bindPrinter();
+    return SunmiPrinter.printTickets(data);
+}
+
 export const sunmiPrinterAvailable = isAvailable;

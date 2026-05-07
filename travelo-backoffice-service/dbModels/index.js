@@ -9,6 +9,7 @@ const paymentMethodsModelsFactory  = require("./paymentMethods.models");
 const paymentTypesModelsFactory  = require("./paymentTypes.models");
 const addressbookModelsFactory  = require("./addressbook.models");
 const countriesModelsFactory = require("./countries.models");
+const accountsModelsFactory = require("./accounts.models");
 
 let models = null;
 
@@ -27,6 +28,7 @@ function initModels() {
       ...paymentTypesModelsFactory(sequelize),
       ...addressbookModelsFactory(sequelize),
       ...countriesModelsFactory(sequelize),
+      ...accountsModelsFactory(sequelize),
     };
   }
 

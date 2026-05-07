@@ -45,6 +45,18 @@ module.exports =  (sequelize) =>{
               type:DataTypes.BOOLEAN,
               allowNull:true
           },
+          saop_organization_id:{
+              type:DataTypes.STRING,
+              allowNull:true
+          },
+          saop_link_to_book:{
+              type:DataTypes.STRING,
+              allowNull:true
+          },
+          saop_default_customer:{
+              type:DataTypes.STRING,
+              allowNull:true
+          },
       },
       { freezeTableName:true, tableName: "company", timestamps: true }
     )

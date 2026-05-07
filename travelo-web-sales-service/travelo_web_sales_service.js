@@ -16,12 +16,16 @@ app.use(bodyParser.json({ limit: "10mb" }))
 app.set('trust proxy', 1);
 
 app.use(cors({
-  origin: [
-    "http://localhost:5181",
-    "http://192.168.0.100:5181",
-    "http://192.168.0.101:5181",
-    "http://10.71.117.225:5181",
-    ],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    if (/^https:\/\/(bookingtest|webbookingtest)\.krilo\.hr(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
   credentials: true,
 }));
 

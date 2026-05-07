@@ -71,8 +71,8 @@ module.exports = {
     node('travelo-web_portal-service', 'travelo-web_portal-service.js'),
 
     // SPA-ovi (Vite dev) — portovi i base se poklapaju s nginx config-om
-    vite('travelo-portal',         5174, '/portal/'),
-    vite('travelo-partner-sales',  5175, '/partner-sale/'),
-    vite('travelo-web-sales',      5176, '/'),
+    vite('travelo-portal',         5180, '/portal/'),
+    vite('travelo-web-sales',      5182, '/'),
+    vite('travelo-partner-sales',  5183, '/partner-sale/'),
   ],
 };

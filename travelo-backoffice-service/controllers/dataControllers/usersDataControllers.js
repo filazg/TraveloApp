@@ -165,6 +165,7 @@ const addUserDataController = async(req,res)=>{
                         partner_uuid:data.partner_uuid,
                         partner_name:data.partner_name,
                         code:data.code,
+                        saop_clerk_id:data.saop_clerk_id || null,
                         is_active:true
                     })
                     publishBackofficeEvent('update_users')
@@ -215,6 +216,7 @@ const updateUserDataController = async(req,res)=>{
                     is_active:data.is_active,
                     ...(data.legal_id !== undefined ? { legal_id: data.legal_id } : {}),
                     ...(data.mark !== undefined ? { mark: data.mark } : {}),
+                    ...(data.saop_clerk_id !== undefined ? { saop_clerk_id: data.saop_clerk_id || null } : {}),
                 },{
                     where:{
                         uuid:data.uuid,

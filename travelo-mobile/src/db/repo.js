@@ -409,8 +409,65 @@ export async function upsertBuyersFromSync(buyers) {
     return count;
 }
 
-// Replace synced flag + merge backend response onto local payload so we upgrade
-// local invoice_no / fiskal_no to the official server-issued ones.
+// Vrati ticket_uuids koje je dani storno račun otkazao (markTicketsCanceled
+// upiše storno_invoice_uuid u JSON payload kartice).
+export async function loadTicketsByStornoInvoiceUuid(stornoInvoiceUuid) {
+    if (!stornoInvoiceUuid) return [];
+    const rows = await queryAll(`SELECT payload FROM tickets WHERE is_canceled = 1;`);
+    const out = [];
+    for (const r of rows) {
+        try {
+            const t = JSON.parse(r.payload);
+            if (t.storno_invoice_uuid === stornoInvoiceUuid) out.push(t.ticket_uuid);
+        } catch {}
+    }
+    return out;
+}
+
+// Najveći invoice_no zabilježen u lokalnoj DB za danu godinu i tip (F1 vs F2).
+// Koristi se da se lokalni brojač "podigne" iznad svih već poznatih brojeva
+// (npr. backend-driven 88 prije nego smo prešli na isključivo lokalno
+// numeriranje), tako da sljedeći račun nikad ne bude manji od bilo kojeg
+// prethodno izdanog ove godine.
+export async function maxLocalInvoiceNoByType(year, isF2) {
+    const rows = await queryAll(
+        `SELECT payload FROM invoices WHERE substr(created_at, 1, 4) = ?;`,
+        [String(year)]
+    );
+    let max = 0;
+    for (const r of rows) {
+        try {
+            const p = JSON.parse(r.payload);
+            const f2 = !!p.is_f2;
+            if (f2 !== !!isF2) continue;
+            const n = parseInt(p.invoice_no, 10) || parseInt(p.invoice_fiskal_no, 10) || 0;
+            if (n > max) max = n;
+        } catch {}
+    }
+    return max;
+}
+
+// Najveći ukupni invoice broj u lokalnoj DB ove godine (svi tipovi). Koristi
+// se za seed `local_invoice_seq` (ukupna sekvenca svih računa na NU).
+export async function maxLocalTotalInvoiceNo(year) {
+    const rows = await queryAll(
+        `SELECT payload FROM invoices WHERE substr(created_at, 1, 4) = ?;`,
+        [String(year)]
+    );
+    let max = 0;
+    for (const r of rows) {
+        try {
+            const p = JSON.parse(r.payload);
+            const t = parseInt(p.invoice_total_no, 10) || 0;
+            if (t > max) max = t;
+        } catch {}
+    }
+    return max;
+}
+
+// Označi račun sinkroniziranim. Lokalni invoice_no / fiskal_no SE NE MIJENJAJU —
+// fiskalna numeracija je odgovornost NU-a (vidi pravila numeriranja). Backend
+// odgovor se sprema pod `backend` ključ samo radi audit-a.
 export async function markInvoiceSynced(localInvoiceUuid, backendResponse) {
     const row = await queryOne(`SELECT payload FROM invoices WHERE invoice_uuid = ?;`, [localInvoiceUuid]);
     if (!row) return false;
@@ -427,6 +484,7 @@ export async function markInvoiceSynced(localInvoiceUuid, backendResponse) {
 export const STORAGE_KEYS = {
     GATEWAY: 'gateway_url',
     TOKEN: 'terminal_token',
+    TID: 'terminal_tid',
     LAST_SYNC_AT: 'last_sync_at',
 };
 
@@ -435,6 +493,8 @@ export async function loadToken() { return getSetting(STORAGE_KEYS.TOKEN); }
 export async function clearToken() { await setSetting(STORAGE_KEYS.TOKEN, null); }
 export async function saveGateway(url) { await setSetting(STORAGE_KEYS.GATEWAY, url); }
 export async function loadGateway() { return getSetting(STORAGE_KEYS.GATEWAY); }
+export async function saveTid(tid) { await setSetting(STORAGE_KEYS.TID, tid); }
+export async function loadTid() { return getSetting(STORAGE_KEYS.TID); }
 
 // ---------- SHIFTS ----------
 // totals stori cijeli payload smjene (uključujući shift_finance, agregate, operatera...)

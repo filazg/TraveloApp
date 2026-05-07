@@ -28,6 +28,9 @@ import CountriesPage from './features/backoffice/pages/countries/CountriesPage';
 import TicketsOverviewPage from './features/finance/pages/tickets/TicketsOverviewPage';
 import HarborTaxReportPage from './features/finance/pages/harbor_tax/HarborTaxReportPage';
 import ShiftsPage from './features/finance/pages/shifts/ShiftsPage';
+import AccountsPage from './features/finance/pages/accounts/AccountsPage';
+import ReportsPage from './features/finance/pages/reports/ReportsPage';
+import DailyRealizationPage from './features/finance/pages/reports/DailyRealizationPage';
 import ManagementPage from './features/management/ManagementPage';
 import MonthlySalesReportPage from './features/management/pages/monthly_sales/MonthlySalesReportPage';
 import MonthlyPurchasesReportPage from './features/management/pages/monthly_purchases/MonthlyPurchasesReportPage';
@@ -76,6 +79,10 @@ function App() {
                 <Route path='finance/tickets' element={<TicketsOverviewPage/>}></Route>
                 <Route path='finance/harbor_tax_report' element={<HarborTaxReportPage/>}></Route>
                 <Route path='finance/shifts' element={<ShiftsPage/>}></Route>
+                <Route path='finance/accounts' element={<AccountsPage/>}></Route>
+                <Route path='finance/reports' element={<ReportsPage/>}></Route>
+                <Route path='finance/reports/daily_realization' element={<DailyRealizationPage/>}></Route>
+                <Route path='finance/reports/daily_realization_demo' element={<DailyRealizationPage demo/>}></Route>
                 <Route path='management' element={<ManagementPage/>}></Route>
                 <Route path='management/monthly_sales_report' element={<MonthlySalesReportPage/>}></Route>
                 <Route path='management/monthly_purchases_report' element={<MonthlyPurchasesReportPage/>}></Route>

@@ -1,7 +1,7 @@
 import axios from "axios";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 
-const prod = true
+const prod = false
 const backendURL = prod ? "https://bookingtest.krilo.hr/app" :"http://localhost:5100"
 
 const initialState = {
@@ -14,6 +14,8 @@ const initialState = {
         payment_types:[],
         holidays:[],
         countries:[],
+        accounts:[],
+        account_mappings:[],
     },
     web_portal_modules:[
         {

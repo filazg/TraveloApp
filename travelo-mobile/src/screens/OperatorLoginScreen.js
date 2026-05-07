@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
+    NativeModules,
     Platform,
     ScrollView,
     StyleSheet,
@@ -12,18 +14,24 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import bcrypt from 'bcryptjs';
-import { authData, setOperator, unpairTerminalThunk } from '../store/slices/authSlice';
+import { authData, setOperator } from '../store/slices/authSlice';
 import { syncBasicDataThunk, syncData } from '../store/slices/syncSlice';
+import { colors, shadows } from '../theme/colors';
+import pkg from '../../package.json';
 
-// Checks plain password against stored hash. Supports bcrypt ($2a/$2b) and
-// falls back to plain-string match for legacy unhashed passwords.
-const verifyPassword = (plain, stored) => {
+// Native bcrypt verifier (Kotlin jbcrypt) — ~50-100ms umjesto 0.5-1.5s za pure-JS bcryptjs.
+// Fallback na bcryptjs ako native modul nije dostupan (npr. starije instalacije bez rebuildanog APK-a).
+const { AppAuth } = NativeModules;
+
+const verifyPassword = async (plain, stored) => {
     if (!stored) return false;
     const s = String(stored);
-    if (s.startsWith('$2a$') || s.startsWith('$2b$') || s.startsWith('$2y$')) {
-        try { return bcrypt.compareSync(plain, s); } catch { return false; }
+    const isBcrypt = s.startsWith('$2a$') || s.startsWith('$2b$') || s.startsWith('$2y$');
+    if (!isBcrypt) return plain === s;
+    if (AppAuth?.checkpw) {
+        try { return await AppAuth.checkpw(plain, s); } catch { /* fallback na JS */ }
     }
-    return plain === s;
+    try { return bcrypt.compareSync(plain, s); } catch { return false; }
 };
 
 export default function OperatorLoginScreen() {
@@ -32,26 +40,36 @@ export default function OperatorLoginScreen() {
     const sync = useSelector(syncData);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [loggingIn, setLoggingIn] = useState(false);
 
-    const onLogin = () => {
-        // TEMP: auth disabled for development — log in as first sync'd operator.
-        const user = sync.users[0];
-        if (!user) {
+    const onLogin = async () => {
+        if (loggingIn) return;
+        if (!sync.users?.length) {
             Alert.alert('Prijava', 'Nema sinkroniziranih operatera.');
             return;
         }
-        dispatch(setOperator(user));
+        setLoggingIn(true);
+        try {
+            const u = String(username || '').trim().toLowerCase();
+            const user = sync.users.find((x) => String(x.user_username || '').trim().toLowerCase() === u);
+            if (!user) {
+                Alert.alert('Prijava', 'Pogrešno korisničko ime ili lozinka.');
+                return;
+            }
+            const ok = await verifyPassword(password, user.user_password);
+            if (!ok) {
+                Alert.alert('Prijava', 'Pogrešno korisničko ime ili lozinka.');
+                return;
+            }
+            dispatch(setOperator(user));
+        } finally {
+            setLoggingIn(false);
+        }
     };
 
     const onRefresh = async () => {
+        if (sync.loading) return;
         await dispatch(syncBasicDataThunk());
-    };
-
-    const onUnpair = () => {
-        Alert.alert('Odspajanje', 'Uređaj će biti odspojen. Nastavi?', [
-            { text: 'Odustani', style: 'cancel' },
-            { text: 'Odspoji', style: 'destructive', onPress: () => dispatch(unpairTerminalThunk()) },
-        ]);
     };
 
     return (
@@ -60,12 +78,7 @@ export default function OperatorLoginScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-                <Text style={styles.logo}>Travelo</Text>
-                <Text style={styles.subtitle}>{sync.basicData?.business_premise_name || '—'}</Text>
-                <Text style={styles.device}>
-                    {sync.basicData?.billing_device_name}
-                    {sync.basicData?.billing_device_fiscal_mark ? ` · ${sync.basicData.billing_device_fiscal_mark}` : ''}
-                </Text>
+                <Text style={styles.logo}>TraveloApp</Text>
 
                 <View style={styles.form}>
                     <Text style={styles.label}>Korisničko ime</Text>
@@ -87,19 +100,30 @@ export default function OperatorLoginScreen() {
                     />
 
                     <TouchableOpacity
-                        style={[styles.btn, (!username || !password) && styles.btnDisabled]}
+                        style={[styles.btn, (!username || !password || loggingIn) && styles.btnDisabled]}
                         onPress={onLogin}
-                        disabled={!username || !password}
+                        disabled={!username || !password || loggingIn}
                     >
-                        <Text style={styles.btnText}>Prijava</Text>
+                        {loggingIn ? (
+                            <ActivityIndicator color={colors.textOnPrimary} />
+                        ) : (
+                            <Text style={styles.btnText}>Prijava</Text>
+                        )}
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.btnLink} onPress={onRefresh}>
-                        <Text style={styles.btnLinkText}>Osvježi podatke</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.btnLink} onPress={onUnpair}>
-                        <Text style={[styles.btnLinkText, styles.danger]}>Odspoji uređaj</Text>
+                    <TouchableOpacity
+                        style={[styles.btnLink, sync.loading && styles.btnDisabled]}
+                        onPress={onRefresh}
+                        disabled={sync.loading}
+                    >
+                        {sync.loading ? (
+                            <View style={styles.btnLinkRow}>
+                                <ActivityIndicator color={colors.textSecondary} size="small" />
+                                <Text style={[styles.btnLinkText, { marginLeft: 8 }]}>Osvježavanje…</Text>
+                            </View>
+                        ) : (
+                            <Text style={styles.btnLinkText}>Osvježi podatke</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
 
@@ -108,40 +132,66 @@ export default function OperatorLoginScreen() {
                         Nema operatera. Provjeri sync podataka (Osvježi podatke).
                     </Text>
                 )}
+
+                <View style={styles.deviceInfo}>
+                    <Text style={styles.infoLine}>
+                        <Text style={styles.infoLabel}>PP/NU: </Text>
+                        {(sync.basicData?.business_premise_name || '—')}
+                        {sync.basicData?.billing_device_name ? ` / ${sync.basicData.billing_device_name}` : ''}
+                        {sync.basicData?.billing_device_fiscal_mark ? `  ·  ${sync.basicData.billing_device_fiscal_mark}` : ''}
+                    </Text>
+                    <Text style={styles.infoLine}>
+                        <Text style={styles.infoLabel}>TID: </Text>
+                        {auth.tid || '—'}
+                    </Text>
+                    <Text style={styles.infoLine}>
+                        <Text style={styles.infoLabel}>ver: </Text>
+                        {pkg.version}
+                    </Text>
+                </View>
+
+                <Text style={styles.poweredBy}>powered by Tech4beeZ</Text>
             </ScrollView>
         </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-    logo: { fontSize: 36, fontWeight: '800', color: '#fff', textAlign: 'center' },
-    subtitle: { fontSize: 16, color: '#cbd5e1', textAlign: 'center', marginTop: 8 },
-    device: { fontSize: 12, color: '#64748b', textAlign: 'center', marginBottom: 32 },
-    form: { backgroundColor: '#1e293b', padding: 20, borderRadius: 12 },
-    label: { color: '#cbd5e1', fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+    logo: { fontSize: 36, fontWeight: '800', color: colors.primary, textAlign: 'center', marginBottom: 32 },
+    deviceInfo: { marginTop: 24, alignItems: 'center' },
+    infoLine: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 2 },
+    infoLabel: { fontWeight: '700', color: colors.textSecondary },
+    poweredBy: { fontSize: 14, fontWeight: '700', color: colors.textSecondary, textAlign: 'center', marginTop: 56, fontStyle: 'italic' },
+    form: {
+        backgroundColor: colors.surface, padding: 20, borderRadius: 12,
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.card,
+    },
+    label: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
     input: {
-        backgroundColor: '#0f172a',
-        color: '#fff',
+        backgroundColor: colors.surface,
+        color: colors.textPrimary,
         paddingHorizontal: 14,
         paddingVertical: 12,
         borderRadius: 8,
         fontSize: 16,
         borderWidth: 1,
-        borderColor: '#334155',
+        borderColor: colors.border,
     },
     btn: {
         marginTop: 24,
-        backgroundColor: '#10b981',
+        backgroundColor: colors.primary,
         paddingVertical: 16,
         borderRadius: 8,
         alignItems: 'center',
     },
-    btnDisabled: { backgroundColor: '#475569' },
-    btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    btnDisabled: { opacity: 0.5 },
+    btnText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 16 },
     btnLink: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
-    btnLinkText: { color: '#94a3b8', fontSize: 14 },
-    danger: { color: '#f87171' },
-    warn: { color: '#fbbf24', textAlign: 'center', marginTop: 16, fontSize: 13 },
+    btnLinkRow: { flexDirection: 'row', alignItems: 'center' },
+    btnLinkText: { color: colors.textSecondary, fontSize: 14 },
+    danger: { color: colors.error },
+    warn: { color: colors.warning, textAlign: 'center', marginTop: 16, fontSize: 13 },
 });

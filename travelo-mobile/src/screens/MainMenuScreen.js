@@ -5,6 +5,7 @@ import { authData, logoutOperator } from '../store/slices/authSlice';
 import { syncData } from '../store/slices/syncSlice';
 import { setSection } from '../store/slices/navSlice';
 import { shiftsData } from '../store/slices/shiftsSlice';
+import { colors, shadows } from '../theme/colors';
 
 export default function MainMenuScreen() {
     const dispatch = useDispatch();
@@ -30,9 +31,10 @@ export default function MainMenuScreen() {
 
     return (
         <SafeAreaView style={styles.wrap}>
+            {/* Brand header — primary plava preko cijele širine */}
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.title}>Travelo</Text>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.title}>TraveloApp</Text>
                     <Text style={styles.subtitle}>
                         {sync.basicData?.business_premise_name} · {sync.basicData?.billing_device_name}
                     </Text>
@@ -43,41 +45,52 @@ export default function MainMenuScreen() {
             </View>
 
             <View style={styles.content}>
-                <Text style={styles.opName}>
-                    {auth.operator?.user_name} {auth.operator?.user_surname}
-                </Text>
-                <Text style={styles.opMeta}>@{auth.operator?.user_username}</Text>
-
-                <View style={styles.shiftBadge}>
-                    <View style={[styles.shiftDot, { backgroundColor: hasOpenShift ? '#22c55e' : '#94a3b8' }]} />
-                    <Text style={styles.shiftBadgeText}>
-                        {hasOpenShift ? 'Smjena otvorena' : 'Smjena nije otvorena'}
+                {/* Operator card */}
+                <View style={styles.opCard}>
+                    <Text style={styles.opName}>
+                        {auth.operator?.user_name} {auth.operator?.user_surname}
                     </Text>
+
+                    <View style={[styles.shiftBadge, hasOpenShift ? styles.shiftBadgeOpen : styles.shiftBadgeClosed]}>
+                        <View style={[styles.shiftDot, { backgroundColor: hasOpenShift ? colors.success : colors.textMuted }]} />
+                        <Text style={[styles.shiftBadgeText, { color: hasOpenShift ? colors.success : colors.textSecondary }]}>
+                            {hasOpenShift ? 'Smjena otvorena' : 'Smjena nije otvorena'}
+                        </Text>
+                    </View>
                 </View>
 
+                {/* Akcijski tiles */}
                 <View style={styles.tilesGrid}>
+                    {/* Plovidba — primary CTA */}
                     <TouchableOpacity
-                        style={[styles.tile, styles.tileVoyage, !hasOpenShift && styles.tileDisabled]}
+                        style={[styles.tile, styles.tilePrimary, !hasOpenShift && styles.tileDisabled]}
                         onPress={onVoyagePress}
+                        activeOpacity={0.85}
                     >
-                        <Text style={styles.tileTitle}>Plovidba</Text>
-                        <Text style={styles.tileSub}>
+                        <Text style={styles.tilePrimaryTitle}>Plovidba</Text>
+                        <Text style={styles.tilePrimarySub}>
                             {hasOpenShift ? 'Prodaja i validacija karata' : 'Otvorite smjenu za prodaju'}
                         </Text>
                     </TouchableOpacity>
+
+                    {/* Sekundarne akcije — outlined u sekundarnoj plavoj */}
                     <TouchableOpacity
-                        style={[styles.tile, styles.tileShifts]}
+                        style={styles.tileSecondary}
                         onPress={() => dispatch(setSection('shifts'))}
+                        activeOpacity={0.85}
                     >
-                        <Text style={styles.tileTitle}>Zaključci smjena</Text>
-                        <Text style={styles.tileSub}>{hasOpenShift ? 'Zatvori smjenu' : 'Otvori smjenu'}</Text>
+                        <Text style={styles.tileSecondaryTitle}>Zaključci smjena</Text>
+                        <Text style={styles.tileSecondarySub}>
+                            {hasOpenShift ? 'Zatvori smjenu' : 'Otvori smjenu'}
+                        </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.tile, styles.tileDocs]}
+                        style={styles.tileSecondary}
                         onPress={() => dispatch(setSection('documents'))}
+                        activeOpacity={0.85}
                     >
-                        <Text style={styles.tileTitle}>Dokumenti</Text>
-                        <Text style={styles.tileSub}>Računi i izvještaji</Text>
+                        <Text style={styles.tileSecondaryTitle}>Dokumenti</Text>
+                        <Text style={styles.tileSecondarySub}>Računi i izvještaji</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -86,32 +99,61 @@ export default function MainMenuScreen() {
 }
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
+
     header: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingHorizontal: 20, paddingVertical: 16,
-        borderBottomWidth: 1, borderBottomColor: '#1e293b',
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: colors.primary,
+        paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16,
     },
-    title: { fontSize: 22, fontWeight: '800', color: '#fff' },
-    subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-    logoutBtn: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#334155', borderRadius: 6 },
-    logoutText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+    title: { fontSize: 24, fontWeight: '800', color: colors.textOnPrimary, letterSpacing: 0.3 },
+    subtitle: { fontSize: 12, color: colors.secondary, marginTop: 2, fontWeight: '500' },
+    logoutBtn: {
+        paddingHorizontal: 14, paddingVertical: 8,
+        backgroundColor: colors.secondary, borderRadius: 8,
+    },
+    logoutText: { color: colors.textOnSecondary, fontSize: 13, fontWeight: '700' },
+
     content: { flex: 1, padding: 20 },
-    opName: { color: '#fff', fontSize: 24, fontWeight: '700' },
-    opMeta: { color: '#94a3b8', fontSize: 14, marginBottom: 16 },
+
+    opCard: {
+        backgroundColor: colors.surface,
+        borderRadius: 12, padding: 18, marginBottom: 20,
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.card,
+    },
+    opName: { color: colors.textPrimary, fontSize: 22, fontWeight: '700' },
+    opMeta: { color: colors.textSecondary, fontSize: 14, marginTop: 2 },
+
     shiftBadge: {
         flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
-        backgroundColor: '#1e293b', paddingHorizontal: 12, paddingVertical: 6,
-        borderRadius: 20, marginBottom: 20,
+        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginTop: 12,
+        borderWidth: 1,
     },
+    shiftBadgeOpen: { backgroundColor: colors.successLight, borderColor: colors.success },
+    shiftBadgeClosed: { backgroundColor: colors.bg, borderColor: colors.border },
     shiftDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-    shiftBadgeText: { color: '#e2e8f0', fontSize: 13, fontWeight: '600' },
-    tileDisabled: { opacity: 0.5 },
+    shiftBadgeText: { fontSize: 13, fontWeight: '600' },
+
     tilesGrid: { gap: 12 },
-    tile: { borderRadius: 12, padding: 18, justifyContent: 'center', minHeight: 96 },
-    tileVoyage: { backgroundColor: '#0284c7' },
-    tileShifts: { backgroundColor: '#7c3aed' },
-    tileDocs: { backgroundColor: '#059669' },
-    tileTitle: { color: '#fff', fontSize: 22, fontWeight: '700' },
-    tileSub: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4 },
+
+    tile: {
+        borderRadius: 14, padding: 20, justifyContent: 'center', minHeight: 110,
+    },
+    tilePrimary: {
+        backgroundColor: colors.primary,
+        ...shadows.elevated,
+    },
+    tilePrimaryTitle: { color: colors.textOnPrimary, fontSize: 26, fontWeight: '800', letterSpacing: 0.3 },
+    tilePrimarySub: { color: colors.secondary, fontSize: 14, marginTop: 6, fontWeight: '500' },
+    tileDisabled: { opacity: 0.6 },
+
+    tileSecondary: {
+        backgroundColor: colors.surface,
+        borderRadius: 14, padding: 18, justifyContent: 'center', minHeight: 96,
+        borderWidth: 2, borderColor: colors.secondary,
+        ...shadows.card,
+    },
+    tileSecondaryTitle: { color: colors.primary, fontSize: 20, fontWeight: '700' },
+    tileSecondarySub: { color: colors.textSecondary, fontSize: 13, marginTop: 4 },
 });

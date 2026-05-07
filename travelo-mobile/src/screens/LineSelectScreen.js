@@ -14,6 +14,8 @@ import { todayDmy } from '../api/config';
 import { syncTransportDataThunk, syncData } from '../store/slices/syncSlice';
 import { setLine } from '../store/slices/voyageSlice';
 import { resetSection } from '../store/slices/navSlice';
+import { colors, shadows } from '../theme/colors';
+import HomeButton from '../components/HomeButton';
 
 export default function LineSelectScreen() {
     const dispatch = useDispatch();
@@ -42,20 +44,22 @@ export default function LineSelectScreen() {
                     <Text style={styles.backText}>‹ Izbornik</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>Odabir linije</Text>
-                <View style={{ width: 80 }} />
+                <View style={{ width: 80, alignItems: 'flex-end', paddingRight: 8 }}>
+                    <HomeButton />
+                </View>
             </View>
             <Text style={styles.sub}>Linije aktivne {today}</Text>
 
             {sync.transportLoading && !lines.length ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#0ea5e9" size="large" />
+                    <ActivityIndicator color={colors.primary} size="large" />
                 </View>
             ) : (
                 <FlatList
                     data={lines}
                     keyExtractor={(l) => l.uuid || l.code}
                     contentContainerStyle={styles.list}
-                    refreshControl={<RefreshControl refreshing={sync.transportLoading} onRefresh={() => dispatch(syncTransportDataThunk())} tintColor="#0ea5e9" />}
+                    refreshControl={<RefreshControl refreshing={sync.transportLoading} onRefresh={() => dispatch(syncTransportDataThunk())} tintColor={colors.primary} />}
                     ListEmptyComponent={<Text style={styles.empty}>Nema linija za današnji dan.</Text>}
                     renderItem={({ item }) => (
                         <TouchableOpacity style={styles.card} onPress={() => dispatch(setLine(item))}>
@@ -75,23 +79,26 @@ export default function LineSelectScreen() {
 }
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b',
+        paddingHorizontal: 16, paddingVertical: 12,
+        backgroundColor: colors.primary,
     },
     backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-    backText: { color: '#38bdf8', fontSize: 16, fontWeight: '600' },
-    title: { color: '#fff', fontSize: 18, fontWeight: '700' },
-    sub: { color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 8 },
+    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    title: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700' },
+    sub: { color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 8 },
     center: { padding: 40, alignItems: 'center' },
     list: { padding: 16, gap: 12 },
-    empty: { color: '#94a3b8', textAlign: 'center', padding: 40 },
+    empty: { color: colors.textSecondary, textAlign: 'center', padding: 40 },
     card: {
-        backgroundColor: '#1e293b', borderRadius: 10, padding: 16,
-        borderLeftWidth: 4, borderLeftColor: '#38bdf8',
+        backgroundColor: colors.surface, borderRadius: 10, padding: 16,
+        borderLeftWidth: 4, borderLeftColor: colors.primary,
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.card,
     },
-    cardCode: { color: '#38bdf8', fontSize: 14, fontWeight: '700' },
-    cardName: { color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 2 },
-    cardMeta: { color: '#94a3b8', fontSize: 12, marginTop: 6 },
+    cardCode: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+    cardName: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginTop: 2 },
+    cardMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 6 },
 });

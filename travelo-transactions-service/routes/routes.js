@@ -21,6 +21,8 @@ const { yescorHealthController } = require('../controllers/dataControllers/yesco
 const { yescorTestSubmitController } = require('../controllers/dataControllers/yescorTestSubmitController');
 const { upsertTerminalShiftController, listShiftsController } = require('../controllers/dataControllers/terminalShiftControllers');
 const { apiCreateOrderController, apiGetOrderController, apiConfirmOrderController, apiCancelOrderController, apiTripDetailsController } = require('../controllers/dataControllers/apiOrderControllers');
+const { dailyRealizationReportController, sendDailyRealizationToErpController } = require('../controllers/dataControllers/dailyRealizationReportController');
+const { dailyRealizationDemoController, sendDailyRealizationDemoToErpController } = require('../controllers/dataControllers/dailyRealizationDemoController');
 const router = express.Router();
 
 router
@@ -147,5 +149,22 @@ router
 router
     .route('/api_trip_details')
     .post(apiTripDetailsController)
+
+// Reports — daily realisation (Finance → Izvještaji)
+router
+    .route('/daily_realization')
+    .get(dailyRealizationReportController)
+
+router
+    .route('/daily_realization/send_to_erp')
+    .post(sendDailyRealizationToErpController)
+
+router
+    .route('/daily_realization_demo')
+    .get(dailyRealizationDemoController)
+
+router
+    .route('/daily_realization_demo/send_to_erp')
+    .post(sendDailyRealizationDemoToErpController)
 
 module.exports = router

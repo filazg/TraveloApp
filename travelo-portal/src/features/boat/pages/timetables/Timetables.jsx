@@ -10,6 +10,8 @@ import {
   StepButton,
   StepLabel,
   Stepper,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -27,6 +29,7 @@ import { DataGrid } from "@mui/x-data-grid";
 import AddTimetablesRoutesDrawer from "./AddTimetableRoutesDrawer";
 import AddTimetablesPricesDrawer from "./AddTimetablePricesDrawer";
 import AddTimetableRoutesSummaryDrawer from "./AddTimetableRoutesSummaryDrawer";
+import ImportTimetableExcelDrawer from "./ImportTimetableExcelDrawer";
 import { backofficeSliceData } from "../../../backoffice/backofficeSlice";
 import { v4 as uuid } from "uuid";
 import EditTimetableDrawer from "./EditTimetableDrawer";
@@ -41,11 +44,12 @@ export default function TimetablesPage() {
   const [openAdd, setOpenAdd] = useState(false);
   const steps = ["Unos relacija", "Pregled relacija", "Cijene"];
   const [activeStep, setActiveStep] = useState(0);
+  const [addMode, setAddMode] = useState("manual"); // "manual" | "excel"
   const [selectedLine, setSelectedLine] = useState({});
   const [selectedTimetables, setSelectedTimetables] = useState({});
-  
+
   const [rowToActivate, setRowsToActivate] = useState(null);
-  const [newData, setNewData] = useState({
+  const getInitialNewData = () => ({
     date_from: new Date().toUTCString(),
     days: {
       pon: false,
@@ -59,6 +63,30 @@ export default function TimetablesPage() {
     },
     departures: [],
   });
+  const [newData, setNewData] = useState(getInitialNewData());
+
+  const resetAddForm = () => {
+    setNewData(getInitialNewData());
+    setActiveStep(0);
+    setAddMode("manual");
+    dispatch(
+      setBoatData({
+        path: "newData",
+        value: {
+          timetableData: {},
+          departuresForTimetable: [],
+          harborPairsForTimetable: [],
+          pairsForTimetable: [],
+          timetablePrices: [],
+        },
+      }),
+    );
+  };
+
+  const closeAddDrawer = () => {
+    setOpenAdd(false);
+    resetAddForm();
+  };
 
   const syncData = async () => {
     await dispatch(setAuthData({ path: "loading", value: true }));
@@ -260,21 +288,138 @@ export default function TimetablesPage() {
     let pairs = [];
     let counter = 0;
     for (const har of uniqueHarbor) {
-      const higherIndex = uniqueHarbor.filter((hi) => hi.id > har.id);
-      for (const high of higherIndex) {
+      for (const other of uniqueHarbor) {
+        if (other.departure_harbor_id === har.departure_harbor_id) continue;
         counter = counter + 1;
-        const newPair = {
-          id: counter,
-          harbor_from: har.departure_harbor_name,
-          harbor_from_code: har.departure_harbor_id,
-          harbor_to: high.departure_harbor_name,
-          harbor_to_code: high.departure_harbor_id,
-          vat_base: 0,
-          vat_amount: 0,
-          port_tax: 0,
-          price: 0,
-        };
-        pairs = [...pairs, newPair];
+        pairs = [
+          ...pairs,
+          {
+            id: counter,
+            harbor_from: har.departure_harbor_name,
+            harbor_from_code: har.departure_harbor_id,
+            harbor_to: other.departure_harbor_name,
+            harbor_to_code: other.departure_harbor_id,
+            vat_base: 0,
+            vat_amount: 0,
+            port_tax: 0,
+            price: 0,
+          },
+        ];
+      }
+    }
+    await dispatch(
+      setBoatData({ path: "newData/pairsForTimetable", value: pairs }),
+    );
+  };
+
+  const createDepartureFromExcel = async () => {
+    const lineData = boatData.boatData.lines.find(
+      (line) => line.uuid === newData.line.uuid,
+    );
+    const harborByCode = (code) =>
+      (boatData.boatData?.harbors || []).find(
+        (h) => String(h.code) === String(code),
+      );
+    const timetableData = {
+      uuid: uuid(),
+      code: newData.code,
+      name: newData.name,
+      line_uuid: newData.line.uuid,
+      line_code: newData.line.code,
+      line_name: newData.line.name,
+      is_active: false,
+    };
+    let departuresDataForAdd = [];
+    let sequence = 0;
+    let direction = "A";
+    let order = 10;
+    let idToAdd = 1;
+
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const fmt = (dt) =>
+      `${dt.getDate()}.${dt.getMonth() + 1}.${dt.getFullYear()}. ${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+
+    for (const r of newData.excelRows || []) {
+      const fromHarbor = harborByCode(r.depCode);
+      const fromUuid = fromHarbor?.uuid;
+      const toHarbor = harborByCode(r.arrCode);
+      const toUuid = toHarbor?.uuid;
+      if (fromUuid && fromUuid === lineData.first_harbor_id) {
+        direction = "A";
+        sequence = sequence + 1;
+        order = 10;
+      } else if (fromUuid && fromUuid === lineData.last_harbor_id) {
+        direction = "B";
+        sequence = sequence + 1;
+        order = 10;
+      }
+      departuresDataForAdd = [
+        ...departuresDataForAdd,
+        {
+          id: idToAdd,
+          departure_uuid: uuid(),
+          timetable_uuid: timetableData.uuid,
+          line_uuid: timetableData.line_uuid,
+          line_code: timetableData.line_code,
+          line_name: timetableData.line_name,
+          sequence,
+          voyage_id: r.voyageId || "",
+          departure_harbor_id: r.depCode,
+          departure_harbor_name: r.depName || fromHarbor?.name,
+          arrival_harbor_id: r.arrCode,
+          arrival_harbor_name: r.arrName || toHarbor?.name,
+          departure_planed: fmt(r.etd),
+          departure: fmt(r.etd),
+          arrival_planed: fmt(r.eta),
+          arrival: fmt(r.eta),
+          harbor_order: order,
+          direction,
+          boat_uuid: newData.boat.uuid,
+          capacity: newData.boat.capacity,
+          vip_capacity: newData.boat.vip_capacity,
+          pets_capacity: newData.boat.pets_capacity,
+          bicycle_capacity: newData.boat.bicycle_capacity,
+          ret_koef: 100,
+          is_active: false,
+        },
+      ];
+      order = order + 10;
+      idToAdd = idToAdd + 1;
+    }
+
+    await dispatch(
+      setBoatData({ path: "newData/timetableData", value: timetableData }),
+    );
+    await dispatch(
+      setBoatData({
+        path: "newData/departuresForTimetable",
+        value: departuresDataForAdd,
+      }),
+    );
+    const uniqueHarbor = departuresDataForAdd.filter(
+      (v, i, a) =>
+        a.findIndex((t) => t.departure_harbor_id === v.departure_harbor_id) === i,
+    );
+    let pairs = [];
+    let counter = 0;
+    for (const har of uniqueHarbor) {
+      for (const other of uniqueHarbor) {
+        if (other.departure_harbor_id === har.departure_harbor_id) continue;
+        counter = counter + 1;
+        pairs = [
+          ...pairs,
+          {
+            id: counter,
+            harbor_from: har.departure_harbor_name,
+            harbor_from_code: har.departure_harbor_id,
+            harbor_to: other.departure_harbor_name,
+            harbor_to_code: other.departure_harbor_id,
+            vat_base: 0,
+            vat_amount: 0,
+            port_tax: 0,
+            price: 0,
+          },
+        ];
       }
     }
     await dispatch(
@@ -290,7 +435,29 @@ export default function TimetablesPage() {
       await dispatch(
         setAuthData({ path: "loadingMessage", value: "Priprema podataka" }),
       );
-      if (
+      if (addMode === "excel") {
+        if (
+          newData.line &&
+          newData.boat &&
+          newData.code &&
+          newData.name &&
+          Array.isArray(newData.excelRows) &&
+          newData.excelRows.length > 0
+        ) {
+          await dispatch(
+            setAuthData({
+              path: "loadingMessage",
+              value: "Kreiranje polazaka iz Excela",
+            }),
+          );
+          await createDepartureFromExcel();
+          setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
+        } else {
+          alert(
+            "Učitajte Excel, popunite oznaku i naziv, te potvrdite liniju, brod i sve luke.",
+          );
+        }
+      } else if (
         newData.line &&
         newData.boat &&
         newData.date_from &&
@@ -310,9 +477,16 @@ export default function TimetablesPage() {
     } else if (activeStep === 1) {
       setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
     } else if (activeStep === 2) {
+      await dispatch(setAuthData({ path: "loading", value: true }));
+      await dispatch(
+        setAuthData({ path: "loadingMessage", value: "Spremanje plovidbenog reda" }),
+      );
       await dispatch(
         postBoatThunk({ path: "timetables", data: boatData.newData }),
       );
+      await dispatch(getBoatThunk({ path: "timetables" }));
+      await dispatch(setAuthData({ path: "loading", value: false }));
+      closeAddDrawer();
     }
   };
 
@@ -330,7 +504,6 @@ export default function TimetablesPage() {
         value: "Dohvaćanje detalja plovidbenog reda",
       }),
     );
-    await dispatch(postBoatThunk({ path: "tickets_types", data: newData }));
     await dispatch(
       postBoatThunk({ path: "timetable_details", data: updatedRow }),
     );
@@ -468,7 +641,7 @@ export default function TimetablesPage() {
       <Drawer
         anchor="right"
         open={openAdd}
-        onClose={() => setOpenAdd(false)}
+        onClose={closeAddDrawer}
         PaperProps={{
           sx: {
             height: "100%",
@@ -502,7 +675,7 @@ export default function TimetablesPage() {
               <Typography variant="h5" fontWeight="bold">
                 {t("boat.timetables.add_new_title")}
               </Typography>
-              <Button onClick={() => setOpenAdd(false)}>
+              <Button onClick={closeAddDrawer}>
                 {t("boat.timetables.close")}
               </Button>
             </Stack>
@@ -520,10 +693,25 @@ export default function TimetablesPage() {
             <Box sx={{ minWidth: 1400 }}>
               {activeStep === 0 && (
                 <>
-                  <AddTimetablesRoutesDrawer
-                    newData={newData}
-                    setNewData={setNewData}
-                  />
+                  <Tabs
+                    value={addMode}
+                    onChange={(_, v) => setAddMode(v)}
+                    sx={{ mb: 2 }}
+                  >
+                    <Tab value="manual" label="Ručno" />
+                    <Tab value="excel" label="Iz Excela" />
+                  </Tabs>
+                  {addMode === "manual" ? (
+                    <AddTimetablesRoutesDrawer
+                      newData={newData}
+                      setNewData={setNewData}
+                    />
+                  ) : (
+                    <ImportTimetableExcelDrawer
+                      newData={newData}
+                      setNewData={setNewData}
+                    />
+                  )}
                 </>
               )}
 

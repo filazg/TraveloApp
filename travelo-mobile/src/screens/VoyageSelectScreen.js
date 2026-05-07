@@ -13,6 +13,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { todayDmy } from '../api/config';
 import { syncTransportDataThunk, syncData } from '../store/slices/syncSlice';
 import { setVoyage, clearLine, voyageData } from '../store/slices/voyageSlice';
+import { colors, shadows } from '../theme/colors';
+import HomeButton from '../components/HomeButton';
 
 // Group sales_routes by (timetable_uuid, sequence, departure_date) → one voyage per group.
 const groupVoyages = (routes) => {
@@ -80,12 +82,14 @@ export default function VoyageSelectScreen() {
                     <Text style={styles.title}>{line?.code || 'Polazak'}</Text>
                     <Text style={styles.subtitle}>{line?.name || ''} · {today}</Text>
                 </View>
-                <View style={{ width: 80 }} />
+                <View style={{ width: 80, alignItems: 'flex-end', paddingRight: 8 }}>
+                    <HomeButton />
+                </View>
             </View>
 
             {sync.transportLoading && !voyages.length ? (
                 <View style={styles.center}>
-                    <ActivityIndicator color="#0ea5e9" size="large" />
+                    <ActivityIndicator color={colors.primary} size="large" />
                     <Text style={styles.hint}>Učitavanje polazaka…</Text>
                 </View>
             ) : (
@@ -93,7 +97,7 @@ export default function VoyageSelectScreen() {
                     data={voyages}
                     keyExtractor={(v) => v.key}
                     contentContainerStyle={styles.list}
-                    refreshControl={<RefreshControl refreshing={sync.transportLoading} onRefresh={onRefresh} tintColor="#0ea5e9" />}
+                    refreshControl={<RefreshControl refreshing={sync.transportLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
                     ListEmptyComponent={
                         <View style={styles.center}>
                             <Text style={styles.hint}>Nema polazaka za odabranu liniju danas.</Text>
@@ -110,7 +114,7 @@ export default function VoyageSelectScreen() {
                             <Text style={styles.cardRoute}>
                                 {item.start_harbor} → {item.end_harbor}
                             </Text>
-                            <Text style={styles.cardMeta}>{item.legs.length} etapa · sekvenca #{item.sequence}</Text>
+                            <Text style={styles.cardMeta}>{item.legs.length} relacija</Text>
                         </TouchableOpacity>
                     )}
                 />
@@ -120,25 +124,28 @@ export default function VoyageSelectScreen() {
 }
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b',
+        paddingHorizontal: 8, paddingVertical: 12,
+        backgroundColor: colors.primary,
     },
     backBtn: { paddingVertical: 6, paddingHorizontal: 10, width: 80 },
-    backText: { color: '#38bdf8', fontSize: 16, fontWeight: '600' },
-    title: { fontSize: 18, fontWeight: '800', color: '#fff' },
-    subtitle: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    title: { fontSize: 18, fontWeight: '800', color: colors.textOnPrimary },
+    subtitle: { fontSize: 11, color: colors.secondary, marginTop: 2 },
     center: { padding: 40, alignItems: 'center' },
-    hint: { color: '#94a3b8', marginTop: 12, fontSize: 14 },
+    hint: { color: colors.textSecondary, marginTop: 12, fontSize: 14 },
     list: { padding: 16, gap: 12 },
     card: {
-        backgroundColor: '#1e293b', borderRadius: 10, padding: 16,
-        borderLeftWidth: 4, borderLeftColor: '#0ea5e9',
+        backgroundColor: colors.surface, borderRadius: 10, padding: 16,
+        borderLeftWidth: 4, borderLeftColor: colors.primary,
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.card,
     },
     cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    cardTime: { fontSize: 24, fontWeight: '800', color: '#fff' },
-    cardDir: { fontSize: 11, color: '#94a3b8' },
-    cardRoute: { fontSize: 16, color: '#e2e8f0', marginTop: 6 },
-    cardMeta: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
+    cardTime: { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
+    cardDir: { fontSize: 11, color: colors.textSecondary },
+    cardRoute: { fontSize: 16, color: colors.textPrimary, marginTop: 6 },
+    cardMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
 });

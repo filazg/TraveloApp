@@ -1,7 +1,7 @@
 import axios from "axios";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-const prod = true
+const prod = false
 const backendURL = prod ? "https://bookingtest.krilo.hr/app" :"http://localhost:5100"
 
 const initialState = {
@@ -72,7 +72,7 @@ const initialState = {
 
 const api = axios.create({
     baseURL: backendURL,
-    timeout: 10000,
+    timeout: 60000,
     withCredentials: true, // 🔑 OBAVEZNO za cookie
     headers: {
         "Content-Type": "application/json",

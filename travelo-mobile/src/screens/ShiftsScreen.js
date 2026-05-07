@@ -21,6 +21,10 @@ import {
     loadRecentShiftsThunk,
     clearShiftPreview,
 } from '../store/slices/shiftsSlice';
+import { syncData } from '../store/slices/syncSlice';
+import { printShiftReport } from '../device/printSale';
+import { colors, shadows } from '../theme/colors';
+import HomeButton from '../components/HomeButton';
 
 const fmtEUR = (n) => `${(Number(n) || 0).toFixed(2)} €`;
 const fmtTime = (iso) => {
@@ -37,6 +41,7 @@ const fmtTime = (iso) => {
 export default function ShiftsScreen() {
     const dispatch = useDispatch();
     const shifts = useSelector(shiftsData);
+    const sync = useSelector(syncData);
     const [view, setView] = useState('home'); // 'home' | 'close'
     const [remark, setRemark] = useState('');
     const [actuals, setActuals] = useState({}); // { [payment_type_uuid]: { actual_amount, note } }
@@ -83,6 +88,12 @@ export default function ShiftsScreen() {
                         if (res.meta.requestStatus === 'fulfilled') {
                             setView('home');
                             dispatch(loadRecentShiftsThunk());
+                            // Auto-ispis zaključka smjene odmah po zatvaranju.
+                            try {
+                                await printShiftReport({ shift: res.payload, basicData: sync.basicData });
+                            } catch (e) {
+                                Alert.alert('Ispis', 'Smjena je zatvorena, ali ispis nije uspio.');
+                            }
                         } else {
                             Alert.alert('Greška', res.payload?.message || 'Zatvaranje nije uspjelo');
                         }
@@ -102,7 +113,7 @@ export default function ShiftsScreen() {
                     <Row label="Uređaj" value={open.billing_device_fiscal_mark || '–'} />
                     {!open._synced && <Text style={styles.pendingTag}>● Čeka sinkronizaciju</Text>}
                     <TouchableOpacity style={[styles.btn, styles.btnDanger]} onPress={handlePreviewClose} disabled={busy}>
-                        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Zatvori smjenu</Text>}
+                        {busy ? <ActivityIndicator color={colors.textOnPrimary} /> : <Text style={styles.btnText}>Detalji smjene</Text>}
                     </TouchableOpacity>
                 </View>
             ) : (
@@ -112,15 +123,20 @@ export default function ShiftsScreen() {
                         Za prodaju i validaciju karata morate otvoriti smjenu.
                     </Text>
                     <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={handleOpen} disabled={busy}>
-                        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Otvori smjenu</Text>}
+                        {busy ? <ActivityIndicator color={colors.textOnPrimary} /> : <Text style={styles.btnText}>Otvori smjenu</Text>}
                     </TouchableOpacity>
                 </View>
             )}
 
-            {shifts.recent?.length > 0 && (
+            {(() => {
+                // Otvorena smjena se već prikazuje gore u svojoj kartici, izbacimo je
+                // iz "Zadnje smjene" da se ne duplira.
+                const closed = (shifts.recent || []).filter((s) => s.shift_end);
+                if (!closed.length) return null;
+                return (
                 <View style={[styles.card, { marginTop: 12 }]}>
                     <Text style={styles.cardTitle}>Zadnje smjene</Text>
-                    {shifts.recent.slice(0, 10).map((s) => (
+                    {closed.slice(0, 10).map((s) => (
                         <View key={s.shift_uuid} style={styles.recentRow}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.recentTime}>
@@ -131,10 +147,19 @@ export default function ShiftsScreen() {
                                 </Text>
                             </View>
                             {!s._synced && <Text style={styles.pendingTag}>●</Text>}
+                            {s.shift_end && (
+                                <TouchableOpacity
+                                    style={styles.printBtn}
+                                    onPress={() => printShiftReport({ shift: s, basicData: sync.basicData, isReprint: true })}
+                                >
+                                    <Text style={styles.printBtnText}>Ispiši</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     ))}
                 </View>
-            )}
+                );
+            })()}
         </ScrollView>
     );
 
@@ -161,42 +186,15 @@ export default function ShiftsScreen() {
                 {(preview?.finance || []).length === 0 ? (
                     <Text style={styles.muted}>Nema prodaja u ovoj smjeni.</Text>
                 ) : (
-                    (preview?.finance || []).map((row) => {
-                        const a = actuals[row.payment_type_uuid] || {};
-                        const diff = a.actual_amount !== undefined && a.actual_amount !== ''
-                            ? Number(a.actual_amount) - row.payment_amount
-                            : null;
-                        return (
-                            <View key={row.payment_type_uuid} style={styles.payRow}>
-                                <View style={styles.payHead}>
-                                    <Text style={styles.payName}>{row.payment_type_name}</Text>
-                                    <Text style={styles.payCount}>{row.count} račun(a)</Text>
-                                </View>
-                                <Row label="Očekivano" value={fmtEUR(row.payment_amount)} />
-                                <View style={styles.inputRow}>
-                                    <Text style={styles.inputLabel}>Stvarno</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        keyboardType="numeric"
-                                        placeholder="0.00"
-                                        placeholderTextColor="#64748b"
-                                        value={a.actual_amount ?? ''}
-                                        onChangeText={(t) =>
-                                            setActuals((prev) => ({
-                                                ...prev,
-                                                [row.payment_type_uuid]: { ...prev[row.payment_type_uuid], actual_amount: t },
-                                            }))
-                                        }
-                                    />
-                                </View>
-                                {diff !== null && (
-                                    <Text style={[styles.diff, { color: diff === 0 ? '#22c55e' : diff > 0 ? '#fbbf24' : '#ef4444' }]}>
-                                        {diff > 0 ? `Višak ${fmtEUR(diff)}` : diff < 0 ? `Manjak ${fmtEUR(-diff)}` : 'Slaže se'}
-                                    </Text>
-                                )}
+                    (preview?.finance || []).map((row) => (
+                        <View key={row.payment_type_uuid} style={styles.payRow}>
+                            <View style={styles.payHead}>
+                                <Text style={styles.payName}>{row.payment_type_name}</Text>
+                                <Text style={styles.payCount}>{row.count} račun(a)</Text>
                             </View>
-                        );
-                    })
+                            <Row label="Očekivano" value={fmtEUR(row.payment_amount)} />
+                        </View>
+                    ))
                 )}
             </View>
 
@@ -207,7 +205,7 @@ export default function ShiftsScreen() {
                     multiline
                     numberOfLines={3}
                     placeholder="Komentar smjene (opcionalno)"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={colors.textMuted}
                     value={remark}
                     onChangeText={setRemark}
                 />
@@ -219,14 +217,14 @@ export default function ShiftsScreen() {
                     onPress={() => { setView('home'); dispatch(clearShiftPreview()); }}
                     disabled={busy}
                 >
-                    <Text style={styles.btnText}>Natrag</Text>
+                    <Text style={[styles.btnText, styles.btnSecondaryText]}>Natrag</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.btn, styles.btnDanger, { flex: 1 }]}
                     onPress={handleCloseConfirm}
                     disabled={busy}
                 >
-                    {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Zaključi smjenu</Text>}
+                    {busy ? <ActivityIndicator color={colors.textOnPrimary} /> : <Text style={styles.btnText}>Zaključi smjenu</Text>}
                 </TouchableOpacity>
             </View>
         </ScrollView>
@@ -241,8 +239,10 @@ export default function ShiftsScreen() {
                 >
                     <Text style={styles.backText}>‹ {view === 'close' ? 'Pregled' : 'Izbornik'}</Text>
                 </TouchableOpacity>
-                <Text style={styles.title}>{view === 'close' ? 'Zatvaranje smjene' : 'Smjene'}</Text>
-                <View style={{ width: 80 }} />
+                <Text style={styles.title}>{view === 'close' ? 'Detalji smjene' : 'Smjene'}</Text>
+                <View style={{ width: 80, alignItems: 'flex-end', paddingRight: 8 }}>
+                    <HomeButton />
+                </View>
             </View>
             {view === 'home' ? renderHome() : renderClose()}
         </SafeAreaView>
@@ -257,43 +257,54 @@ const Row = ({ label, value, bold }) => (
 );
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: '#0f172a' },
+    wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b',
+        paddingHorizontal: 8, paddingVertical: 12,
+        backgroundColor: colors.primary,
     },
     backBtn: { paddingVertical: 6, paddingHorizontal: 10, minWidth: 80 },
-    backText: { color: '#38bdf8', fontSize: 16, fontWeight: '600' },
-    title: { fontSize: 18, fontWeight: '700', color: '#fff' },
-    card: { backgroundColor: '#1e293b', borderRadius: 12, padding: 16 },
-    cardTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 },
+    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    title: { fontSize: 18, fontWeight: '700', color: colors.textOnPrimary },
+    card: {
+        backgroundColor: colors.surface, borderRadius: 12, padding: 16,
+        borderWidth: 1, borderColor: colors.border,
+        ...shadows.card,
+    },
+    cardTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '700', marginBottom: 12 },
     row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-    rowLabel: { color: '#94a3b8', fontSize: 14 },
-    rowValue: { color: '#e2e8f0', fontSize: 14, fontWeight: '600' },
-    rowValueBold: { color: '#fff', fontSize: 16, fontWeight: '800' },
-    divider: { height: 1, backgroundColor: '#334155', marginVertical: 8 },
-    muted: { color: '#94a3b8', fontSize: 13, marginBottom: 12 },
+    rowLabel: { color: colors.textSecondary, fontSize: 14 },
+    rowValue: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+    rowValueBold: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
+    muted: { color: colors.textSecondary, fontSize: 13, marginBottom: 12 },
     btn: { paddingVertical: 14, borderRadius: 8, alignItems: 'center', marginTop: 12 },
-    btnPrimary: { backgroundColor: '#7c3aed' },
-    btnDanger: { backgroundColor: '#dc2626' },
-    btnSecondary: { backgroundColor: '#475569' },
-    btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-    pendingTag: { color: '#fbbf24', fontSize: 12, marginTop: 6, fontWeight: '600' },
+    btnPrimary: { backgroundColor: colors.primary },
+    btnDanger: { backgroundColor: colors.error },
+    btnSecondary: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.secondary },
+    btnText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
+    btnSecondaryText: { color: colors.primary },
+    pendingTag: { color: colors.warning, fontSize: 12, marginTop: 6, fontWeight: '600' },
     recentRow: {
         flexDirection: 'row', alignItems: 'center',
-        paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#334155',
+        paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border,
     },
-    recentTime: { color: '#e2e8f0', fontSize: 13, fontWeight: '600' },
-    recentSub: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
-    payRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#334155' },
+    recentTime: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
+    recentSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+    payRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
     payHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-    payName: { color: '#fff', fontSize: 14, fontWeight: '600' },
-    payCount: { color: '#94a3b8', fontSize: 12 },
+    payName: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+    payCount: { color: colors.textSecondary, fontSize: 12 },
     inputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    inputLabel: { color: '#94a3b8', fontSize: 14, width: 90 },
+    inputLabel: { color: colors.textSecondary, fontSize: 14, width: 90 },
     input: {
-        backgroundColor: '#0f172a', color: '#fff', paddingHorizontal: 10, paddingVertical: 8,
-        borderRadius: 6, borderWidth: 1, borderColor: '#334155', flex: 1, fontSize: 14,
+        backgroundColor: colors.surface, color: colors.textPrimary, paddingHorizontal: 10, paddingVertical: 8,
+        borderRadius: 6, borderWidth: 1, borderColor: colors.border, flex: 1, fontSize: 14,
     },
     diff: { fontSize: 12, marginTop: 4, fontWeight: '600' },
+    printBtn: {
+        marginLeft: 8, paddingHorizontal: 12, paddingVertical: 6,
+        backgroundColor: colors.primary, borderRadius: 6,
+    },
+    printBtnText: { color: colors.textOnPrimary, fontSize: 12, fontWeight: '600' },
 });

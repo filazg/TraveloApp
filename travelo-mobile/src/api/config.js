@@ -1,7 +1,7 @@
-// Gateway base URL for the mobile app. In a real deployment this should be
-// configurable per build/env (react-native-config) or persisted after first
-// pairing. For dev we use the gateway listed in services_configs.json.
-export const DEFAULT_GATEWAY_URL = 'http://localhost:5100';
+// Gateway base URL for the mobile app. Persisted per-device in SQLite after
+// first successful pairing — the default below is just a hint shown in
+// PairingScreen for fresh devices.
+export const DEFAULT_GATEWAY_URL = 'http://46.101.176.117:5100';
 
 // Endpoints (paths are concatenated with gateway URL).
 export const ENDPOINTS = {

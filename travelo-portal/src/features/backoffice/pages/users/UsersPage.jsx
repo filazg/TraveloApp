@@ -343,6 +343,17 @@ export default function UsersPage (){
                         <MenuItem value={true} >{t('backoffice.users.is_company_yes')}</MenuItem>
                         <MenuItem value={false}>{t('backoffice.users.is_company_no')}</MenuItem>
                     </TextField>
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label="SAOP ID"
+                        placeholder="npr. 0000046"
+                        value={newData.saop_clerk_id || ""}
+                        onChange={handleChange}
+                        name="saop_clerk_id"
+                        sx={{ mt:1 }}
+                    />
                     <Button
                         type="submit"
                         onClick={handleSubmit}
@@ -479,6 +490,17 @@ export default function UsersPage (){
                         sx={{
                             mt:1
                         }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label="SAOP ID"
+                        placeholder="npr. 0000046"
+                        value={editedData?.saop_clerk_id || ""}
+                        onChange={handleChangeEdit}
+                        name="saop_clerk_id"
+                        sx={{ mt:1 }}
                     />
                     <Stack
                         direction='row'

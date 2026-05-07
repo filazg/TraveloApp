@@ -44,15 +44,15 @@ export default function EditTimetableDrawer({ selectedRow, setSelectedRow }) {
       let counter = 0;
       if(uniqueHarbor){
       for (const har of uniqueHarbor) {
-        const higherIndex = uniqueHarbor.filter((hi) => hi.id > har.id);
-        for (const high of higherIndex) {
+        for (const other of uniqueHarbor) {
+          if (other.departure_harbor_id === har.departure_harbor_id) continue;
           counter = counter + 1;
           const newPair = {
             id: counter,
             harbor_from: har.departure_harbor_name,
             harbor_from_code: har.departure_harbor_id,
-            harbor_to: high.departure_harbor_name,
-            harbor_to_code: high.departure_harbor_id,
+            harbor_to: other.departure_harbor_name,
+            harbor_to_code: other.departure_harbor_id,
             vat_base: 0,
             vat_amount: 0,
             port_tax: 0,

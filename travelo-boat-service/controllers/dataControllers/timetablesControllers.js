@@ -189,9 +189,10 @@ const addTimetableDataController = async (req, res) => {
     }
     try {
         const result = await sequelize.transaction(async (t)=>{
+            const needsFullProcessing = !!(data.departuresForTimetable || data.timetablePrices);
             const timetableExists = await TimetablesModel.findOne({ where: { code: data.timetableData.code } });
-            const boatsData = await BoatsModel.findAll();
-            let harbors = await HarborsModel.findAll();
+            const boatsData = needsFullProcessing ? await BoatsModel.findAll() : [];
+            let harbors = needsFullProcessing ? await HarborsModel.findAll() : [];
             const tiumetableUUID = crypto.randomUUID(16);
             let timetableData = {}
             let departuresToAdd = [];

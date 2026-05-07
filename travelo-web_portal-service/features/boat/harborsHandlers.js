@@ -27,6 +27,7 @@ const handleAddHarborFeature = async(req, res) => {
         const addHarborData = await addHarborsController(req.body)
         const harborsData = await getHarborsController()
         await travelo_publisher('travelo_sales_service', {path:'update_harbors'})
+        await travelo_publisher('travelo_web_sales_service', {path:'update_harbors'})
         res.send({
             status: 200,
             data: {
@@ -49,6 +50,7 @@ const handleUpdateHarborFeature = async(req, res) => {
         const updateHarborData = await updateHarborsController(req.body)
         const harborsData = await getHarborsController()
         await travelo_publisher('travelo_sales_service', {path:'update_harbors'})
+        await travelo_publisher('travelo_web_sales_service', {path:'update_harbors'})
         res.send({
             status: 200,
             data: {

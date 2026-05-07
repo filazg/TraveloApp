@@ -57,6 +57,18 @@ module.exports = (sequelize)=>{
                 type:DataTypes.BOOLEAN,
                 allowNull:false,
                 defaultValue:false
+            },
+            saop_customer_code:{
+                type:DataTypes.STRING,
+                allowNull:true
+            },
+            saop_synced_at:{
+                type:DataTypes.DATE,
+                allowNull:true
+            },
+            saop_last_error:{
+                type:DataTypes.STRING,
+                allowNull:true
             }
         },
         { freezeTableName:true, tableName: "addressbook", timestamps: true }

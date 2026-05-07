@@ -9,6 +9,7 @@ const { getPaymentMethodsDataController, addPaymentMethodDataController, updateP
 const { getPaymentTypesDataController } = require('../controllers/dataControllers/paymentTypeDataControllers');
 const { getAddressbookDataController, addAddressbookDataController, updateAddressbookDataController } = require('../controllers/dataControllers/addressbookDataControllers');
 const { getCountriesDataController, addCountryDataController, updateCountryDataController } = require('../controllers/dataControllers/countriesDataControllers');
+const { getAccountsDataController, addAccountDataController, updateAccountDataController, getAccountMappingsDataController, upsertAccountMappingDataController } = require('../controllers/dataControllers/accountsDataControllers');
 const router = express.Router();
 
 router
@@ -75,5 +76,16 @@ router
     .get(getCountriesDataController)
     .post(addCountryDataController)
     .patch(updateCountryDataController)
+
+router
+    .route('/accounts')
+    .get(getAccountsDataController)
+    .post(addAccountDataController)
+    .patch(updateAccountDataController)
+
+router
+    .route('/account_mappings')
+    .get(getAccountMappingsDataController)
+    .post(upsertAccountMappingDataController)
 
 module.exports = router

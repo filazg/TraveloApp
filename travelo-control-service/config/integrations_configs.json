@@ -10,6 +10,13 @@
         "client_secret": "dbQtIeFEWRtuJgCIMOThmBUPMNa9jura",
         "app_secret": "Tech4Beez-31E0B4F5-9789-46DF-94D9-4E52B9DB92FF"
     },
+    "seyfor": {
+        "base_url": "https://seyfor.krilo.hr:8383/iCenterApi",
+        "username": "intapi",
+        "password": "xdg!!466ASFF",
+        "organisation_id": "2",
+        "link_to_book": "T4B TRANSPORT"
+    },
     "akd": {
         "seop": {
             "environment": "mock",

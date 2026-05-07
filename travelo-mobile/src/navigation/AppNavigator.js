@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { colors } from '../theme/colors';
 import { authData, restoreTokenThunk } from '../store/slices/authSlice';
 import { syncBasicDataThunk, syncTransportDataThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
 import { loadCurrentOpenThunk, loadRecentShiftsThunk, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
@@ -53,7 +54,7 @@ export default function AppNavigator() {
         return (
             <View style={styles.center}>
                 <StatusBar barStyle="light-content" />
-                <ActivityIndicator color="#0ea5e9" size="large" />
+                <ActivityIndicator color={colors.primary} size="large" />
             </View>
         );
     }
@@ -76,5 +77,5 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
-    center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
+    center: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' },
 });
