@@ -1,7 +1,7 @@
 import axios from "axios";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-const prod = false;
+const prod = true;
 const backendURL = prod ? "https://bookingtest.krilo.hr/app" : "http://localhost:5100";
 
 const api = axios.create({
