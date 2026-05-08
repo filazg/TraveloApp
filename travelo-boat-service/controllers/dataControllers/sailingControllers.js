@@ -52,45 +52,64 @@ const getSailingsController = async (req, res) => {
             order: [["departure_harbor_order", "ASC"]],
         });
 
-        // Group by departure_uuid — one "sailing" per departure.
+        // Group by VOYAGE (one row per voyage), ne po legu. Voyage je definiran
+        // s voyage_id ako postoji; fallback je (timetable_uuid + sequence + date).
+        // Ranija varijanta je grupirala po departure_uuid pa je voyage s N etapa
+        // davao N redaka u dispatcheru.
+        const voyageKey = (r) =>
+            r.voyage_id
+                ? `v:${r.voyage_id}`
+                : `t:${r.timetable_uuid}|s:${r.sequence}|d:${r.departure_date}`;
+
         const groups = new Map();
         for (const r of routes) {
-            const key = r.departure_uuid;
-            if (!key) continue;
+            const key = voyageKey(r);
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push(r);
         }
 
-        const depUuids = [...groups.keys()];
-        const departures = depUuids.length
+        // Sve leg-level departure_uuid-eve trebaju za fetch DeparturesModel-a
+        // (origin) i kasnije za bookings agregaciju u portal sloju.
+        const allDepUuids = [...new Set(routes.map((r) => r.departure_uuid).filter(Boolean))];
+        const departures = allDepUuids.length
             ? await DeparturesModel.findAll({
-                  where: { uuid: { [Op.in]: depUuids } },
+                  where: { uuid: { [Op.in]: allDepUuids } },
                   attributes: { exclude: ["createdAt", "updatedAt"] },
               })
             : [];
         const depByUuid = new Map(departures.map((d) => [d.uuid, d.toJSON ? d.toJSON() : d]));
 
         const sailings = [];
-        for (const [depUuid, legsAll] of groups.entries()) {
-            const dep = depByUuid.get(depUuid);
-            if (!dep) continue;
-            // Adjacent physical legs only (arrival_order - departure_order === 10) — the actual stops.
+        for (const [, legsAll] of groups.entries()) {
+            // Adjacent physical legs only (arrival_order - departure_order === 10) — actual stops.
             const adjacent = legsAll
                 .filter((l) => Number(l.arrival_harbor_order) - Number(l.departure_harbor_order) === 10)
                 .sort((a, b) => Number(a.departure_harbor_order) - Number(b.departure_harbor_order));
+            if (!adjacent.length) continue;
+
+            // Origin = prvi leg, njegov departure_uuid je identitet voyage-a.
+            const originDepUuid = adjacent[0].departure_uuid;
+            const originDep = depByUuid.get(originDepUuid);
+            if (!originDep) continue;
+
+            const legDepUuids = [...new Set(adjacent.map((l) => l.departure_uuid).filter(Boolean))];
             const legStatuses = adjacent.map((l) => l.status);
 
             const row = {
-                ...dep,
+                ...originDep,
+                uuid: originDepUuid,
                 sailing_status: deriveSailingStatus(adjacent),
                 legs_total: adjacent.length,
                 legs_canceled: legStatuses.filter((s) => s === "CANCELED").length,
-                first_departure_time: adjacent[0]?.departure_time || dep.departure_planed || "",
+                first_departure_time: adjacent[0]?.departure_time || originDep.departure_planed || "",
+                // Portal-sloj koristi ovo da fetcha bookings za svaki leg pa
+                // agregira po voyage-u.
+                leg_departure_uuids: legDepUuids,
             };
 
             if (includeLegs) {
                 row.legs = adjacent.map((l) => (l.toJSON ? l.toJSON() : l));
-                // All routes (including compound) — caller may need them for ticket cancellation etc.
+                // All routes (uključujući compound) — caller može trebati za otkaz karata.
                 row.all_route_uuids = legsAll.map((l) => l.uuid);
             }
             sailings.push(row);

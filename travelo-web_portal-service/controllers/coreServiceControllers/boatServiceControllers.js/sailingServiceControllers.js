@@ -17,22 +17,40 @@ const getSailingsController = async (params = {}) => {
         const response = await axios.get(url + '/sailings', { params, validateStatus: () => true });
         const body = response.data || {};
         const include = String(params?.include || "");
-        // Optionally enrich each sailing with its bookings (capacity/occupancy snapshot from booking-service).
+        // Optionally enrich each sailing with its bookings (capacity/occupancy
+        // snapshot iz booking-service). Bookings se drže po departure_uuid (per
+        // leg), pa za voyage s više etapa moramo fetchati za svaki leg-uuid i
+        // spojiti rezultate.
         if (include.includes('bookings') && body?.data?.sailings?.length) {
             const bUrl = await bookingBase();
             if (bUrl) {
                 await Promise.all(
                     body.data.sailings.map(async (sailing) => {
-                        if (!sailing.uuid) return;
+                        const legUuids = Array.isArray(sailing.leg_departure_uuids) && sailing.leg_departure_uuids.length
+                            ? sailing.leg_departure_uuids
+                            : (sailing.uuid ? [sailing.uuid] : []);
+                        if (!legUuids.length) {
+                            sailing.bookings = [];
+                            return;
+                        }
                         try {
-                            const r = await axios.get(bUrl + '/bookings', {
-                                params: { departure_uuid: sailing.uuid },
-                                timeout: 6000,
-                                validateStatus: () => true,
-                            });
-                            sailing.bookings = r.status === 200
-                                ? (r.data?.data?.bookings || r.data?.bookings || [])
-                                : [];
+                            const responses = await Promise.all(
+                                legUuids.map((legUuid) =>
+                                    axios.get(bUrl + '/bookings', {
+                                        params: { departure_uuid: legUuid },
+                                        timeout: 6000,
+                                        validateStatus: () => true,
+                                    })
+                                )
+                            );
+                            const all = [];
+                            for (const r of responses) {
+                                if (r.status === 200) {
+                                    const list = r.data?.data?.bookings || r.data?.bookings || [];
+                                    all.push(...list);
+                                }
+                            }
+                            sailing.bookings = all;
                         } catch (e) {
                             console.log('sailing bookings fetch error for', sailing.uuid, ':', e?.message || e);
                             sailing.bookings = [];
