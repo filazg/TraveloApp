@@ -4,6 +4,24 @@ const { getCoreServiceConfigData } = require('../configSyncController');
 
 const MERCHANT_KEY = process.env.MONRI_MERCHANT_KEY || 'krilo65#$%&amp;3';
 
+// Monri webhook ne sadrži digest polje u tijelu (digest formula u
+// computeDigest pokriva browser-redirect callback, ne server-to-server POST).
+// Stoga POST authenticity gate-amo IP whitelist-om Monri-jevih notifying IP-eva.
+// MONRI_TRUSTED_IPS env: CSV lista IP-eva koje vjerujemo kao Monri webhook
+// pošiljatelja (npr. "178.218.169.68,217.197.255.32"). Prazno = striktno
+// traži digest match (čime se trenutno odbacuju svi POST-ovi).
+const TRUSTED_IPS = String(process.env.MONRI_TRUSTED_IPS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const isTrustedSource = (req) => {
+    if (!TRUSTED_IPS.length) return false;
+    // Express trust proxy je postavljen pa req.ip je već realni klijent.
+    const ip = (req.ip || '').replace(/^::ffff:/, '');
+    return TRUSTED_IPS.includes(ip);
+};
+
 const computeDigest = (payload) => {
     const input =
         MERCHANT_KEY +
@@ -91,7 +109,10 @@ const runFinalization = async ({ paymentRef, approved, meta }) => {
 const monriWebhookController = async (req, res) => {
     try {
         const payload = req.body || {};
+        const sourceIp = (req.ip || '').replace(/^::ffff:/, '');
+        const trustedSource = isTrustedSource(req);
         console.log('MONRI WEBHOOK payload:', payload);
+        console.log('MONRI WEBHOOK source:', { ip: sourceIp, trustedSource, headers_keys: Object.keys(req.headers || {}) });
 
         const expected = computeDigest(payload);
         const received = String(payload.digest || '').toLowerCase();
@@ -106,16 +127,24 @@ const monriWebhookController = async (req, res) => {
             amount: payload.amount,
             currency: payload.currency,
             digest_verified: digestOk,
+            trusted_source: trustedSource,
+            source_ip: sourceIp,
             received_at: new Date().toISOString(),
         };
 
-        // SIGURNOST: izdavanje karata + računa (approved) ide samo s validnim
-        // digest-om. Decline (i sve ostalo) može proći — samo update statusa.
-        if (approved && !digestOk) {
-            console.log('MONRI WEBHOOK REJECTED (approved + digest mismatch)', {
+        // SIGURNOST: izdavanje karata + računa (approved) ide ako je ILI digest
+        // validan ILI request dolazi s whitelist-anog Monri IP-a. Monri-jev
+        // server-to-server webhook ne uključuje digest u tijelu (digest formula
+        // pokriva browser-callback) pa je IP gate jedini realan way da pustimo
+        // legitimne approval-e. Decline (i sve ostalo) prolazi bez gate-a —
+        // samo update statusa, ne kreira ništa novo.
+        const authenticated = digestOk || trustedSource;
+        if (approved && !authenticated) {
+            console.log('MONRI WEBHOOK REJECTED (approved + neither digest nor trusted IP)', {
                 payment_reference: payload.order_number,
+                source_ip: sourceIp,
             });
-            return res.status(200).send('rejected_invalid_digest');
+            return res.status(200).send('rejected_unauthenticated');
         }
 
         await runFinalization({
