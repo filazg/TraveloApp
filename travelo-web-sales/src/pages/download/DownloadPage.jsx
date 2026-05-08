@@ -116,7 +116,13 @@ export default function DownloadPage() {
     window.open(`${url}/tickets_pdf/${order.uuid}`, '_blank')
   }
 
-  const openAll = () => ordersWithPdf.forEach(openPdf)
+  // "Preuzmi sve karte" — jedan PDF s svim kartama. Pop-up blokeri inače
+  // dozvole samo prvi window.open kad se forEach pozove u istom event tick-u.
+  const openAll = () => {
+    if (!ordersWithPdf.length) return
+    const ids = ordersWithPdf.map((o) => o.uuid).join(',')
+    window.open(`${url}/tickets_pdf?order_uuids=${encodeURIComponent(ids)}`, '_blank')
+  }
 
   const openInvoice = () => {
     if (invoiceUuid) window.open(`${url}/invoice_pdf/${invoiceUuid}`, '_blank')

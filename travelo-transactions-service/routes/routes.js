@@ -41,6 +41,12 @@ router
     .route('/tickets_pdf/:order_uuid')
     .get(renderTicketsPdfController)
 
+// Bulk varijanta — koristi se za "preuzmi sve karte" gumb na download stranici.
+// Query: ?order_uuids=uuid1,uuid2,...  → vraća jedan PDF s kartama svih order-a.
+router
+    .route('/tickets_pdf')
+    .get(renderTicketsPdfController)
+
 router
     .route('/finalize_web_sale')
     .post(finalizeWebSaleController)

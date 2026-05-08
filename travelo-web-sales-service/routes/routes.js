@@ -133,6 +133,11 @@ router
     .route('/tickets_pdf/:order_uuid')
     .get(webPdfLimiter, ticketsPdfProxyController)
 
+// Bulk: ?order_uuids=u1,u2,... → jedan PDF za "preuzmi sve karte" gumb.
+router
+    .route('/tickets_pdf')
+    .get(webPdfLimiter, ticketsPdfProxyController)
+
 // Monri webhooks — NO rate limiter; comes from fixed processor IPs and dropping
 // a webhook means losing the payment confirmation.
 router

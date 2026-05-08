@@ -72,16 +72,26 @@ const renderTicketsPdfController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
         const order_uuid = req.params.order_uuid || req.query.order_uuid;
-        if (!order_uuid) return res.status(400).send("order_uuid required");
+        const order_uuids_raw = req.query.order_uuids;
+        const order_uuids = typeof order_uuids_raw === "string"
+            ? order_uuids_raw.split(",").map((s) => s.trim()).filter(Boolean)
+            : Array.isArray(order_uuids_raw) ? order_uuids_raw : null;
 
-        const ticketsData = await loadTickets({ TicketsModel, order_uuid });
+        if (!order_uuid && (!order_uuids || !order_uuids.length)) {
+            return res.status(400).send("order_uuid or order_uuids required");
+        }
+
+        const ticketsData = await loadTickets({ TicketsModel, order_uuid, order_uuids });
         if (!ticketsData.length) return res.status(404).send("No tickets for this order");
 
         const buffer = await renderTicketsPdf(ticketsData);
+        const fnameHint = order_uuid
+            ? order_uuid.slice(0, 8)
+            : `bulk-${order_uuids[0].slice(0, 8)}`;
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader(
             "Content-Disposition",
-            `inline; filename="tickets-${order_uuid.slice(0, 8)}.pdf"`
+            `inline; filename="tickets-${fnameHint}.pdf"`
         );
         return res.end(buffer);
     } catch (error) {

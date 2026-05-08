@@ -4,15 +4,20 @@ const { getCoreServiceConfigData } = require('../configSyncController');
 const ticketsPdfProxyController = async (req, res) => {
     try {
         const order_uuid = req.params.order_uuid;
-        if (!order_uuid) return res.status(400).send('order_uuid required');
+        const order_uuids = req.query.order_uuids;
+        if (!order_uuid && !order_uuids) return res.status(400).send('order_uuid or order_uuids required');
 
         const coreConfig = await getCoreServiceConfigData();
         const txUrl = coreConfig?.services?.transactions?.url;
         if (!txUrl) return res.status(500).send('transactions URL missing');
 
+        const target = order_uuid
+            ? `${txUrl}/tickets_pdf/${order_uuid}`
+            : `${txUrl}/tickets_pdf?order_uuids=${encodeURIComponent(order_uuids)}`;
+
         const response = await axios({
             method: 'get',
-            url: `${txUrl}/tickets_pdf/${order_uuid}`,
+            url: target,
             responseType: 'arraybuffer',
             validateStatus: () => true,
         });
