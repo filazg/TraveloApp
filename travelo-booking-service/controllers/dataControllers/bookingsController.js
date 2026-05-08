@@ -35,32 +35,46 @@ async function fetchRoutesForVoyage(departureUuid) {
     return resp.data?.data?.routes || [];
 }
 
-async function initBookingsForVoyage(models, departure_uuid) {
-    const { BookingModel, CapacityCategoryModel } = models;
-    const existing = await BookingModel.count({ where: { departure_uuid } });
-    if (existing > 0) return { inserted: 0, already: true };
-
-    const voyage = await fetchVoyage(departure_uuid);
-    if (!voyage) throw new Error(`voyage ${departure_uuid} not found`);
-
-    const allLegs = await fetchRoutesForVoyage(departure_uuid);
-    if (!allLegs.length) throw new Error(`no routes for voyage ${departure_uuid}`);
-    // Only physical segments. Orders may be non-contiguous (e.g. 10, 20, 30) so build
-    // the sorted set of all distinct orders used by the voyage and mark a leg as
-    // adjacent when its arrival_order is the immediate successor of its departure_order.
-    const uniqueOrders = [...new Set(
-        allLegs.flatMap((l) => [Number(l.departure_harbor_order) || 0, Number(l.arrival_harbor_order) || 0])
-    )].sort((a, b) => a - b);
-    const nextByOrder = new Map();
-    for (let i = 0; i < uniqueOrders.length - 1; i++) {
-        nextByOrder.set(uniqueOrders[i], uniqueOrders[i + 1]);
-    }
-    const legs = allLegs.filter((l) => {
-        const d = Number(l.departure_harbor_order) || 0;
-        const a = Number(l.arrival_harbor_order) || 0;
-        return nextByOrder.get(d) === a;
+// Resolve VOYAGE info for any of its legs. Vraća sve adjacent legove (route-ove
+// s order diff = 10) i kanonski departure_uuid voyage-a (= prvi leg). Bookings
+// se drže pod kanonskim uuid-em pa se cijeli voyage broji kao jedna jedinica.
+async function fetchVoyageInfo(anyLegDepartureUuid) {
+    const coreConfig = await getCoreServiceConfigData();
+    const boatUrl = coreConfig?.services?.boat?.url;
+    const resp = await axios.get(`${boatUrl}/sailings/${anyLegDepartureUuid}`, {
+        timeout: 8000,
+        validateStatus: () => true,
     });
-    if (!legs.length) throw new Error(`no adjacent legs for voyage ${departure_uuid}`);
+    if (resp.status !== 200) {
+        throw new Error(`sailing not found for leg ${anyLegDepartureUuid}: HTTP ${resp.status}`);
+    }
+    const data = resp.data?.data || {};
+    const legs = Array.isArray(data.legs) ? data.legs : [];
+    if (!legs.length) throw new Error(`no adjacent legs for voyage ${anyLegDepartureUuid}`);
+    const sortedLegs = [...legs].sort(
+        (a, b) => Number(a.departure_harbor_order) - Number(b.departure_harbor_order)
+    );
+    const canonicalUuid = sortedLegs[0]?.departure_uuid;
+    if (!canonicalUuid) throw new Error(`canonical voyage uuid not found for ${anyLegDepartureUuid}`);
+    return {
+        canonicalUuid,
+        legs: sortedLegs,
+        sailing: data.sailing || null,
+    };
+}
+
+async function initBookingsForVoyage(models, anyLegUuid) {
+    const { BookingModel, CapacityCategoryModel } = models;
+
+    // Sve booking row-ove voyage-a držimo pod kanonskim departure_uuid-om
+    // (= prvi leg voyage-a). Idempotent: ako rows pod kanonskim uuid-em već
+    // postoje, skip.
+    const { canonicalUuid, legs } = await fetchVoyageInfo(anyLegUuid);
+    const existing = await BookingModel.count({ where: { departure_uuid: canonicalUuid } });
+    if (existing > 0) return { inserted: 0, already: true, canonical_uuid: canonicalUuid };
+
+    const voyage = await fetchVoyage(canonicalUuid);
+    if (!voyage) throw new Error(`voyage ${canonicalUuid} not found`);
 
     const categories = await CapacityCategoryModel.findAll({ where: { is_active: true } });
     if (!categories.length) throw new Error("no active capacity categories seeded");
@@ -72,7 +86,7 @@ async function initBookingsForVoyage(models, departure_uuid) {
             const baseCap = field ? (parseInt(voyage[field], 10) || 0) : 0;
             rows.push({
                 booking_uuid: crypto.randomUUID(),
-                departure_uuid,
+                departure_uuid: canonicalUuid,
                 timetable_uuid: voyage.timetable_uuid,
                 sequence: voyage.sequence,
                 departure_date: voyage.departure_date || null,
@@ -99,7 +113,7 @@ async function initBookingsForVoyage(models, departure_uuid) {
         }
     }
     await BookingModel.bulkCreate(rows);
-    return { inserted: rows.length, already: false };
+    return { inserted: rows.length, already: false, canonical_uuid: canonicalUuid };
 }
 
 const initBookingsController = async (req, res) => {
@@ -115,12 +129,22 @@ const initBookingsController = async (req, res) => {
 };
 
 // Get bookings (capacity + occupancy) for a voyage.
-// Filter options: departure_uuid (preferred) OR timetable_uuid+sequence+departure_date.
+// Filter options: departure_uuid (preferred — normalizira se na kanonski uuid
+// voyage-a) OR timetable_uuid+sequence+departure_date.
 const getBookingsController = async (req, res) => {
     const { BookingModel } = req.app.locals.models;
     try {
         const where = {};
-        if (req.query.departure_uuid) where.departure_uuid = req.query.departure_uuid;
+        if (req.query.departure_uuid) {
+            // Normaliziraj na kanonski voyage uuid (= prvi leg). Bez ovoga, ako
+            // se pita za neki ne-prvi leg, ne bi se vratili row-ovi voyage-a.
+            try {
+                const { canonicalUuid } = await fetchVoyageInfo(req.query.departure_uuid);
+                where.departure_uuid = canonicalUuid;
+            } catch (_) {
+                where.departure_uuid = req.query.departure_uuid;
+            }
+        }
         if (req.query.timetable_uuid) where.timetable_uuid = req.query.timetable_uuid;
         if (req.query.sequence) where.sequence = parseInt(req.query.sequence, 10);
         if (req.query.departure_date) where.departure_date = req.query.departure_date;
@@ -161,8 +185,11 @@ async function fetchRouteMeta(route_uuid) {
     if (resp.status !== 200) throw new Error(`route ${route_uuid} not found in boat-service`);
     const route = resp.data?.data?.route;
     if (!route) throw new Error(`route ${route_uuid} empty response`);
+    // Normaliziraj na kanonski voyage uuid (= prvi leg). Bookings se drže pod
+    // tim uuid-em pa cijeli voyage broji kao jedna jedinica.
+    const { canonicalUuid } = await fetchVoyageInfo(route.departure_uuid);
     return {
-        departure_uuid: route.departure_uuid,
+        departure_uuid: canonicalUuid,
         dep_order: Number(route.departure_harbor_order) || 0,
         arr_order: Number(route.arrival_harbor_order) || 0,
     };
@@ -170,8 +197,6 @@ async function fetchRouteMeta(route_uuid) {
 
 async function ensureVoyageInitForRoute(models, route_uuid) {
     const { BookingModel } = models;
-    const existing = await BookingModel.count({ where: { departure_uuid: null } });
-    // Existence check by departure_uuid — but we don't have it. Instead look up route meta first.
     const meta = await fetchRouteMeta(route_uuid);
     const hasBookings = await BookingModel.count({ where: { departure_uuid: meta.departure_uuid } });
     if (hasBookings === 0) await initBookingsForVoyage(models, meta.departure_uuid);
