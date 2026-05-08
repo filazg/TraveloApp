@@ -49,7 +49,12 @@ export default function DownloadPage() {
     ''
 
   const monriStatus = (searchParams.get('status') || '').toLowerCase()
-  const paymentFailed = monriStatus && !['approved', 'success', 'ok'].includes(monriStatus)
+  // Status iz URL query-ja je informativan (Monri ga ne šalje na cancel),
+  // pravi izvor istine je `status` na orderu nakon što runFinalization odradi.
+  const orderDeclined = orders.length > 0 && orders.some((o) => o.status === 'declined')
+  const paymentFailed =
+    orderDeclined ||
+    (monriStatus && !['approved', 'success', 'ok'].includes(monriStatus))
 
   useEffect(() => {
     // Clear any leftover cart state so returning to / shows a fresh search.
@@ -64,18 +69,14 @@ export default function DownloadPage() {
       return
     }
 
-    // Monri otkazana/odbijena uplata — ne polluj invoice_uuid (nikad neće doći).
-    // Server-side GET /monricallback je već markirao order kao declined.
-    if (paymentFailed) {
-      setLoading(false)
-      return
-    }
-
     let cancelled = false
     // Order-i postoje od trenutka kreiranja narudžbe (prije plaćanja), ali
     // invoice_uuid se postavlja tek kad Monri webhook → finalize_web_sale dovrši.
     // Zato čekamo dok svi order-i nemaju invoice_uuid (a ne samo dok postoje).
+    // Iznimka: ako je makar jedan order declined, prekidamo poll odmah —
+    // korisnik je otkazao ili je Monri odbio uplatu, invoice_uuid nikad neće doći.
     const isReady = (list) => list.length > 0 && list.every((o) => o.invoice_uuid)
+    const isDeclined = (list) => list.length > 0 && list.some((o) => o.status === 'declined')
     const MAX_ATTEMPTS = 12 // 12 × 1.5s = ~18s — webhook + finalize obično < 5s
     const poll = async (attempt = 0) => {
       try {
@@ -85,7 +86,11 @@ export default function DownloadPage() {
         const data = resp.data?.data ?? resp.data
         const list = Array.isArray(data?.orders) ? data.orders : []
         if (cancelled) return
-        if (isReady(list)) {
+        if (isDeclined(list)) {
+          setOrders(list)
+          setPayload(data)
+          setLoading(false)
+        } else if (isReady(list)) {
           setOrders(list)
           setPayload(data)
           setLoading(false)
