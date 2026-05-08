@@ -22,9 +22,10 @@ const initialState = {
       buyerData: {},
       orderNumber: null,
     },
-    tripsData:{
-      trips:[]
-    },
+    // tripsData = null znači "pretraga još nije izvršena" — Select prikazuje
+    // inicijalni prompt umjesto poruke o praznom rezultatu. Nakon prve pretrage
+    // postaje { trips: [] } ili { trips: [...] }.
+    tripsData: null,
     statuses: {
       canSelectTrips: false,
       selectTicketType: false,
@@ -148,7 +149,7 @@ const webSalesSlice = createSlice({
         resetTripData(state) {
           state.selectedData = { counter: [], selectedTrip: null }
           state.searchData = {}
-          state.tripsData = { trips: [] }
+          state.tripsData = null
           state.statuses.selectTicketType = false
         },
         resetTicketsData(state) {

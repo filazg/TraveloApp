@@ -74,7 +74,7 @@ export const HeaderSmall = ({ title, subtitle, subtitle1 }) => {
   return (
     <Box mb="8px" mt="13px">
       <Typography
-        onClick={() => { window.location.href = 'https://webbookingtest.krilo.hr/'; } } 
+        onClick={() => { window.location.href = 'https://bookingtest.krilo.hr/'; } }
         variant="h5"
         fontWeight="bold"
         sx={{ m: "0 0 5px 0", "&:hover": { cursor: 'pointer' }, color:'white' }}

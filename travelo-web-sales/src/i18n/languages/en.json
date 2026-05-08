@@ -21,6 +21,7 @@
         "selectText": "Select a departure",
         "departure": "Departure",
         "arrival": "Arrival",
+        "where_to_travel": "Where would you like to travel?",
         "no_departures": "No departures available for the selected date",
         "select_trips": "Choose tickets",
         "ticket_select": "Choose number of tickets",

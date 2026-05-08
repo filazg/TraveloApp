@@ -28,11 +28,30 @@ export default function SelectComponent (){
         dispatch(setWebSalesData({ path: "selectedData/selectedTrip", value: row }));
     };
  
+  // tripsData === null → pretraga još nije izvršena (inicijalni prompt).
+  // tripsData.trips.length === 0 → pretraga vratila prazan rezultat.
+  // tripsData.trips.length > 0 → prikaz tablice s polascima.
+  const initialState = tripsData == null
+
   return (
     <>
-    {tripsData?.trips ? (
-      <Grid container direction="row" sx={{ mt: 3 }}>
-        {tripsData.trips.length ? (
+    <Grid container direction="row" sx={{ mt: 3 }}>
+        {initialState ? (
+          <Grid size={12}>
+            <Box
+              fullwidth="true"
+              sx={{
+                bgcolor: "background.paper",
+                boxShadow: 1,
+                borderRadius: 2,
+                p: 2,
+                height: 40,
+              }}
+            >
+              {t('search.where_to_travel')}
+            </Box>
+          </Grid>
+        ) : tripsData.trips.length ? (
           <>
             <Grid size={12}>
             <Grid >
@@ -95,15 +114,14 @@ export default function SelectComponent (){
                 height: 40,
               }}
             >
-              {!tripsData.trips.length ? t('search.no_departures') : ''}
+              {t('search.no_departures')}
             </Box>
           </Grid>
         )}
         <Grid size={12} sx={{mt:2}}>
-          
+
         </Grid>
       </Grid>
-      ) : ''}
     </>
   );
 };

@@ -21,6 +21,7 @@
         "selectText": "Odaberite polazak",
         "departure": "Polazak",
         "arrival": "Dolazak",
+        "where_to_travel": "Gdje želiš putovati?",
         "no_departures": "Za navedeni termin nema dostupnih polazaka",
         "select_trips": "Odaberi karte",
         "ticket_select": "Odaberi broj karata",
