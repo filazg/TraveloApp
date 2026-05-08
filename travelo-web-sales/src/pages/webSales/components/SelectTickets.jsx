@@ -80,59 +80,53 @@ export default function SelectTicketsComponent (){
 
     const handleAddTickets = async (e) => {
     e.preventDefault();
-    let tickets = [];
+    // Sakupi sve nove karte u lokalni array pa dispatchaj jednom — ranije je
+    // svaka iteracija dispatchala s [...salesData.tickets, newTicket] iz stale
+    // closure-a, pa su se kategorije gazile (samo zadnja je preživjela).
+    const newTickets = [];
     let num = 0;
     for (const newTicketData of selectedData.counter) {
-      if (newTicketData) {
-        if (newTicketData.quantity > 0) {
-          let ticketsCodes = [];
-          for (let i = 0; i < newTicketData.quantity; i++) {
-            const newCode = {
-              uuid: uuid(),
-              code: uuid(),
-            };
-            ticketsCodes = [...ticketsCodes, newCode];
-          }
-          num++;
-          const newTicket = {
-            id: num,
-            sales_route_uuid: selectedData.selectedTrip.uuid,
-            line_code: selectedData.selectedTrip.line_code,
-            line_name: selectedData.selectedTrip.line_name,
-            departure: selectedData.selectedTrip.departure,
-            departure_harbor_id: selectedData.selectedTrip.departure_harbor_id,
-            departure_harbor_name: selectedData.selectedTrip.departure_harbor_name,
-            arrival: selectedData.selectedTrip.arrival,
-            arrival_harbor_id: selectedData.selectedTrip.arrival_harbor_id,
-            arrival_harbor_name: selectedData.selectedTrip.arrival_harbor_name,
-            ticket_type_name: newTicketData.data.ticket_type_name,
-            ticket_type_id: newTicketData.data.ticket_type_id,
-            ticket_type_uuid: newTicketData.data.ticket_type_uuid,
-            ticket_group_uuid: uuid(),
-            single_price: newTicketData.data.price,
-            total_price: newTicketData.data.price * newTicketData.quantity,
-            total_vat_base:
-              newTicketData.data.vat_base * newTicketData.quantity,
-            total_vat: newTicketData.data.vat * newTicketData.quantity,
-            total_harbor_tax:
-              newTicketData.data.harbor_tax * newTicketData.quantity,
-            // Otočna osnovica popusta (cijena otočne karte iz cjenika za polazak)
-            // — propagira se na sve karte tog polazka. U summaryu, kad SEOP vrati
-            // pravo, panel ovu cijenu množi s (1 - popust/100).
-            island_unit_price: islandUnitPrice,
-            island_seop_type: islandSeopType,
-            seop_type: newTicketData.data.seop_type ?? null,
-            quantity: newTicketData.quantity,
-            tickets: ticketsCodes,
-          };
-          dispatch(setWebSalesData({path:'salesData/tickets', value: [...salesData.tickets, newTicket] }));
-          //tickets = [...tickets, newTicket];
-
+      if (newTicketData && newTicketData.quantity > 0) {
+        const ticketsCodes = [];
+        for (let i = 0; i < newTicketData.quantity; i++) {
+          ticketsCodes.push({ uuid: uuid(), code: uuid() });
         }
+        num++;
+        newTickets.push({
+          id: num,
+          sales_route_uuid: selectedData.selectedTrip.uuid,
+          line_code: selectedData.selectedTrip.line_code,
+          line_name: selectedData.selectedTrip.line_name,
+          departure: selectedData.selectedTrip.departure,
+          departure_harbor_id: selectedData.selectedTrip.departure_harbor_id,
+          departure_harbor_name: selectedData.selectedTrip.departure_harbor_name,
+          arrival: selectedData.selectedTrip.arrival,
+          arrival_harbor_id: selectedData.selectedTrip.arrival_harbor_id,
+          arrival_harbor_name: selectedData.selectedTrip.arrival_harbor_name,
+          ticket_type_name: newTicketData.data.ticket_type_name,
+          ticket_type_id: newTicketData.data.ticket_type_id,
+          ticket_type_uuid: newTicketData.data.ticket_type_uuid,
+          ticket_group_uuid: uuid(),
+          single_price: newTicketData.data.price,
+          total_price: newTicketData.data.price * newTicketData.quantity,
+          total_vat_base: newTicketData.data.vat_base * newTicketData.quantity,
+          total_vat: newTicketData.data.vat * newTicketData.quantity,
+          total_harbor_tax: newTicketData.data.harbor_tax * newTicketData.quantity,
+          // Otočna osnovica popusta (cijena otočne karte iz cjenika za polazak)
+          // — propagira se na sve karte tog polazka. U summaryu, kad SEOP vrati
+          // pravo, panel ovu cijenu množi s (1 - popust/100).
+          island_unit_price: islandUnitPrice,
+          island_seop_type: islandSeopType,
+          seop_type: newTicketData.data.seop_type ?? null,
+          quantity: newTicketData.quantity,
+          tickets: ticketsCodes,
+        });
       }
     }
-
-   dispatch(resetTripData());
+    if (newTickets.length) {
+      dispatch(setWebSalesData({ path: 'salesData/tickets', value: [...salesData.tickets, ...newTickets] }));
+    }
+    dispatch(resetTripData());
   };
 
   const addInitialState = () => {
