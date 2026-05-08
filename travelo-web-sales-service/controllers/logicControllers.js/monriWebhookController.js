@@ -143,4 +143,55 @@ const simulatePaymentController = async (req, res) => {
     }
 };
 
-module.exports = { monriWebhookController, simulatePaymentController };
+// Browser-redirect handler — Monri redirect-a kupca natrag s query stringom
+// (`order_number`, `response_code`, `status`, `digest`, ...). Server-to-server
+// webhook (`POST /monricallback`) ovisi o konfiguraciji u Monri panelu pa
+// može zakazati; ovaj GET je pouzdaniji za UI flow.
+//
+// Ako je order_number prisutan, finaliziramo (approved ili declined) PRIJE
+// redirect-a na /download. SPA tako vidi konzistentno stanje pri prvom GET-u
+// i ne mora čekati nestabilan webhook.
+const monriBrowserRedirectController = async (req, res) => {
+    try {
+        const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        const q = req.query || {};
+        const orderNumber = q.order_number || q.payment_reference || '';
+        if (orderNumber) {
+            const payload = {
+                order_number: orderNumber,
+                amount: q.amount,
+                currency: q.currency,
+                response_code: q.response_code,
+                status: q.status,
+                digest: q.digest,
+            };
+            const expected = computeDigest(payload);
+            const received = String(payload.digest || '').toLowerCase();
+            const digestOk = received && received === expected;
+            const meta = {
+                response_code: payload.response_code,
+                monri_status: payload.status,
+                amount: payload.amount,
+                currency: payload.currency,
+                digest_verified: digestOk,
+                source: 'browser_redirect',
+                received_at: new Date().toISOString(),
+            };
+            try {
+                await runFinalization({
+                    paymentRef: orderNumber,
+                    approved: isApprovedStatus(payload),
+                    meta,
+                });
+            } catch (finErr) {
+                console.log('monri browser-redirect finalize error:', finErr?.message || finErr);
+            }
+        }
+        return res.redirect(302, `/download${qs}`);
+    } catch (error) {
+        console.log('monriBrowserRedirectController error:', error?.message || error);
+        return res.redirect(302, '/download');
+    }
+};
+
+module.exports = { monriWebhookController, simulatePaymentController, monriBrowserRedirectController };

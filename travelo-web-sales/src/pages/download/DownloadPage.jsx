@@ -64,6 +64,13 @@ export default function DownloadPage() {
       return
     }
 
+    // Monri otkazana/odbijena uplata — ne polluj invoice_uuid (nikad neće doći).
+    // Server-side GET /monricallback je već markirao order kao declined.
+    if (paymentFailed) {
+      setLoading(false)
+      return
+    }
+
     let cancelled = false
     // Order-i postoje od trenutka kreiranja narudžbe (prije plaćanja), ali
     // invoice_uuid se postavlja tek kad Monri webhook → finalize_web_sale dovrši.
@@ -147,9 +154,14 @@ export default function DownloadPage() {
             )}
 
             {!loading && paymentFailed && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {t('download.failed')} ({monriStatus})
-              </Alert>
+              <>
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {t('download.failed')} ({monriStatus})
+                </Alert>
+                <Button variant="contained" startIcon={<HomeIcon />} href="/">
+                  {t('download.home')}
+                </Button>
+              </>
             )}
 
             {!loading && error && (

@@ -8,7 +8,7 @@ const { getInfoData } = require('../controllers/logicControllers.js/getInfoData'
 const { downloadWebPageApiDocumentation } = require('../controllers/downloadControllers');
 const { createOrderConfirmationController, getOrdersByReferenceController } = require('../controllers/logicControllers.js/orderConfirmationController');
 const { ticketsPdfProxyController } = require('../controllers/logicControllers.js/ticketsPdfProxyController');
-const { monriWebhookController, simulatePaymentController } = require('../controllers/logicControllers.js/monriWebhookController');
+const { monriWebhookController, simulatePaymentController, monriBrowserRedirectController } = require('../controllers/logicControllers.js/monriWebhookController');
 const { invoicePdfProxyController } = require('../controllers/logicControllers.js/invoicePdfProxyController');
 const { getCountriesController } = require('../controllers/dataControllers/countriesControllers');
 const { checkIslandCardController } = require('../controllers/logicControllers.js/checkIslandCardController');
@@ -155,10 +155,7 @@ router
 // DownloadPage SPA čita `status` i prikazuje uspjeh ili "Payment failed".
 router
     .route('/monricallback')
-    .get((req, res) => {
-        const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-        return res.redirect(302, `/download${qs}`);
-    })
+    .get(monriBrowserRedirectController)
     .post(monriWebhookController)
 
 router
