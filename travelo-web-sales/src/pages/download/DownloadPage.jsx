@@ -224,22 +224,24 @@ export default function DownloadPage() {
                   <Typography variant="h6" fontWeight={800}>
                     {t('download.total')}: {fmtEUR(totalAmount)}
                   </Typography>
-                  <Stack direction="row" spacing={2}>
-                    {invoiceUuid && (
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        startIcon={<ReceiptLongIcon />}
-                        onClick={openInvoice}
-                      >
-                        {t('download.invoice')}
-                      </Button>
-                    )}
-                    {ordersWithPdf.length > 1 && (
-                      <Button variant="outlined" startIcon={<PictureAsPdfIcon />} onClick={openAll}>
-                        {t('download.all_pdf')}
-                      </Button>
-                    )}
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <Stack direction="row" spacing={2}>
+                      {invoiceUuid && (
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          startIcon={<ReceiptLongIcon />}
+                          onClick={openInvoice}
+                        >
+                          {t('download.invoice')}
+                        </Button>
+                      )}
+                      {ordersWithPdf.length > 1 && (
+                        <Button variant="outlined" startIcon={<PictureAsPdfIcon />} onClick={openAll}>
+                          {t('download.all_pdf')}
+                        </Button>
+                      )}
+                    </Stack>
                     <Button variant="text" startIcon={<HomeIcon />} href="/">
                       {t('download.home')}
                     </Button>
