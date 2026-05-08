@@ -173,7 +173,7 @@ export default function SearchComponent (){
                     </Grid>
 
                     <Grid container direction="row" spacing={1} mb={2}>
-                        <Grid size={{sm:12,md:8}}>
+                        <Grid size={{xs:12,sm:12,md:8}}>
                         <ToggleButtonGroup
                             variant="contained"
                             aria-label="outlined primary button group"
@@ -220,7 +220,7 @@ export default function SearchComponent (){
                             </ToggleButton>
                         </ToggleButtonGroup>
                         </Grid>
-                        <Grid size={{sm:12,md:4}}>
+                        <Grid size={{xs:12,sm:12,md:4}}>
                         <Box>
                             <LocalizationProvider dateAdapter={AdapterDayjs}>
                             <Stack spacing={3}>
@@ -228,7 +228,7 @@ export default function SearchComponent (){
                                     label={t("search.travel_date")}
                                     format="DD/MM/YYYY"
                                     disablePast
-                                    slotProps={{ textField: { size: "medium" } }}
+                                    slotProps={{ textField: { size: "medium", fullWidth: true } }}
                                     value={travelDate ? dayjs(travelDate) : null}
                                     onChange={(newValue) => {
                                         if (!newValue) return;
