@@ -173,7 +173,7 @@ export default function DownloadPage() {
               <Alert severity="warning" sx={{ mb: 2 }}>{error}</Alert>
             )}
 
-            {!loading && !error && orders.length > 0 && (
+            {!loading && !error && !paymentFailed && orders.length > 0 && (
               <>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
                   <DirectionsBoatIcon color="primary" />
