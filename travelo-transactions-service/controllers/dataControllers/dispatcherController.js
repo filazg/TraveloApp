@@ -39,7 +39,7 @@ const cancelSailingController = async (req, res) => {
         const data = (req.body && typeof req.body.body === "object" && req.body.body !== null)
             ? req.body.body
             : (req.body || {});
-        const { route_uuids, subject, body } = data;
+        const { route_uuids, subject, body, sailing } = data;
         if (!Array.isArray(route_uuids) || !route_uuids.length) {
             return res.status(400).json({ status: 400, data: { message: "route_uuids required" } });
         }
@@ -59,6 +59,7 @@ const cancelSailingController = async (req, res) => {
                 subject: subject || "Kapetan Luka — Polazak je otkazan",
                 body: body || "Poštovani,\n\nObavještavamo Vas da je Vaš polazak otkazan.\n\nKapetan Luka",
                 signature: "Služba za putnike · Kapetan Luka",
+                sailing,
             });
             results.push({ email, ...r });
         }
@@ -87,7 +88,7 @@ const sendSailingMessageController = async (req, res) => {
         const data = (req.body && typeof req.body.body === "object" && req.body.body !== null)
             ? req.body.body
             : (req.body || {});
-        const { route_uuids, subject, body } = data;
+        const { route_uuids, subject, body, sailing } = data;
         if (!Array.isArray(route_uuids) || !route_uuids.length) {
             return res.status(400).json({ status: 400, data: { message: "route_uuids required" } });
         }
@@ -103,6 +104,7 @@ const sendSailingMessageController = async (req, res) => {
                 subject,
                 body,
                 signature: "Služba za putnike · Kapetan Luka",
+                sailing,
             });
             results.push({ email, ...r });
         }

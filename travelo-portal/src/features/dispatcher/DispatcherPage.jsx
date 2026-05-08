@@ -227,6 +227,14 @@ export default function DispatcherPage() {
             route_uuids,
             subject: cancelSubject,
             body: cancelBody,
+            sailing: {
+                line_code: activeSailing.line_code,
+                line_name: activeSailing.line_name,
+                departure_date: activeSailing.departure_date,
+                departure_time: activeSailing.departure_time,
+                start_harbor: activeSailing.start_harbor,
+                end_harbor: activeSailing.end_harbor,
+            },
         }));
         await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
         setCancelOpen(false);
@@ -238,6 +246,14 @@ export default function DispatcherPage() {
             route_uuids,
             subject: msgSubject,
             body: msgBody,
+            sailing: {
+                line_code: activeSailing.line_code,
+                line_name: activeSailing.line_name,
+                departure_date: activeSailing.departure_date,
+                departure_time: activeSailing.departure_time,
+                start_harbor: activeSailing.start_harbor,
+                end_harbor: activeSailing.end_harbor,
+            },
         }));
         setMessageOpen(false);
     };
