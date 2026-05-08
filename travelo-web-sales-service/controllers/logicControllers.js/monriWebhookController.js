@@ -95,8 +95,9 @@ const monriWebhookController = async (req, res) => {
 
         const expected = computeDigest(payload);
         const received = String(payload.digest || '').toLowerCase();
-        const digestOk = received && received === expected;
+        const digestOk = Boolean(received) && received === expected;
         if (!digestOk) console.log('MONRI WEBHOOK digest mismatch', { expected, received });
+        const approved = isApprovedStatus(payload);
 
         const meta = {
             response_code: payload.response_code,
@@ -108,9 +109,18 @@ const monriWebhookController = async (req, res) => {
             received_at: new Date().toISOString(),
         };
 
+        // SIGURNOST: izdavanje karata + računa (approved) ide samo s validnim
+        // digest-om. Decline (i sve ostalo) može proći — samo update statusa.
+        if (approved && !digestOk) {
+            console.log('MONRI WEBHOOK REJECTED (approved + digest mismatch)', {
+                payment_reference: payload.order_number,
+            });
+            return res.status(200).send('rejected_invalid_digest');
+        }
+
         await runFinalization({
             paymentRef: payload.order_number,
-            approved: isApprovedStatus(payload),
+            approved,
             meta,
         });
 
@@ -122,7 +132,13 @@ const monriWebhookController = async (req, res) => {
 };
 
 // DEV simulator — bypass Monri (localhost has no HTTPS). Body: { payment_reference, status? }
+// SIGURNOST: dostupan samo ako je env ALLOW_PAYMENT_SIMULATOR=true. Inače 404.
+// Razlog: bez gate-a bilo bi moguće sa public interneta approve-ati bilo koji
+// order i dobiti karte besplatno.
 const simulatePaymentController = async (req, res) => {
+    if (String(process.env.ALLOW_PAYMENT_SIMULATOR || '').toLowerCase() !== 'true') {
+        return res.status(404).send('Not found');
+    }
     try {
         const { payment_reference, status = 'approved' } = req.body || {};
         if (!payment_reference) {
@@ -148,9 +164,10 @@ const simulatePaymentController = async (req, res) => {
 // webhook (`POST /monricallback`) ovisi o konfiguraciji u Monri panelu pa
 // može zakazati; ovaj GET je pouzdaniji za UI flow.
 //
-// Ako je order_number prisutan, finaliziramo (approved ili declined) PRIJE
-// redirect-a na /download. SPA tako vidi konzistentno stanje pri prvom GET-u
-// i ne mora čekati nestabilan webhook.
+// SIGURNOST: izdavanje karata + računa (approved put) ide ISKLJUČIVO ako HMAC
+// digest validira. Inače bilo tko bi mogao kraftati URL s response_code=0000
+// i dobiti karte besplatno. Decline put ne kreira ništa novo (samo status
+// update na već postojećem orderu) pa se može izvesti i bez digest-a.
 const monriBrowserRedirectController = async (req, res) => {
     try {
         const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
@@ -167,7 +184,8 @@ const monriBrowserRedirectController = async (req, res) => {
             };
             const expected = computeDigest(payload);
             const received = String(payload.digest || '').toLowerCase();
-            const digestOk = received && received === expected;
+            const digestOk = Boolean(received) && received === expected;
+            const approved = isApprovedStatus(payload);
             const meta = {
                 response_code: payload.response_code,
                 monri_status: payload.status,
@@ -177,14 +195,28 @@ const monriBrowserRedirectController = async (req, res) => {
                 source: 'browser_redirect',
                 received_at: new Date().toISOString(),
             };
-            try {
-                await runFinalization({
-                    paymentRef: orderNumber,
-                    approved: isApprovedStatus(payload),
-                    meta,
+
+            if (approved && !digestOk) {
+                // Approved put bez validnog digest-a je sumnjiv — možda kupac
+                // koji je tab pre-loadao sa starim parametrima, možda napad.
+                // NE finaliziramo. Ostavljamo order na pending_payment; pravi
+                // server-to-server webhook (kad Monri panel bude konfiguriran)
+                // će ga ispravno obraditi. Logiramo za audit.
+                console.log('monri browser-redirect REJECTED (approved status, digest mismatch)', {
+                    orderNumber,
+                    received_digest: received,
+                    has_response_code: Boolean(q.response_code),
                 });
-            } catch (finErr) {
-                console.log('monri browser-redirect finalize error:', finErr?.message || finErr);
+            } else {
+                try {
+                    await runFinalization({
+                        paymentRef: orderNumber,
+                        approved,
+                        meta,
+                    });
+                } catch (finErr) {
+                    console.log('monri browser-redirect finalize error:', finErr?.message || finErr);
+                }
             }
         }
         return res.redirect(302, `/download${qs}`);
