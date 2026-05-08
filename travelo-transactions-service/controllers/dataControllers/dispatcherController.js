@@ -33,7 +33,12 @@ async function collectPassengerEmails(TicketsModel, route_uuids) {
 const cancelSailingController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
-        const data = req.body?.body || req.body || {};
+        // Gateway omota tijelo u { header, body } kad je is_login=false. Body
+        // payload-a ima ime "body" (tekst poruke), pa unwrap-amo SAMO ako je
+        // req.body.body objekt (gateway wrap), inače je tekst poruke.
+        const data = (req.body && typeof req.body.body === "object" && req.body.body !== null)
+            ? req.body.body
+            : (req.body || {});
         const { route_uuids, subject, body } = data;
         if (!Array.isArray(route_uuids) || !route_uuids.length) {
             return res.status(400).json({ status: 400, data: { message: "route_uuids required" } });
@@ -76,7 +81,12 @@ const cancelSailingController = async (req, res) => {
 const sendSailingMessageController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
-        const data = req.body?.body || req.body || {};
+        // Gateway omota tijelo u { header, body } kad je is_login=false. Body
+        // payload-a ima ime "body" (tekst poruke), pa unwrap-amo SAMO ako je
+        // req.body.body objekt (gateway wrap), inače je tekst poruke.
+        const data = (req.body && typeof req.body.body === "object" && req.body.body !== null)
+            ? req.body.body
+            : (req.body || {});
         const { route_uuids, subject, body } = data;
         if (!Array.isArray(route_uuids) || !route_uuids.length) {
             return res.status(400).json({ status: 400, data: { message: "route_uuids required" } });
