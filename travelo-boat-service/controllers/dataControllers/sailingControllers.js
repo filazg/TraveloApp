@@ -52,14 +52,12 @@ const getSailingsController = async (req, res) => {
             order: [["departure_harbor_order", "ASC"]],
         });
 
-        // Group by VOYAGE (one row per voyage), ne po legu. Voyage je definiran
-        // s voyage_id ako postoji; fallback je (timetable_uuid + sequence + date).
-        // Ranija varijanta je grupirala po departure_uuid pa je voyage s N etapa
-        // davao N redaka u dispatcheru.
+        // Group by VOYAGE (one row per voyage), ne po legu. Sequence je pravi
+        // ključ — sve etape istog voyage-a dijele isti (timetable_uuid +
+        // sequence + departure_date). voyage_id u Excelu je per-leg pa se
+        // NE koristi za grupiranje.
         const voyageKey = (r) =>
-            r.voyage_id
-                ? `v:${r.voyage_id}`
-                : `t:${r.timetable_uuid}|s:${r.sequence}|d:${r.departure_date}`;
+            `t:${r.timetable_uuid}|s:${r.sequence}|d:${r.departure_date}`;
 
         const groups = new Map();
         for (const r of routes) {
@@ -134,13 +132,19 @@ const getSailingDetailsController = async (req, res) => {
         });
         if (!first) return res.status(404).send({ status: 404, data: { message: "sailing not found" } });
 
-        // Fetch all physical legs (Departures) for this voyage.
-        // Prefer voyage_id grouping (new data); fallback to (timetable_uuid + sequence) for legacy rows.
-        const voyageWhere = first.voyage_id
-            ? { voyage_id: first.voyage_id, is_active: true }
-            : { timetable_uuid: first.timetable_uuid, sequence: first.sequence, is_active: true };
+        // Fetch all physical legs (Departures) for this voyage. Sequence je
+        // pravi ključ — voyage_id u Excel-flow-u je per-leg pa ne identificira
+        // voyage. Group: timetable_uuid + sequence + departure_date.
+        // departure_planed format je "DD.MM.YYYY.HH:mm" pa filter po prefiksu
+        // datuma da uhvati sve etape istog dana.
+        const dotPrefix = (first.departure_planed || "").split(".").slice(0, 3).join(".") + ".";
         const physicalLegs = await DeparturesModel.findAll({
-            where: voyageWhere,
+            where: {
+                timetable_uuid: first.timetable_uuid,
+                sequence: first.sequence,
+                departure_planed: { [Op.like]: `${dotPrefix}%` },
+                is_active: true,
+            },
             attributes: { exclude: ["createdAt", "updatedAt"] },
             order: [["harbor_order", "ASC"]],
         });
@@ -183,31 +187,21 @@ const getSailingDetailsController = async (req, res) => {
             }
         }
 
-        // Adjacent Routes (one per physical leg) — source of truth for leg status + cancel actions.
+        // Adjacent Routes (one per physical leg) — source of truth za leg
+        // status + cancel akcije. Sequence + datum su ključevi voyage-a;
+        // voyage_id je per-leg u Excel-flow-u pa ga NE koristimo.
+        const depDateRaw = (first.departure_planed || "").split(".").slice(0, 3).join("/"); // "DD/MM/YYYY"
         const adjacentLegs = await RoutesModel.findAll({
             where: {
-                voyage_id: first.voyage_id || "",
+                timetable_uuid: first.timetable_uuid,
+                sequence: first.sequence,
+                departure_date: depDateRaw,
                 is_active: true,
             },
             attributes: { exclude: ["createdAt", "updatedAt"] },
             order: [["departure_harbor_order", "ASC"]],
         });
-        // If no voyage_id match (legacy data), fall back to timetable+sequence+date.
-        let legs = adjacentLegs.filter((r) => Number(r.arrival_harbor_order) - Number(r.departure_harbor_order) === 10);
-        if (!legs.length) {
-            const depDateRaw = (first.departure_planed || "").split(".").slice(0, 3).join("/"); // "DD/MM/YYYY"
-            const fallback = await RoutesModel.findAll({
-                where: {
-                    timetable_uuid: first.timetable_uuid,
-                    sequence: first.sequence,
-                    departure_date: depDateRaw,
-                    is_active: true,
-                },
-                attributes: { exclude: ["createdAt", "updatedAt"] },
-                order: [["departure_harbor_order", "ASC"]],
-            });
-            legs = fallback.filter((r) => Number(r.arrival_harbor_order) - Number(r.departure_harbor_order) === 10);
-        }
+        const legs = adjacentLegs.filter((r) => Number(r.arrival_harbor_order) - Number(r.departure_harbor_order) === 10);
 
         return res.send({
             status: 200,
