@@ -685,12 +685,15 @@ export default function BillingDevicesPage (){
                         
                         onClick={handleSubmit}
                         disabled={
-                            !newData.name 
+                            !newData.name
                             || !newData.fiscal_mark
-                            || !newData.tid
-                            || !newData.otp
                             || !newData.type
                             || !newData.business_premises
+                            // TID i OTP postoje samo za PC i mobilnu blagajnu — za web
+                            // prodaju se polja ni ne prikazuju, pa ih ne smijemo tražiti
+                            // (inače gumb ostane trajno onemogućen).
+                            || ((newData.type === 'pc' || newData.type === 'mobile')
+                                && (!newData.tid || !newData.otp))
                         }
                         sx={{ height: 60, mt: 2, width: "100%" }}
                         variant="contained"
