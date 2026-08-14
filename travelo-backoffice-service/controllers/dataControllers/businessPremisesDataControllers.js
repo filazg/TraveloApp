@@ -72,6 +72,7 @@ const addBusinessPremiseDataController = async(req,res)=>{
                     description:data.description,
                     fiskal_mark:data.fiskal_mark,
                     working_time:data.working_time,
+                    cost_center:data.cost_center,
                     bp_own:data.bp_own,
                     partner_uuid:data.partner_uuid,
                     partner_name:data.partner_name,
@@ -131,6 +132,7 @@ const updateBusinessPremiseDataController = async(req,res)=>{
                     country:data.country,
                     description:data.description,
                     working_time:data.working_time,
+                    cost_center:data.cost_center,
                     is_active:data.is_active
                 },{where:{
                     uuid:data.uuid

@@ -5,6 +5,8 @@ import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBack
 import { useT } from "../../../../i18n/useT";
 import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 
 export default function BusinessPremisesPage (){
@@ -60,6 +62,18 @@ export default function BusinessPremisesPage (){
         setEditedBusinessPremiseData(selectedRow)
      },[selectedRow])
 
+    const handleToggleActive = async (row) => {
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value: row.is_active ? 'Deaktivacija poslovnog prostora' : 'Aktivacija poslovnog prostora'}))
+        await dispatch(patchBackofficeThunk({path:'business_premises', data:{ ...row, is_active: !row.is_active }}))
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+
+    const rowActions = useRowClickActions({
+        onEdit: (row) => setSelectedRow(row),
+        onToggle: handleToggleActive,
+    })
+
      const columns = [
         { field: 'name', headerName:t('backoffice.business_premises.name'), flex: 2},
         { field: 'mark', headerName:t('backoffice.business_premises.mark'), flex: 2},
@@ -70,6 +84,7 @@ export default function BusinessPremisesPage (){
         { field: 'description', headerName:t('backoffice.business_premises.description'), flex: 2},
         { field: 'fiskal_mark', headerName: t('backoffice.business_premises.fiskal_mark'), flex: 2},
         { field: 'working_time', headerName: t('backoffice.business_premises.working_time'), flex: 2},
+        { field: 'cost_center', headerName: t('backoffice.business_premises.cost_centre'), flex: 2},
         { field: 'tel', headerName:t('backoffice.business_premises.tel'), flex: 2},
         { field: 'email', headerName:t('backoffice.business_premises.email'), flex: 2},
         { field: 'is_active', type: 'boolean', headerName:t('backoffice.business_premises.is_active'), flex: 2},
@@ -83,8 +98,9 @@ export default function BusinessPremisesPage (){
             ml:2,
             width: "98%", 
             overflowX: "auto"
-        }}>            
+        }}>
             <>
+                <GridHint />
                 <Box
                     sx={{
                         height:"80vh",
@@ -95,7 +111,7 @@ export default function BusinessPremisesPage (){
                         rows={backofficeData.backofficeData.business_premises || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        onCellClick={(params) => setSelectedRow(params.row)}
+                        {...rowActions}
                     />
                 </Box>                
             </>
@@ -275,6 +291,19 @@ export default function BusinessPremisesPage (){
                         value={newBusinessPremiseData.working_time || ""}
                         onChange={handleChange}
                         name="working_time"
+                         sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.business_premises.cost_centre')}
+                        placeholder={t('backoffice.business_premises.cost_centre')}
+                        value={newBusinessPremiseData.cost_center || ""}
+                        onChange={handleChange}
+                        name="cost_center"
                          sx={{
                             mt:1
                         }}
@@ -501,6 +530,19 @@ export default function BusinessPremisesPage (){
                         value={editedBusinessPremiseData?.working_time || ""}
                         onChange={handleChangeEdit}
                         name="working_time"
+                         sx={{
+                            mt:1
+                        }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.business_premises.cost_centre')}
+                        placeholder={t('backoffice.business_premises.cost_centre')}
+                        value={editedBusinessPremiseData?.cost_center || ""}
+                        onChange={handleChangeEdit}
+                        name="cost_center"
                          sx={{
                             mt:1
                         }}

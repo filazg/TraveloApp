@@ -1,7 +1,7 @@
 import axios from "axios";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 
-const prod = true
+const prod = false
 const backendURL = prod ? "https://bookingtest.krilo.hr/app" :"http://localhost:5100"
 
 const initialState = {
@@ -58,6 +58,9 @@ const initialState = {
             module_acr:'MANA',
             module_name: 'Menađment'
         },
+        // BUS moduli (BUSL, BUSSALE, BUSDISP, BUSDRV, BUSPRL) su maknuti iz izbora
+        // dodjele prava — bus je odvojen projekt, a i control-service ovdje vozi
+        // TRAVELO_MODULES=BOAT pa se ti moduli ionako ne prikazuju na naslovnici.
     ],
 }
 

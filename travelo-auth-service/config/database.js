@@ -32,12 +32,26 @@ async function initSequelize(dbConfig) {
       }
     );
 
-    try {
-      await sequelize.authenticate();
-      console.log("AUTH SERVICE database connected...");
-    } catch (err) {
-      console.error("***ERROR*** AUTH SERVICE database connection", err.message);
-      throw err;
+    // DNS prema DO clusteru zna zakazati na par sekundi (npr. nakon buđenja
+    // stroja). Bez ponovnog pokušaja servis bi ostao živ ali bez baze — zato
+    // pet pokušaja s rastućom odgodom prije nego odustanemo.
+    const MAX_ATTEMPTS = 5;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        await sequelize.authenticate();
+        console.log("AUTH SERVICE database connected...");
+        break;
+      } catch (err) {
+        if (attempt === MAX_ATTEMPTS) {
+          console.error("***ERROR*** AUTH SERVICE database connection", err.message);
+          throw err;
+        }
+        const waitMs = 2000 * 2 ** (attempt - 1);
+        console.error(
+          `***ERROR*** AUTH SERVICE database connection (pokušaj ${attempt}/${MAX_ATTEMPTS}): ${err.message} — ponovni pokušaj za ${waitMs / 1000}s`
+        );
+        await new Promise((r) => setTimeout(r, waitMs));
+      }
     }
   }
 

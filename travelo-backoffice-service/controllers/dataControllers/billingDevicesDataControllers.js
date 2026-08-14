@@ -1,8 +1,102 @@
 const { getSequelize } = require("../../config/database")
 const { Op } = require("sequelize");
+// Samo randomInt iz node:crypto — globalni webcrypto ga nema. NE uvoditi cijeli
+// modul kao `crypto`: postojeći pozivi su oblika crypto.randomUUID(16), što
+// globalni webcrypto tolerira, a node:crypto baca ERR_INVALID_ARG_TYPE.
+const { randomInt } = require("crypto");
 const { publishBackofficeEvent } = require("../../message_broker/publisher");
+const { modelRequiresSerial } = require("../../helpers/deviceModels");
 
 const sequelize = getSequelize();
+
+// TID = acr tvrtke (3 znaka) + oznaka tipa (01 PC, 02 mobilna) + redni broj (3 znamenke).
+// Redni broj se broji unutar prefiksa, pa PC i mobilne blagajne imaju svoje nizove:
+// T4B01001, T4B01002, … i T4B02001, T4B02002, …
+const TYPE_MARK = { pc: '01', mobile: '02' };
+
+const companyAcrPart = (acr) =>
+    String(acr || '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .padEnd(3, 'X')
+        .slice(0, 3);
+
+// Sljedeći slobodan TID za zadani prefiks — max postojećeg rednog broja + 1.
+async function nextTidForPrefix(BillingDevicesModel, prefix) {
+    const existing = await BillingDevicesModel.findAll({
+        where: { tid: { [Op.like]: `${prefix}%` } },
+        attributes: ['tid'],
+    });
+    let max = 0;
+    for (const row of existing) {
+        const suffix = String(row.tid || '').slice(prefix.length);
+        if (!/^\d{3}$/.test(suffix)) continue;
+        const n = parseInt(suffix, 10);
+        if (n > max) max = n;
+    }
+    return `${prefix}${String(max + 1).padStart(3, '0')}`;
+}
+
+// OTP: 6 znakova, mala slova i znamenke. crypto.randomInt daje uniformnu
+// raspodjelu (Math.random ovdje nije dovoljno dobar za kod za uparivanje).
+const OTP_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const OTP_LENGTH = 6;
+
+const randomOtp = () => {
+    let out = '';
+    for (let i = 0; i < OTP_LENGTH; i++) {
+        out += OTP_CHARS[randomInt(OTP_CHARS.length)];
+    }
+    return out;
+};
+
+// GET /billing_devices/next_otp — generira OTP koji nije u upotrebi ni na jednom
+// uređaju. Uz 36^6 kombinacija sudar je malo vjerojatan, ali provjera je jeftina.
+const generateBillingDeviceOtpController = async (req, res) => {
+    const { BillingDevicesModel } = req.app.locals.models;
+    try {
+        for (let attempt = 0; attempt < 10; attempt++) {
+            const otp = randomOtp();
+            const taken = await BillingDevicesModel.findOne({ where: { otp } });
+            if (!taken) return res.send({ status: 200, data: { otp } });
+        }
+        res.status(409).send({
+            status: 409,
+            msg: 'Nije uspjelo generiranje jedinstvenog OTP-a nakon 10 pokušaja.',
+        });
+    } catch (error) {
+        console.log(error);
+        res.send({ status: 500, data: { error } });
+    }
+};
+
+// GET /billing_devices/next_tid?type=pc|mobile
+const generateBillingDeviceTidController = async (req, res) => {
+    const { BillingDevicesModel, CompanyModel } = req.app.locals.models;
+    try {
+        const type = req.query.type;
+        const mark = TYPE_MARK[type];
+        if (!mark) {
+            return res.status(400).send({
+                status: 400,
+                msg: 'TID se generira samo za tip "pc" ili "mobile".',
+            });
+        }
+        const company = await CompanyModel.findOne();
+        if (!company?.acr) {
+            return res.status(409).send({
+                status: 409,
+                msg: 'Tvrtka nema postavljen akronim (acr) — TID se ne može generirati.',
+            });
+        }
+        const prefix = `${companyAcrPart(company.acr)}${mark}`;
+        const tid = await nextTidForPrefix(BillingDevicesModel, prefix);
+        res.send({ status: 200, data: { tid, prefix } });
+    } catch (error) {
+        console.log(error);
+        res.send({ status: 500, data: { error } });
+    }
+};
 
 // Singleton pravilo — pod prodajnim mjestom tipa Web prodaja (WEB_OFFICE) smije biti
 // samo jedan aktivan naplatni uređaj. Vraća postojećeg ako postoji, inače null.
@@ -53,6 +147,7 @@ const getBillingDevicesController = async(req,res)=>{
                     otp:billingDevice.otp,
                     fiscal_mark:billingDevice.fiscal_mark,
                     cost_center:billingDevice.cost_center,
+                    device_model:billingDevice.device_model,
                     serial_number:billingDevice.serial_number,
                     auto_validate:billingDevice.auto_validate,
                     description:billingDevice.description,
@@ -85,10 +180,12 @@ const getBillingDevicesController = async(req,res)=>{
 }
 
 const addBillingDeviceController = async(req,res)=>{
-    const { BillingDevicesModel, BusinessPremisesModel } = req.app.locals.models;
+    const { BillingDevicesModel, BusinessPremisesModel, DeviceSerialNumbersModel } = req.app.locals.models;
     try {
         const data = req.body.body
-        const result = sequelize.transaction(async (t)=>{
+        // await je bitan: bez njega iznimka iz transakcije nikad ne dođe do catcha
+        // pa zahtjev visi bez odgovora umjesto da vrati 500.
+        const result = await sequelize.transaction(async (t)=>{
             // Singleton za WEB: max 1 aktivan uređaj po WEB prodajnom mjestu.
             const webConflict = await findConflictingActiveWebDevice(
                 BillingDevicesModel,
@@ -123,8 +220,32 @@ const addBillingDeviceController = async(req,res)=>{
                     // Normaliziraj polja po tipu uređaja.
                     const isWeb = data.type === 'web';
                     const isMobile = data.type === 'mobile';
+                    // Model i serijski broj postoje samo za mobilnu blagajnu, a SN
+                    // samo za modele koji ga vode u zalihi (npr. Sunmi V2s).
+                    const deviceModel = isMobile ? (data.device_model || null) : null;
+                    const serialNumber = deviceModel && modelRequiresSerial(deviceModel)
+                        ? (data.serial_number || null)
+                        : null;
+                    if (serialNumber) {
+                        const sn = await DeviceSerialNumbersModel.findOne({
+                            where: { serial_number: serialNumber, is_active: true }
+                        });
+                        if (!sn) {
+                            return res.status(404).send({
+                                status: 404,
+                                msg: `Serijski broj "${serialNumber}" ne postoji u zalihi.`,
+                            });
+                        }
+                        if (sn.billing_device_uuid) {
+                            return res.status(409).send({
+                                status: 409,
+                                msg: `Serijski broj "${serialNumber}" je već dodijeljen uređaju "${sn.billing_device_name || sn.billing_device_uuid}".`,
+                            });
+                        }
+                    }
+                    const newDeviceUuid = crypto.randomUUID(16);
                     const addBillingDevice = await BillingDevicesModel.create({
-                        uuid:crypto.randomUUID(16),
+                        uuid:newDeviceUuid,
                         business_premise_uuid:data.business_premises.uuid,
                         business_premise_name:data.business_premises.name,
                         name:data.name,
@@ -132,6 +253,8 @@ const addBillingDeviceController = async(req,res)=>{
                         otp: isWeb ? null : (data.otp || null),
                         fiscal_mark:data.fiscal_mark,
                         cost_center:data.cost_center,
+                        device_model: deviceModel,
+                        serial_number: serialNumber,
                         auto_validate: isMobile
                             ? (data.auto_validate === true || data.auto_validate === 'true')
                             : false,
@@ -142,6 +265,13 @@ const addBillingDeviceController = async(req,res)=>{
                         footer:data.footer,
                         is_active:data.is_active
                     })
+                    // Zauzmi SN da ga se ne može dodijeliti drugom uređaju.
+                    if (serialNumber) {
+                        await DeviceSerialNumbersModel.update(
+                            { billing_device_uuid: newDeviceUuid, billing_device_name: data.name },
+                            { where: { serial_number: serialNumber } }
+                        );
+                    }
                     publishBackofficeEvent('update_terminals')
                     res.send({
                         status:201,
@@ -217,9 +347,10 @@ const updateBillingDeviceController = async(req,res)=>{
                         otp: isWeb ? null : (data.otp ?? billingDeviceExist.otp),
                         tid: isWeb ? null : (data.tid ?? billingDeviceExist.tid),
                         serial_number:data.serial_number,
-                        auto_validate: isMobile
-                            ? (data.auto_validate === true || data.auto_validate === 'true')
-                            : false,
+                        // Auto-validacija — honor što stigne s portala, neovisno o tipu.
+                        // Prije je bilo isMobile-only što je rušilo save za bus terminale
+                        // ako je type_uuid bio UUID (currentType !== 'mobile' → forced false).
+                        auto_validate: (data.auto_validate === true || data.auto_validate === 'true'),
                         description:data.description,
                         header:data.header,
                         footer:data.footer,
@@ -302,5 +433,7 @@ const updateBillingDeviceController = async(req,res)=>{
 module.exports = {
     getBillingDevicesController,
     addBillingDeviceController,
-    updateBillingDeviceController
+    updateBillingDeviceController,
+    generateBillingDeviceTidController,
+    generateBillingDeviceOtpController
 }

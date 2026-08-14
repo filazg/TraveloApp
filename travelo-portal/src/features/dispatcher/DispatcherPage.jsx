@@ -12,6 +12,7 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    MenuItem,
     Stack,
     Table,
     TableBody,
@@ -26,9 +27,12 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CancelIcon from "@mui/icons-material/Cancel";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import SearchIcon from "@mui/icons-material/Search";
+import DirectionsBoatIcon from "@mui/icons-material/DirectionsBoat";
 import {
     cancelSailingThunk,
+    changeSailingBoatThunk,
     clearActionResult,
+    fetchDispBoatsThunk,
     dispatcherSliceData,
     fetchDispCategoriesThunk,
     fetchDispSailingsThunk,
@@ -62,6 +66,9 @@ export default function DispatcherPage() {
     const d = useSelector(dispatcherSliceData);
     const [cancelOpen, setCancelOpen] = useState(false);
     const [messageOpen, setMessageOpen] = useState(false);
+    const [boatOpen, setBoatOpen] = useState(false);
+    const [newBoatUuid, setNewBoatUuid] = useState("");
+    const [boatResult, setBoatResult] = useState(null);
     const [activeSailing, setActiveSailing] = useState(null);
     const [cancelSubject, setCancelSubject] = useState("Kapetan Luka — Polazak je otkazan");
     const [cancelBody, setCancelBody] = useState("Poštovani,\n\nObavještavamo Vas da je Vaš polazak otkazan. Ispričavamo se na neugodnosti.\n\nKapetan Luka");
@@ -75,7 +82,7 @@ export default function DispatcherPage() {
     useEffect(() => {
         dispatch(fetchDispSailingsThunk(d.filter.travel_date));
         dispatch(fetchDispCategoriesThunk());
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        dispatch(fetchDispBoatsThunk());
     }, [dispatch, d.filter.travel_date]);
 
     // d.sailings comes from /portal/sailing/sailings with include=legs — each item is one voyage
@@ -187,6 +194,7 @@ export default function DispatcherPage() {
                 end_harbor: harbors[harbors.length - 1]?.harbor_name || "",
                 sale_status: saleStatus,
                 sailing_status: s.sailing_status,
+                boat_uuid: s.boat_uuid,
                 harbors,
                 adjacent,
                 all_route_uuids: s.all_route_uuids || adjacent.map((l) => l.uuid),
@@ -239,6 +247,27 @@ export default function DispatcherPage() {
         await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
         setCancelOpen(false);
     };
+    // Zamjena plovila vrijedi samo za ovaj polazak — plovidbeni red ostaje netaknut.
+    const handleOpenChangeBoat = (sailing) => {
+        setActiveSailing(sailing);
+        setNewBoatUuid(sailing.boat_uuid || "");
+        setBoatResult(null);
+        setBoatOpen(true);
+    };
+
+    const handleConfirmChangeBoat = async () => {
+        if (!activeSailing || !newBoatUuid) return;
+        const res = await dispatch(changeSailingBoatThunk({
+            departure_uuid: activeSailing.sailing_uuid,
+            boat_uuid: newBoatUuid,
+        }));
+        const payload = res.payload || {};
+        setBoatResult(payload);
+        await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
+        // Dijalog ostaje otvoren ako ima upozorenja o prekoračenom kapacitetu.
+        if (!payload?.recalc?.overbooked?.length) setBoatOpen(false);
+    };
+
     const handleConfirmMessage = async () => {
         if (!activeSailing) return;
         const route_uuids = activeSailing.all_route_uuids || activeSailing.adjacent.map((l) => l.uuid);
@@ -307,7 +336,7 @@ export default function DispatcherPage() {
                             <Box>
                                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }} flexWrap="wrap">
                                     <Typography variant="h6" fontWeight={800}>
-                                        {s.departure_time} · {s.line_code} {s.line_name}
+                                        {s.departure_time} · {s.start_harbor}
                                     </Typography>
                                     {s.direction && <Chip label={`smjer ${s.direction}`} size="small" />}
                                     {(() => {
@@ -345,6 +374,9 @@ export default function DispatcherPage() {
                                     })}
                                 </Stack>
                                 <Typography variant="body2" color="text.secondary">
+                                    {s.line_code} {s.line_name}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
                                     {s.start_harbor} → {s.end_harbor}
                                 </Typography>
                                 {s.delays.length > 0 && (
@@ -373,6 +405,14 @@ export default function DispatcherPage() {
                                     Otkaži polazak
                                 </Button>
                                 <Button
+                                    variant="outlined"
+                                    startIcon={<DirectionsBoatIcon />}
+                                    disabled={s.sale_status === "CANCELED"}
+                                    onClick={() => handleOpenChangeBoat(s)}
+                                >
+                                    Zamijeni brod
+                                </Button>
+                                <Button
                                     variant="contained"
                                     startIcon={<MailOutlineIcon />}
                                     onClick={() => handleOpenMessage(s)}
@@ -384,7 +424,7 @@ export default function DispatcherPage() {
 
                         <Accordion sx={{ mt: 1.5, boxShadow: "none", border: "1px solid", borderColor: "divider" }}>
                             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                <Typography variant="subtitle2">Detalji · {s.harbors.length} stajališta</Typography>
+                                <Typography variant="subtitle2">Detalji · {s.harbors.length} luka</Typography>
                             </AccordionSummary>
                             <AccordionDetails sx={{ p: 0 }}>
                                 <TableContainer>
@@ -392,7 +432,7 @@ export default function DispatcherPage() {
                                         <TableHead>
                                             <TableRow>
                                                 <TableCell>#</TableCell>
-                                                <TableCell>Stajalište</TableCell>
+                                                <TableCell>Luka</TableCell>
                                                 <TableCell>Uplovljavanje</TableCell>
                                                 <TableCell>Isplovljavanje</TableCell>
                                                 <TableCell>Ukrcava</TableCell>
@@ -536,6 +576,67 @@ export default function DispatcherPage() {
                     <Button onClick={() => setCancelOpen(false)} disabled={d.actionLoading}>Odustani</Button>
                     <Button variant="contained" color="error" onClick={handleConfirmCancel} disabled={d.actionLoading}>
                         Otkaži polazak
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* CHANGE BOAT */}
+            <Dialog open={boatOpen} onClose={() => setBoatOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Zamjena plovila na polasku</DialogTitle>
+                <DialogContent dividers>
+                    {activeSailing && (
+                        <>
+                            <Typography variant="body2" sx={{ mb: 2 }}>
+                                {activeSailing.line_code} · {activeSailing.departure_date} {activeSailing.departure_time} ·{" "}
+                                {activeSailing.start_harbor} → {activeSailing.end_harbor}
+                            </Typography>
+                            <TextField
+                                select
+                                fullWidth
+                                label="Plovilo"
+                                value={newBoatUuid}
+                                onChange={(e) => setNewBoatUuid(e.target.value)}
+                            >
+                                {(d.boats || []).map((b) => (
+                                    <MenuItem key={b.uuid} value={b.uuid}>
+                                        {b.name} · {b.capacity} mjesta
+                                        {b.uuid === activeSailing.boat_uuid ? " (trenutno)" : ""}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                            <Alert severity="info" sx={{ mt: 2 }}>
+                                Mijenja se samo ovaj polazak — plovidbeni red i ostali polasci ostaju na svom plovilu.
+                                Kapaciteti polaska preuzimaju se s novog plovila.
+                            </Alert>
+                            {boatResult?.recalc?.overbooked?.length > 0 && (
+                                <Alert severity="warning" sx={{ mt: 2 }}>
+                                    Novo plovilo ima manji kapacitet od već prodanog:
+                                    {boatResult.recalc.overbooked.map((o, i) => (
+                                        <div key={i}>
+                                            {o.leg} · {o.category}: prodano {o.occupied}, kapacitet {o.capacity_total}
+                                        </div>
+                                    ))}
+                                </Alert>
+                            )}
+                            {boatResult && !boatResult?.recalc?.overbooked?.length && (
+                                <Alert severity="success" sx={{ mt: 2 }}>
+                                    Plovilo zamijenjeno · ažurirano polazaka: {boatResult.departures_updated ?? 0}
+                                    {boatResult.recalc?.rows_updated != null
+                                        ? `, kapaciteta: ${boatResult.recalc.rows_updated}`
+                                        : ""}
+                                </Alert>
+                            )}
+                        </>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setBoatOpen(false)} disabled={d.actionLoading}>Zatvori</Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleConfirmChangeBoat}
+                        disabled={d.actionLoading || !newBoatUuid || newBoatUuid === activeSailing?.boat_uuid}
+                    >
+                        Zamijeni
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -330,21 +330,15 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                                             <TableCell>Linija</TableCell>
                                             <TableCell>Nositelj troška</TableCell>
                                             <TableCell align="right">Karte</TableCell>
-                                            <TableCell align="right">Prihod (tekući mj.)</TableCell>
-                                            <TableCell align="right">Predujam (buduća razd.)</TableCell>
+                                            <TableCell align="right">Osnovica</TableCell>
                                             <TableCell align="right">PDV</TableCell>
                                             <TableCell align="right">Lučka</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {lineBreakdown.map((l) => {
-                                            const futureTxt = (l.vat_base_future || []).length
-                                                ? l.vat_base_future
-                                                      .map((f) => `${f.period}: ${fmtEUR(f.amount)}`)
-                                                      .join(" / ")
-                                                : "—";
-                                            return (
-                                                <TableRow key={l.line_code}>
+                                        {lineBreakdown.map((l) => (
+                                            <Fragment key={l.line_code}>
+                                                <TableRow>
                                                     <TableCell>{l.line_code} — {l.line_name}</TableCell>
                                                     <TableCell>
                                                         {l.saop_cost_bearer || (
@@ -353,12 +347,25 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                                                     </TableCell>
                                                     <TableCell align="right">{l.item_count}</TableCell>
                                                     <TableCell align="right">{fmtEUR(l.vat_base_current)}</TableCell>
-                                                    <TableCell align="right" sx={{ fontSize: 12 }}>{futureTxt}</TableCell>
                                                     <TableCell align="right">{fmtEUR(l.vat)}</TableCell>
                                                     <TableCell align="right">{fmtEUR(l.harbor_tax)}</TableCell>
                                                 </TableRow>
-                                            );
-                                        })}
+                                                {/* Predujam ide u vlastiti redak po budućem razdoblju — iznos
+                                                    nije prihod tekućeg mjeseca pa ne pripada retku linije. */}
+                                                {(l.vat_base_future || []).map((f) => (
+                                                    <TableRow key={`${l.line_code}-${f.period}`}>
+                                                        <TableCell colSpan={2} sx={{ pl: 4, color: "text.secondary", fontStyle: "italic" }}>
+                                                            ↳ Predujam · razdoblje {f.period}
+                                                        </TableCell>
+                                                        <TableCell />
+                                                        <TableCell align="right" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                                                            {fmtEUR(f.amount)}
+                                                        </TableCell>
+                                                        <TableCell colSpan={2} />
+                                                    </TableRow>
+                                                ))}
+                                            </Fragment>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             </>

@@ -42,6 +42,12 @@ module.exports =  (sequelize) =>{
             type:DataTypes.STRING,
             allowNull:true
         },
+        // Šifra modela uređaja (DEVICE_MODELS u helpers/deviceModels.js) — bira se
+        // samo za mobilne blagajne.
+        device_model:{
+            type:DataTypes.STRING,
+            allowNull:true
+        },
         serial_number:{
             type:DataTypes.STRING,
             allowNull:true

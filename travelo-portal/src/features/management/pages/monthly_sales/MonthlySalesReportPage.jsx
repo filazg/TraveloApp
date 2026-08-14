@@ -38,6 +38,21 @@ const formatAmountCell = (bucket) => {
     return amount.toFixed(2);
 };
 
+// Datum polaska stiže s backenda (`departure_dates`, ISO ključevi). NE izvodi se
+// iz stupaca po danima — na izvještaju Prodaja to su dani kupnje, pa bi karta
+// kupljena 14.08. za polazak 14.09. dobila krivi datum.
+const polazakDates = (p) => {
+    const dates = p.departure_dates || [];
+    if (!dates.length) return "—";
+    const fmt = (iso) => {
+        const [y, m, d] = String(iso).split("-");
+        return `${d}.${m}.${y}.`;
+    };
+    if (dates.length === 1) return fmt(dates[0]);
+    // Više datuma — raspon, da se labela ne razvuče preko pola tablice.
+    return `${fmt(dates[0])} – ${fmt(dates[dates.length - 1])} (${dates.length} polazaka)`;
+};
+
 export default function ManagementReportPage() {
     const dispatch = useDispatch();
     const f = useSelector(financeSliceData);
@@ -204,7 +219,7 @@ export default function ManagementReportPage() {
                                                             <IconButton size="small" onClick={() => togglePolazak(p.key)}>
                                                                 {pExpanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
                                                             </IconButton>
-                                                            Polazak <b>#{p.sequence}</b>
+                                                            Polazak <b>{polazakDates(p)}</b>
                                                             {p.departure_time ? ` · ${p.departure_time}` : ""}
                                                             {p.direction ? ` · smjer ${p.direction}` : ""}
                                                         </td>

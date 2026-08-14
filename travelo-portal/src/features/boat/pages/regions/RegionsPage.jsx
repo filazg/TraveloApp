@@ -1,10 +1,12 @@
 import { Box, Button, Chip, Drawer, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useT } from "../../../../i18n/useT";
 import { setAuthData } from "../../../auth/authSlice";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../../boatSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 export default function RegionsPage() {
     const dispatch = useDispatch();
@@ -15,7 +17,9 @@ export default function RegionsPage() {
     const [openAdd, setOpenAdd] = useState(false);
     const [newData, setNewData] = useState({});
     const [editedData, setEditedData] = useState({});
-    const clickTimerRef = useRef(null);
+
+    // Lučke uprave nemaju is_active — samo klik za uređivanje.
+    const rowActions = useRowClickActions({ onEdit: (row) => setSelectedRow(row) });
 
     const syncData = async () => {
         dispatch(setAuthData({ path: "loading", value: true }));
@@ -55,26 +59,23 @@ export default function RegionsPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
-                <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
-                    <Button variant="contained" onClick={() => setOpenAdd(true)}>
-                        {t("boat.regions.add")}
-                    </Button>
-                    <Chip label={`${rows.length}`} />
+                <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center">
+                    <GridHint withToggle={false} />
+                    <Chip label={`${rows.length}`} size="small" />
                 </Stack>
                 <Box sx={{ height: "80vh", minWidth: 700 }}>
                     <DataGrid
                         rows={rows}
                         columns={columns}
                         getRowId={(r) => r.id}
-                        onCellClick={(params) => {
-                            clearTimeout(clickTimerRef.current);
-                            clickTimerRef.current = setTimeout(() => setSelectedRow(params.row), 200);
-                        }}
-                        initialState={{ pagination: { paginationModel: { pageSize: 25, page: 0 } } }}
-                        pageSizeOptions={[10, 25, 50]}
+                        {...rowActions}
                     />
                 </Box>
             </Box>
+
+            <Stack sx={{ width: "96%", ml: 1, mt: 1 }} alignItems="flex-start">
+                <Button onClick={() => setOpenAdd(true)}>{t("boat.regions.add")}</Button>
+            </Stack>
 
             <Drawer
                 anchor="right"

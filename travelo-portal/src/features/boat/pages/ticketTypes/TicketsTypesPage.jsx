@@ -5,6 +5,8 @@ import { useT } from "../../../../i18n/useT";
 import { useEffect, useMemo, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../../boatSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 import {
     bookingSliceData,
     fetchCapacityCategoriesThunk,
@@ -122,6 +124,18 @@ export default function TicketsTypesPage() {
         dispatch(setAuthData({ path: "loading", value: false }));
     };
 
+    const handleToggleActive = async (row) => {
+        await dispatch(setAuthData({ path: "loading", value: true }));
+        await dispatch(setAuthData({ path: "loadingMessage", value: row.is_active ? "Deaktivacija vrste karte" : "Aktivacija vrste karte" }));
+        await dispatch(patchBoatThunk({ path: "tickets_types", data: { ...row, is_active: !row.is_active } }));
+        await dispatch(setAuthData({ path: "loading", value: false }));
+    };
+
+    const rowActions = useRowClickActions({
+        onEdit: (row) => setSelectedRow(row),
+        onToggle: handleToggleActive,
+    });
+
     const columns = [
         { field: "name", headerName: t("boat.tickets_types.name"), flex: 3 },
         { field: "name_eng", headerName: t("boat.tickets_types.name_eng"), flex: 3 },
@@ -155,12 +169,13 @@ export default function TicketsTypesPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
+                <GridHint />
                 <Box sx={{ height: "80vh", minWidth: 1200 }}>
                     <DataGrid
                         rows={boatData.boatData.tickets_types || []}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        onCellClick={(params) => setSelectedRow(params.row)}
+                        {...rowActions}
                     />
                 </Box>
             </Box>

@@ -120,10 +120,43 @@ const cancelHarborArrivalController = async (data) => {
     }
 };
 
+// Zamjena plovila na polasku: boat servis prepiše plovilo i bazne kapacitete na
+// svim legovima voyage-a, pa booking servis prekalkulira capacity_base po
+// kategoriji. Redoslijed je bitan — booking čita nove vrijednosti s departures.
+const changeBoatController = async (data) => {
+    try {
+        const url = await boatBase();
+        const response = await axios.post(url + '/dispatcher/change_boat', data, { validateStatus: () => true });
+        if (response.status !== 200 || response.data?.status !== 200) {
+            return { status: response.data?.status || response.status, body: response.data };
+        }
+
+        const result = response.data?.data || {};
+        const bUrl = await bookingBase();
+        let recalc = null;
+        if (bUrl) {
+            const departureUuid = result.canonical_departure_uuid || (data?.body || data)?.departure_uuid;
+            const r = await axios.post(
+                bUrl + '/bookings/recalc_capacity',
+                { departure_uuid: departureUuid },
+                { timeout: 8000, validateStatus: () => true }
+            );
+            // Bookings možda još ne postoje (nijedna karta nije prodana) — tada
+            // nema što prekalkulirati i to nije greška.
+            recalc = r.status === 200 ? (r.data?.data || null) : { error: r.data?.data?.message || `HTTP ${r.status}` };
+        }
+        return { status: 200, body: { status: 200, data: { ...result, recalc } } };
+    } catch (error) {
+        console.log('changeBoatController error:', error?.message || error);
+        return { status: 500, body: { status: 500, data: { message: error.message } } };
+    }
+};
+
 module.exports = {
     getSailingsController,
     getSailingDetailsController,
     startSailingController,
     updateLegStatusController,
     cancelHarborArrivalController,
+    changeBoatController,
 };

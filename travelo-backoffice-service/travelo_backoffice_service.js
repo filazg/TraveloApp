@@ -25,6 +25,10 @@ const startService = async ()=>{
         app.listen(config.services.backoffice.port, console.log('BACKOFFICE SERVICE started on port ' + config.services.backoffice.port));
     } catch (error) {
         console.log(error)
+        // Start nije uspio (najčešće baza) — izađi da ga pm2 restarta.
+        // Bez ovoga proces ostaje "online", ali nikad ne otvori svoj port,
+        // pa svaki poziv puca s 500 i izgleda kao greška u aplikaciji.
+        process.exit(1);
     }
 }
 

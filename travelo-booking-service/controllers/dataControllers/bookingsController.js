@@ -362,9 +362,62 @@ const validateTicketsController = async (req, res) => {
     }
 };
 
+// Prekalkulacija kapaciteta nakon zamjene plovila na polasku. Boat servis je
+// već upisao nove base_* vrijednosti na departures, pa se ovdje samo ponovno
+// pročita voyage i prepiše capacity_base po kategoriji. capacity_additional
+// (ručno dodani kapacitet) i zauzeće se ne diraju.
+const recalcCapacityController = async (req, res) => {
+    const { BookingModel } = req.app.locals.models;
+    try {
+        const data = req.body?.body || req.body || {};
+        if (!data.departure_uuid) {
+            return res.status(400).send({ status: 400, data: { message: "departure_uuid required" } });
+        }
+        const { canonicalUuid } = await fetchVoyageInfo(data.departure_uuid);
+        const voyage = await fetchVoyage(canonicalUuid);
+        if (!voyage) throw new Error(`voyage ${canonicalUuid} not found`);
+
+        const rows = await BookingModel.findAll({ where: { departure_uuid: canonicalUuid } });
+        const updated = [];
+        const overbooked = [];
+        for (const row of rows) {
+            const field = BOAT_CAPACITY_FIELD_BY_CATEGORY[row.category_code];
+            if (!field) continue;
+            const newBase = parseInt(voyage[field], 10) || 0;
+            const oldBase = row.capacity_base;
+            if (newBase === oldBase) continue;
+            await row.update({ capacity_base: newBase, boat_uuid: voyage.boat_uuid || row.boat_uuid });
+            updated.push({ category: row.category_code, from: oldBase, to: newBase });
+            // Manje plovilo od već prodanog — ne blokiramo (kvar broda je stvarna
+            // situacija), ali javljamo pozivatelju da može upozoriti korisnika.
+            if (newBase + row.capacity_additional < row.occupied) {
+                overbooked.push({
+                    category: row.category_code,
+                    leg: `${row.departure_harbor_name} → ${row.arrival_harbor_name}`,
+                    occupied: row.occupied,
+                    capacity_total: newBase + row.capacity_additional,
+                });
+            }
+        }
+        res.send({
+            status: 200,
+            data: {
+                canonical_uuid: canonicalUuid,
+                rows_updated: updated.length,
+                changes: updated,
+                overbooked,
+            },
+        });
+    } catch (error) {
+        console.log("recalcCapacityController error:", error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
     initBookingsController,
     getBookingsController,
+    recalcCapacityController,
     reserveBookingsController,
     releaseBookingsController,
     setAdditionalCapacityController,

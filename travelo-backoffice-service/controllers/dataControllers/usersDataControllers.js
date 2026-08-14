@@ -47,6 +47,9 @@ const getUsersDataController = async(req,res)=>{
                     partner_uuid:user.partner_uuid,
                     partner_name:user.partner_name,
                     code:user.code,
+                    // Bez ovoga se SAOP ID spremi u bazu, ali ga popis ne vrati —
+                    // forma se otvori prazna pa izgleda kao da nije spremljen.
+                    saop_clerk_id:user.saop_clerk_id,
                     is_active:user.is_active,
                     permissions:permissionsForUser
                 }
@@ -105,6 +108,9 @@ const getINTUsersDataController = async(req,res)=>{
                     partner_uuid:user.partner_uuid,
                     partner_name:user.partner_name,
                     code:user.code,
+                    // Bez ovoga se SAOP ID spremi u bazu, ali ga popis ne vrati —
+                    // forma se otvori prazna pa izgleda kao da nije spremljen.
+                    saop_clerk_id:user.saop_clerk_id,
                     is_active:user.is_active,
                     permissions:permissionsForUser
                 }

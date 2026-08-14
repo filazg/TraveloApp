@@ -1,21 +1,46 @@
-import { Box, Button, Checkbox, Drawer, Grid, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, Drawer, Grid, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
 import { useT } from "../../../../i18n/useT";
-import { useEffect, useState } from "react";
-import { setAuthData } from "../../../auth/authSlice";
+import { useEffect, useMemo, useState } from "react";
+import { authSliceData, setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 
 export default function BillingDevicesPage (){
     const dispatch = useDispatch()
     const backofficeData = useSelector(backofficeSliceData)
+    const authData = useSelector(authSliceData)
     const { t } = useT();
 
     const [selectedRow, setSelectedRow] = useState(null)
     const [openAdd, setOpenAdd] = useState(false)
     const [newData, setNewData] = useState({})
     const [editedData, setEditedData] = useState({})
+
+    // Modeli uređaja i zaliha serijskih brojeva — read-only, izvan redux slicea
+    // jer ih koristi samo ova forma.
+    const [deviceModels, setDeviceModels] = useState([])
+    const [serialNumbers, setSerialNumbers] = useState([])
+    const [tidError, setTidError] = useState("")
+    const [tidLoading, setTidLoading] = useState(false)
+    const [otpLoading, setOtpLoading] = useState(false)
+    const [otpEditLoading, setOtpEditLoading] = useState(false)
+    const [otpEditError, setOtpEditError] = useState("")
+
+    const api = useMemo(() => axios.create({
+        baseURL: authData.backendURL,
+        withCredentials: true,
+    }), [authData.backendURL])
+
+    const selectedModel = deviceModels.find((m) => m.code === newData.device_model) || null
+    const modelNameByCode = (code) => deviceModels.find((m) => m.code === code)?.name || code || ""
+
+    // Gateway odmata jedan sloj odgovora, pa polje može doći i top-level i pod .data.
+    const unwrap = (resp, key) => resp?.data?.[key] ?? resp?.data?.data?.[key] ?? null
 
     const syncData = async () =>{
         await dispatch(setAuthData({path:'loading', value:true}))
@@ -31,8 +56,99 @@ export default function BillingDevicesPage (){
         syncData()
     },[])
 
+    // Popis modela je fiksan na backendu; dohvaća se jednom.
+    useEffect(()=>{
+        let active = true
+        api.get('/portal/backoffice/device_models')
+            .then((r) => { if (active) setDeviceModels(unwrap(r, 'device_models') || []) })
+            .catch(() => { if (active) setDeviceModels([]) })
+        return () => { active = false }
+    },[api])
+
+    // Slobodni serijski brojevi za odabrani model.
+    useEffect(()=>{
+        const code = newData.device_model
+        const model = deviceModels.find((m) => m.code === code)
+        if (!code || !model?.has_serial_numbers) { setSerialNumbers([]); return }
+        let active = true
+        api.get('/portal/backoffice/device_serial_numbers', { params: { model: code, only_free: 1 } })
+            .then((r) => { if (active) setSerialNumbers(unwrap(r, 'device_serial_numbers') || []) })
+            .catch(() => { if (active) setSerialNumbers([]) })
+        return () => { active = false }
+    },[api, newData.device_model, deviceModels])
+
     const handleChange = async (e) => {
         setNewData({...newData, [e.target.name] : e.target.value})
+    };
+
+    // Promjena tipa poništava TID i sve što je vezano uz mobilnu blagajnu —
+    // TID nosi oznaku tipa pa bi zadržani broj bio kriv.
+    const handleChangeType = (e) => {
+        setTidError("")
+        setNewData({
+            ...newData,
+            type: e.target.value,
+            tid: "",
+            device_model: "",
+            serial_number: "",
+        })
+    };
+
+    // Model bez zalihe SN-ova (ili promjena modela) poništava odabrani serijski broj.
+    const handleChangeModel = (e) => {
+        setNewData({ ...newData, device_model: e.target.value, serial_number: "" })
+    };
+
+    const handleGenerateTid = async () => {
+        setTidError("")
+        setTidLoading(true)
+        try {
+            const r = await api.get('/portal/backoffice/billing_devices/next_tid', { params: { type: newData.type } })
+            const tid = unwrap(r, 'tid')
+            if (tid) setNewData((prev) => ({ ...prev, tid }))
+            else setTidError("TID nije vraćen.")
+        } catch (e) {
+            setTidError(e?.response?.data?.error || e.message || "Generiranje TID-a nije uspjelo.")
+        } finally {
+            setTidLoading(false)
+        }
+    };
+
+    // OTP: 6 znakova (mala slova + znamenke). Generira backend da provjeri
+    // da kod nije već u upotrebi na nekom uređaju.
+    const fetchOtp = async () => {
+        const r = await api.get('/portal/backoffice/billing_devices/next_otp')
+        const otp = unwrap(r, 'otp')
+        if (!otp) throw new Error("OTP nije vraćen.")
+        return otp
+    };
+
+    const handleGenerateOtp = async () => {
+        setTidError("")
+        setOtpLoading(true)
+        try {
+            const otp = await fetchOtp()
+            setNewData((prev) => ({ ...prev, otp }))
+        } catch (e) {
+            setTidError(e?.response?.data?.error || e.message || "Generiranje OTP-a nije uspjelo.")
+        } finally {
+            setOtpLoading(false)
+        }
+    };
+
+    // Isti generator u drawer-u za uređivanje — novi OTP se sprema tek klikom
+    // na "Ažuriraj", jer ide kroz isti patch kao i ostala polja.
+    const handleGenerateOtpEdit = async () => {
+        setOtpEditError("")
+        setOtpEditLoading(true)
+        try {
+            const otp = await fetchOtp()
+            setEditedData((prev) => ({ ...prev, otp }))
+        } catch (e) {
+            setOtpEditError(e?.response?.data?.error || e.message || "Generiranje OTP-a nije uspjelo.")
+        } finally {
+            setOtpEditLoading(false)
+        }
     };
     const handleChangeEdit = async (e) => {
         setEditedData({...editedData, [e.target.name] : e.target.value})
@@ -60,6 +176,7 @@ export default function BillingDevicesPage (){
 
      useEffect(()=>{
         setEditedData(selectedRow)
+        setOtpEditError("")
      },[selectedRow])
 
 
@@ -268,6 +385,18 @@ export default function BillingDevicesPage (){
     }
     },[selectedRow])
 
+    const handleToggleActive = async (row) => {
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value: row.is_active ? 'Deaktivacija naplatnog uređaja' : 'Aktivacija naplatnog uređaja'}))
+        await dispatch(patchBackofficeThunk({path:'billing_devices', data:{ ...row, is_active: !row.is_active }}))
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+
+    const rowActions = useRowClickActions({
+        onEdit: (row) => setSelectedRow(row),
+        onToggle: handleToggleActive,
+    })
+
      const columns = [
         { field: 'name', headerName:t('backoffice.billing_devices.name') , flex: 4},
         { field: 'fiscal_mark', headerName:t('backoffice.billing_devices.fiscal_mark') , flex: 2},
@@ -277,6 +406,9 @@ export default function BillingDevicesPage (){
         { field: 'otp', headerName:t('backoffice.billing_devices.otp') , flex: 2},
         { field: 'description', headerName:t('backoffice.billing_devices.description'), flex: 3 },
         { field: 'type', headerName:t('backoffice.billing_devices.type'), flex: 2 },
+        { field: 'device_model', headerName:t('backoffice.billing_devices.device_model'), flex: 2,
+            valueGetter: (_v, row) => modelNameByCode(row.device_model) },
+        { field: 'serial_number', headerName:t('backoffice.billing_devices.serial_number'), flex: 2 },
         { field: 'auto_validate', type: 'boolean', headerName:t('backoffice.billing_devices.auto_validate'), flex: 2},
         { field: 'is_active', type: 'boolean', headerName:t('backoffice.billing_devices.is_active'), flex: 2},
     ];
@@ -288,8 +420,9 @@ export default function BillingDevicesPage (){
             ml:2,
             width: "98%", 
             overflowX: "auto"
-        }}>            
+        }}>
             <>
+                <GridHint />
                 <Box
                     sx={{
                         height:"80vh",
@@ -300,7 +433,7 @@ export default function BillingDevicesPage (){
                         rows={backofficeData.backofficeData.billing_devices || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        onCellClick={(params) => setSelectedRow(params.row)}
+                        {...rowActions}
                     />
                 </Box>                
             </>
@@ -376,7 +509,7 @@ export default function BillingDevicesPage (){
                         select
                         required
                         value={newData.type || ""}
-                        onChange={handleChange}
+                        onChange={handleChangeType}
                         name="type"
                         sx={{ mt: 1 }}
                     >
@@ -384,6 +517,45 @@ export default function BillingDevicesPage (){
                         <MenuItem value="mobile">Mobilna blagajna</MenuItem>
                         <MenuItem value="web">Web prodaja</MenuItem>
                     </TextField>
+                    {newData.type === 'mobile' && (
+                        <>
+                            <TextField
+                                variant="outlined"
+                                fullWidth
+                                label={t('backoffice.billing_devices.device_model')}
+                                select
+                                value={newData.device_model || ""}
+                                onChange={handleChangeModel}
+                                name="device_model"
+                                sx={{ mt: 1 }}
+                            >
+                                {deviceModels.map((m) => (
+                                    <MenuItem key={m.code} value={m.code}>{m.name}</MenuItem>
+                                ))}
+                            </TextField>
+                            {selectedModel?.has_serial_numbers && (
+                                <TextField
+                                    variant="outlined"
+                                    fullWidth
+                                    label={t('backoffice.billing_devices.serial_number')}
+                                    select
+                                    value={newData.serial_number || ""}
+                                    onChange={handleChange}
+                                    name="serial_number"
+                                    sx={{ mt: 1 }}
+                                    helperText={serialNumbers.length === 0
+                                        ? `Nema slobodnih serijskih brojeva za ${selectedModel.name}.`
+                                        : undefined}
+                                >
+                                    {serialNumbers.map((sn) => (
+                                        <MenuItem key={sn.uuid} value={sn.serial_number}>
+                                            {sn.serial_number}{sn.description ? ` — ${sn.description}` : ""}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            )}
+                        </>
+                    )}
                     <TextField
                         type="text"
                         variant="outlined"
@@ -397,30 +569,49 @@ export default function BillingDevicesPage (){
                     />
                     {(newData.type === 'pc' || newData.type === 'mobile') && (
                         <>
-                            <TextField
-                                type="text"
-                                variant="outlined"
-                                fullWidth
-                                label={t('backoffice.billing_devices.tid')}
-                                placeholder={t('backoffice.billing_devices.tid')}
-                                required
-                                value={newData.tid || ""}
-                                onChange={handleChange}
-                                name="tid"
-                                sx={{ mt: 1 }}
-                            />
-                            <TextField
-                                type="text"
-                                variant="outlined"
-                                fullWidth
-                                label={t('backoffice.billing_devices.otp')}
-                                placeholder={t('backoffice.billing_devices.otp')}
-                                required
-                                value={newData.otp || ""}
-                                onChange={handleChange}
-                                name="otp"
-                                sx={{ mt: 1 }}
-                            />
+                            <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 1 }}>
+                                <TextField
+                                    type="text"
+                                    variant="outlined"
+                                    fullWidth
+                                    label={t('backoffice.billing_devices.tid')}
+                                    placeholder={t('backoffice.billing_devices.tid')}
+                                    required
+                                    value={newData.tid || ""}
+                                    onChange={handleChange}
+                                    name="tid"
+                                />
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleGenerateTid}
+                                    disabled={tidLoading}
+                                    sx={{ height: 56, whiteSpace: "nowrap", flexShrink: 0 }}
+                                >
+                                    {tidLoading ? "Generiram…" : "Generiraj"}
+                                </Button>
+                            </Stack>
+                            {tidError && <Alert severity="error" sx={{ mt: 1 }} onClose={() => setTidError("")}>{tidError}</Alert>}
+                            <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 1 }}>
+                                <TextField
+                                    type="text"
+                                    variant="outlined"
+                                    fullWidth
+                                    label={t('backoffice.billing_devices.otp')}
+                                    placeholder={t('backoffice.billing_devices.otp')}
+                                    required
+                                    value={newData.otp || ""}
+                                    onChange={handleChange}
+                                    name="otp"
+                                />
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleGenerateOtp}
+                                    disabled={otpLoading}
+                                    sx={{ height: 56, whiteSpace: "nowrap", flexShrink: 0 }}
+                                >
+                                    {otpLoading ? "Generiram…" : "Generiraj"}
+                                </Button>
+                            </Stack>
                         </>
                     )}
                     {newData.type === 'mobile' && (
@@ -597,20 +788,30 @@ export default function BillingDevicesPage (){
                             mt:1
                         }}
                     />
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        label={t('backoffice.billing_devices.otp')}
-                        placeholder={t('backoffice.billing_devices.otp')}
-                        required
-                        value={editedData?.otp || ""}
-                        onChange={handleChangeEdit}
-                        name="otp"
-                        sx={{
-                            mt:1
-                        }}
-                    />
+                    <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 1 }}>
+                        <TextField
+                            type="text"
+                            variant="outlined"
+                            fullWidth
+                            label={t('backoffice.billing_devices.otp')}
+                            placeholder={t('backoffice.billing_devices.otp')}
+                            required
+                            value={editedData?.otp || ""}
+                            onChange={handleChangeEdit}
+                            name="otp"
+                        />
+                        <Button
+                            variant="outlined"
+                            onClick={handleGenerateOtpEdit}
+                            disabled={otpEditLoading}
+                            sx={{ height: 56, whiteSpace: "nowrap", flexShrink: 0 }}
+                        >
+                            {otpEditLoading ? "Generiram…" : "Generiraj"}
+                        </Button>
+                    </Stack>
+                    {otpEditError && (
+                        <Alert severity="error" sx={{ mt: 1 }} onClose={() => setOtpEditError("")}>{otpEditError}</Alert>
+                    )}
                     <TextField
                         type="text"
                         variant="outlined"
@@ -646,7 +847,10 @@ export default function BillingDevicesPage (){
                         placeholder={t('backoffice.billing_devices.auto_validate')}
                         select
                         required
-                        value={editedData?.auto_validate || ""}
+                        value={
+                            editedData?.auto_validate === true || editedData?.auto_validate === 'true'
+                                ? 'true' : 'false'
+                        }
                         onChange={handleChangeEdit}
                         name="auto_validate"
                         sx={{

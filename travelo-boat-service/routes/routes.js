@@ -7,7 +7,7 @@ const { getTicketsTypesDataController, addTicketTypeDataController, updateTicket
 const { getTimetableDataController, getTimetableDetailsController, addTimetableDataController } = require('../controllers/dataControllers/timetablesControllers');
 const { getSalesRoutesController, getAllSalesRoutesController } = require('../controllers/dataControllers/salesRoutesController');
 const { getDeparturesController, getDepartureByUuidController, getRoutesByDepartureController, getRouteByUuidController } = require('../controllers/dataControllers/departuresControllers');
-const { getSailingsController, getSailingDetailsController, startSailingController, updateLegStatusController, cancelHarborArrivalController } = require('../controllers/dataControllers/sailingControllers');
+const { getSailingsController, getSailingDetailsController, startSailingController, updateLegStatusController, cancelHarborArrivalController, changeBoatController } = require('../controllers/dataControllers/sailingControllers');
 const router = express.Router();
 
 module.exports = router
@@ -91,3 +91,7 @@ router
 router
     .route('/sailing/cancel_arrival')
     .post(cancelHarborArrivalController)
+
+router
+    .route('/dispatcher/change_boat')
+    .post(changeBoatController)

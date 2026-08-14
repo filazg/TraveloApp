@@ -5,6 +5,8 @@ import { useT } from "../../../../i18n/useT";
 import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../../boatSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 
 export default function LinesPage (){
@@ -60,6 +62,18 @@ export default function LinesPage (){
         setEditedData(selectedRow)
      },[selectedRow])
 
+    const handleToggleActive = async (row) => {
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value: row.is_active ? 'Deaktivacija linije' : 'Aktivacija linije'}))
+        await dispatch(patchBoatThunk({path:'lines', data:{ ...row, is_active: !row.is_active }}))
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+
+    const rowActions = useRowClickActions({
+        onEdit: (row) => setSelectedRow(row),
+        onToggle: handleToggleActive,
+    })
+
      const columns = [
         { field: 'name', headerName:t('boat.lines.name'), flex: 3 },
         { field: 'code', headerName:t('boat.lines.code'), flex: 3 },
@@ -77,8 +91,9 @@ export default function LinesPage (){
             ml:2,
             width: "98%", 
             overflowX: "auto"
-        }}>            
+        }}>
             <>
+                <GridHint />
                 <Box
                     sx={{
                         height:"80vh",
@@ -89,7 +104,7 @@ export default function LinesPage (){
                         rows={boatData.boatData.lines || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        onCellClick={(params) => setSelectedRow(params.row)}
+                        {...rowActions}
                     />
                 </Box>                
             </>

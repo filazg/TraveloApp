@@ -4,7 +4,7 @@ const { handleGetBusinessPremisesFeature, handleAddBusinessPremisesFeature, hand
 const { handleGetPaymentMethodsFeature, handleAddPaymentMethodsFeature, handleUpdatePaymentMethodsFeature } = require('../features/backoffice/paymentMethodsHandlers');
 const { handleGetPaymentTypesFeature } = require('../features/backoffice/paymentTypesHandlers');
 const { handleGetUsersFeature, handleAddUsersFeature, handleUpdateUsersFeature } = require('../features/backoffice/usersHandlers');
-const { handleGetBillingDevicesFeature, handleAddBillingDevicesFeature, handleUpdateBillingDevicesFeature } = require('../features/backoffice/billingDevicesHandlers');
+const { handleGetBillingDevicesFeature, handleAddBillingDevicesFeature, handleUpdateBillingDevicesFeature, handleGetNextTidFeature, handleGetNextOtpFeature, handleGetDeviceModelsFeature, handleGetDeviceSerialNumbersFeature } = require('../features/backoffice/billingDevicesHandlers');
 const { handleAddTimetablesFeatures, handleGetTimetablesFeature, handleGetTimetableDetailsFeatures } = require('../features/boat/timetablesHandlers');
 const { handleGetHarborsFeature, handleAddHarborFeature, handleUpdateHarborFeature } = require('../features/boat/harborsHandlers');
 const { handleGetBoatsFeature, handleAddBoatsFeature, handleUpdateBoatsFeature } = require('../features/boat/boatsHandlers');
@@ -40,7 +40,74 @@ const {
     handleStartSailingFeature,
     handleUpdateLegStatusFeature,
     handleCancelHarborArrivalFeature,
+    handleChangeBoatFeature,
 } = require('../features/boat/sailingHandlers');
+const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
+const {
+    handleGetBusLinesFeature, handleAddBusLineFeature, handleUpdateBusLineFeature,
+    handleGetBusVehiclesFeature, handleAddBusVehicleFeature, handleUpdateBusVehicleFeature,
+    handleGetBusStopsFeature, handleAddBusStopFeature, handleUpdateBusStopFeature,
+    handleGetBusTicketsTypesFeature, handleAddBusTicketTypeFeature, handleUpdateBusTicketTypeFeature,
+} = require('../features/bus/busHandlers');
+const {
+    handleGetBusTimetablesFeature,
+    handleAddBusTimetablesFeatures,
+    handleGetBusTimetableDetailsFeatures,
+} = require('../features/bus/timetablesHandlers');
+const {
+    handleGetBusPricelistsFeature,
+    handleUpsertBusPricelistFeature,
+    handleRefreshBusTimetablePricesFeature,
+} = require('../features/bus/pricelistsHandlers');
+const {
+    handleGetBusSalesRoutesFeature,
+    handleGetBusSalesPricesFeature,
+} = require('../features/bus/salesHandlers');
+const {
+    handleGetBusBookingsFeature,
+    handleInitBusBookingsFeature,
+    handleReserveBusBookingsFeature,
+    handleReleaseBusBookingsFeature,
+    handleSetBusAdditionalCapacityFeature,
+    handleValidateBusTicketsFeature,
+    handleGetBusSeatsFeature,
+} = require('../features/bus/bookingsHandlers');
+const {
+    handleGetBusSailingsFeature,
+    handleGetBusSailingDetailsFeature,
+    handleCancelBusSailingFeature,
+    handleSendBusSailingMessageFeature,
+    handleChangeBusVehicleFeature,
+    handleSetBusVoyageDelayFeature,
+} = require('../features/bus/dispatcherHandlers');
+const {
+    handleSetBusVoyageStatusFeature,
+} = require('../features/bus/driverHandlers');
+const {
+    handleGetBusDrivingPlansFeature,
+    handleUpsertBusDrivingPlanFeature,
+    handleDeleteBusDrivingPlanFeature,
+    handleGetBusPlanVoyagesFeature,
+    handleGetBusPlanVoyagesByQueryFeature,
+    handleGetBusTimetableVoyagesSummaryFeature,
+    handleGetBusVoyageLegsFeature,
+} = require('../features/bus/drivingPlansHandlers');
+const {
+    handleGetBusPutniRadniListoviFeature,
+    handleGetBusPutniRadniListDetailFeature,
+    handleIzdajBusPutniRadniListFeature,
+    handlePrekiniBusPutniRadniListFeature,
+    handleZavrsiBusPutniRadniListFeature,
+    handleOtkaziBusPutniRadniListFeature,
+    handleGetBusPutniRadniListPdfFeature,
+} = require('../features/bus/putniRadniListHandlers');
+const {
+    handleFinalizeBusCartSaleFeature,
+    handleGetBusInvoicesFeature,
+    handleGetBusInvoiceDetailFeature,
+    handleCancelBusInvoiceFeature,
+    handleGetBusInvoicePdfFeature,
+} = require('../features/bus/invoicesHandlers');
 const router = express.Router();
 
 //BACKOFFICE ROUTES
@@ -60,6 +127,22 @@ router
     .get(handleGetBillingDevicesFeature)
     .post(handleAddBillingDevicesFeature)
     .patch(handleUpdateBillingDevicesFeature)
+
+router
+    .route('/backoffice/billing_devices/next_tid')
+    .get(handleGetNextTidFeature)
+
+router
+    .route('/backoffice/billing_devices/next_otp')
+    .get(handleGetNextOtpFeature)
+
+router
+    .route('/backoffice/device_models')
+    .get(handleGetDeviceModelsFeature)
+
+router
+    .route('/backoffice/device_serial_numbers')
+    .get(handleGetDeviceSerialNumbersFeature)
 
 router
     .route('/backoffice/payment_methods')
@@ -230,6 +313,10 @@ router
     .get(handleGetSalesPricesFeature)
 
 router
+    .route('/dispatcher/change_boat')
+    .post(handleChangeBoatFeature)
+
+router
     .route('/dispatcher/cancel_sailing')
     .post(handleCancelSailingFeature)
 
@@ -273,5 +360,193 @@ router
 router
     .route('/sailing/cancel_arrival')
     .post(handleCancelHarborArrivalFeature)
+
+//SYSTEM
+router
+    .route('/system/modules')
+    .get(handleGetModulesConfigFeature)
+
+//BUS ROUTES
+router
+    .route('/bus/lines')
+    .get(handleGetBusLinesFeature)
+    .post(handleAddBusLineFeature)
+    .patch(handleUpdateBusLineFeature)
+
+router
+    .route('/bus/vehicles')
+    .get(handleGetBusVehiclesFeature)
+    .post(handleAddBusVehicleFeature)
+    .patch(handleUpdateBusVehicleFeature)
+
+router
+    .route('/bus/stops')
+    .get(handleGetBusStopsFeature)
+    .post(handleAddBusStopFeature)
+    .patch(handleUpdateBusStopFeature)
+
+router
+    .route('/bus/tickets_types')
+    .get(handleGetBusTicketsTypesFeature)
+    .post(handleAddBusTicketTypeFeature)
+    .patch(handleUpdateBusTicketTypeFeature)
+
+router
+    .route('/bus/timetables')
+    .get(handleGetBusTimetablesFeature)
+    .post(handleAddBusTimetablesFeatures)
+
+router
+    .route('/bus/timetable_details')
+    .post(handleGetBusTimetableDetailsFeatures)
+
+router
+    .route('/bus/pricelists')
+    .get(handleGetBusPricelistsFeature)
+    .post(handleUpsertBusPricelistFeature)
+    .patch(handleUpsertBusPricelistFeature)
+
+router
+    .route('/bus/timetables/refresh_prices')
+    .post(handleRefreshBusTimetablePricesFeature)
+
+router
+    .route('/bus/sales/routes')
+    .get(handleGetBusSalesRoutesFeature)
+
+router
+    .route('/bus/sales/prices')
+    .get(handleGetBusSalesPricesFeature)
+
+router
+    .route('/bus/bookings')
+    .get(handleGetBusBookingsFeature)
+
+router
+    .route('/bus/bookings/init')
+    .post(handleInitBusBookingsFeature)
+
+router
+    .route('/bus/bookings/reserve')
+    .post(handleReserveBusBookingsFeature)
+
+router
+    .route('/bus/bookings/release')
+    .post(handleReleaseBusBookingsFeature)
+
+router
+    .route('/bus/bookings/additional')
+    .patch(handleSetBusAdditionalCapacityFeature)
+
+router
+    .route('/bus/bookings/validate')
+    .post(handleValidateBusTicketsFeature)
+
+router
+    .route('/bus/bookings/seats')
+    .get(handleGetBusSeatsFeature)
+
+router
+    .route('/bus/sailings')
+    .get(handleGetBusSailingsFeature)
+
+router
+    .route('/bus/sailings/:uuid')
+    .get(handleGetBusSailingDetailsFeature)
+
+router
+    .route('/bus/dispatcher/cancel_sailing')
+    .post(handleCancelBusSailingFeature)
+
+router
+    .route('/bus/dispatcher/send_sailing_message')
+    .post(handleSendBusSailingMessageFeature)
+
+router
+    .route('/bus/dispatcher/change_vehicle')
+    .post(handleChangeBusVehicleFeature)
+
+router
+    .route('/bus/dispatcher/set_voyage_delay')
+    .post(handleSetBusVoyageDelayFeature)
+
+router
+    .route('/bus/driver/set_status')
+    .post(handleSetBusVoyageStatusFeature)
+
+router
+    .route('/bus/driving_plans')
+    .get(handleGetBusDrivingPlansFeature)
+    .post(handleUpsertBusDrivingPlanFeature)
+    .patch(handleUpsertBusDrivingPlanFeature)
+
+router
+    .route('/bus/driving_plans/:uuid')
+    .delete(handleDeleteBusDrivingPlanFeature)
+
+router
+    .route('/bus/driving_plans/:uuid/voyages')
+    .get(handleGetBusPlanVoyagesFeature)
+
+router
+    .route('/bus/timetables/voyages_summary')
+    .get(handleGetBusTimetableVoyagesSummaryFeature)
+
+router
+    .route('/bus/driving_plan_voyages')
+    .get(handleGetBusPlanVoyagesByQueryFeature)
+
+router
+    .route('/bus/voyage_legs')
+    .get(handleGetBusVoyageLegsFeature)
+
+// Web POS cart prodaja + računi (/cancel i /:uuid redoslijed bitan)
+router
+    .route('/bus/finalize_cart_sale')
+    .post(handleFinalizeBusCartSaleFeature)
+
+router
+    .route('/bus/invoices')
+    .get(handleGetBusInvoicesFeature)
+
+router
+    .route('/bus/invoices/cancel')
+    .post(handleCancelBusInvoiceFeature)
+
+router
+    .route('/bus/invoices/pdf')
+    .get(handleGetBusInvoicePdfFeature)
+
+router
+    .route('/bus/invoices/:uuid')
+    .get(handleGetBusInvoiceDetailFeature)
+
+router
+    .route('/bus/putni_radni_listovi')
+    .get(handleGetBusPutniRadniListoviFeature)
+
+router
+    .route('/bus/putni_radni_listovi/izdaj')
+    .post(handleIzdajBusPutniRadniListFeature)
+
+router
+    .route('/bus/putni_radni_listovi/prekini')
+    .patch(handlePrekiniBusPutniRadniListFeature)
+
+router
+    .route('/bus/putni_radni_listovi/zavrsi')
+    .patch(handleZavrsiBusPutniRadniListFeature)
+
+router
+    .route('/bus/putni_radni_listovi/otkazi')
+    .patch(handleOtkaziBusPutniRadniListFeature)
+
+router
+    .route('/bus/putni_radni_listovi/pdf')
+    .get(handleGetBusPutniRadniListPdfFeature)
+
+router
+    .route('/bus/putni_radni_listovi/:uuid')
+    .get(handleGetBusPutniRadniListDetailFeature)
 
 module.exports = router

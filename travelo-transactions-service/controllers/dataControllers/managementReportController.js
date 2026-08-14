@@ -4,6 +4,16 @@ const { getCoreServiceConfigData } = require("../configSyncController");
 
 // Parse departure_planed → day-of-month (1..31) for the given target year/month.
 // Supports: "DD.MM.YYYY[.HH:MM]", "DD/MM/YYYY[ HH:MM]", "YYYY-MM-DD[THH:MM]".
+// Datum polaska kao sortabilan ISO ključ ("14.09.2026. 10:00" → "2026-09-14").
+// Treba ga izvještaj Prodaja: ondje su stupci dani *kupnje*, pa se datum
+// polaska ne može izvesti iz njih.
+const departureDateKey = (str) => {
+    const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})/.exec(String(str || ""));
+    if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(str || ""));
+    return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : null;
+};
+
 const extractDayInMonth = (str, year, month) => {
     if (!str) return null;
     const s = String(str);
@@ -188,10 +198,13 @@ const managementReportController = async (req, res) => {
                     direction,
                     departure_time,
                     totals: emptyDayBuckets(days),
+                    departure_dates: new Set(),
                     legs: new Map(),
                 };
                 lineNode.polasci.set(pKey, pNode);
             }
+            const depKey = departureDateKey(t.departure_planed);
+            if (depKey) pNode.departure_dates.add(depKey);
             pNode.totals[day][bucket] += 1;
             pNode.totals[day].amount += price;
 
@@ -265,6 +278,7 @@ const managementReportController = async (req, res) => {
                     sequence: p.sequence,
                     direction: p.direction,
                     departure_time: p.departure_time,
+                    departure_dates: [...p.departure_dates].sort(),
                     totals: p.totals.slice(1),
                     legs: legsOut,
                 });

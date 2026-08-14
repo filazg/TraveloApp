@@ -5,6 +5,18 @@ const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
 const { reserveBookings, releaseBookings } = require("../../helpers/bookingClient");
 const sequelize = getSequelize();
 
+// Terminal šalje svoje retke zajedno s lokalnim `id`-em (SQLite broji od 1 po
+// uređaju). Ako se taj id proslijedi u insert, server ga upiše doslovno: sekvenca
+// se ne pomakne i sljedeći upis pogodi postojeći ključ — a s drugim terminalom
+// sudar je odmah, jer i on broji od 1. Identitet retka nosi uuid, pa id i
+// vremenske oznake prepuštamo bazi.
+const LOCAL_ONLY_KEYS = ["id", "createdAt", "updatedAt"];
+const stripLocalKeys = (row) => {
+    const out = { ...row };
+    for (const k of LOCAL_ONLY_KEYS) delete out[k];
+    return out;
+};
+
 // Boat-desk (i Sunmi mobile) su autoriteti za fiskalnu numeraciju jer moraju raditi
 // offline. Računaju invoice_no/invoice_fiskal_no/invoice_code lokalno per (godina ×
 // billing_device) i šalju ih ovamo. Backend ovdje samo PASIVNO sprema dolazni payload
@@ -81,7 +93,7 @@ const addTerminalSaleController = async(req,res)=>{
                 let ticketsToAdd = []
                 for(const item of data.items){
                     item.route_uuid = item.sales_route_uuid
-                    itemsToAdd = [...itemsToAdd, item]
+                    itemsToAdd = [...itemsToAdd, stripLocalKeys(item)]
                     for(const detail of item.tickets_group){
                         console.log('DETAILS', detail)
                         detail.item_details_uuid = crypto.randomUUID()
@@ -89,7 +101,7 @@ const addTerminalSaleController = async(req,res)=>{
                         detail.item_vat_base = detail.total_vat_base
                         detail.item_vat = detail.total_vat
                         detail.item_harbor_fee = detail.total_harbor_tax
-                        itemDetailsToAdd = [...itemDetailsToAdd,detail]
+                        itemDetailsToAdd = [...itemDetailsToAdd, stripLocalKeys(detail)]
                     }
                 }
                 for(const ticket of data.tickets){
@@ -108,7 +120,7 @@ const addTerminalSaleController = async(req,res)=>{
                     ticket.arrival_harbor_name = ticket.ticket_arrival_harbor_name,
                     ticket.deactivate = ticket.ticket_deactivate,
                     ticket.status = ticket.ticket_status
-                    ticketsToAdd = [...ticketsToAdd, ticket]
+                    ticketsToAdd = [...ticketsToAdd, stripLocalKeys(ticket)]
                  }
                 console.log(itemsToAdd)
                 await InvoiceModel.create(invoiceToAdd, { transaction: t })

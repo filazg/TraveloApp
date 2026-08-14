@@ -6,6 +6,8 @@ import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBack
 import { useT } from "../../../../i18n/useT";
 import { useEffect, useState } from "react";
 import { authSliceData, resetAuthData, setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 
 export default function UsersPage (){
@@ -186,6 +188,18 @@ export default function UsersPage (){
         setRight(forRight)}
      },[selectedRow])
 
+    const handleToggleActive = async (row) => {
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value: row.is_active ? 'Deaktivacija korisnika' : 'Aktivacija korisnika'}))
+        await dispatch(patchBackofficeThunk({path:'users', data:{ ...row, is_active: !row.is_active }}))
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+
+    const rowActions = useRowClickActions({
+        onEdit: (row) => setSelectedRow(row),
+        onToggle: handleToggleActive,
+    })
+
      const columns = [
         { field: 'name', headerName:t('backoffice.users.name'), flex: 2},
         { field: 'surname', headerName:t('backoffice.users.surname'), flex: 2},
@@ -193,6 +207,7 @@ export default function UsersPage (){
         { field: 'username', headerName:t('backoffice.users.username'), flex: 2 },
         { field: 'mark', headerName: t('backoffice.users.mark'), flex: 2 },
         { field: 'code', headerName:t('backoffice.users.code'), flex: 2 },
+        { field: 'saop_clerk_id', headerName: 'SAOP ID', flex: 2 },
         { field: 'is_active', type:'boolean', headerName:t('backoffice.users.is_active'), flex: 2},
     ];
 
@@ -205,6 +220,7 @@ export default function UsersPage (){
             overflowX: "auto"
         }}>            
             <>
+                <GridHint />
                 <Box
                     sx={{
                         height:"80vh",
@@ -215,7 +231,7 @@ export default function UsersPage (){
                         rows={backofficeData.backofficeData.users || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        onCellClick={(params) => setSelectedRow(params.row)}
+                        {...rowActions}
                     />
                 </Box>                
             </>

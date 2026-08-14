@@ -44,8 +44,14 @@ const fetchReferences = async () => {
         paymentMethods.set(r.uuid, r);
     }
     const users = new Map();
+    // Stariji računi s POS-a nemaju operater_uuid (terminal ga je počeo slati
+    // naknadno), pa korisnika indeksiramo i po oznaci i po korisničkom imenu —
+    // inače isti operater ispadne u dva reda razrade, jedan bez SAOP referenta.
+    const usersByMark = new Map();
     for (const r of us?.users || us?.data?.users || []) {
         users.set(r.uuid, r);
+        if (r.mark) usersByMark.set(String(r.mark).toLowerCase(), r);
+        if (r.username) usersByMark.set(String(r.username).toLowerCase(), r);
     }
     const accounts = new Map();
     for (const r of ac?.accounts || []) accounts.set(r.uuid, r);
@@ -60,7 +66,7 @@ const fetchReferences = async () => {
         lines.set(r.code, r);
     }
 
-    return { billingDevices, paymentMethods, users, accounts, mappings, company, lines };
+    return { billingDevices, paymentMethods, users, usersByMark, accounts, mappings, company, lines };
 };
 
 const resolveAccount = (mappingKey, mappings, accounts) => {
@@ -89,7 +95,17 @@ const toMonthKey = (d) => {
 const parseDate = (v) => {
     if (!v) return null;
     if (v instanceof Date) return v;
-    // departure may be ISO "YYYY-MM-DDTHH:MM:SS" or "YYYY-MM-DD HH:MM:SS"
+    if (typeof v === "string") {
+        // POS zapisuje polazak kao "DD.MM.YYYY. HH:mm" (dan i mjesec znaju biti bez
+        // vodeće nule). new Date() to ne zna pročitati i vrati Invalid Date — a tada
+        // je polazak ispadao u tekući mjesec i predujam se nikad nije iskazao.
+        const hr = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?(?:\s+(\d{1,2}):(\d{2}))?/.exec(v.trim());
+        if (hr) {
+            const [, d, mo, y, hh = "0", mm = "0"] = hr;
+            return new Date(+y, +mo - 1, +d, +hh, +mm);
+        }
+    }
+    // ISO "YYYY-MM-DDTHH:MM:SS" ili "YYYY-MM-DD HH:MM:SS"
     const d = new Date(typeof v === "string" ? v.replace(" ", "T") : v);
     return isNaN(d.getTime()) ? null : d;
 };
@@ -348,7 +364,11 @@ const dailyRealizationReportController = async (req, res) => {
                 bucket.totals.vat += Number(inv.invoice_vat || 0);
                 bucket.totals.vat_base += Number(inv.invoice_vat_base || 0);
 
-                const user = refs.users.get(inv.operater_uuid);
+                // Prvo po uuid-u; ako ga račun nema, po oznaci pa po imenu operatera.
+                const user =
+                    refs.users.get(inv.operater_uuid) ||
+                    refs.usersByMark.get(String(inv.operator_mark || "").toLowerCase()) ||
+                    refs.usersByMark.get(String(inv.operater_name || "").toLowerCase());
                 const clerkId = user?.saop_clerk_id || "";
                 const pmUuid = inv.invoice_payment_method_uuid || "";
                 if (!bucket.byPaymentClerk.has(pmUuid))

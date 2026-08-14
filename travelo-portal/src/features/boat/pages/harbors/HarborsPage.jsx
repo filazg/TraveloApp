@@ -5,6 +5,8 @@ import { useT } from "../../../../i18n/useT";
 import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../../boatSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 
 export default function HarborsPage (){
@@ -69,6 +71,9 @@ export default function HarborsPage (){
         setEditedData(selectedRow)
      },[selectedRow])
 
+    // Luke nemaju is_active — samo klik za uređivanje.
+    const rowActions = useRowClickActions({ onEdit: (row) => setSelectedRow(row) })
+
      const columns = [
         { field: 'name', headerName:t('boat.harbors.name'), flex: 3 },
         { field: 'code', headerName:t('boat.harbors.code'), flex: 3 },
@@ -88,6 +93,7 @@ export default function HarborsPage (){
             overflowX: "auto"
         }}>            
             <>
+                <GridHint withToggle={false} />
                 <Box
                     sx={{
                         height:"80vh",
@@ -98,7 +104,7 @@ export default function HarborsPage (){
                         rows={boatData.boatData.harbors || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        onCellClick={(params) => setSelectedRow(params.row)}
+                        {...rowActions}
                     />
                 </Box>                
             </>

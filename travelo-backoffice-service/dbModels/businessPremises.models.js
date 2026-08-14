@@ -53,7 +53,11 @@ module.exports =  (sequelize) =>{
         working_time:{
             type:DataTypes.STRING,
             allowNull:true
-        },    
+        },
+        cost_center:{
+            type:DataTypes.STRING,
+            allowNull:true
+        },
         bp_own:{
             type:DataTypes.STRING,
             allowNull:true

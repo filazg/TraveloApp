@@ -4,6 +4,7 @@ const {
     startSailingController,
     updateLegStatusController,
     cancelHarborArrivalController,
+    changeBoatController,
 } = require('../../controllers/coreServiceControllers/boatServiceControllers.js/sailingServiceControllers');
 
 const handleGetSailingsFeature = async (req, res) => {
@@ -56,10 +57,21 @@ const handleCancelHarborArrivalFeature = async (req, res) => {
     }
 };
 
+const handleChangeBoatFeature = async (req, res) => {
+    try {
+        const payload = req.body?.body || req.body || {};
+        const { status, body } = await changeBoatController(payload);
+        res.status(status).send(body);
+    } catch (error) {
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
     handleGetSailingsFeature,
     handleGetSailingDetailsFeature,
     handleStartSailingFeature,
     handleUpdateLegStatusFeature,
     handleCancelHarborArrivalFeature,
+    handleChangeBoatFeature,
 };

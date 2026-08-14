@@ -1,7 +1,7 @@
 import axios from "axios";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-const prod = true;
+const prod = false;
 const backendURL = prod ? "https://bookingtest.krilo.hr/app" : "http://localhost:5100";
 
 const api = axios.create({ baseURL: backendURL, withCredentials: true });
@@ -43,6 +43,28 @@ export const cancelSailingThunk = createAsyncThunk("dispatcher/cancelSailing", a
     } catch (err) { return rejectWithValue(err.response?.data?.data || { message: err.message }); }
 });
 
+// Plovila za dropdown u dijalogu za zamjenu broda.
+export const fetchDispBoatsThunk = createAsyncThunk(
+    "dispatcher/fetchBoats",
+    async (_, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/boat/boats");
+            const payload = unwrapBff(resp);
+            return Array.isArray(payload) ? payload : payload?.boats || [];
+        } catch (err) { return rejectWithValue(err.response?.data || { message: err.message }); }
+    }
+);
+
+// Zamjena plovila na jednom polasku. Backend prepiše plovilo i bazne kapacitete
+// na svim legovima tog voyage-a pa prekalkulira booking kapacitete.
+export const changeSailingBoatThunk = createAsyncThunk("dispatcher/changeBoat", async (payload, { rejectWithValue }) => {
+    try {
+        const resp = await api.post("/portal/dispatcher/change_boat", payload);
+        const body = resp.data?.data ?? resp.data ?? {};
+        return body;
+    } catch (err) { return rejectWithValue(err.response?.data?.data || { message: err.message }); }
+});
+
 export const sendSailingMessageThunk = createAsyncThunk("dispatcher/sendMessage", async (payload, { rejectWithValue }) => {
     try {
         const resp = await api.post("/portal/dispatcher/send_sailing_message", payload);
@@ -56,6 +78,7 @@ const dispatcherSlice = createSlice({
     initialState: {
         sailings: [],
         categories: [],
+        boats: [],
         loading: false,
         error: null,
         filter: { travel_date: new Date().toISOString().slice(0, 10) },
@@ -80,7 +103,11 @@ const dispatcherSlice = createSlice({
             .addCase(cancelSailingThunk.rejected, (s, a) => { s.actionLoading = false; s.error = a.payload?.message; })
             .addCase(sendSailingMessageThunk.pending, (s) => { s.actionLoading = true; })
             .addCase(sendSailingMessageThunk.fulfilled, (s, a) => { s.actionLoading = false; s.actionResult = a.payload; })
-            .addCase(sendSailingMessageThunk.rejected, (s, a) => { s.actionLoading = false; s.error = a.payload?.message; });
+            .addCase(sendSailingMessageThunk.rejected, (s, a) => { s.actionLoading = false; s.error = a.payload?.message; })
+            .addCase(fetchDispBoatsThunk.fulfilled, (s, a) => { s.boats = a.payload || []; })
+            .addCase(changeSailingBoatThunk.pending, (s) => { s.actionLoading = true; })
+            .addCase(changeSailingBoatThunk.fulfilled, (s, a) => { s.actionLoading = false; s.actionResult = a.payload; })
+            .addCase(changeSailingBoatThunk.rejected, (s, a) => { s.actionLoading = false; s.error = a.payload?.message; });
     },
 });
 

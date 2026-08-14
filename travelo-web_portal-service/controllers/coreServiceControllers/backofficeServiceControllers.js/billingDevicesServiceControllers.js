@@ -33,8 +33,44 @@ const updateBillingDevicesController = async(data)=>{
     }
 }
 
+// Generiranje TID-a (acr + oznaka tipa + redni broj) radi backoffice servis,
+// da se redni broj računa nad stvarnim stanjem u bazi, a ne u pregledniku.
+const getNextTidController = async(type)=>{
+    const coreConfigData = await getCoreServiceConfigData()
+    const response = await axios.get(
+        coreConfigData.services.backoffice.url + '/billing_devices/next_tid',
+        { params: { type } }
+    )
+    return (response.data)
+}
+
+const getNextOtpController = async()=>{
+    const coreConfigData = await getCoreServiceConfigData()
+    const response = await axios.get(coreConfigData.services.backoffice.url + '/billing_devices/next_otp')
+    return (response.data)
+}
+
+const getDeviceModelsController = async()=>{
+    const coreConfigData = await getCoreServiceConfigData()
+    const response = await axios.get(coreConfigData.services.backoffice.url + '/device_models')
+    return (response.data)
+}
+
+const getDeviceSerialNumbersController = async(params)=>{
+    const coreConfigData = await getCoreServiceConfigData()
+    const response = await axios.get(
+        coreConfigData.services.backoffice.url + '/device_serial_numbers',
+        { params }
+    )
+    return (response.data)
+}
+
 module.exports = {
     getBillingDevicesController,
     addBillingDevicesController,
-    updateBillingDevicesController
+    updateBillingDevicesController,
+    getNextTidController,
+    getNextOtpController,
+    getDeviceModelsController,
+    getDeviceSerialNumbersController
 }

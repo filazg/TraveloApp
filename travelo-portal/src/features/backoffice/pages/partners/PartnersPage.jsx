@@ -7,6 +7,8 @@ import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBack
 import { useT } from "../../../../i18n/useT";
 import { useEffect, useRef, useState } from "react";
 import { resetAuthData, setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { inactiveRowClass } from "../../../../helpers/gridRowActions";
 
 
 export default function PartnersPage (){
@@ -251,6 +253,7 @@ export default function PartnersPage (){
             overflowX: "auto"
         }}>            
             <>
+                <GridHint />
                 <Box
                     sx={{
                         height:"80vh",
@@ -261,6 +264,7 @@ export default function PartnersPage (){
                         rows={backofficeData.backofficeData.partners || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
+                        getRowClassName={inactiveRowClass()}
                         onCellClick={(params) => {
                             clearTimeout(clickTimerRef.current);
                             clickTimerRef.current = setTimeout(() => {

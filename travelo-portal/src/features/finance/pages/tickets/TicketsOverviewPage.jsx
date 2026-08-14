@@ -41,14 +41,42 @@ const parseDeparture = (s) => {
     return null;
 };
 
+// Status karte ne piše svi isto: POS šalje ISSUED / VALIDATE / CANCELED,
+// validacija upisuje "validated", storno "canceled", otkaz polaska
+// "trip_canceled", a partnerski računi "issued". Svedi na jedan skup da
+// filtriranje po tabovima ne ovisi o tome tko je redak upisao.
+const STATUS_ALIASES = {
+    ISSUED: "issued",
+    CREATED: "issued",
+    VALIDATE: "validated",
+    VALIDATED: "validated",
+    CANCELED: "canceled",
+    CANCELLED: "canceled",
+    TRIP_CANCELED: "trip_canceled",
+};
+const normStatus = (t) => {
+    const raw = String(t?.status || "").trim().toUpperCase();
+    // Storno se u nekim putanjama vidi samo po zastavicama, bez statusa.
+    if (!raw) return t?.is_canceled ? "canceled" : "issued";
+    return STATUS_ALIASES[raw] || raw.toLowerCase();
+};
+
+// Naziv i boja statusa u tablici.
+const STATUS_DISPLAY = {
+    issued: { label: "Izdana", fg: "#1b5e20", bg: "#c8e6c9" },
+    validated: { label: "Validirana", fg: "#0d47a1", bg: "#bbdefb" },
+    trip_canceled: { label: "Otkazan polazak", fg: "#e65100", bg: "#ffe0b2" },
+    canceled: { label: "Stornirana", fg: "#b71c1c", bg: "#ffcdd2" },
+};
+
 const TAB_FILTERS = [
     { key: "ALL", label: "Sve", match: () => true },
-    { key: "created", label: "Kreirane", match: (t) => t.status === "created" },
+    { key: "issued", label: "Kreirane", match: (t) => normStatus(t) === "issued" },
     {
         key: "valid",
         label: "Valjane",
         match: (t) => {
-            if (t.status !== "created") return false;
+            if (normStatus(t) !== "issued") return false;
             const d = parseDeparture(t.departure_planed);
             return d && d >= new Date();
         },
@@ -57,14 +85,14 @@ const TAB_FILTERS = [
         key: "expired",
         label: "Istekle",
         match: (t) => {
-            if (t.status !== "created") return false;
+            if (normStatus(t) !== "issued") return false;
             const d = parseDeparture(t.departure_planed);
             return d && d < new Date();
         },
     },
-    { key: "validated", label: "Validirane", match: (t) => t.status === "validated" },
-    { key: "trip_canceled", label: "Otkazane", match: (t) => t.status === "trip_canceled" },
-    { key: "canceled", label: "Stornirane", match: (t) => t.status === "canceled" },
+    { key: "validated", label: "Validirane", match: (t) => normStatus(t) === "validated" },
+    { key: "trip_canceled", label: "Otkazane", match: (t) => normStatus(t) === "trip_canceled" },
+    { key: "canceled", label: "Stornirane", match: (t) => normStatus(t) === "canceled" },
 ];
 
 export default function TicketsOverviewPage() {
@@ -152,26 +180,26 @@ export default function TicketsOverviewPage() {
             {
                 field: "status",
                 headerName: "Status",
-                width: 120,
-                renderCell: (p) => (
-                    <Box
-                        sx={{
-                            width: "100%",
-                            textAlign: "center",
-                            fontWeight: 600,
-                            color:
-                                p.value === "paid" ? "#1b5e20"
-                                : p.value === "canceled" ? "#b71c1c"
-                                : "#5c646a",
-                            backgroundColor:
-                                p.value === "paid" ? "#c8e6c9"
-                                : p.value === "canceled" ? "#ffcdd2"
-                                : "#f0f0f0",
-                        }}
-                    >
-                        {p.value || "—"}
-                    </Box>
-                ),
+                width: 130,
+                // Boja i naziv idu po normaliziranom statusu, da POS-ov "ISSUED" i
+                // backendov "issued" izgledaju isto.
+                renderCell: (p) => {
+                    const s = normStatus(p.row);
+                    const cfg = STATUS_DISPLAY[s] || { label: p.value || "—", fg: "#5c646a", bg: "#f0f0f0" };
+                    return (
+                        <Box
+                            sx={{
+                                width: "100%",
+                                textAlign: "center",
+                                fontWeight: 600,
+                                color: cfg.fg,
+                                backgroundColor: cfg.bg,
+                            }}
+                        >
+                            {cfg.label}
+                        </Box>
+                    );
+                },
             },
             { field: "order_uuid", headerName: "Order UUID", flex: 1, minWidth: 280 },
         ],

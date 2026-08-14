@@ -1,15 +1,48 @@
 const { Op } = require("sequelize");
 
-// departure_planed is stored as free-form string; legacy rows use "DD/MM/YYYY HH:mm"
-// while newer rows may use "YYYY-MM-DD HH:mm". Match both formats for a given ISO date.
+// departure_planed je slobodan tekst i ovisi o tome tko je zapisao redak:
+//   "YYYY-MM-DD HH:mm"    — noviji zapisi
+//   "DD/MM/YYYY HH:mm"    — stariji zapisi
+//   "DD.MM.YYYY. HH:mm"   — POS (desktop/mobile) i boat servis; dan i mjesec
+//                           znaju biti bez vodeće nule ("1.9.2026.")
+// Za zadani ISO datum vraća sve prefikse da LIKE pogodi bilo koji od formata.
 const datePrefixes = (isoDate) => {
     const out = [];
     if (!isoDate) return out;
     const iso = String(isoDate).trim();
     out.push(iso);
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-    if (m) out.push(`${m[3]}/${m[2]}/${m[1]}`);
-    return out;
+    if (m) {
+        const [, y, mm, dd] = m;
+        out.push(`${dd}/${mm}/${y}`);
+        const d1 = String(parseInt(dd, 10));
+        const m1 = String(parseInt(mm, 10));
+        for (const d of new Set([dd, d1])) {
+            for (const mo of new Set([mm, m1])) {
+                out.push(`${d}.${mo}.${y}.`);
+            }
+        }
+    }
+    return [...new Set(out)];
+};
+
+// Status karte pišu tri servisa i dva klijenta, svaki svojim zapisom:
+//   POS/boat-desk → ISSUED | VALIDATE | CANCELED
+//   validateTicketController → validated
+//   cancelTicketsController → canceled
+//   dispatcherController (otkaz polaska) → trip_canceled
+//   partnerski računi → issued
+// Filtar zato ne smije biti egzaktna usporedba — za traženi status vrati sve
+// zapise koji mu odgovaraju.
+const STATUS_SYNONYMS = {
+    issued: ["ISSUED", "issued", "CREATED", "created"],
+    validated: ["VALIDATED", "validated", "VALIDATE", "validate"],
+    canceled: ["CANCELED", "canceled", "CANCELLED", "cancelled"],
+    trip_canceled: ["trip_canceled", "TRIP_CANCELED"],
+};
+const statusValues = (status) => {
+    const key = String(status || "").trim().toLowerCase();
+    return STATUS_SYNONYMS[key] || [status];
 };
 
 const listTicketsController = async (req, res) => {
@@ -58,7 +91,7 @@ const listTicketsController = async (req, res) => {
             if (line_code) where.line_code = line_code;
             if (departure_harbor_id) where.departure_harbor_id = departure_harbor_id;
             if (arrival_harbor_id) where.arrival_harbor_id = arrival_harbor_id;
-            if (status && status !== "ALL") where.status = status;
+            if (status && status !== "ALL") where.status = { [Op.in]: statusValues(status) };
             if (partner_uuid) where.partner_uuid = partner_uuid;
         }
 

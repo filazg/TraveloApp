@@ -19,6 +19,8 @@ import {
     postBackofficeThunk,
 } from "../../../backoffice/backofficeSlice";
 import { setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 // Predefinirani organisation-level mapping ključevi.
 const ORG_MAPPINGS = [
@@ -80,7 +82,7 @@ export default function AccountsPage() {
 
     const handleAdd = async () => {
         await dispatch(setAuthData({ path: "loading", value: true }));
-        await dispatch(postBackofficeThunk({ path: "accounts", data: { body: newData } }));
+        await dispatch(postBackofficeThunk({ path: "accounts", data: newData }));
         setOpenAdd(false);
         setNewData({});
         await dispatch(setAuthData({ path: "loading", value: false }));
@@ -89,11 +91,24 @@ export default function AccountsPage() {
     const handleEdit = async () => {
         await dispatch(setAuthData({ path: "loading", value: true }));
         await dispatch(
-            patchBackofficeThunk({ path: "accounts", data: { body: selectedRow } }),
+            patchBackofficeThunk({ path: "accounts", data: selectedRow }),
         );
         setSelectedRow(null);
         await dispatch(setAuthData({ path: "loading", value: false }));
     };
+
+    const handleToggleActive = async (row) => {
+        await dispatch(setAuthData({ path: "loading", value: true }));
+        await dispatch(
+            patchBackofficeThunk({ path: "accounts", data: { ...row, is_active: !row.is_active } }),
+        );
+        await dispatch(setAuthData({ path: "loading", value: false }));
+    };
+
+    const rowActions = useRowClickActions({
+        onEdit: (row) => setSelectedRow(row),
+        onToggle: handleToggleActive,
+    });
 
     const handleSetMapping = async (mappingKey, accountUuid, direction) => {
         if (!accountUuid) return;
@@ -102,11 +117,9 @@ export default function AccountsPage() {
             postBackofficeThunk({
                 path: "account_mappings",
                 data: {
-                    body: {
-                        mapping_key: mappingKey,
-                        account_uuid: accountUuid,
-                        direction,
-                    },
+                    mapping_key: mappingKey,
+                    account_uuid: accountUuid,
+                    direction,
                 },
             }),
         );
@@ -122,17 +135,18 @@ export default function AccountsPage() {
 
             {tab === "accounts" && (
                 <>
-                    <Stack alignItems="flex-start" sx={{ mb: 1 }}>
-                        <Button onClick={() => setOpenAdd(true)}>+ Dodaj konto</Button>
-                    </Stack>
+                    <GridHint />
                     <Box sx={{ height: "75vh", minWidth: 800 }}>
                         <DataGrid
                             rows={accounts}
                             columns={columns}
                             getRowId={(r) => r.id}
-                            onCellClick={(p) => setSelectedRow(p.row)}
+                            {...rowActions}
                         />
                     </Box>
+                    <Stack alignItems="flex-start" sx={{ mt: 1 }}>
+                        <Button onClick={() => setOpenAdd(true)}>+ Dodaj konto</Button>
+                    </Stack>
                 </>
             )}
 

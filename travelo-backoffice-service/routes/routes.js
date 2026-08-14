@@ -1,7 +1,8 @@
 const express = require('express');
 const { getCompanyDataController, updateCompanyDataController } = require('../controllers/dataControllers/companyDataControllers');
 const { getBusinessPremisesDataController, addBusinessPremiseDataController, updateBusinessPremiseDataController } = require('../controllers/dataControllers/businessPremisesDataControllers');
-const { getBillingDevicesController, addBillingDeviceController, updateBillingDeviceController } = require('../controllers/dataControllers/billingDevicesDataControllers');
+const { getBillingDevicesController, addBillingDeviceController, updateBillingDeviceController, generateBillingDeviceTidController, generateBillingDeviceOtpController } = require('../controllers/dataControllers/billingDevicesDataControllers');
+const { getDeviceModelsDataController, getDeviceSerialNumbersDataController } = require('../controllers/dataControllers/deviceSerialNumbersDataControllers');
 const { getUsersDataController, addUserDataController, updateUserDataController } = require('../controllers/dataControllers/usersDataControllers');
 const { getPartnersDataController, addPartnerDataController, updatePartnerDataController, getPartnersWebUsersDataController, getPartnersAPIUsersDataController } = require('../controllers/dataControllers/partnersDataControllers');
 const { getHolidaysDataController, addHolidayDataController, updateHolidayDataController } = require('../controllers/dataControllers/holidaysDataControllers');
@@ -28,6 +29,22 @@ router
     .get(getBillingDevicesController)
     .post(addBillingDeviceController)
     .patch(updateBillingDeviceController)
+
+router
+    .route('/billing_devices/next_tid')
+    .get(generateBillingDeviceTidController)
+
+router
+    .route('/billing_devices/next_otp')
+    .get(generateBillingDeviceOtpController)
+
+router
+    .route('/device_models')
+    .get(getDeviceModelsDataController)
+
+router
+    .route('/device_serial_numbers')
+    .get(getDeviceSerialNumbersDataController)
 
 router
     .route('/users')

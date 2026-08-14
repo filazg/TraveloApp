@@ -335,10 +335,84 @@ const cancelHarborArrivalController = async (req, res) => {
     }
 };
 
+// Zamjena plovila na jednom polasku (voyage-u), ne na cijelom plovidbenom redu.
+// Voyage = svi legovi koji dijele (timetable_uuid + sequence + departure_date),
+// isti ključ kojim getSailingsController grupira retke. Uz plovilo se prepisuju
+// i bazni kapaciteti, jer se oni vode po polasku.
+const changeBoatController = async (req, res) => {
+    const { RoutesModel, DeparturesModel, BoatsModel } = req.app.locals.models;
+    try {
+        const body = req.body?.body || req.body || {};
+        const departureUuid = body.departure_uuid;
+        const boatUuid = body.boat_uuid;
+        if (!departureUuid || !boatUuid) {
+            return res.status(400).send({
+                status: 400,
+                data: { message: "departure_uuid i boat_uuid su obavezni" },
+            });
+        }
+
+        const boat = await BoatsModel.findOne({ where: { uuid: boatUuid } });
+        if (!boat) {
+            return res.status(404).send({ status: 404, data: { message: "plovilo nije pronađeno" } });
+        }
+
+        // Bilo koji leg voyage-a je dovoljan da se dođe do ključa voyage-a.
+        const anyLeg = await RoutesModel.findOne({
+            where: { departure_uuid: departureUuid, is_active: true },
+        });
+        if (!anyLeg) {
+            return res.status(404).send({ status: 404, data: { message: "polazak nije pronađen" } });
+        }
+
+        const voyageLegs = await RoutesModel.findAll({
+            where: {
+                timetable_uuid: anyLeg.timetable_uuid,
+                sequence: anyLeg.sequence,
+                departure_date: anyLeg.departure_date,
+                is_active: true,
+            },
+            order: [["departure_harbor_order", "ASC"]],
+        });
+        const depUuids = [...new Set(voyageLegs.map((l) => l.departure_uuid).filter(Boolean))];
+        if (!depUuids.length) {
+            return res.status(404).send({ status: 404, data: { message: "voyage nema polazaka" } });
+        }
+
+        const capacities = {
+            base_capacity: Number(boat.capacity) || 0,
+            base_vip_capacity: Number(boat.vip_capacity) || 0,
+            base_pets_capacity: Number(boat.pets_capacity) || 0,
+            base_bicycle_capacity: Number(boat.bicycle_capacity) || 0,
+        };
+
+        const [affected] = await DeparturesModel.update(
+            { boat_uuid: boatUuid, ...capacities },
+            { where: { uuid: { [Op.in]: depUuids } } }
+        );
+
+        return res.send({
+            status: 200,
+            data: {
+                departures_updated: affected,
+                canonical_departure_uuid: voyageLegs[0].departure_uuid,
+                leg_departure_uuids: depUuids,
+                boat_uuid: boatUuid,
+                boat_name: boat.name,
+                capacities,
+            },
+        });
+    } catch (error) {
+        console.log("changeBoatController error:", error?.message || error);
+        return res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
     getSailingsController,
     getSailingDetailsController,
     startSailingController,
     updateLegStatusController,
     cancelHarborArrivalController,
+    changeBoatController,
 };

@@ -65,6 +65,8 @@
               "type_mobile":"Mobilna blagajna" ,
               "business_premises": "Poslovni prostor",
               "cost_center":"Mjesto troška" ,
+              "device_model":"Model uređaja" ,
+              "serial_number":"Serijski broj" ,
               "header":"Zaglavlje" ,
               "footer": "Footer HR" ,
               "print_profile": "Profil za ispis" ,

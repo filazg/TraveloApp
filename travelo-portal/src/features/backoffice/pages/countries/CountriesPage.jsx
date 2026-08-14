@@ -3,8 +3,10 @@ import { DataGrid } from "@mui/x-data-grid";
 import { useDispatch, useSelector } from "react-redux";
 import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
 import { useT } from "../../../../i18n/useT";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 export default function CountriesPage() {
     const dispatch = useDispatch();
@@ -15,8 +17,6 @@ export default function CountriesPage() {
     const [openAdd, setOpenAdd] = useState(false);
     const [newData, setNewData] = useState({});
     const [editedData, setEditedData] = useState({});
-
-    const clickTimerRef = useRef(null);
 
     const syncData = async () => {
         dispatch(setAuthData({ path: "loading", value: true }));
@@ -47,6 +47,18 @@ export default function CountriesPage() {
         dispatch(setAuthData({ path: "loading", value: false }));
     };
 
+    const handleToggleActive = async (row) => {
+        dispatch(setAuthData({ path: "loading", value: true }));
+        dispatch(setAuthData({ path: "loadingMessage", value: row.is_active ? "Deaktivacija države" : "Aktivacija države" }));
+        await dispatch(patchBackofficeThunk({ path: "countries", data: { ...row, is_active: !row.is_active } }));
+        dispatch(setAuthData({ path: "loading", value: false }));
+    };
+
+    const rowActions = useRowClickActions({
+        onEdit: (row) => setSelectedRow(row),
+        onToggle: handleToggleActive,
+    });
+
     const columns = [
         { field: "code", headerName: t("backoffice.countries.code"), width: 100 },
         { field: "name_hr", headerName: t("backoffice.countries.name_hr"), flex: 2 },
@@ -70,26 +82,25 @@ export default function CountriesPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
-                <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
-                    <Button variant="contained" onClick={() => setOpenAdd(true)}>
-                        {t("backoffice.countries.add")}
-                    </Button>
-                    <Chip label={`${rows.length} zemalja`} />
+                <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center">
+                    <GridHint />
+                    <Chip label={`${rows.length} zemalja`} size="small" />
                 </Stack>
                 <Box sx={{ height: "80vh", minWidth: 900 }}>
                     <DataGrid
                         rows={rows}
                         columns={columns}
                         getRowId={(r) => r.id}
-                        onCellClick={(params) => {
-                            clearTimeout(clickTimerRef.current);
-                            clickTimerRef.current = setTimeout(() => setSelectedRow(params.row), 200);
-                        }}
+                        {...rowActions}
                         initialState={{ pagination: { paginationModel: { pageSize: 50, page: 0 } } }}
                         pageSizeOptions={[25, 50, 100, 250]}
                     />
                 </Box>
             </Box>
+
+            <Stack sx={{ width: "96%", ml: 1, mt: 1 }} alignItems="flex-start">
+                <Button onClick={() => setOpenAdd(true)}>{t("backoffice.countries.add")}</Button>
+            </Stack>
 
             <Drawer
                 anchor="right"

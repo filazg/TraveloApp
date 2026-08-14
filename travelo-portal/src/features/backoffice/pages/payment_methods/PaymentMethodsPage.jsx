@@ -5,6 +5,8 @@ import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBack
 import { useT } from "../../../../i18n/useT";
 import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 
 export default function PaymentMethodsPage (){
@@ -60,6 +62,9 @@ export default function PaymentMethodsPage (){
         setEditedData(selectedRow)
      },[selectedRow])
 
+    // Načini plaćanja nemaju is_active — samo klik za uređivanje.
+    const rowActions = useRowClickActions({ onEdit: (row) => setSelectedRow(row) })
+
      const columns = [
        { field: 'name', headerName:t('backoffice.payment_methods.name'), flex: 2},
         { field: 'is_card_payment', type: 'boolean', headerName: t('backoffice.payment_methods.is_card_payment'), flex: 2},
@@ -75,6 +80,7 @@ export default function PaymentMethodsPage (){
             overflowX: "auto"
         }}>            
             <>
+                <GridHint withToggle={false} />
                 <Box
                     sx={{
                         height:"80vh",
@@ -85,7 +91,7 @@ export default function PaymentMethodsPage (){
                         rows={backofficeData.backofficeData.payment_methods || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        onCellClick={(params) => setSelectedRow(params.row)}
+                        {...rowActions}
                     />
                 </Box>                
             </>

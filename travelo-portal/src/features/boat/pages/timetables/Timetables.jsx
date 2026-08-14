@@ -33,6 +33,8 @@ import ImportTimetableExcelDrawer from "./ImportTimetableExcelDrawer";
 import { backofficeSliceData } from "../../../backoffice/backofficeSlice";
 import { v4 as uuid } from "uuid";
 import EditTimetableDrawer from "./EditTimetableDrawer";
+import GridHint from "../../../../helpers/GridHint";
+import { inactiveRowClass } from "../../../../helpers/gridRowActions";
 
 export default function TimetablesPage() {
   const dispatch = useDispatch();
@@ -209,6 +211,21 @@ export default function TimetablesPage() {
     const lineData = boatData.boatData.lines.find(
       (line) => line.uuid === newData.line.uuid,
     );
+
+    // Kapaciteti se vode po polasku, pa moraju pratiti plovilo tog retka.
+    const boatFieldsFor = (boatUuid) => {
+      const boat =
+        (boatUuid && (boatData.boatData.boats || []).find((b) => b.uuid === boatUuid)) ||
+        newData.boat;
+      return {
+        boat_uuid: boat.uuid,
+        capacity: boat.capacity,
+        vip_capacity: boat.vip_capacity,
+        pets_capacity: boat.pets_capacity,
+        bicycle_capacity: boat.bicycle_capacity,
+      };
+    };
+
     for (const departureData of datesForDepartures) {
       for (const dep of newData.departures) {
         const departure =
@@ -257,11 +274,9 @@ export default function TimetablesPage() {
           arrival: arrival,
           harbor_order: order,
           direction: direction,
-          boat_uuid: newData.boat.uuid,
-          capacity: newData.boat.capacity,
-          vip_capacity: newData.boat.vip_capacity,
-          pets_capacity: newData.boat.pets_capacity,
-          bicycle_capacity: newData.boat.bicycle_capacity,
+          // Plovilo po relaciji ako je u koraku "Unos relacija" promijenjeno,
+          // inače ono odabrano za cijeli plovidbeni red.
+          ...boatFieldsFor(dep.boat_uuid),
           ret_koef: 100,
           is_active: false,
         };
@@ -609,6 +624,7 @@ export default function TimetablesPage() {
               </MenuItem>
             ))}
           </TextField>
+          <GridHint />
           <Box
             sx={{
               height: "75vh",
@@ -619,6 +635,7 @@ export default function TimetablesPage() {
               rows={selectedTimetables || []}
               columns={columns}
               getRowId={(row) => row.id}
+              getRowClassName={inactiveRowClass()}
               onCellClick={(params) => {
                 clearTimeout(clickTimerRef.current);
 

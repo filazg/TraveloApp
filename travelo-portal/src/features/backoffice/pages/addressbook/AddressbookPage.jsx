@@ -5,6 +5,8 @@ import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBack
 import { useT } from "../../../../i18n/useT";
 import { useEffect, useRef, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { inactiveRowClass } from "../../../../helpers/gridRowActions";
 
 
 export default function AddressbookPage (){
@@ -136,6 +138,7 @@ export default function AddressbookPage (){
             overflowX: "auto"
         }}>            
             <>
+                <GridHint />
                 <Box
                     sx={{
                         height:"80vh",
@@ -146,7 +149,7 @@ export default function AddressbookPage (){
                         rows={backofficeData.backofficeData.addressbook || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        //onCellClick={(params) => setSelectedRow(params.row)}
+                        getRowClassName={inactiveRowClass("buyer_is_active")}
                         onCellClick={(params) => {
                         clearTimeout(clickTimerRef.current);
 

@@ -15,6 +15,7 @@ const {
     reserveBookingsController,
     releaseBookingsController,
     setAdditionalCapacityController,
+    recalcCapacityController,
     validateTicketsController,
 } = require("../controllers/dataControllers/bookingsController");
 
@@ -37,6 +38,7 @@ router.route("/bookings/init").post(initBookingsController);
 router.route("/bookings/reserve").post(reserveBookingsController);
 router.route("/bookings/release").post(releaseBookingsController);
 router.route("/bookings/additional").patch(setAdditionalCapacityController);
+router.route("/bookings/recalc_capacity").post(recalcCapacityController);
 router.route("/bookings/validate").post(validateTicketsController);
 
 module.exports = router;

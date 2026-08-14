@@ -50,7 +50,10 @@ export default function AddTimetablesRoutesDrawer({newData, setNewData}){
         harbor_to: departures.harbor_to.name,
         harbor_to_uuid: departures.harbor_to.uuid,
         harbor_to_code: departures.harbor_to.code,
-        harbor_to_time: departures.harbor_to_time
+        harbor_to_time: departures.harbor_to_time,
+        // Plovilo odabrano gore vrijedi za cijeli plovidbeni red, ali se u tablici
+        // može promijeniti za pojedinu relaciju.
+        boat_uuid: newData.boat?.uuid || null
       }
       departureData = [...departureData, newDepartureData]
       setNewData({...newData, departures: departureData})
@@ -80,10 +83,32 @@ export default function AddTimetablesRoutesDrawer({newData, setNewData}){
         editable: true,
       },
       { field: "harbor_to_time", headerName: "dolazak", flex: 3, editable: true },
+      {
+        field: "boat_uuid",
+        headerName: "plovilo",
+        flex: 3,
+        editable: true,
+        type: "singleSelect",
+        valueOptions: (boatsData.boatData?.boats || []).map((b) => ({ value: b.uuid, label: b.name })),
+      },
     ];
     
     
     const handleChange = (e)=>{
+      // Promjena plovila gore povlači i već unesene relacije, ali samo one koje
+      // su još na starom plovilu — ručno promijenjeni redci ostaju kakvi jesu.
+      if (e.target.name === 'boat') {
+        const prevUuid = newData.boat?.uuid || null
+        const nextUuid = e.target.value?.uuid || null
+        setNewData({
+          ...newData,
+          boat: e.target.value,
+          departures: (newData.departures || []).map((d) =>
+            (!d.boat_uuid || d.boat_uuid === prevUuid) ? { ...d, boat_uuid: nextUuid } : d
+          ),
+        })
+        return
+      }
       setNewData({...newData, [e.target.name] : e.target.value})
     }
     const handleChangeDays = (e)=>{
@@ -438,7 +463,22 @@ export default function AddTimetablesRoutesDrawer({newData, setNewData}){
                       <DataGrid
                         rows={newData.departures || []}
                         columns={columns}
-                        onCellClick={(params) => setSelectedRow(params.row)}
+                        processRowUpdate={(updatedRow) => {
+                          setNewData({
+                            ...newData,
+                            departures: (newData.departures || []).map((d) =>
+                              d.id === updatedRow.id ? updatedRow : d
+                            ),
+                          })
+                          return updatedRow
+                        }}
+                        onProcessRowUpdateError={(err) => console.error(err)}
+                        // Klik na ćeliju otvara potvrdu brisanja relacije; stupac
+                        // "plovilo" je izuzet da bi se uopće mogao urediti.
+                        onCellClick={(params) => {
+                          if (params.field === 'boat_uuid') return
+                          setSelectedRow(params.row)
+                        }}
                         //getRowId={(row) => row.id}
                         //onCellEditStart={(params) => setRowId(params.id)}
                         //slots={{ toolbar: CustomToolbar }}

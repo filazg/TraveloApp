@@ -6,8 +6,10 @@ import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
 import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
 import { useT } from "../../../../i18n/useT";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
+import GridHint from "../../../../helpers/GridHint";
+import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 
 export default function HolidaysPage (){
@@ -53,11 +55,12 @@ export default function HolidaysPage (){
         await dispatch(setAuthData({path:'loading', value:false}))
     }
 
-     const handleRemoveRow = async (data) =>{
-        console.log(data)
+    // Praznici nemaju formu za uređivanje — dupli klik samo aktivira/deaktivira
+    // redak (prije je to radio jednostruki klik, i to samo u jednom smjeru).
+     const handleToggleRow = async (data) =>{
         const dataToSend = {
             uuid:data.uuid,
-            is_active:false
+            is_active: data.is_active === false
         }
 
         await dispatch(setAuthData({path:'loading', value:true}))
@@ -66,6 +69,8 @@ export default function HolidaysPage (){
         setNewData({})
         await dispatch(setAuthData({path:'loading', value:false}))
     }
+
+    const rowActions = useRowClickActions({ onToggle: handleToggleRow })
 
      const columns = [
         {field: 'date_from', headerName:t('backoffice.holidays.date'), flex: 2 },
@@ -81,6 +86,7 @@ export default function HolidaysPage (){
             overflowX: "auto"
         }}>            
             <>
+                <GridHint text="Dupli klik na redak — aktiviraj/deaktiviraj praznik" />
                 <Box
                     sx={{
                         height:"80vh",
@@ -91,7 +97,7 @@ export default function HolidaysPage (){
                         rows={backofficeData.backofficeData.holidays || ''}
                         columns={columns}
                         getRowId={(row) => row.id}
-                        onCellClick={(params) => handleRemoveRow(params.row)}
+                        {...rowActions}
                     />
                 </Box>                
             </>
