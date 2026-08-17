@@ -22,7 +22,7 @@ import { authSliceData, setAuthData } from "../../../auth/authSlice";
 // Kanali se razlikuju samo tekstom, ne poljima — web prodaja i partnerski
 // računi izdaju se po istim parametrima (prostor, uređaj, plaćanje, fiskalizacija).
 // Provizija i dinamika izdavanja NISU ovdje: to ostaje po partneru.
-export default function ChannelSettingsPage({ channel, title, subtitle, hint }) {
+export default function ChannelSettingsPage({ channel, title, subtitle, hint, showLanguage = true }) {
     const dispatch = useDispatch();
     const backofficeData = useSelector(backofficeSliceData);
     const authData = useSelector(authSliceData);
@@ -231,17 +231,18 @@ export default function ChannelSettingsPage({ channel, title, subtitle, hint }) 
                 <Divider sx={{ my: 3 }} />
                 <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Izgled računa</Typography>
                 <Stack spacing={2}>
-                    <TextField
-                        select
-                        fullWidth
-                        label="Zadani jezik računa"
-                        value={form.invoice_language || "hr"}
-                        onChange={(e) => set({ invoice_language: e.target.value })}
-                        helperText="Koristi se kad kupac ne odabere jezik"
-                    >
-                        <MenuItem value="hr">Hrvatski</MenuItem>
-                        <MenuItem value="en">Engleski</MenuItem>
-                    </TextField>
+                    {showLanguage && (
+                        <TextField
+                            select
+                            fullWidth
+                            label="Jezik računa"
+                            value={form.invoice_language || "hr"}
+                            onChange={(e) => set({ invoice_language: e.target.value })}
+                        >
+                            <MenuItem value="hr">Hrvatski</MenuItem>
+                            <MenuItem value="en">Engleski</MenuItem>
+                        </TextField>
+                    )}
 
                     <TextField
                         fullWidth

@@ -95,8 +95,7 @@ const finalizeWebSaleController = async (req, res) => {
             payment_reference,
             buyer = {},
             orders = [],
-            // Bez defaulta — inače "hr" uvijek pobijedi postavku kanala.
-            language,
+            language = "hr",
             monri_meta = {},
         } = body;
 
@@ -109,8 +108,8 @@ const finalizeWebSaleController = async (req, res) => {
         const bp = fiscal.businessPremise || {};
         const bd = fiscal.billingDevice || {};
         const cs = fiscal.channelSettings || {};
-        // Jezik s postavki kanala vrijedi kad ga kupac nije izabrao.
-        const invoiceLanguage = language || cs.invoice_language || "hr";
+        // Jezik bira kupac na webu — ne uzima se iz postavki kanala.
+        const invoiceLanguage = language || "hr";
 
         const invoice_uuid = crypto.randomUUID();
         const invoiceDate = new Date();
