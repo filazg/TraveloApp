@@ -3,8 +3,7 @@
 // zastavice, koje se znalo zaboraviti prije builda.
 const prod = import.meta.env.PROD
 
-export const backendURL = prod
-  ? 'https://bookingtest.krilo.hr/app'
-  : 'http://localhost:5100'
+export const backendURL = import.meta.env.VITE_BACKEND_URL
+  || (prod ? 'https://bookingtest.krilo.hr/app' : 'http://localhost:5100')
 
 export const salesPath = '/sales_service'

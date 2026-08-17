@@ -3,5 +3,7 @@
 // zastavice, koje se znalo zaboraviti prije builda.
 const prod = import.meta.env.PROD
 
-export const url = prod ? 'https://bookingtest.krilo.hr/web_sale' : 'http://localhost:6030'
-export const downloadurl = prod ? 'https://admintest.krilo.hr' : 'http://localhost:5100'
+export const url = import.meta.env.VITE_WEB_SALES_URL
+    || (prod ? 'https://bookingtest.krilo.hr/web_sale' : 'http://localhost:6030')
+export const downloadurl = import.meta.env.VITE_DOWNLOAD_URL
+    || (prod ? 'https://admintest.krilo.hr' : 'http://localhost:5100')

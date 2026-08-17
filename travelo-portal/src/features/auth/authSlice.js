@@ -1,12 +1,13 @@
 import { createSlice } from "@reduxjs/toolkit"
 
-// Vite postavlja PROD na true samo u buildu, pa `npm run dev` ide na lokalni
-// backend, a build za deploy na testni poslužitelj — bez ručnog prebacivanja
-// zastavice, koje se znalo zaboraviti prije builda.
-const prod = import.meta.env.PROD
+// Adresa backenda: VITE_BACKEND_URL ako je postavljena (test VM vrti SPA kao
+// Vite dev server, pa se tamo prosljeđuje kroz pm2), inače build gađa testni
+// poslužitelj a `npm run dev` lokalni. Ručna zastavica se znala zaboraviti.
+const backendURL = import.meta.env.VITE_BACKEND_URL
+    || (import.meta.env.PROD ? 'https://bookingtest.krilo.hr/app' : 'http://localhost:5100')
 
 const initialState = {
-    backendURL :prod ? "https://bookingtest.krilo.hr/app" :"http://localhost:5100",
+    backendURL,
     selectedFeature:{},
     loggedUserData:{},
     loading:false,
