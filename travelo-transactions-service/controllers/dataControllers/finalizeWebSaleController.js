@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { Op } = require("sequelize");
 const axios = require("axios");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { buildInvoicePdfBuffer } = require("./invoicePdfController");
@@ -101,6 +102,32 @@ const finalizeWebSaleController = async (req, res) => {
 
         if (!payment_reference || !orders.length) {
             return res.status(400).json({ status: 400, data: { message: "payment_reference and orders required" } });
+        }
+
+        // Idempotencija: povratak preglednika i webhook mogu stići oba, a kupac
+        // zna i osvježiti stranicu — bez ove provjere svaki poziv izda novi
+        // račun i nove karte za istu uplatu.
+        const orderUuids = orders.map((o) => o.order_uuid).filter(Boolean);
+        if (orderUuids.length) {
+            const existingTicket = await TicketsModel.findOne({
+                where: { order_uuid: { [Op.in]: orderUuids } },
+            });
+            if (existingTicket) {
+                const existingInvoice = await InvoiceModel.findOne({
+                    where: { order_uuid: { [Op.like]: `%${orderUuids[0]}%` } },
+                    order: [["id", "ASC"]],
+                });
+                console.log("finalize_web_sale: već obrađeno za", payment_reference,
+                    "→ račun", existingInvoice?.invoice_uuid);
+                return res.json({
+                    status: 200,
+                    data: {
+                        invoice_uuid: existingInvoice?.invoice_uuid || null,
+                        order_uuids: orderUuids,
+                        already_finalized: true,
+                    },
+                });
+            }
         }
 
         const fiscal = await loadFiscalContext();

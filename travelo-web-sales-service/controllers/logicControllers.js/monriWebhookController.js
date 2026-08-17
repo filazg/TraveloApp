@@ -105,8 +105,13 @@ const isApprovedStatus = (p) => {
     return s === 'approved' || s === 'success' || rc === '0000';
 };
 
+// Povratak preglednika i webhook znaju stići gotovo istovremeno; bez ovoga bi
+// oba prošla provjeru prije nego prvi upiše račun, pa bi kupac dobio dvostruke
+// karte. Drugi poziv čeka ishod prvog umjesto da radi svoj.
+const finalizationsInFlight = new Map();
+
 // Shared finalization — used by both Monri webhook and the DEV simulator.
-const runFinalization = async ({ paymentRef, approved, meta }) => {
+const runFinalizationOnce = async ({ paymentRef, approved, meta }) => {
     const coreConfig = await getCoreServiceConfigData();
     const salesUrl = coreConfig?.services?.sales?.url;
     const txUrl = coreConfig?.services?.transactions?.url;
@@ -171,6 +176,18 @@ const runFinalization = async ({ paymentRef, approved, meta }) => {
         { timeout: 8000, validateStatus: () => true }
     );
     return { ok: true, status: 'paid', invoice_uuid };
+};
+
+const runFinalization = async (args) => {
+    const key = args.paymentRef;
+    if (!key) return runFinalizationOnce(args);
+    if (finalizationsInFlight.has(key)) {
+        console.log('finalizacija za', key, 'je već u tijeku — čekam ishod');
+        return finalizationsInFlight.get(key);
+    }
+    const p = runFinalizationOnce(args).finally(() => finalizationsInFlight.delete(key));
+    finalizationsInFlight.set(key, p);
+    return p;
 };
 
 const monriWebhookController = async (req, res) => {
