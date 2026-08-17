@@ -95,7 +95,8 @@ const finalizeWebSaleController = async (req, res) => {
             payment_reference,
             buyer = {},
             orders = [],
-            language = "hr",
+            // Bez defaulta — inače "hr" uvijek pobijedi postavku kanala.
+            language,
             monri_meta = {},
         } = body;
 
