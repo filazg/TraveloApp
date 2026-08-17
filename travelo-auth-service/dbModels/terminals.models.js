@@ -25,6 +25,12 @@ module.exports = (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Zero-touch uparivanje — sinkronizira se s billing_devices.
+            auto_pair: {
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: false
+            },
             is_active: {
                 type: DataTypes.BOOLEAN,
                 allowNull: true

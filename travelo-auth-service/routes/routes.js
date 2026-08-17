@@ -4,6 +4,7 @@ const { webPortalLoginController } = require('../controllers/webPortalController
 const { checkWebPortalLoginController, checkMeController } = require('../controllers/webPortalControllers/checkWebPortalLoginController');
 const { terminalLoginController } = require('../controllers/terminalsControllers/terminalLoginController');
 const { checkTerminalLoginController } = require('../controllers/terminalsControllers/checkTerminalLoginController');
+const { terminalCheckPairingController } = require('../controllers/terminalsControllers/terminalCheckPairingController');
 const {
     partnerPortalLoginController,
     partnerCheckLoginController,
@@ -50,6 +51,10 @@ router
 router
     .route('/login/terminalLogin')
     .post(loginLimiter, terminalLoginController)
+
+router
+    .route('/login/terminalCheckPairing')
+    .post(loginLimiter, terminalCheckPairingController)
 
 router
     .route('/login/terminalCheckLogin')

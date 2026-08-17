@@ -59,4 +59,6 @@ const terminalLoginController = async (req, res) => {
 
 module.exports = {
     terminalLoginController,
+    // dijeli ga i zero-touch uparivanje, da automatika ne zaobiđe isto pravilo
+    verifyTerminalPremise,
 };
