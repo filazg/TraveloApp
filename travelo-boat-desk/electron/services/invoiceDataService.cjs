@@ -334,8 +334,11 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
       items: itemData,
       tickets: ticketsData,
     }
+    // Ishod ispisa se vraća pozivatelju da operater vidi ako karta nije izašla —
+    // račun je već izdan i ne smije se prekidati, ali šutnja je gore od upozorenja.
+    let printResult = { invoice: false, tickets: false }
     try {
-      await invoicePrintHelper(invoiceData)
+      printResult = await invoicePrintHelper(invoiceData) || printResult
     } catch (printErr) {
       console.log('invoicePrintHelper failed (printer issue?):', printErr?.message || printErr)
     }
@@ -353,6 +356,7 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
     } catch (e) {
       console.log('add_invoices backend POST failed (offline?), ostaje pending:', e?.message || e)
     }
+    return { invoice_uuid: invoiceUUID, print: printResult }
   } catch (error) {
     console.log('createInvoiceService error:', error?.message || error)
   }

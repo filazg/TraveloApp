@@ -177,7 +177,7 @@ export default function BottomBar() {
         payment: appData.saleData?.selectedPaymentMethod,
         paymentData: paymentResponse
       };
-      await window.api.app.createInvoiceIPC(dataToSend);
+      const invoiceResult = await window.api.app.createInvoiceIPC(dataToSend);
       await dispatch(resetStateData({path:'saleData'}))
       await updateBooking()
       //const getInvoiceData = await window.api.e_getInvoices()
@@ -188,7 +188,17 @@ export default function BottomBar() {
       //console.log(getTicketsData)
       //dispatch(setDocumentsData({path:'tickets', value: getTicketsData }))
       //dispatch(resetSettingsData({ path: 'selectedBuyer' }))    
-      await dispatch(setStateData({path:'alertData', value:{message:'Račun je uredno izdan',severity:'success'}})) 
+      // Račun je izdan i kad printer zakaže; karta koja nije izašla mora se vidjeti
+      // odmah, jer je putnik bez nje na ukrcaju.
+      const printStatus = invoiceResult?.data?.print
+      if (printStatus && printStatus.tickets === false) {
+        await dispatch(setStateData({path:'alertData', value:{
+          message:'Račun je izdan, ali karte nisu ispisane — ispišite kopiju karte iz dokumenata.',
+          severity:'warning',
+        }}))
+      } else {
+        await dispatch(setStateData({path:'alertData', value:{message:'Račun je uredno izdan',severity:'success'}}))
+      }
     }   
     await dispatch(setStateData({path:'status', value:'ready'}))
   };

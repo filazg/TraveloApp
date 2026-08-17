@@ -1,6 +1,30 @@
 const { ThermalPrinter, PrinterTypes, CharacterSet, BreakLine } = require('node-thermal-printer');
 const { systemSettingsDataModel } = require('../../db/models/Settings.cjs');
 
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Šalje pripremljeni ispis na printer i čeka ishod.
+ *
+ * Ispis ide na Windows share, a biblioteka odustaje nakon 5 sekundi. Dok se
+ * prethodni posao još prenosi, sljedeći zna puknuti na tom timeoutu — tako je
+ * račun izlazio, a karta ne. Zato se čeka izvršenje, greška se zapisuje i posao
+ * se ponovi umjesto da nestane u praznom catchu.
+ */
+const runPrintJob = async (printer, label, attempts = 3) => {
+    for (let i = 1; i <= attempts; i++) {
+        try {
+            await printer.execute();
+            return true;
+        } catch (error) {
+            console.log(`PRINT ${label} — pokušaj ${i}/${attempts} nije uspio:`, error?.message || error);
+            if (i < attempts) await wait(1500);
+        }
+    }
+    console.log(`PRINT ${label} — ispis nije uspio nakon ${attempts} pokušaja.`);
+    return false;
+};
+
 
 const printInvoice = async ({ invoice, items, copy }) => {
     console.log('PRINT INVOICE')
@@ -207,9 +231,10 @@ const printInvoice = async ({ invoice, items, copy }) => {
         printer.cut();
         printer.beep();
 
-        let execute = printer.execute()
+        return await runPrintJob(printer, 'RAČUN');
     } catch (error) {
-        console.log(error)
+        console.log('PRINT RAČUN — greška pri pripremi ispisa:', error?.message || error)
+        return false;
     }
 }
 
@@ -327,20 +352,36 @@ const printTickets = async ({ tickets,copy }) => {
         }
         printer.beep();
 
-        let execute = printer.execute()
+        return await runPrintJob(printer, 'KARTE');
     } catch (error) {
-
+        // Prije je ovaj catch bio prazan, pa neispisana karta nije ostavljala
+        // nikakav trag — ni u logu ni na ekranu.
+        console.log('PRINT KARTE — greška pri pripremi ispisa:', error?.message || error);
+        return false;
     }
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const invoicePrintHelper = async (data) => {
     try {
-        await printInvoice(data)
-        await sleep(500);
-        await printTickets(data)
+        // Račun i karte idu na isti printer. Prije se drugi posao slao dok je
+        // prvi još bio u prijenosu (execute se nije čekao), pa je karta znala
+        // ispasti bez ijedne poruke.
+        const invoiceOk = await printInvoice(data)
+        await sleep(800);
+        const ticketCount = Array.isArray(data?.tickets) ? data.tickets.length : 0;
+        if (!ticketCount) {
+            console.log('PRINT KARTE — nema karata u računu, ispis preskočen.');
+            return { invoice: invoiceOk, tickets: true };
+        }
+        const ticketsOk = await printTickets(data)
+        if (!ticketsOk) {
+            console.log('PRINT KARTE — karte nisu ispisane; ponovni ispis je moguć preko kopije karte.');
+        }
+        return { invoice: invoiceOk, tickets: ticketsOk };
     } catch (error) {
-        console.log(error)
+        console.log('invoicePrintHelper greška:', error?.message || error)
+        return { invoice: false, tickets: false };
     }
 }
 
