@@ -38,8 +38,10 @@ export default function OperatorLoginScreen() {
     const dispatch = useDispatch();
     const auth = useSelector(authData);
     const sync = useSelector(syncData);
+    const [mode, setMode] = useState('username'); // 'username' | 'code'
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [code, setCode] = useState('');
     const [loggingIn, setLoggingIn] = useState(false);
 
     const onLogin = async () => {
@@ -50,6 +52,20 @@ export default function OperatorLoginScreen() {
         }
         setLoggingIn(true);
         try {
+            // Prijava šifrom — brža na terminalu, šifra se u portalu drži
+            // jedinstvenom pa jedna vrijednost određuje točno jednog operatera.
+            if (mode === 'code') {
+                const c = String(code || '').trim();
+                const user = sync.users.find((x) => String(x.user_code ?? '').trim() === c && c !== '');
+                if (!user) {
+                    Alert.alert('Prijava', 'Neispravna šifra.');
+                    return;
+                }
+                dispatch(setOperator(user));
+                setCode('');
+                return;
+            }
+
             const u = String(username || '').trim().toLowerCase();
             const user = sync.users.find((x) => String(x.user_username || '').trim().toLowerCase() === u);
             if (!user) {
@@ -67,6 +83,8 @@ export default function OperatorLoginScreen() {
         }
     };
 
+    const canLogin = !loggingIn && (mode === 'code' ? !!code.trim() : !!username && !!password);
+
     const onRefresh = async () => {
         if (sync.loading) return;
         await dispatch(syncBasicDataThunk());
@@ -81,28 +99,64 @@ export default function OperatorLoginScreen() {
                 <Text style={styles.logo}>TraveloApp</Text>
 
                 <View style={styles.form}>
-                    <Text style={styles.label}>Korisničko ime</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={username}
-                        onChangeText={setUsername}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
+                    <View style={styles.modeRow}>
+                        <TouchableOpacity
+                            style={[styles.modeBtn, mode === 'username' && styles.modeBtnActive]}
+                            onPress={() => setMode('username')}
+                        >
+                            <Text style={[styles.modeText, mode === 'username' && styles.modeTextActive]}>
+                                Korisničko ime
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.modeBtn, mode === 'code' && styles.modeBtnActive]}
+                            onPress={() => setMode('code')}
+                        >
+                            <Text style={[styles.modeText, mode === 'code' && styles.modeTextActive]}>
+                                Šifra
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
-                    <Text style={styles.label}>Lozinka</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        autoCapitalize="none"
-                    />
+                    {mode === 'username' ? (
+                        <>
+                            <Text style={styles.label}>Korisničko ime</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={username}
+                                onChangeText={setUsername}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+
+                            <Text style={styles.label}>Lozinka</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry
+                                autoCapitalize="none"
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <Text style={styles.label}>Šifra</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={code}
+                                onChangeText={setCode}
+                                keyboardType="number-pad"
+                                secureTextEntry
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                        </>
+                    )}
 
                     <TouchableOpacity
-                        style={[styles.btn, (!username || !password || loggingIn) && styles.btnDisabled]}
+                        style={[styles.btn, !canLogin && styles.btnDisabled]}
                         onPress={onLogin}
-                        disabled={!username || !password || loggingIn}
+                        disabled={!canLogin}
                     >
                         {loggingIn ? (
                             <ActivityIndicator color={colors.textOnPrimary} />
@@ -170,6 +224,11 @@ const styles = StyleSheet.create({
         ...shadows.card,
     },
     label: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+    modeRow: { flexDirection: 'row', borderWidth: 1, borderColor: colors.border, borderRadius: 8, overflow: 'hidden' },
+    modeBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: colors.surface },
+    modeBtnActive: { backgroundColor: colors.primary },
+    modeText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+    modeTextActive: { color: colors.textOnPrimary },
     input: {
         backgroundColor: colors.surface,
         color: colors.textPrimary,
