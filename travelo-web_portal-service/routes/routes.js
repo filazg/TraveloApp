@@ -54,6 +54,12 @@ router
     .patch(handleUpdateCompanyFeature)
 
 router
+    .route('/backoffice/business_premises')
+    .get(handleGetBusinessPremisesFeature)
+    .post(handleAddBusinessPremisesFeature)
+    .patch(handleUpdateBusinessPremisesFeature)
+
+router
     .route('/backoffice/billing_devices')
     .get(handleGetBillingDevicesFeature)
     .post(handleAddBillingDevicesFeature)
