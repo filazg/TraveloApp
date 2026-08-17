@@ -1,0 +1,605 @@
+{
+    "modules": [
+        {
+            "key": "BACKOFFICE",
+            "acr": "BAOF",
+            "kind": "shared",
+            "always_on": true,
+            "order": 30,
+            "title": {
+                "hr": "Administracija",
+                "en": "Administration"
+            },
+            "subtitle": {
+                "hr": "Osnovne postavke",
+                "en": "Basic settings"
+            },
+            "icon": "AdminPanelSettings",
+            "color": "#EFBA3E",
+            "iconColor": "white",
+            "path": "/backoffice",
+            "services": [
+                "backoffice-service"
+            ],
+            "groups": [
+                {
+                    "label": {
+                        "hr": "Osnovni podaci",
+                        "en": "Basic data"
+                    },
+                    "icon": "Business",
+                    "items": [
+                        {
+                            "key": "COMPANY",
+                            "label": {
+                                "hr": "Tvrtka",
+                                "en": "Company"
+                            },
+                            "subtitle": {
+                                "hr": "Podaci tvrtke",
+                                "en": "Company data"
+                            },
+                            "path": "/backoffice/company",
+                            "icon": "Business"
+                        },
+                        {
+                            "key": "BUSINESS_PREMISES",
+                            "label": {
+                                "hr": "Prodajna mjesta",
+                                "en": "Business premises"
+                            },
+                            "subtitle": {
+                                "hr": "Poslovni prostori",
+                                "en": "Business locations"
+                            },
+                            "path": "/backoffice/business_premises",
+                            "icon": "Store"
+                        },
+                        {
+                            "key": "BILLING_DEVICES",
+                            "label": {
+                                "hr": "Naplatni uređaji",
+                                "en": "Billing devices"
+                            },
+                            "subtitle": {
+                                "hr": "POS uređaji",
+                                "en": "POS devices"
+                            },
+                            "path": "/backoffice/billing_devices",
+                            "icon": "Devices"
+                        },
+                        {
+                            "key": "USERS",
+                            "label": {
+                                "hr": "Korisnici",
+                                "en": "Users"
+                            },
+                            "subtitle": {
+                                "hr": "Korisnici sustava",
+                                "en": "System users"
+                            },
+                            "path": "/backoffice/users",
+                            "icon": "Group"
+                        }
+                    ]
+                },
+                {
+                    "label": {
+                        "hr": "Postavke",
+                        "en": "Settings"
+                    },
+                    "icon": "Settings",
+                    "items": [
+                        {
+                            "key": "PAYMENT_METHODS",
+                            "label": {
+                                "hr": "Načini plaćanja",
+                                "en": "Payment methods"
+                            },
+                            "subtitle": {
+                                "hr": "Načini plaćanja",
+                                "en": "Payment methods"
+                            },
+                            "path": "/backoffice/payment_methods",
+                            "icon": "Payments"
+                        },
+                        {
+                            "key": "PARTNERS",
+                            "label": {
+                                "hr": "Partneri",
+                                "en": "Partners"
+                            },
+                            "subtitle": {
+                                "hr": "Partneri",
+                                "en": "Partners"
+                            },
+                            "path": "/backoffice/partners",
+                            "icon": "Handshake"
+                        },
+                        {
+                            "key": "ADDRESSBOOK",
+                            "label": {
+                                "hr": "Adresar",
+                                "en": "Addressbook"
+                            },
+                            "subtitle": {
+                                "hr": "Adresar kupaca",
+                                "en": "Customer addressbook"
+                            },
+                            "path": "/backoffice/addressbook",
+                            "icon": "Contacts"
+                        },
+                        {
+                            "key": "HOLIDAYS",
+                            "label": {
+                                "hr": "Praznici",
+                                "en": "Holidays"
+                            },
+                            "subtitle": {
+                                "hr": "Praznici i neradni dani",
+                                "en": "Holidays"
+                            },
+                            "path": "/backoffice/holidays",
+                            "icon": "EditCalendar"
+                        },
+                        {
+                            "key": "COUNTRIES",
+                            "label": {
+                                "hr": "Države",
+                                "en": "Countries"
+                            },
+                            "subtitle": {
+                                "hr": "Šifarnik država",
+                                "en": "Country codes"
+                            },
+                            "path": "/backoffice/countries",
+                            "icon": "Public"
+                        },
+                        {
+                            "label": {
+                                "hr": "Web prodaja",
+                                "en": "Web sales"
+                            },
+                            "subtitle": {
+                                "hr": "Postavke izdavanja računa za web kanal",
+                                "en": "Invoice settings for the web channel"
+                            },
+                            "path": "/backoffice/web_sales_settings",
+                            "icon": "Storefront"
+                        },
+                        {
+                            "label": {
+                                "hr": "Partnerska prodaja",
+                                "en": "Partner sales"
+                            },
+                            "subtitle": {
+                                "hr": "Postavke izdavanja računa partnerima",
+                                "en": "Invoice settings for partner sales"
+                            },
+                            "path": "/backoffice/partner_sales_settings",
+                            "icon": "Handshake"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "key": "FINANCE",
+            "acr": "FINA",
+            "kind": "shared",
+            "always_on": true,
+            "order": 40,
+            "title": {
+                "hr": "Financije",
+                "en": "Finance"
+            },
+            "subtitle": {
+                "hr": "Računi i izvještaji",
+                "en": "Invoices and reports"
+            },
+            "icon": "AccountBalance",
+            "color": "#EFBA3E",
+            "iconColor": "white",
+            "path": "/finance",
+            "services": [
+                "transactions-service"
+            ],
+            "groups": [
+                {
+                    "label": {
+                        "hr": "Računi",
+                        "en": "Invoices"
+                    },
+                    "icon": "ReceiptLong",
+                    "items": [
+                        {
+                            "key": "INVOICES",
+                            "label": {
+                                "hr": "Računi",
+                                "en": "Invoices"
+                            },
+                            "subtitle": {
+                                "hr": "Izdani računi",
+                                "en": "Issued invoices"
+                            },
+                            "path": "/finance/invoices",
+                            "icon": "ReceiptLong"
+                        },
+                        {
+                            "key": "PARTNER_INVOICES",
+                            "label": {
+                                "hr": "Partner računi",
+                                "en": "Partner invoices"
+                            },
+                            "subtitle": {
+                                "hr": "Fakture partnerima",
+                                "en": "Partner invoicing"
+                            },
+                            "path": "/finance/partner_invoices",
+                            "icon": "Handshake"
+                        },
+                        {
+                            "key": "TICKETS_OVERVIEW",
+                            "label": {
+                                "hr": "Pregled karata",
+                                "en": "Tickets overview"
+                            },
+                            "subtitle": {
+                                "hr": "Sve prodane karte",
+                                "en": "All sold tickets"
+                            },
+                            "path": "/finance/tickets",
+                            "icon": "ConfirmationNumber"
+                        }
+                    ]
+                },
+                {
+                    "label": {
+                        "hr": "Izvještaji",
+                        "en": "Reports"
+                    },
+                    "icon": "Assessment",
+                    "items": [
+                        {
+                            "key": "SHIFTS",
+                            "label": {
+                                "hr": "Smjene",
+                                "en": "Shifts"
+                            },
+                            "subtitle": {
+                                "hr": "Zaključci smjena",
+                                "en": "Shift closures"
+                            },
+                            "path": "/finance/shifts",
+                            "icon": "AccessTime"
+                        },
+                        {
+                            "key": "ACCOUNTS",
+                            "label": {
+                                "hr": "Konta",
+                                "en": "Chart of accounts"
+                            },
+                            "subtitle": {
+                                "hr": "Šifarnik i mapiranja",
+                                "en": "Accounts mapping"
+                            },
+                            "path": "/finance/accounts",
+                            "icon": "AccountTree"
+                        },
+                        {
+                            "key": "REPORTS",
+                            "label": {
+                                "hr": "Izvještaji",
+                                "en": "Reports"
+                            },
+                            "subtitle": {
+                                "hr": "Dnevna realizacija i ostalo",
+                                "en": "Daily realization and more"
+                            },
+                            "path": "/finance/reports",
+                            "icon": "Assessment",
+                            "children": [
+                                {
+                                    "key": "REPORTS_DAILY_REALIZATION",
+                                    "label": {
+                                        "hr": "Dnevna realizacija",
+                                        "en": "Daily realization"
+                                    },
+                                    "path": "/finance/reports/daily_realization"
+                                },
+                                {
+                                    "key": "REPORTS_DAILY_REALIZATION_DEMO",
+                                    "label": {
+                                        "hr": "Dnevna realizacija – DEMO",
+                                        "en": "Daily realization – DEMO"
+                                    },
+                                    "path": "/finance/reports/daily_realization_demo"
+                                }
+                            ]
+                        },
+                        {
+                            "key": "HARBOR_TAX_REPORT",
+                            "label": {
+                                "hr": "Lučke uprave",
+                                "en": "Harbor authorities"
+                            },
+                            "subtitle": {
+                                "hr": "Izvještaj naplata luka",
+                                "en": "Harbor tax report"
+                            },
+                            "path": "/finance/harbor_tax_report",
+                            "icon": "Anchor",
+                            "requires": [
+                                "BOAT"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "key": "MANAGEMENT",
+            "acr": "MANA",
+            "kind": "shared",
+            "always_on": true,
+            "order": 50,
+            "title": {
+                "hr": "Menadžment",
+                "en": "Management"
+            },
+            "subtitle": {
+                "hr": "Mjesečni izvještaji",
+                "en": "Monthly reports"
+            },
+            "icon": "Insights",
+            "color": "#EFBA3E",
+            "iconColor": "white",
+            "path": "/management",
+            "services": [
+                "transactions-service"
+            ],
+            "groups": [
+                {
+                    "label": {
+                        "hr": "Mjesečni promet",
+                        "en": "Monthly turnover"
+                    },
+                    "icon": "Summarize",
+                    "items": [
+                        {
+                            "key": "MONTHLY_SALES_REPORT",
+                            "label": {
+                                "hr": "Realizacija",
+                                "en": "Realization"
+                            },
+                            "subtitle": {
+                                "hr": "Po datumu putovanja",
+                                "en": "By travel date"
+                            },
+                            "path": "/management/monthly_sales_report",
+                            "icon": "Summarize"
+                        },
+                        {
+                            "key": "MONTHLY_PURCHASES_REPORT",
+                            "label": {
+                                "hr": "Prodaja",
+                                "en": "Sales"
+                            },
+                            "subtitle": {
+                                "hr": "Po datumu kupnje",
+                                "en": "By purchase date"
+                            },
+                            "path": "/management/monthly_purchases_report",
+                            "icon": "Summarize"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "key": "BOAT",
+            "acr": "TRAD",
+            "kind": "transport",
+            "always_on": false,
+            "order": 10,
+            "title": {
+                "hr": "Brod",
+                "en": "Boat"
+            },
+            "subtitle": {
+                "hr": "Linije, brodovi, luke",
+                "en": "Lines, boats, harbors"
+            },
+            "icon": "DirectionsBoat",
+            "color": "#175BD0",
+            "iconColor": "white",
+            "path": "/boat",
+            "services": [
+                "boat-service"
+            ],
+            "groups": [
+                {
+                    "label": {
+                        "hr": "Brodski prijevoz",
+                        "en": "Boat transport"
+                    },
+                    "icon": "DirectionsBoat",
+                    "items": [
+                        {
+                            "key": "BOAT_LINES",
+                            "label": {
+                                "hr": "Linije",
+                                "en": "Lines"
+                            },
+                            "subtitle": {
+                                "hr": "Popis linija",
+                                "en": "Line list"
+                            },
+                            "path": "/boat/lines",
+                            "icon": "Route"
+                        },
+                        {
+                            "key": "BOAT_TIMETABLES",
+                            "label": {
+                                "hr": "Plovidbeni redovi",
+                                "en": "Timetables"
+                            },
+                            "subtitle": {
+                                "hr": "Vozni redovi",
+                                "en": "Timetables"
+                            },
+                            "path": "/boat/timetables",
+                            "icon": "PendingActions"
+                        },
+                        {
+                            "key": "BOAT_BOATS",
+                            "label": {
+                                "hr": "Brodovi",
+                                "en": "Boats"
+                            },
+                            "subtitle": {
+                                "hr": "Popis brodova",
+                                "en": "Boats list"
+                            },
+                            "path": "/boat/boats",
+                            "icon": "DirectionsBoat"
+                        },
+                        {
+                            "key": "BOAT_TICKETS_TYPES",
+                            "label": {
+                                "hr": "Vrste karata",
+                                "en": "Ticket types"
+                            },
+                            "subtitle": {
+                                "hr": "Kategorije putnika",
+                                "en": "Passenger categories"
+                            },
+                            "path": "/boat/tickets_types",
+                            "icon": "RecentActors"
+                        },
+                        {
+                            "key": "BOAT_HARBORS",
+                            "label": {
+                                "hr": "Luke",
+                                "en": "Harbors"
+                            },
+                            "subtitle": {
+                                "hr": "Popis luka",
+                                "en": "Harbor list"
+                            },
+                            "path": "/boat/harbors",
+                            "icon": "Sailing"
+                        },
+                        {
+                            "key": "BOAT_REGIONS",
+                            "label": {
+                                "hr": "Lučke uprave",
+                                "en": "Port authorities"
+                            },
+                            "subtitle": {
+                                "hr": "Šifarnik lučkih uprava",
+                                "en": "Port authority codes"
+                            },
+                            "path": "/boat/regions",
+                            "icon": "Anchor"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "key": "BOAT_SALES",
+            "acr": "SALE",
+            "kind": "transport",
+            "always_on": false,
+            "requires": [
+                "BOAT"
+            ],
+            "order": 11,
+            "title": {
+                "hr": "POS Brod",
+                "en": "POS Boat"
+            },
+            "subtitle": {
+                "hr": "Prodaja na šalteru",
+                "en": "Counter sales"
+            },
+            "icon": "PointOfSale",
+            "color": "#175BD0",
+            "iconColor": "white",
+            "path": "/sales",
+            "services": [
+                "sales-service"
+            ]
+        },
+        {
+            "key": "BOAT_DISPATCHER",
+            "acr": "DISP",
+            "kind": "transport",
+            "always_on": false,
+            "requires": [
+                "BOAT"
+            ],
+            "order": 12,
+            "title": {
+                "hr": "Dispečer",
+                "en": "Dispatcher"
+            },
+            "subtitle": {
+                "hr": "Pregled polazaka",
+                "en": "Sailings overview"
+            },
+            "icon": "SupportAgent",
+            "color": "#175BD0",
+            "iconColor": "white",
+            "path": "/dispatcher",
+            "services": []
+        },
+        {
+            "key": "BOAT_KAPETAN",
+            "acr": "KAPETAN",
+            "kind": "transport",
+            "always_on": false,
+            "requires": [
+                "BOAT"
+            ],
+            "order": 13,
+            "title": {
+                "hr": "Kapetan",
+                "en": "Captain"
+            },
+            "subtitle": {
+                "hr": "Plovidbe",
+                "en": "Sailings"
+            },
+            "icon": "Sailing",
+            "color": "#175BD0",
+            "iconColor": "white",
+            "path": "/sailing",
+            "services": []
+        },
+        {
+            "key": "DOWNLOADS",
+            "acr": "DOWN",
+            "kind": "shared",
+            "always_on": true,
+            "order": 60,
+            "title": {
+                "hr": "Preuzimanja",
+                "en": "Downloads"
+            },
+            "subtitle": {
+                "hr": "Aplikacije i upute",
+                "en": "Applications and manuals"
+            },
+            "icon": "Download",
+            "color": "#5B8DEF",
+            "iconColor": "white",
+            "path": "/downloads",
+            "services": [
+                "web_portal-service"
+            ],
+            "groups": []
+        }
+    ]
+}

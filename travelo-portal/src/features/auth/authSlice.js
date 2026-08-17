@@ -1,6 +1,9 @@
 import { createSlice } from "@reduxjs/toolkit"
 
-const prod = true
+// Vite postavlja PROD na true samo u buildu, pa `npm run dev` ide na lokalni
+// backend, a build za deploy na testni poslužitelj — bez ručnog prebacivanja
+// zastavice, koje se znalo zaboraviti prije builda.
+const prod = import.meta.env.PROD
 
 const initialState = {
     backendURL :prod ? "https://bookingtest.krilo.hr/app" :"http://localhost:5100",
@@ -13,6 +16,8 @@ const initialState = {
         { code: "hr", label: "Hrvatski", short: "HR" },
         { code: "en", label: "English", short: "EN" },
     ],
+    modulesCatalog: { modules: [], enabled_modules: [], env_modules: [] },
+    modulesLoaded: false,
     transportmodulesData: [
          {
             acr: "TRAD",
