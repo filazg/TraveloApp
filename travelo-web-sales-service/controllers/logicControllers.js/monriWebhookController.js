@@ -62,11 +62,16 @@ const matchDigest = (payload) => {
 // narudžbom: postoji pod tom referencom, još nije plaćena i iznos s povratka
 // je isti do zadnjeg centa. Referenca je nasumičan UUID, pa je za zloupotrebu
 // potrebno pogoditi i nju i točan iznos.
-const orderMatchesPayment = async (paymentRef, amountFromMonri) => {
-    const amountCents = parseInt(String(amountFromMonri || ''), 10);
-    if (!paymentRef || !Number.isFinite(amountCents) || amountCents <= 0) {
-        return { ok: false, reason: 'missing_reference_or_amount' };
-    }
+const verifyAgainstOrder = async ({ paymentRef, amount, approvalCode, responseCode }) => {
+    // Tri uvjeta zajedno: narudžba postoji pod tom referencom, Monri je javio
+    // uspjeh (response_code 0000 uz approval_code, koji dolazi samo kad je
+    // transakcija odobrena) i iznos je isti do zadnjeg centa.
+    const amountCents = parseInt(String(amount || ''), 10);
+    if (!paymentRef) return { ok: false, reason: 'missing_reference' };
+    if (!Number.isFinite(amountCents) || amountCents <= 0) return { ok: false, reason: 'missing_amount' };
+    if (String(responseCode || '') !== '0000') return { ok: false, reason: 'response_code_not_0000', response_code: responseCode };
+    if (!String(approvalCode || '').trim()) return { ok: false, reason: 'missing_approval_code' };
+
     const coreConfig = await getCoreServiceConfigData();
     const salesUrl = coreConfig?.services?.sales?.url;
     if (!salesUrl) return { ok: false, reason: 'sales_url_missing' };
@@ -85,7 +90,13 @@ const orderMatchesPayment = async (paymentRef, amountFromMonri) => {
     if (totalCents !== amountCents) {
         return { ok: false, reason: 'amount_mismatch', expected_cents: totalCents, received_cents: amountCents };
     }
-    return { ok: true, orders_count: orders.length, amount_cents: amountCents };
+    return {
+        ok: true,
+        orders_count: orders.length,
+        order_uuids: orders.map((o) => o.uuid),
+        amount_cents: amountCents,
+        approval_code: String(approvalCode).trim(),
+    };
 };
 
 const isApprovedStatus = (p) => {
@@ -203,14 +214,21 @@ const monriWebhookController = async (req, res) => {
         let authenticated = digestOk || trustedSource;
         let verifiedBy = digestOk ? 'digest' : (trustedSource ? 'trusted_ip' : null);
         if (approved && !authenticated) {
-            const amountCheck = await orderMatchesPayment(payload.order_number, payload.amount);
+            const amountCheck = await verifyAgainstOrder({
+                paymentRef: payload.order_number,
+                amount: payload.amount,
+                approvalCode: payload.approval_code,
+                responseCode: payload.response_code,
+            });
             if (amountCheck.ok) {
                 authenticated = true;
-                verifiedBy = 'order_amount_match';
-                console.log('MONRI WEBHOOK prihvaćen bez digesta (iznos odgovara narudžbi)', {
+                verifiedBy = 'order_approval_amount_match';
+                meta.approval_code = amountCheck.approval_code;
+                console.log('MONRI WEBHOOK prihvaćen (narudžba + approval_code + iznos)', {
                     payment_reference: payload.order_number,
+                    order_uuids: amountCheck.order_uuids,
+                    approval_code: amountCheck.approval_code,
                     amount_cents: amountCheck.amount_cents,
-                    orders: amountCheck.orders_count,
                 });
             } else {
                 console.log('MONRI WEBHOOK REJECTED (approved, digest ne prolazi, iznos ne odgovara)', {
@@ -311,7 +329,12 @@ const monriBrowserRedirectController = async (req, res) => {
                 // Monri na povratku potpisuje drugom formulom nego što je
                 // dokumentirano, pa digest ne prolazi. Umjesto da uplata ostane
                 // neobrađena, provjeravamo je prema vlastitoj narudžbi.
-                amountCheck = await orderMatchesPayment(orderNumber, payload.amount);
+                amountCheck = await verifyAgainstOrder({
+                    paymentRef: orderNumber,
+                    amount: payload.amount,
+                    approvalCode: q.approval_code,
+                    responseCode: payload.response_code,
+                });
             }
 
             if (approved && !digestOk && !amountCheck?.ok) {
@@ -338,11 +361,13 @@ const monriBrowserRedirectController = async (req, res) => {
                 console.log('monri browser-redirect provjera narudžbe:', amountCheck);
             } else {
                 if (approved && !digestOk && amountCheck?.ok) {
-                    verifiedBy = 'order_amount_match';
-                    console.log('monri browser-redirect prihvaćen bez digesta (iznos odgovara narudžbi)', {
+                    verifiedBy = 'order_approval_amount_match';
+                    meta.approval_code = amountCheck.approval_code;
+                    console.log('monri browser-redirect prihvaćen (narudžba + approval_code + iznos)', {
                         order_number: orderNumber,
+                        order_uuids: amountCheck.order_uuids,
+                        approval_code: amountCheck.approval_code,
                         amount_cents: amountCheck.amount_cents,
-                        orders: amountCheck.orders_count,
                     });
                 }
                 meta.verified_by = verifiedBy;
