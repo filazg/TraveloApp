@@ -22,14 +22,40 @@ const isTrustedSource = (req) => {
     return TRUSTED_IPS.includes(ip);
 };
 
-const computeDigest = (payload) => {
-    const input =
-        MERCHANT_KEY +
-        (payload.order_number || '') +
-        (payload.amount || '') +
-        (payload.currency || '') +
-        (payload.response_code || '');
-    return crypto.createHash('sha512').update(input).digest('hex');
+const sha512 = (input) => crypto.createHash('sha512').update(input).digest('hex');
+
+// Monri ne šalje uvijek isti oblik digesta, a i sam ključ zna biti zapisan s
+// HTML zapisom ampersanda (&amp;) ili s običnim &. Zato provjeravamo sve
+// kombinacije istog ključa umjesto da odbijemo uplatu zbog zapisa — bez ključa
+// se nijedna varijanta ne može izračunati, pa provjera ostaje jednako jaka.
+const MERCHANT_KEYS = [...new Set([
+    MERCHANT_KEY,
+    MERCHANT_KEY.replace(/&amp;/g, '&'),
+    MERCHANT_KEY.replace(/&/g, '&amp;'),
+])];
+
+const digestVariants = (payload) => {
+    const on = payload.order_number || '';
+    const amount = payload.amount || '';
+    const currency = payload.currency || '';
+    const rc = payload.response_code || '';
+    const out = [];
+    for (const key of MERCHANT_KEYS) {
+        out.push({ name: `key+order+amount+currency+response_code (${key === MERCHANT_KEY ? 'izvorni' : 'alt'} ključ)`, value: sha512(key + on + amount + currency + rc) });
+        out.push({ name: `key+order+amount+currency (${key === MERCHANT_KEY ? 'izvorni' : 'alt'} ključ)`, value: sha512(key + on + amount + currency) });
+    }
+    return out;
+};
+
+// Zadržano ime radi ostatka koda — vraća "glavnu" varijantu.
+const computeDigest = (payload) => digestVariants(payload)[0].value;
+
+// Vraća naziv varijante koja se poklopila, ili null.
+const matchDigest = (payload) => {
+    const received = String(payload.digest || '').toLowerCase();
+    if (!received) return null;
+    const hit = digestVariants(payload).find((v) => v.value === received);
+    return hit ? hit.name : null;
 };
 
 const isApprovedStatus = (p) => {
@@ -114,10 +140,16 @@ const monriWebhookController = async (req, res) => {
         console.log('MONRI WEBHOOK payload:', payload);
         console.log('MONRI WEBHOOK source:', { ip: sourceIp, trustedSource, headers_keys: Object.keys(req.headers || {}) });
 
-        const expected = computeDigest(payload);
-        const received = String(payload.digest || '').toLowerCase();
-        const digestOk = Boolean(received) && received === expected;
-        if (!digestOk) console.log('MONRI WEBHOOK digest mismatch', { expected, received });
+        const matched = matchDigest(payload);
+        const digestOk = Boolean(matched);
+        if (digestOk) {
+            console.log('MONRI WEBHOOK digest OK:', matched);
+        } else {
+            console.log('MONRI WEBHOOK digest mismatch', {
+                received: String(payload.digest || '').toLowerCase(),
+                tried: digestVariants(payload).map((v) => `${v.name}=${v.value.slice(0, 16)}…`),
+            });
+        }
         const approved = isApprovedStatus(payload);
 
         const meta = {
@@ -211,9 +243,9 @@ const monriBrowserRedirectController = async (req, res) => {
                 status: q.status,
                 digest: q.digest,
             };
-            const expected = computeDigest(payload);
-            const received = String(payload.digest || '').toLowerCase();
-            const digestOk = Boolean(received) && received === expected;
+            const matched = matchDigest(payload);
+            const digestOk = Boolean(matched);
+            if (matched) console.log('monri browser-redirect digest OK:', matched);
             const approved = isApprovedStatus(payload);
             const meta = {
                 response_code: payload.response_code,
@@ -231,10 +263,16 @@ const monriBrowserRedirectController = async (req, res) => {
                 // NE finaliziramo. Ostavljamo order na pending_payment; pravi
                 // server-to-server webhook (kad Monri panel bude konfiguriran)
                 // će ga ispravno obraditi. Logiramo za audit.
+                // Ispisujemo sve što je stiglo i sve varijante koje smo probali —
+                // bez toga se ne može utvrditi razlikuje li se formula ili ključ.
                 console.log('monri browser-redirect REJECTED (approved status, digest mismatch)', {
-                    orderNumber,
-                    received_digest: received,
-                    has_response_code: Boolean(q.response_code),
+                    order_number: orderNumber,
+                    amount: payload.amount,
+                    currency: payload.currency,
+                    response_code: payload.response_code,
+                    status: payload.status,
+                    received_digest: String(payload.digest || '').toLowerCase(),
+                    tried: digestVariants(payload).map((v) => `${v.name}=${v.value.slice(0, 16)}…`),
                 });
             } else {
                 try {
