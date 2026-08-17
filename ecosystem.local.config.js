@@ -13,6 +13,12 @@
 // Excluded: travelo-boat-desk — Electron desktop app, not meant to run as a
 // headless background process under PM2.
 
+// TRAVELO_PROFILE: prosljeđuje se iz shell env-a (npr. $env:TRAVELO_PROFILE='boat')
+// kroz PM2 do svih apps. Backend servisi čitaju ga i šalju controlServiceu pri
+// fetch-u DB configa — kontroler tada prependa db_name_prefix iz _profiles bloka.
+// Bez env vara → default profil (potpuno backward kompatibilno).
+const PROFILE = process.env.TRAVELO_PROFILE || '';
+
 const node = (name, entry) => ({
   name,
   cwd: `./${name}`,
@@ -22,7 +28,7 @@ const node = (name, entry) => ({
   restart_delay: 3000,
   max_restarts: 20,
   watch: false,
-  env: { NODE_ENV: 'development' },
+  env: { NODE_ENV: 'development', TRAVELO_PROFILE: PROFILE },
 });
 
 const vite = (name, port) => ({
@@ -35,7 +41,7 @@ const vite = (name, port) => ({
   restart_delay: 3000,
   max_restarts: 20,
   watch: false,
-  env: { NODE_ENV: 'development' },
+  env: { NODE_ENV: 'development', TRAVELO_PROFILE: PROFILE },
 });
 
 module.exports = {

@@ -12,6 +12,11 @@
 
 const CONTROL_URL = 'http://localhost:5000';
 
+// TRAVELO_PROFILE: prosljeđuje se iz shell env-a na VM-u kroz PM2 do svih apps.
+// Backend servisi šalju ga u POST body kad fetchaju DB config — kontroler
+// tada prependa db_name_prefix iz _profiles bloka. Bez env vara → default profil.
+const PROFILE = process.env.TRAVELO_PROFILE || '';
+
 const node = (name, entry, extraEnv = {}) => ({
   name,
   cwd: `./${name}`,
@@ -28,6 +33,7 @@ const node = (name, entry, extraEnv = {}) => ({
     // DB_PASS prolazi iz shell env-a na VM-u — control-service ga injektira
     // u response na /database_services_config. Ne hardkodirati ovdje.
     DB_PASS: process.env.DB_PASS,
+    TRAVELO_PROFILE: PROFILE,
     ...extraEnv,
   },
 });

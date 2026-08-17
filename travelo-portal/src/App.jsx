@@ -42,19 +42,6 @@ import SalesPage from './features/sales/SalesPage';
 import DispatcherPage from './features/dispatcher/DispatcherPage';
 import SailingPage from './features/sailing/SailingPage';
 import DownloadsPage from './features/downloads/DownloadsPage';
-import BusPage from './features/bus/BusPage';
-import BusLinesPage from './features/bus/pages/lines/BusLinesPage';
-import BusVehiclesPage from './features/bus/pages/vehicles/BusVehiclesPage';
-import BusStopsPage from './features/bus/pages/stops/BusStopsPage';
-import BusTicketsTypesPage from './features/bus/pages/ticketTypes/BusTicketsTypesPage';
-import BusTimetablesPage from './features/bus/pages/timetables/BusTimetables';
-import BusPricelistsPage from './features/bus/pages/pricelists/BusPricelistsPage';
-import BusSalesPage from './features/bus/pages/sales/BusSalesPage';
-import BusDispatcherPage from './features/bus/pages/dispatcher/BusDispatcherPage';
-import BusDriverPage from './features/bus/pages/driver/BusDriverPage';
-import BusDrivingPlansPage from './features/bus/pages/driving_plans/BusDrivingPlansPage';
-import BusPutniRadniListoviPage from './features/bus/pages/putni_radni_listovi/BusPutniRadniListoviPage';
-import BusInvoicesPage from './features/bus/pages/invoices/BusInvoicesPage';
 
 
 function App() {
@@ -109,19 +96,6 @@ function App() {
                 <Route path='dispatcher' element={<DispatcherPage/>}></Route>
                 <Route path='sailing' element={<SailingPage/>}></Route>
                 <Route path='downloads' element={<DownloadsPage/>}></Route>
-                <Route path='bus' element={<BusPage/>}></Route>
-                <Route path='bus/lines' element={<BusLinesPage/>}></Route>
-                <Route path='bus/vehicles' element={<BusVehiclesPage/>}></Route>
-                <Route path='bus/stops' element={<BusStopsPage/>}></Route>
-                <Route path='bus/tickets_types' element={<BusTicketsTypesPage/>}></Route>
-                <Route path='bus/timetables' element={<BusTimetablesPage/>}></Route>
-                <Route path='bus/pricelists' element={<BusPricelistsPage/>}></Route>
-                <Route path='bus/sales' element={<BusSalesPage/>}></Route>
-                <Route path='bus/dispatcher' element={<BusDispatcherPage/>}></Route>
-                <Route path='bus/driver' element={<BusDriverPage/>}></Route>
-                <Route path='bus/driving_plans' element={<BusDrivingPlansPage/>}></Route>
-                <Route path='bus/putni_radni_listovi' element={<BusPutniRadniListoviPage/>}></Route>
-                <Route path='bus/invoices' element={<BusInvoicesPage/>}></Route>
               </Route>
             </Route>
           </Route>
