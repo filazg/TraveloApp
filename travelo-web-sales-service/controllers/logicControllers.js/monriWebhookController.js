@@ -274,6 +274,10 @@ const monriBrowserRedirectController = async (req, res) => {
                     received_digest: String(payload.digest || '').toLowerCase(),
                     tried: digestVariants(payload).map((v) => `${v.name}=${v.value.slice(0, 16)}…`),
                 });
+                // Cijeli query — formula na povratku očito uključuje i parametar
+                // koji gore ne hvatamo, a bez popisa svih parametara se ne može
+                // pogoditi koji.
+                console.log('monri browser-redirect FULL QUERY:', JSON.stringify(q));
             } else {
                 try {
                     await runFinalization({
