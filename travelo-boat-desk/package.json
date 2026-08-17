@@ -31,7 +31,8 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "electron/assets/icon.ico"
     },
     "extraResources": [
       {
