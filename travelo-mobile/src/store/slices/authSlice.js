@@ -88,6 +88,9 @@ const authSlice = createSlice({
         suggestedTid: null,
         autoPairing: false,
         autoPairChecked: false,
+        // Postavlja se kad operater sam odpari uređaj — tada ne pokušavamo
+        // automatsko uparivanje dok ga ručno ne zatraži.
+        autoPairSuppressed: false,
         // Operator-level login (set in-memory after basic_data sync; not persisted).
         operator: null,
     },
@@ -100,6 +103,9 @@ const authSlice = createSlice({
         },
         clearError(state) {
             state.error = null;
+        },
+        allowAutoPair(state) {
+            state.autoPairSuppressed = false;
         },
     },
     extraReducers: (builder) => {
@@ -141,13 +147,15 @@ const authSlice = createSlice({
             .addCase(unpairTerminalThunk.fulfilled, (s) => {
                 s.token = null;
                 s.operator = null;
-                // Nakon ručnog odparivanja ne uparujemo ponovno automatski u istoj
-                // sesiji — inače se ekran za uparivanje ne bi mogao ni otvoriti.
+                // Nakon ručnog odparivanja ne uparujemo ponovno automatski —
+                // inače se ekran za uparivanje ne bi mogao ni otvoriti. Operater
+                // ga može pokrenuti gumbom na tom ekranu.
                 s.autoPairChecked = true;
+                s.autoPairSuppressed = true;
             });
     },
 });
 
-export const { setOperator, logoutOperator, clearError } = authSlice.actions;
+export const { setOperator, logoutOperator, clearError, allowAutoPair } = authSlice.actions;
 export const authData = (state) => state.auth;
 export default authSlice.reducer;

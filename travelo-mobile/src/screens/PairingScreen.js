@@ -12,9 +12,10 @@ import {
     View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { authData, clearError, pairTerminalThunk } from '../store/slices/authSlice';
+import { allowAutoPair, authData, autoPairThunk, clearError, pairTerminalThunk } from '../store/slices/authSlice';
 import { syncBasicDataThunk } from '../store/slices/syncSlice';
 import { DEFAULT_GATEWAY_URL } from '../api/config';
+import { storage } from '../api/client';
 import { colors, shadows } from '../theme/colors';
 
 export default function PairingScreen() {
@@ -37,6 +38,18 @@ export default function PairingScreen() {
             ]);
         }
     }, [auth.error, dispatch]);
+
+    // Ručno pokretanje zero-touch provjere — koristi se kad se serijski broj
+    // uređaja u međuvremenu upiše ili ispravi u portalu.
+    const onRetryAuto = async () => {
+        // Prvo spremi upisani poslužitelj, inače provjera ide na stari.
+        if (gateway) await storage.setGateway(gateway);
+        dispatch(allowAutoPair());
+        const res = await dispatch(autoPairThunk());
+        if (res.payload?.mode !== 'auto') {
+            Alert.alert('Uparivanje', 'Uređaj nije označen za automatsko uparivanje. Upišite TID i OTP.');
+        }
+    };
 
     const onSubmit = async () => {
         if (!tid || !otp) return;
@@ -101,6 +114,18 @@ export default function PairingScreen() {
                             <Text style={styles.btnText}>Upari uređaj</Text>
                         )}
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.btnGhost, auth.autoPairing && styles.btnDisabled]}
+                        onPress={onRetryAuto}
+                        disabled={auth.autoPairing}
+                    >
+                        {auth.autoPairing ? (
+                            <ActivityIndicator color={colors.primary} />
+                        ) : (
+                            <Text style={styles.btnGhostText}>Pokušaj automatsko uparivanje</Text>
+                        )}
+                    </TouchableOpacity>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -137,6 +162,15 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         alignItems: 'center',
     },
+    btnGhost: {
+        marginTop: 12,
+        paddingVertical: 14,
+        borderRadius: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    btnGhostText: { color: colors.primary, fontWeight: '600', fontSize: 15 },
     btnDisabled: { opacity: 0.5 },
     btnText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 16 },
 });

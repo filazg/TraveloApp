@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, StatusBar, StyleSheet, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
 import { authData, autoPairThunk, restoreTokenThunk } from '../store/slices/authSlice';
@@ -39,6 +39,19 @@ export default function AppNavigator() {
         if (auth.booting || auth.token || auth.autoPairChecked || auth.autoPairing) return;
         dispatch(autoPairThunk());
     }, [auth.booting, auth.token, auth.autoPairChecked, auth.autoPairing, dispatch]);
+
+    // App često ostane u memoriji, pa se boot ne ponovi kad je operater samo
+    // minimizira. Zato neuparen uređaj ponovi provjeru pri povratku u prvi plan
+    // — tako se upari čim se u portalu ispravi serijski broj ili uključi
+    // zastavica, bez ubijanja aplikacije.
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state !== 'active') return;
+            if (auth.token || auth.autoPairing || auth.autoPairSuppressed) return;
+            dispatch(autoPairThunk());
+        });
+        return () => sub.remove();
+    }, [auth.token, auth.autoPairing, auth.autoPairSuppressed, dispatch]);
 
     // Network-backed refresh of master data when a token is available but
     // either we have nothing or the last sync looks stale.
