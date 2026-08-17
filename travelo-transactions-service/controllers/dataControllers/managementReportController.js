@@ -8,7 +8,8 @@ const { getCoreServiceConfigData } = require("../configSyncController");
 // Treba ga izvještaj Prodaja: ondje su stupci dani *kupnje*, pa se datum
 // polaska ne može izvesti iz njih.
 const departureDateKey = (str) => {
-    const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})/.exec(String(str || ""));
+    // Kose crte dolaze iz web prodaje ("23/09/2026 09:00"), točke iz POS-a.
+    const m = /^(\d{1,2})[./](\d{1,2})[./](\d{4})/.exec(String(str || ""));
     if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
     const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(str || ""));
     return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : null;

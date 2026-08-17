@@ -96,10 +96,12 @@ const parseDate = (v) => {
     if (!v) return null;
     if (v instanceof Date) return v;
     if (typeof v === "string") {
-        // POS zapisuje polazak kao "DD.MM.YYYY. HH:mm" (dan i mjesec znaju biti bez
-        // vodeće nule). new Date() to ne zna pročitati i vrati Invalid Date — a tada
-        // je polazak ispadao u tekući mjesec i predujam se nikad nije iskazao.
-        const hr = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?(?:\s+(\d{1,2}):(\d{2}))?/.exec(v.trim());
+        // Polazak se zapisuje u dva oblika: POS i boat servis kao
+        // "DD.MM.YYYY. HH:mm", a web prodaja kao "DD/MM/YYYY HH:mm" (dan i mjesec
+        // znaju biti bez vodeće nule). new Date() ne zna pročitati ni jedan od
+        // njih i vrati Invalid Date — a tada polazak ispadne u tekući mjesec i
+        // predujam za buduće razdoblje se nikad ne iskaže.
+        const hr = /^(\d{1,2})[./](\d{1,2})[./](\d{4})\.?(?:\s+(\d{1,2}):(\d{2}))?/.exec(v.trim());
         if (hr) {
             const [, d, mo, y, hh = "0", mm = "0"] = hr;
             return new Date(+y, +mo - 1, +d, +hh, +mm);
