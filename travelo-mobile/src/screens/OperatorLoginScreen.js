@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -85,9 +85,27 @@ export default function OperatorLoginScreen() {
 
     const canLogin = !loggingIn && (mode === 'code' ? !!code.trim() : !!username && !!password);
 
+    // Odjava operatera je prirodan trenutak za osvježavanje: sljedeći operater
+    // treba važeće šifre i dozvole. Tiho — ako nema veze, radi se sa spremljenom
+    // kopijom.
+    const mountRefreshRef = useRef(false);
+    useEffect(() => {
+        if (mountRefreshRef.current || sync.loading) return;
+        mountRefreshRef.current = true;
+        dispatch(syncBasicDataThunk());
+    }, [dispatch, sync.loading]);
+
     const onRefresh = async () => {
         if (sync.loading) return;
-        await dispatch(syncBasicDataThunk());
+        const res = await dispatch(syncBasicDataThunk());
+        // Ručno osvježavanje je do sada tiho padalo, pa je izgledalo kao da su
+        // podaci povučeni iako uređaj nije ni došao do poslužitelja.
+        if (res.meta.requestStatus !== 'fulfilled') {
+            Alert.alert(
+                'Osvježavanje',
+                'Podaci nisu osvježeni — nema veze s poslužiteljem. Radi se sa zadnjim spremljenim podacima.',
+            );
+        }
     };
 
     return (

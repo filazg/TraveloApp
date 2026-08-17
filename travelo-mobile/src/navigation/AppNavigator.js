@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, AppState, StatusBar, StyleSheet, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
@@ -52,6 +52,18 @@ export default function AppNavigator() {
         });
         return () => sub.remove();
     }, [auth.token, auth.autoPairing, auth.autoPairSuppressed, dispatch]);
+
+    // Podaci o operaterima (šifre, lozinke, dozvole) mijenjaju se u portalu, a
+    // terminal ih samo povlači. Zato pri svakom pokretanju povučemo basic_data i
+    // kad ga već imamo — inače nova šifra ne dođe na uređaj dok netko ručno ne
+    // pritisne "Osvježi podatke". Ako povlačenje ne uspije, ostaje zadnja
+    // spremljena kopija pa se i offline može prijaviti.
+    const bootRefreshRef = useRef(false);
+    useEffect(() => {
+        if (!sync.hydrated || !auth.token || bootRefreshRef.current) return;
+        bootRefreshRef.current = true;
+        dispatch(syncBasicDataThunk());
+    }, [sync.hydrated, auth.token, dispatch]);
 
     // Network-backed refresh of master data when a token is available but
     // either we have nothing or the last sync looks stale.
