@@ -40,12 +40,11 @@ const node = (name, entry, extraEnv = {}) => ({
 
 // Vite dev server (za test fazu — kasnije zamijeniti static buildom).
 // `npm install` mora biti pokrenut u SPA folderu da postoji ./node_modules/vite.
-// Adrese backenda za SPA-ove. Ovdje se SPA vrti kao Vite dev server, pa
-// import.meta.env.PROD ostaje false — bez ovih varijabli bi preglednik gađao
-// localhost korisnika umjesto testnog poslužitelja.
-const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'https://bookingtest.krilo.hr/app';
-const PUBLIC_WEB_SALES_URL = process.env.PUBLIC_WEB_SALES_URL || 'https://bookingtest.krilo.hr/web_sale';
-const PUBLIC_DOWNLOAD_URL = process.env.PUBLIC_DOWNLOAD_URL || 'https://admintest.krilo.hr';
+// SPA-ovi po zadanom gađaju origin s kojeg su otvoreni (vidi helpers/backendUrl),
+// pa portal na domeni gađa domenu, a na IP-u taj IP. Ove varijable služe samo
+// kad backend NIJE na istom poslužitelju kao stranica — tada ih postavi u shellu
+// prije `pm2 restart ecosystem.config.js --update-env`.
+const spaEnv = (vars) => Object.fromEntries(Object.entries(vars).filter(([, v]) => !!v));
 
 const vite = (name, port, basePath, extraEnv = {}) => ({
   name,
@@ -84,8 +83,8 @@ module.exports = {
     node('travelo-web_portal-service', 'travelo-web_portal-service.js'),
 
     // SPA-ovi (Vite dev) — portovi i base se poklapaju s nginx config-om
-    vite('travelo-portal',         5180, '/portal/',       { VITE_BACKEND_URL: PUBLIC_APP_URL }),
-    vite('travelo-web-sales',      5182, '/',             { VITE_WEB_SALES_URL: PUBLIC_WEB_SALES_URL, VITE_DOWNLOAD_URL: PUBLIC_DOWNLOAD_URL }),
-    vite('travelo-partner-sales',  5183, '/partner-sale/', { VITE_BACKEND_URL: PUBLIC_APP_URL }),
+    vite('travelo-portal',         5180, '/portal/',       spaEnv({ VITE_BACKEND_URL: process.env.PUBLIC_APP_URL })),
+    vite('travelo-web-sales',      5182, '/',             spaEnv({ VITE_WEB_SALES_URL: process.env.PUBLIC_WEB_SALES_URL, VITE_DOWNLOAD_URL: process.env.PUBLIC_DOWNLOAD_URL })),
+    vite('travelo-partner-sales',  5183, '/partner-sale/', spaEnv({ VITE_BACKEND_URL: process.env.PUBLIC_APP_URL })),
   ],
 };

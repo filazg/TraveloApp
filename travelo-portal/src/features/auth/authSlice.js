@@ -1,10 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit"
+import { resolveBackendUrl } from "../../helpers/backendUrl"
 
-// Adresa backenda: VITE_BACKEND_URL ako je postavljena (test VM vrti SPA kao
-// Vite dev server, pa se tamo prosljeđuje kroz pm2), inače build gađa testni
-// poslužitelj a `npm run dev` lokalni. Ručna zastavica se znala zaboraviti.
-const backendURL = import.meta.env.VITE_BACKEND_URL
-    || (import.meta.env.PROD ? 'https://bookingtest.krilo.hr/app' : 'http://localhost:5100')
+const backendURL = resolveBackendUrl('/app')
 
 const initialState = {
     backendURL,

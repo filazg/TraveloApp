@@ -1,9 +1,7 @@
-// Vite postavlja PROD na true samo u buildu, pa `npm run dev` ide na lokalni
-// backend, a build za deploy na testni poslužitelj — bez ručnog prebacivanja
-// zastavice, koje se znalo zaboraviti prije builda.
-const prod = import.meta.env.PROD
+import { resolveBackendUrl } from "./backendUrl"
 
+// Web prodaja ima svoj servis (/web_sale) i gateway (/) na istom poslužitelju.
 export const url = import.meta.env.VITE_WEB_SALES_URL
-    || (prod ? 'https://bookingtest.krilo.hr/web_sale' : 'http://localhost:6030')
+    || resolveBackendUrl('/web_sale', 'http://localhost:6030')
 export const downloadurl = import.meta.env.VITE_DOWNLOAD_URL
-    || (prod ? 'https://admintest.krilo.hr' : 'http://localhost:5100')
+    || resolveBackendUrl('', 'http://localhost:5100')
