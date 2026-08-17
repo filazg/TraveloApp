@@ -47,7 +47,6 @@ import { url } from '../../../config/config'
 import mc from '../../../assets/mc_vrt_opt_pos_63_2x.png'
 import ms from '../../../assets/ms_vrt_opt_pos_53_2x.png'
 import visa from '../../../assets/Visa 2015 50.gif'
-import diners from '../../../assets/Diners50.gif'
 import amex from '../../../assets/AmericanExpress50.jpg'
 
 const subtotal = (tickets) => tickets.reduce((sum, t) => sum + (t.total_price || 0), 0)
@@ -511,7 +510,6 @@ export default function SelectedTicketsSummaryComponent() {
             { src: mc, href: 'https://www.mastercard.hr/hr-hr.html', alt: 'mc' },
             { src: ms, href: 'https://www.mastercard.com/brandcenter/en/home', alt: 'ms' },
             { src: visa, href: 'https://www.visa.co.uk/about-visa/visa-in-europe.html', alt: 'visa' },
-            { src: diners, href: 'https://www.diners.hr/', alt: 'diners' },
             { src: amex, href: 'https://www.americanexpress.com', alt: 'amex' },
           ].map((card) => (
             <Grid key={card.alt}>
