@@ -315,4 +315,4 @@ router
     .route('/downloads/file/:file')
     .get(handleDownloadFileFeature)
 
-//BUS ROUTES
+module.exports = router
