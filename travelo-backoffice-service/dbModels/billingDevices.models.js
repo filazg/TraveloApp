@@ -56,6 +56,13 @@ module.exports =  (sequelize) =>{
             type:DataTypes.BOOLEAN,
             allowNull:true
         },
+        // Zero-touch uparivanje: uređaj s ovom zastavicom i upisanim serijskim
+        // brojem dobiva token po SN-u, bez unosa TID-a i OTP-a.
+        auto_pair:{
+            type:DataTypes.BOOLEAN,
+            allowNull:false,
+            defaultValue:false
+        },
         description:{
             type:DataTypes.STRING,
             allowNull:true

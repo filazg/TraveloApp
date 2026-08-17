@@ -149,6 +149,7 @@ const getBillingDevicesController = async(req,res)=>{
                     cost_center:billingDevice.cost_center,
                     device_model:billingDevice.device_model,
                     serial_number:billingDevice.serial_number,
+                    auto_pair:billingDevice.auto_pair,
                     auto_validate:billingDevice.auto_validate,
                     description:billingDevice.description,
                     type_uuid:billingDevice.type_uuid,
@@ -255,6 +256,7 @@ const addBillingDeviceController = async(req,res)=>{
                         cost_center:data.cost_center,
                         device_model: deviceModel,
                         serial_number: serialNumber,
+                        auto_pair: data.auto_pair === true || data.auto_pair === 'true',
                         auto_validate: isMobile
                             ? (data.auto_validate === true || data.auto_validate === 'true')
                             : false,
@@ -379,6 +381,9 @@ const updateBillingDeviceController = async(req,res)=>{
                         tid: isWeb ? null : (data.tid ?? billingDeviceExist.tid),
                         device_model: deviceModel,
                         serial_number: newSerial,
+                        ...(data.auto_pair !== undefined
+                            ? { auto_pair: data.auto_pair === true || data.auto_pair === 'true' }
+                            : {}),
                         // Auto-validacija — honor što stigne s portala, neovisno o tipu.
                         // Prije je bilo isMobile-only što je rušilo save za bus terminale
                         // ako je type_uuid bio UUID (currentType !== 'mobile' → forced false).

@@ -432,6 +432,7 @@ export default function BillingDevicesPage (){
             valueGetter: (_v, row) => modelNameByCode(row.device_model) },
         { field: 'serial_number', headerName:t('backoffice.billing_devices.serial_number'), flex: 2 },
         { field: 'auto_validate', type: 'boolean', headerName:t('backoffice.billing_devices.auto_validate'), flex: 2},
+        { field: 'auto_pair', type: 'boolean', headerName: 'Auto uparivanje', flex: 2},
         { field: 'is_active', type: 'boolean', headerName:t('backoffice.billing_devices.is_active'), flex: 2},
     ];
 
@@ -653,6 +654,22 @@ export default function BillingDevicesPage (){
                         >
                             <MenuItem value="false">Ne (karta se ručno validira na ulazu)</MenuItem>
                             <MenuItem value="true">Da (karta se automatski validira pri prodaji)</MenuItem>
+                        </TextField>
+                    )}
+                    {(newData.type === 'pc' || newData.type === 'mobile') && (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Automatsko uparivanje"
+                            select
+                            value={newData.auto_pair === true || newData.auto_pair === 'true' ? 'true' : 'false'}
+                            onChange={handleChange}
+                            name="auto_pair"
+                            sx={{ mt: 1 }}
+                            helperText="Uređaj s upisanim serijskim brojem se upari sam, bez unosa TID-a i OTP-a"
+                        >
+                            <MenuItem value="false">Ne (ručno, TID i OTP)</MenuItem>
+                            <MenuItem value="true">Da (po serijskom broju)</MenuItem>
                         </TextField>
                     )}
                     <TextField
@@ -924,6 +941,20 @@ export default function BillingDevicesPage (){
                         >
                         <MenuItem value='true'>{t('backoffice.billing_devices.auto_validate_yes')}</MenuItem>
                         <MenuItem value='false'>{t('backoffice.billing_devices.auto_validate_no')}</MenuItem>
+                    </TextField>
+                    <TextField
+                        variant="outlined"
+                        fullWidth
+                        label="Automatsko uparivanje"
+                        select
+                        value={editedData?.auto_pair === true || editedData?.auto_pair === 'true' ? 'true' : 'false'}
+                        onChange={handleChangeEdit}
+                        name="auto_pair"
+                        sx={{ mt: 1 }}
+                        helperText="Uređaj s upisanim serijskim brojem se upari sam, bez unosa TID-a i OTP-a"
+                    >
+                        <MenuItem value="false">Ne (ručno, TID i OTP)</MenuItem>
+                        <MenuItem value="true">Da (po serijskom broju)</MenuItem>
                     </TextField>
                     <TextField
                         type="text"
