@@ -7,7 +7,12 @@ const {
 } = require('./syncControllers/syncBackOfficeServiceController');
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://kl-admin1:kl-admin123@209.38.200.220';
-const EXCHANGE = 'travelo_backoffice_events';
+
+// Boat i bus stack dijele isti broker. Bez namespacea oba projekta slušaju queue
+// istog imena pa broker poruke dijeli round-robinom — polovica event-a završi u
+// drugom projektu, a ovaj servis ostane sa zastarjelom kopijom podataka.
+const BROKER_NS = process.env.TRAVELO_BROKER_NS || 'boat';
+const EXCHANGE = `travelo_backoffice_events_${BROKER_NS}`;
 
 const handleEvent = async (message) => {
     switch (message.path) {
@@ -30,7 +35,8 @@ const handleEvent = async (message) => {
     }
 };
 
-const startSubscriber = async (queueName) => {
+const startSubscriber = async (rawQueueName) => {
+    const queueName = `${rawQueueName}_${BROKER_NS}`;
     try {
         const connection = await amqp.connect(RABBITMQ_URL);
         connection.on('error', (err) => {
@@ -38,7 +44,7 @@ const startSubscriber = async (queueName) => {
         });
         connection.on('close', () => {
             console.log('subscriber connection closed; reconnecting in 5s');
-            setTimeout(() => startSubscriber(queueName), 5000);
+            setTimeout(() => startSubscriber(rawQueueName), 5000);
         });
 
         const channel = await connection.createChannel();
@@ -61,7 +67,7 @@ const startSubscriber = async (queueName) => {
         console.log(`subscriber bound queue=${queueName} → exchange=${EXCHANGE}`);
     } catch (error) {
         console.log('subscriber connect error:', error?.message || error);
-        setTimeout(() => startSubscriber(queueName), 5000);
+        setTimeout(() => startSubscriber(rawQueueName), 5000);
     }
 };
 

@@ -1,7 +1,11 @@
 const amqp = require('amqplib');
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://kl-admin1:kl-admin123@209.38.200.220';
-const EXCHANGE = 'travelo_backoffice_events';
+
+// Namespace mora biti isti kao u subscriberima; boat i bus dijele broker pa bez
+// njega oba projekta slušaju isti exchange i queue i kradu si event-e.
+const BROKER_NS = process.env.TRAVELO_BROKER_NS || 'boat';
+const EXCHANGE = `travelo_backoffice_events_${BROKER_NS}`;
 
 let connection = null;
 let channel = null;
