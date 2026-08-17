@@ -21,8 +21,14 @@ export default function PairingScreen() {
     const dispatch = useDispatch();
     const auth = useSelector(authData);
     const [gateway, setGateway] = useState(auth.gateway || DEFAULT_GATEWAY_URL);
-    const [tid, setTid] = useState('');
+    // TID zna doći iz zero-touch provjere: SN je prepoznat, ali uređaj nije
+    // označen za automatsko uparivanje pa se traži samo OTP.
+    const [tid, setTid] = useState(auth.suggestedTid || '');
     const [otp, setOtp] = useState('');
+
+    useEffect(() => {
+        if (auth.suggestedTid) setTid((prev) => prev || auth.suggestedTid);
+    }, [auth.suggestedTid]);
 
     useEffect(() => {
         if (auth.error) {
@@ -48,7 +54,10 @@ export default function PairingScreen() {
         >
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
                 <Text style={styles.logo}>Travelo Mobile</Text>
-                <Text style={styles.subtitle}>Uparivanje uređaja</Text>
+                <Text style={[styles.subtitle, !auth.serial && styles.subtitleAlone]}>Uparivanje uređaja</Text>
+                {!!auth.serial && (
+                    <Text style={styles.serial}>Serijski broj: {auth.serial}</Text>
+                )}
 
                 <View style={styles.form}>
                     <Text style={styles.label}>Poslužitelj</Text>
@@ -102,7 +111,9 @@ const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: colors.bg },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
     logo: { fontSize: 32, fontWeight: '800', color: colors.primary, textAlign: 'center' },
-    subtitle: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 32 },
+    subtitle: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 8 },
+    subtitleAlone: { marginBottom: 32 },
+    serial: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginBottom: 24 },
     form: {
         backgroundColor: colors.surface, padding: 20, borderRadius: 12,
         borderWidth: 1, borderColor: colors.border,

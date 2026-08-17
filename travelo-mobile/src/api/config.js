@@ -7,6 +7,8 @@ export const DEFAULT_GATEWAY_URL = 'http://46.101.176.117:5100';
 export const ENDPOINTS = {
     // Pairing: returns { token } on success.
     terminalLogin: '/terminal_auth/login/terminalLogin',
+    // Zero-touch: po serijskom broju vraća {mode:'auto', token, tid} ili {mode:'manual', tid}.
+    terminalCheckPairing: '/terminal_auth/login/terminalCheckPairing',
     // Master data sync (requires Authorization header with token).
     basicData: '/terminals/terminal/basic_data',
     transportData: '/terminals/terminal/transport_data',

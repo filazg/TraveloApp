@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
-import { authData, restoreTokenThunk } from '../store/slices/authSlice';
+import { authData, autoPairThunk, restoreTokenThunk } from '../store/slices/authSlice';
 import { syncBasicDataThunk, syncTransportDataThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
 import { loadCurrentOpenThunk, loadRecentShiftsThunk, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
 import { openDb } from '../db/db';
@@ -33,6 +33,13 @@ export default function AppNavigator() {
         })();
     }, [dispatch]);
 
+    // Zero-touch: uređaj bez tokena prvo pokuša uparivanje po serijskom broju.
+    // Tek ako to ne prođe, prikazuje se ekran za ručno uparivanje.
+    useEffect(() => {
+        if (auth.booting || auth.token || auth.autoPairChecked || auth.autoPairing) return;
+        dispatch(autoPairThunk());
+    }, [auth.booting, auth.token, auth.autoPairChecked, auth.autoPairing, dispatch]);
+
     // Network-backed refresh of master data when a token is available but
     // either we have nothing or the last sync looks stale.
     useEffect(() => {
@@ -50,7 +57,9 @@ export default function AppNavigator() {
         dispatch(syncPendingShiftsThunk());
     }, [sync.hydrated, auth.operator, sync.basicData, dispatch]);
 
-    if (auth.booting) {
+    // Dok traje provjera zero-touch uparivanja držimo spinner, da ekran za ručno
+    // uparivanje ne bljesne na trenutak prije nego uređaj sam dobije token.
+    if (auth.booting || (!auth.token && !auth.autoPairChecked)) {
         return (
             <View style={styles.center}>
                 <StatusBar barStyle="light-content" />
