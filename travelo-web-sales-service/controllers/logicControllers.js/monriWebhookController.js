@@ -58,6 +58,36 @@ const matchDigest = (payload) => {
     return hit ? hit.name : null;
 };
 
+// Kad digest ne prođe, uplatu prihvaćamo samo ako se sve poklopi s NAŠOM
+// narudžbom: postoji pod tom referencom, još nije plaćena i iznos s povratka
+// je isti do zadnjeg centa. Referenca je nasumičan UUID, pa je za zloupotrebu
+// potrebno pogoditi i nju i točan iznos.
+const orderMatchesPayment = async (paymentRef, amountFromMonri) => {
+    const amountCents = parseInt(String(amountFromMonri || ''), 10);
+    if (!paymentRef || !Number.isFinite(amountCents) || amountCents <= 0) {
+        return { ok: false, reason: 'missing_reference_or_amount' };
+    }
+    const coreConfig = await getCoreServiceConfigData();
+    const salesUrl = coreConfig?.services?.sales?.url;
+    if (!salesUrl) return { ok: false, reason: 'sales_url_missing' };
+
+    const resp = await axios.get(`${salesUrl}/orders`, {
+        params: { payment_reference: paymentRef },
+        timeout: 8000,
+        validateStatus: () => true,
+    });
+    const orders = resp.data?.data?.orders || resp.data?.orders || [];
+    if (!orders.length) return { ok: false, reason: 'no_orders_for_reference' };
+
+    const totalCents = Math.round(
+        orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) * 100
+    );
+    if (totalCents !== amountCents) {
+        return { ok: false, reason: 'amount_mismatch', expected_cents: totalCents, received_cents: amountCents };
+    }
+    return { ok: true, orders_count: orders.length, amount_cents: amountCents };
+};
+
 const isApprovedStatus = (p) => {
     const s = String(p.status || '').toLowerCase();
     const rc = String(p.response_code || '');
@@ -164,20 +194,34 @@ const monriWebhookController = async (req, res) => {
             received_at: new Date().toISOString(),
         };
 
-        // SIGURNOST: izdavanje karata + računa (approved) ide ako je ILI digest
-        // validan ILI request dolazi s whitelist-anog Monri IP-a. Monri-jev
-        // server-to-server webhook ne uključuje digest u tijelu (digest formula
-        // pokriva browser-callback) pa je IP gate jedini realan way da pustimo
-        // legitimne approval-e. Decline (i sve ostalo) prolazi bez gate-a —
-        // samo update statusa, ne kreira ništa novo.
-        const authenticated = digestOk || trustedSource;
+        // SIGURNOST: karte i račun izdajemo ako je digest valjan, ako poziv
+        // dolazi s Monri IP-a, ili ako se uplata poklapa s našom narudžbom
+        // (ista referenca, isti iznos do centa). Webhook u tijelu nema digest u
+        // obliku koji možemo provjeriti, pa bi inače legitimne uplate ostajale
+        // neobrađene. Decline prolazi bez provjere — samo mijenja status
+        // postojeće narudžbe, ne kreira ništa.
+        let authenticated = digestOk || trustedSource;
+        let verifiedBy = digestOk ? 'digest' : (trustedSource ? 'trusted_ip' : null);
         if (approved && !authenticated) {
-            console.log('MONRI WEBHOOK REJECTED (approved + neither digest nor trusted IP)', {
-                payment_reference: payload.order_number,
-                source_ip: sourceIp,
-            });
-            return res.status(200).send('rejected_unauthenticated');
+            const amountCheck = await orderMatchesPayment(payload.order_number, payload.amount);
+            if (amountCheck.ok) {
+                authenticated = true;
+                verifiedBy = 'order_amount_match';
+                console.log('MONRI WEBHOOK prihvaćen bez digesta (iznos odgovara narudžbi)', {
+                    payment_reference: payload.order_number,
+                    amount_cents: amountCheck.amount_cents,
+                    orders: amountCheck.orders_count,
+                });
+            } else {
+                console.log('MONRI WEBHOOK REJECTED (approved, digest ne prolazi, iznos ne odgovara)', {
+                    payment_reference: payload.order_number,
+                    source_ip: sourceIp,
+                    provjera: amountCheck,
+                });
+                return res.status(200).send('rejected_unauthenticated');
+            }
         }
+        meta.verified_by = verifiedBy;
 
         await runFinalization({
             paymentRef: payload.order_number,
@@ -225,10 +269,12 @@ const simulatePaymentController = async (req, res) => {
 // webhook (`POST /monricallback`) ovisi o konfiguraciji u Monri panelu pa
 // može zakazati; ovaj GET je pouzdaniji za UI flow.
 //
-// SIGURNOST: izdavanje karata + računa (approved put) ide ISKLJUČIVO ako HMAC
-// digest validira. Inače bilo tko bi mogao kraftati URL s response_code=0000
-// i dobiti karte besplatno. Decline put ne kreira ništa novo (samo status
-// update na već postojećem orderu) pa se može izvesti i bez digest-a.
+// SIGURNOST: karte i račun izdajemo ako prođe digest ILI ako se povratak
+// poklopi s našom narudžbom (postoji pod tom referencom i iznos je isti do
+// centa). Monri na povratku potpisuje formulom koja ne odgovara dokumentaciji,
+// pa bi inače svaka uplata ostala neobrađena. Za zloupotrebu bi trebalo pogoditi
+// nasumičan UUID reference i točan iznos. Decline put ne kreira ništa novo
+// (samo status na postojećoj narudžbi) pa je oduvijek prolazio bez digesta.
 const monriBrowserRedirectController = async (req, res) => {
     try {
         const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
@@ -256,8 +302,19 @@ const monriBrowserRedirectController = async (req, res) => {
                 source: 'browser_redirect',
                 received_at: new Date().toISOString(),
             };
+            // Popunjava se niže ako digest ne prođe pa se uplata potvrđuje
+            // usporedbom s narudžbom.
+            let verifiedBy = digestOk ? 'digest' : null;
 
+            let amountCheck = null;
             if (approved && !digestOk) {
+                // Monri na povratku potpisuje drugom formulom nego što je
+                // dokumentirano, pa digest ne prolazi. Umjesto da uplata ostane
+                // neobrađena, provjeravamo je prema vlastitoj narudžbi.
+                amountCheck = await orderMatchesPayment(orderNumber, payload.amount);
+            }
+
+            if (approved && !digestOk && !amountCheck?.ok) {
                 // Approved put bez validnog digest-a je sumnjiv — možda kupac
                 // koji je tab pre-loadao sa starim parametrima, možda napad.
                 // NE finaliziramo. Ostavljamo order na pending_payment; pravi
@@ -278,7 +335,17 @@ const monriBrowserRedirectController = async (req, res) => {
                 // koji gore ne hvatamo, a bez popisa svih parametara se ne može
                 // pogoditi koji.
                 console.log('monri browser-redirect FULL QUERY:', JSON.stringify(q));
+                console.log('monri browser-redirect provjera narudžbe:', amountCheck);
             } else {
+                if (approved && !digestOk && amountCheck?.ok) {
+                    verifiedBy = 'order_amount_match';
+                    console.log('monri browser-redirect prihvaćen bez digesta (iznos odgovara narudžbi)', {
+                        order_number: orderNumber,
+                        amount_cents: amountCheck.amount_cents,
+                        orders: amountCheck.orders_count,
+                    });
+                }
+                meta.verified_by = verifiedBy;
                 try {
                     await runFinalization({
                         paymentRef: orderNumber,
