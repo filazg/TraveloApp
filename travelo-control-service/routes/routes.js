@@ -2,6 +2,7 @@ const express = require('express');
 const { getMainServicesConfig, getChannelServicesConfig, getCoreServicesConfig } = require('../controllers/configServiceControllers');
 const { getDatabaseConfigController } = require('../controllers/databaseConfigServiceControllers');
 const { getIntegrationsConfigController } = require('../controllers/integrationsConfigServiceControllers');
+const { getModulesConfigController } = require('../controllers/modulesConfigServiceController');
 const { getActiveEnv } = require('../config/configResolver');
 const router = express.Router();
 
@@ -28,5 +29,9 @@ router
 router
     .route('/integrations_config')
     .all(getIntegrationsConfigController)
+
+router
+    .route('/modules_config')
+    .all(getModulesConfigController)
 
 module.exports = router

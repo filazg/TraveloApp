@@ -61,5 +61,13 @@
         "db_username": "",
         "db_pass": "",
         "db_host": ""
+    },
+    "_profiles": {
+        "default": {
+            "db_name_prefix": ""
+        },
+        "boat": {
+            "db_name_prefix": ""
+        }
     }
 }

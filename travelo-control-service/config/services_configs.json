@@ -1,96 +1,96 @@
 {
-    "main_services":{
-        "gateway_service":{
-            "service_name":"gateway",
-            "url":"http://192.168.0.100:5100",
-            "port":5100,
+    "main_services": {
+        "gateway_service": {
+            "service_name": "gateway",
+            "url": "http://192.168.0.100:5100",
+            "port": 5100,
             "is_login": true
         },
-        "auth":{
-            "service_name":"auth_service",
-            "url":"http://localhost:5200",
-            "port":5200,
+        "auth": {
+            "service_name": "auth_service",
+            "url": "http://localhost:5200",
+            "port": 5200,
             "is_login": true,
-            "cookie":true,
-            "domain":"192.168.0.100"
+            "cookie": true,
+            "domain": "192.168.0.100"
         },
-        "terminal_auth":{
-            "service_name":"auth_service",
-            "url":"http://localhost:5200",
-            "port":5200,
+        "terminal_auth": {
+            "service_name": "auth_service",
+            "url": "http://localhost:5200",
+            "port": 5200,
             "is_login": true,
-            "cookie":false
+            "cookie": false
         }
     },
-    "channel_services":{
-        "portal":{
-            "service_name":"portal_service",
-            "url":"http://localhost:6010",
-            "port":6010,
+    "channel_services": {
+        "portal": {
+            "service_name": "portal_service",
+            "url": "http://localhost:6010",
+            "port": 6010,
             "is_login": false,
-            "auth_url":"http://localhost:5200/login/webPortalCheckLogin"
+            "auth_url": "http://localhost:5200/login/webPortalCheckLogin"
         },
-        "terminals":{
-            "service_name":"terminals_service",
-            "url":"http://localhost:6020",
-            "port":6020,
+        "terminals": {
+            "service_name": "terminals_service",
+            "url": "http://localhost:6020",
+            "port": 6020,
             "is_login": false,
-            "auth_url":"http://localhost:5200/login/terminalCheckLogin"
+            "auth_url": "http://localhost:5200/login/terminalCheckLogin"
         },
-        "web_sales":{
-            "service_name":"web_sales_service",
-            "url":"http://localhost:6040",
-            "port":6030,
+        "web_sales": {
+            "service_name": "web_sales_service",
+            "url": "http://localhost:6040",
+            "port": 6030,
             "is_login": false
         },
-        "api":{
-            "service_name":"api_service",
-            "url":"http://localhost:6040",
-            "port":6040,
+        "api": {
+            "service_name": "api_service",
+            "url": "http://localhost:6040",
+            "port": 6040,
             "is_login": false
         }
     },
-    "core_services":{
-        "backoffice":{
-            "service_name":"backoffice_service",
-            "url":"http://localhost:7010",
-            "port":7010,
+    "core_services": {
+        "backoffice": {
+            "service_name": "backoffice_service",
+            "url": "http://localhost:7010",
+            "port": 7010,
             "is_login": false
         },
-        "boat":{
-            "service_name":"boat_service",
-            "url":"http://localhost:7020",
-            "port":7020,
-            "is_login": false
-        },        
-        "transactions":{
-            "service_name":"transactions_service",
-            "url":"http://localhost:7030",
-            "port":7030,
-            "is_login": false
-        },        
-        "sales":{
-            "service_name":"sales_service",
-            "url":"http://localhost:7040",
-            "port":7040,
+        "boat": {
+            "service_name": "boat_service",
+            "url": "http://localhost:7020",
+            "port": 7020,
             "is_login": false
         },
-        "booking":{
-            "service_name":"booking_service",
-            "url":"http://localhost:7060",
-            "port":7060,
+        "transactions": {
+            "service_name": "transactions_service",
+            "url": "http://localhost:7030",
+            "port": 7030,
             "is_login": false
         },
-        "reports":{
-            "service_name":"reports_service",
-            "url":"http://localhost:7050",
-            "port":7060,
+        "sales": {
+            "service_name": "sales_service",
+            "url": "http://localhost:7040",
+            "port": 7040,
             "is_login": false
         },
-        "akd":{
-            "service_name":"akd_service",
-            "url":"http://localhost:7070",
-            "port":7070,
+        "booking": {
+            "service_name": "booking_service",
+            "url": "http://localhost:7060",
+            "port": 7060,
+            "is_login": false
+        },
+        "reports": {
+            "service_name": "reports_service",
+            "url": "http://localhost:7050",
+            "port": 7060,
+            "is_login": false
+        },
+        "akd": {
+            "service_name": "akd_service",
+            "url": "http://localhost:7070",
+            "port": 7070,
             "is_login": false
         }
     }

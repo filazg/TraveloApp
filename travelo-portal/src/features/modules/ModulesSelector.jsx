@@ -14,8 +14,21 @@ const GRADIENT_BY_ACR = {
     FINA: "linear-gradient(135deg,#f46b45 0%,#eea849 100%)",
     MANA: "linear-gradient(135deg,#0ba360 0%,#3cba92 100%)",
     REPO: "linear-gradient(135deg,#11998e 0%,#38ef7d 100%)",
+    BUSL: "linear-gradient(135deg,#3a1c71 0%,#d76d77 100%)",
+    BUSSALE: "linear-gradient(135deg,#7f00ff 0%,#e100ff 100%)",
+    BUSDISP: "linear-gradient(135deg,#0f2027 0%,#2c5364 100%)",
+    BUSDRV: "linear-gradient(135deg,#373b44 0%,#4286f4 100%)",
+    BUSPRL: "linear-gradient(135deg,#16222a 0%,#3a6073 100%)",
 };
 const DEFAULT_GRADIENT = "linear-gradient(135deg,#654ea3 0%,#eaafc8 100%)";
+
+// Catalog uses `title: {hr,en}` and groups module type (shared|transport).
+// Pick the localized string for the current UI language.
+const pickLocalized = (val, lang) => {
+    if (val == null) return "";
+    if (typeof val === "string") return val;
+    return val[lang] || val.hr || val.en || Object.values(val)[0] || "";
+};
 
 function ModuleCard({ m, disabled, onClick }) {
     const Icon = iconsMap[m.icon];
@@ -103,9 +116,14 @@ export default function ModulesSelector() {
     const navigate = useNavigate();
     const authData = useSelector(authSliceData);
 
+    const lang = authData?.selectedLanguage?.code || "hr";
+    const catalog = authData?.modulesCatalog || { modules: [], enabled_modules: [] };
+    const enabledSet = new Set(catalog.enabled_modules || []);
+
     const isDisabled = (m) => {
-        const isOk = authData?.loggedUserData?.permissions?.find((perm) => perm.module_acr === m.acr);
-        return !isOk;
+        const perms = authData?.loggedUserData?.permissions || [];
+        if (perms.length === 0) return false;
+        return !perms.find((perm) => perm.module_acr === m.acr);
     };
 
     const handleClick = (m) => () => {
@@ -113,12 +131,27 @@ export default function ModulesSelector() {
         navigate(m.path);
     };
 
-    const transport = authData.transportmodulesData || [];
-    const basic = authData.basicModulesData || [];
+    // Localize titles + sort by `order`. Filter by enabled_modules (deploy-time toggle).
+    const visible = (catalog.modules || [])
+        .filter((m) => enabledSet.has(m.key))
+        .map((m) => ({
+            ...m,
+            title: pickLocalized(m.title, lang),
+            subtitle: pickLocalized(m.subtitle, lang),
+        }))
+        .sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+
+    const transport = visible.filter((m) => m.kind === "transport");
+    const basic = visible.filter((m) => m.kind === "shared");
+
+    // Fallback to legacy hardcoded data if catalog hasn't loaded yet.
+    const useFallback = visible.length === 0;
+    const transportRender = useFallback ? (authData.transportmodulesData || []) : transport;
+    const basicRender = useFallback ? (authData.basicModulesData || []) : basic;
 
     return (
         <Box sx={{ width: { xs: "100%", md: "90%", xl: "70%" }, mt: 5 }}>
-            {transport.length > 0 && (
+            {transportRender.length > 0 && (
                 <>
                     <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: 1.5 }}>
                         TRANSPORT
@@ -132,14 +165,14 @@ export default function ModulesSelector() {
                             gap: 2.5,
                         }}
                     >
-                        {transport.map((m) => (
-                            <ModuleCard key={m.acr} m={m} disabled={isDisabled(m)} onClick={handleClick(m)} />
+                        {transportRender.map((m) => (
+                            <ModuleCard key={m.key || m.acr} m={m} disabled={isDisabled(m)} onClick={handleClick(m)} />
                         ))}
                     </Box>
                 </>
             )}
 
-            {basic.length > 0 && (
+            {basicRender.length > 0 && (
                 <>
                     <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: 1.5 }}>
                         OSNOVNO
@@ -152,8 +185,8 @@ export default function ModulesSelector() {
                             gap: 2.5,
                         }}
                     >
-                        {basic.map((m) => (
-                            <ModuleCard key={m.acr} m={m} disabled={isDisabled(m)} onClick={handleClick(m)} />
+                        {basicRender.map((m) => (
+                            <ModuleCard key={m.key || m.acr} m={m} disabled={isDisabled(m)} onClick={handleClick(m)} />
                         ))}
                     </Box>
                 </>

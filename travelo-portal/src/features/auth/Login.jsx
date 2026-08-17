@@ -54,6 +54,17 @@ export default function LoginPage (){
             console.log(responseME)
             if(responseME.status === 200){
                 await dispatch(setAuthData({path:'loggedUserData', value: responseME.data.data}));
+                try {
+                    const modulesResp = await api.get("/portal/system/modules");
+                    if (modulesResp.status === 200) {
+                        await dispatch(setAuthData({ updates: [
+                            { path: 'modulesCatalog', value: modulesResp.data || {} },
+                            { path: 'modulesLoaded', value: true },
+                        ]}));
+                    }
+                } catch (e) {
+                    console.log("modules_config fetch failed:", e?.message || e);
+                }
             }else{
                 await dispatch(resetAuthData({path:'loggedUserData'}));
             }

@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
 // Strict per-IP limiter for unauthenticated login (defends against brute force).
 const loginLimiter = rateLimit({
@@ -16,7 +16,7 @@ const partnerLimiter = rateLimit({
     max: 120,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req /*, res */) => req.partner?.partner_uuid || req.ip,
+    keyGenerator: (req /*, res */) => req.partner?.partner_uuid || ipKeyGenerator(req.ip),
     message: { msg: "Rate limit exceeded for this partner. Try again in a minute." },
 });
 

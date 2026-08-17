@@ -23,7 +23,7 @@ const getDatabaseConfigData = ()=>{
 
 const syncDatabaseConfigData = async() =>{
     try {
-        const configData = await axios.post(controlServiceURL + '/database_services_config', {service:'boat_service'})
+        const configData = await axios.post(controlServiceURL + '/database_services_config', {service:'boat_service', profile: process.env.TRAVELO_PROFILE})
         databaseConfigData = await configData.data
         console.log('gotovo')
     } catch (error) {
