@@ -22,6 +22,7 @@ import PartnersPage from './features/backoffice/pages/partners/PartnersPage';
 import AddressbookPage from './features/backoffice/pages/addressbook/AddressbookPage';
 import HolidaysPage from './features/backoffice/pages/holidays/HolidaysPage';
 import InvoicesPage from './features/finance/pages/invoices/InvoicesPage';
+import FinanceInvoicesPage from './features/finance/FinanceInvoicesPage';
 import FinancePage from './features/finance/FinancePage';
 import PartnerInvoicesPage from './features/finance/pages/partner_invoices/PartnerInvoicesPage';
 import CountriesPage from './features/backoffice/pages/countries/CountriesPage';
@@ -29,6 +30,8 @@ import TicketsOverviewPage from './features/finance/pages/tickets/TicketsOvervie
 import HarborTaxReportPage from './features/finance/pages/harbor_tax/HarborTaxReportPage';
 import ShiftsPage from './features/finance/pages/shifts/ShiftsPage';
 import AccountsPage from './features/finance/pages/accounts/AccountsPage';
+import WebSalesSettingsPage from './features/backoffice/pages/channel_settings/WebSalesSettingsPage';
+import PartnerSalesSettingsPage from './features/backoffice/pages/channel_settings/PartnerSalesSettingsPage';
 import ReportsPage from './features/finance/pages/reports/ReportsPage';
 import DailyRealizationPage from './features/finance/pages/reports/DailyRealizationPage';
 import ManagementPage from './features/management/ManagementPage';
@@ -38,6 +41,19 @@ import RegionsPage from './features/boat/pages/regions/RegionsPage';
 import SalesPage from './features/sales/SalesPage';
 import DispatcherPage from './features/dispatcher/DispatcherPage';
 import SailingPage from './features/sailing/SailingPage';
+import BusPage from './features/bus/BusPage';
+import BusLinesPage from './features/bus/pages/lines/BusLinesPage';
+import BusVehiclesPage from './features/bus/pages/vehicles/BusVehiclesPage';
+import BusStopsPage from './features/bus/pages/stops/BusStopsPage';
+import BusTicketsTypesPage from './features/bus/pages/ticketTypes/BusTicketsTypesPage';
+import BusTimetablesPage from './features/bus/pages/timetables/BusTimetables';
+import BusPricelistsPage from './features/bus/pages/pricelists/BusPricelistsPage';
+import BusSalesPage from './features/bus/pages/sales/BusSalesPage';
+import BusDispatcherPage from './features/bus/pages/dispatcher/BusDispatcherPage';
+import BusDriverPage from './features/bus/pages/driver/BusDriverPage';
+import BusDrivingPlansPage from './features/bus/pages/driving_plans/BusDrivingPlansPage';
+import BusPutniRadniListoviPage from './features/bus/pages/putni_radni_listovi/BusPutniRadniListoviPage';
+import BusInvoicesPage from './features/bus/pages/invoices/BusInvoicesPage';
 
 
 function App() {
@@ -66,6 +82,8 @@ function App() {
                 <Route path='backoffice/addressbook' element={<AddressbookPage/>}></Route>
                 <Route path='backoffice/holidays' element={<HolidaysPage/>}></Route>
                 <Route path='backoffice/countries' element={<CountriesPage/>}></Route>
+                <Route path='backoffice/web_sales_settings' element={<WebSalesSettingsPage/>}></Route>
+                <Route path='backoffice/partner_sales_settings' element={<PartnerSalesSettingsPage/>}></Route>
                 <Route path='boat' element={<BoatPage/>}></Route>
                 <Route path='boat/harbors' element={<HarborsPage/>}></Route>
                 <Route path='boat/lines' element={<LinesPage/>}></Route>
@@ -74,7 +92,7 @@ function App() {
                 <Route path='boat/timetables' element={<TimetablesPage/>}></Route>
                 <Route path='boat/regions' element={<RegionsPage/>}></Route>
                 <Route path='finance' element={<FinancePage/>}></Route>
-                <Route path='finance/invoices' element={<InvoicesPage/>}></Route>
+                <Route path='finance/invoices' element={<FinanceInvoicesPage/>}></Route>
                 <Route path='finance/partner_invoices' element={<PartnerInvoicesPage/>}></Route>
                 <Route path='finance/tickets' element={<TicketsOverviewPage/>}></Route>
                 <Route path='finance/harbor_tax_report' element={<HarborTaxReportPage/>}></Route>
@@ -89,6 +107,19 @@ function App() {
                 <Route path='sales' element={<SalesPage/>}></Route>
                 <Route path='dispatcher' element={<DispatcherPage/>}></Route>
                 <Route path='sailing' element={<SailingPage/>}></Route>
+                <Route path='bus' element={<BusPage/>}></Route>
+                <Route path='bus/lines' element={<BusLinesPage/>}></Route>
+                <Route path='bus/vehicles' element={<BusVehiclesPage/>}></Route>
+                <Route path='bus/stops' element={<BusStopsPage/>}></Route>
+                <Route path='bus/tickets_types' element={<BusTicketsTypesPage/>}></Route>
+                <Route path='bus/timetables' element={<BusTimetablesPage/>}></Route>
+                <Route path='bus/pricelists' element={<BusPricelistsPage/>}></Route>
+                <Route path='bus/sales' element={<BusSalesPage/>}></Route>
+                <Route path='bus/dispatcher' element={<BusDispatcherPage/>}></Route>
+                <Route path='bus/driver' element={<BusDriverPage/>}></Route>
+                <Route path='bus/driving_plans' element={<BusDrivingPlansPage/>}></Route>
+                <Route path='bus/putni_radni_listovi' element={<BusPutniRadniListoviPage/>}></Route>
+                <Route path='bus/invoices' element={<BusInvoicesPage/>}></Route>
               </Route>
             </Route>
           </Route>
