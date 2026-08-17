@@ -11,6 +11,7 @@ const addressbookModelsFactory  = require("./addressbook.models");
 const countriesModelsFactory = require("./countries.models");
 const accountsModelsFactory = require("./accounts.models");
 const deviceSerialNumbersModelsFactory = require("./deviceSerialNumbers.models");
+const channelSettingsModelsFactory = require("./channelSettings.models");
 
 let models = null;
 
@@ -31,6 +32,7 @@ function initModels() {
       ...countriesModelsFactory(sequelize),
       ...accountsModelsFactory(sequelize),
       ...deviceSerialNumbersModelsFactory(sequelize),
+      ...channelSettingsModelsFactory(sequelize),
     };
   }
 

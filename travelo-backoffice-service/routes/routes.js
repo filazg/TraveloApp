@@ -3,6 +3,7 @@ const { getCompanyDataController, updateCompanyDataController } = require('../co
 const { getBusinessPremisesDataController, addBusinessPremiseDataController, updateBusinessPremiseDataController } = require('../controllers/dataControllers/businessPremisesDataControllers');
 const { getBillingDevicesController, addBillingDeviceController, updateBillingDeviceController, generateBillingDeviceTidController, generateBillingDeviceOtpController } = require('../controllers/dataControllers/billingDevicesDataControllers');
 const { getDeviceModelsDataController, getDeviceSerialNumbersDataController } = require('../controllers/dataControllers/deviceSerialNumbersDataControllers');
+const { getChannelSettingsDataController, getChannelSettingDataController, upsertChannelSettingDataController } = require('../controllers/dataControllers/channelSettingsDataControllers');
 const { getUsersDataController, addUserDataController, updateUserDataController } = require('../controllers/dataControllers/usersDataControllers');
 const { getPartnersDataController, addPartnerDataController, updatePartnerDataController, getPartnersWebUsersDataController, getPartnersAPIUsersDataController } = require('../controllers/dataControllers/partnersDataControllers');
 const { getHolidaysDataController, addHolidayDataController, updateHolidayDataController } = require('../controllers/dataControllers/holidaysDataControllers');
@@ -45,6 +46,15 @@ router
 router
     .route('/device_serial_numbers')
     .get(getDeviceSerialNumbersDataController)
+
+router
+    .route('/channel_settings')
+    .get(getChannelSettingsDataController)
+
+router
+    .route('/channel_settings/:channel')
+    .get(getChannelSettingDataController)
+    .patch(upsertChannelSettingDataController)
 
 router
     .route('/users')
