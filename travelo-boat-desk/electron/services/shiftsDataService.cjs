@@ -280,10 +280,17 @@ const closeShiftService = async(data) =>{
                 deacttive_line_detials:deactLineDetails
             }
             console.log('SHIFT DATA TO PRINT', dataToSend)
+            // Smjena je zatvorena i kad printer zakaže, ali operater to mora
+            // saznati — za izvještaj smjene nema naknadnog ispisa kopije.
+            let shiftPrinted = false
             try {
-                await shiftPrintHelper(dataToSend)
+                shiftPrinted = await shiftPrintHelper(dataToSend)
             } catch (printErr) {
                 console.log('shiftPrintHelper failed (printer issue?):', printErr?.message || printErr)
+            }
+            if (!shiftPrinted) {
+                msgToSend = 'Smjena je zatvorena, ali izvještaj nije ispisan — provjerite printer.'
+                msgSeverity = 'warning'
             }
         }else {
             msgToSend = 'Nije moguće zatvoriti smjenu'

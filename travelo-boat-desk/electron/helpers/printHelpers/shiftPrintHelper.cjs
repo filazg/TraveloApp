@@ -1,5 +1,6 @@
 const { ThermalPrinter, PrinterTypes, CharacterSet, BreakLine } = require('node-thermal-printer');
 const { systemSettingsDataModel } = require('../../db/models/Settings.cjs');
+const { runPrintJob } = require('./printJob.cjs');
 
 const date = new Date()
 
@@ -119,11 +120,11 @@ const shiftPrintHelper = async (data) => {
 
         printer.beep();
 
-        let execute = printer.execute()
-        console.log("Print done!");
+        return await runPrintJob(printer, 'SMJENA');
 
     }catch(error){
-        console.log(error)
+        console.log('PRINT SMJENA — greška pri pripremi ispisa:', error?.message || error)
+        return false;
     }
 }
 
