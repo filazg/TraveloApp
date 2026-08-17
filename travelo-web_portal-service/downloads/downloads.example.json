@@ -1,0 +1,20 @@
+{
+  "_comment": "Kopiraj u downloads.json i dopuni. Datoteka koja nije navedena prikazat će se pod svojim imenom, u kategoriji Ostalo.",
+  "items": [
+    {
+      "file": "Travelo Boat Desk Setup 1.0.16.exe",
+      "title": "Travelo Boat Desk (Windows)",
+      "description": "Instalacija desktop blagajne. Pokrenuti kao administrator.",
+      "category": "Aplikacije",
+      "version": "1.0.16",
+      "order": 10
+    },
+    {
+      "file": "upute-blagajna.pdf",
+      "title": "Upute za rad na blagajni",
+      "description": "Prodaja, storno i zatvaranje smjene.",
+      "category": "Upute",
+      "order": 10
+    }
+  ]
+}

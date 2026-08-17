@@ -1,0 +1,4 @@
+# Instalacijski paketi i upute se ne verzioniraju — mapa se puni na poslužitelju.
+*
+!.gitignore
+!downloads.example.json

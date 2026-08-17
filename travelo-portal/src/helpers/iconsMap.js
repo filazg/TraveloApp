@@ -46,6 +46,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import AnchorIcon from "@mui/icons-material/Anchor";
+import DownloadIcon from "@mui/icons-material/Download";
 
 export const iconsMap = {
   DepartureBoard: DepartureBoardIcon,
@@ -95,4 +96,5 @@ export const iconsMap = {
   AccessTime: AccessTimeIcon,
   AccountTree: AccountTreeIcon,
   Anchor: AnchorIcon,
+  Download: DownloadIcon,
 };

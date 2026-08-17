@@ -41,6 +41,7 @@ import RegionsPage from './features/boat/pages/regions/RegionsPage';
 import SalesPage from './features/sales/SalesPage';
 import DispatcherPage from './features/dispatcher/DispatcherPage';
 import SailingPage from './features/sailing/SailingPage';
+import DownloadsPage from './features/downloads/DownloadsPage';
 import BusPage from './features/bus/BusPage';
 import BusLinesPage from './features/bus/pages/lines/BusLinesPage';
 import BusVehiclesPage from './features/bus/pages/vehicles/BusVehiclesPage';
@@ -107,6 +108,7 @@ function App() {
                 <Route path='sales' element={<SalesPage/>}></Route>
                 <Route path='dispatcher' element={<DispatcherPage/>}></Route>
                 <Route path='sailing' element={<SailingPage/>}></Route>
+                <Route path='downloads' element={<DownloadsPage/>}></Route>
                 <Route path='bus' element={<BusPage/>}></Route>
                 <Route path='bus/lines' element={<BusLinesPage/>}></Route>
                 <Route path='bus/vehicles' element={<BusVehiclesPage/>}></Route>

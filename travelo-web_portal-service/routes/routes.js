@@ -44,6 +44,7 @@ const {
     handleChangeBoatFeature,
 } = require('../features/boat/sailingHandlers');
 const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
+const { handleGetDownloadsFeature, handleDownloadFileFeature } = require('../features/system/downloadsHandler');
 const {
     handleGetBusLinesFeature, handleAddBusLineFeature, handleUpdateBusLineFeature,
     handleGetBusVehiclesFeature, handleAddBusVehicleFeature, handleUpdateBusVehicleFeature,
@@ -375,6 +376,15 @@ router
 router
     .route('/system/modules')
     .get(handleGetModulesConfigFeature)
+
+//PREUZIMANJA
+router
+    .route('/downloads/list')
+    .get(handleGetDownloadsFeature)
+
+router
+    .route('/downloads/file/:file')
+    .get(handleDownloadFileFeature)
 
 //BUS ROUTES
 router
