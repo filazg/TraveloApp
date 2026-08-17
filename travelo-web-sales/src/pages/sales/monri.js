@@ -1,17 +1,24 @@
 import axios from 'axios'
 import { SHA512, enc } from 'crypto-js'
+import { url } from '../../config/config'
 
 const MONRI_URL = 'https://ipgtest.monri.com/v2/form'
 const MERCHANT_KEY = 'krilo65#$%&amp;3'
 const AUTHENTICITY_TOKEN = 'cec50256766ed9ba50fc88d7787326494f3f06fe'
 
-// Monri appends its own query params (order_number, status, …) on the success redirect.
-// Monri REQUIRES https for success_url_override — plain http (dev localhost) is rejected.
-// If we're running on https, use current origin; otherwise fall back to production URL.
+// Monri na povratku dodaje svoje parametre (order_number, status, digest, …).
+// Vraćamo se na backend (/monricallback), a ne ravno na stranicu s kartama:
+// tamo se provjeri digest i dovrši narudžba, pa handler preusmjeri preglednik
+// na /download s istim parametrima. Bez toga narudžba ostaje na pending_payment
+// dok ne stigne server-to-server webhook, a on traži postavku u Monri panelu —
+// stranica se tada samo vrti na "pripremamo karte".
+//
+// Monri traži https za success_url_override, pa lokalni razvoj (http) pada na
+// testnu adresu; tamo se ionako koristi simulacija plaćanja.
 const FALLBACK_HTTPS_URL = 'https://webbookingtest.krilo.hr/download'
 const defaultSuccessUrl = () => {
   if (typeof window === 'undefined') return FALLBACK_HTTPS_URL
-  if (window.location.protocol === 'https:') return `${window.location.origin}/download`
+  if (window.location.protocol === 'https:') return `${url}/monricallback`
   return FALLBACK_HTTPS_URL
 }
 
