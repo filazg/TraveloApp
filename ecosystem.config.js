@@ -46,6 +46,16 @@ const node = (name, entry, extraEnv = {}) => ({
 // prije `pm2 restart ecosystem.config.js --update-env`.
 const spaEnv = (vars) => Object.fromEntries(Object.entries(vars).filter(([, v]) => !!v));
 
+// PORTOVI SPA-ova MORAJU odgovarati proxy_pass unosima u nginx konfiguraciji
+// (/etc/nginx/sites-enabled/krilo.hr). Ako se raziđu, nginx vraća 502 jer iza
+// njega nitko ne sluša — a to se već dogodilo kad je repozitorij dizao 5180/5182.
+//   /portal/       -> 5174
+//   /partner-sale/ -> 5175
+//   /              -> 5176   (web prodaja)
+const PORTAL_PORT = Number(process.env.PORTAL_PORT) || 5174;
+const PARTNER_SALES_PORT = Number(process.env.PARTNER_SALES_PORT) || 5175;
+const WEB_SALES_PORT = Number(process.env.WEB_SALES_PORT) || 5176;
+
 const vite = (name, port, basePath, extraEnv = {}) => ({
   name,
   cwd: `./${name}`,
@@ -83,8 +93,8 @@ module.exports = {
     node('travelo-web_portal-service', 'travelo-web_portal-service.js'),
 
     // SPA-ovi (Vite dev) — portovi i base se poklapaju s nginx config-om
-    vite('travelo-portal',         5180, '/portal/',       spaEnv({ VITE_BACKEND_URL: process.env.PUBLIC_APP_URL })),
-    vite('travelo-web-sales',      5182, '/',             spaEnv({ VITE_WEB_SALES_URL: process.env.PUBLIC_WEB_SALES_URL, VITE_DOWNLOAD_URL: process.env.PUBLIC_DOWNLOAD_URL })),
-    vite('travelo-partner-sales',  5183, '/partner-sale/', spaEnv({ VITE_BACKEND_URL: process.env.PUBLIC_APP_URL })),
+    vite('travelo-portal',         PORTAL_PORT, '/portal/',       spaEnv({ VITE_BACKEND_URL: process.env.PUBLIC_APP_URL })),
+    vite('travelo-web-sales',      WEB_SALES_PORT, '/',             spaEnv({ VITE_WEB_SALES_URL: process.env.PUBLIC_WEB_SALES_URL, VITE_DOWNLOAD_URL: process.env.PUBLIC_DOWNLOAD_URL })),
+    vite('travelo-partner-sales',  PARTNER_SALES_PORT, '/partner-sale/', spaEnv({ VITE_BACKEND_URL: process.env.PUBLIC_APP_URL })),
   ],
 };

@@ -92,3 +92,31 @@ pm2 logs travelo-auth-service --lines 50  # auth zna se zapetljati na DNS pri st
 | reports | 7050 |
 | booking | 7060 |
 | akd | 7070 |
+
+## Portovi SPA-ova i nginx
+
+`ecosystem.config.js` diže SPA-ove kao Vite dev servere na portovima koje nginx
+očekuje (`/etc/nginx/sites-enabled/krilo.hr`):
+
+| Putanja u nginxu | proxy_pass | pm2 app |
+| --- | --- | --- |
+| `/portal/` | `127.0.0.1:5174` | travelo-portal |
+| `/partner-sale/` | `127.0.0.1:5175` | travelo-partner-sales |
+| `/` | `127.0.0.1:5176` | travelo-web-sales |
+| `/app/` | `127.0.0.1:5100` | gateway |
+| `/web_sale/` | `127.0.0.1:6030` | web-sales-service |
+
+Ako se portovi u nginxu promijene, prebaci ih bez diranja koda:
+
+```bash
+export PORTAL_PORT=5174 PARTNER_SALES_PORT=5175 WEB_SALES_PORT=5176
+pm2 restart ecosystem.config.js --update-env
+```
+
+Razilaženje ovih portova znači 502 od nginxa — iza njega tada nitko ne sluša.
+
+## Adrese backenda u SPA-ovima
+
+Ne postavljaju se: svaki SPA gađa origin s kojeg je otvoren (`/app` za gateway,
+`/web_sale` za web prodaju). `PUBLIC_APP_URL` i `PUBLIC_WEB_SALES_URL` postoje
+samo za slučaj da backend nije na istom poslužitelju kao stranica.
