@@ -2,6 +2,23 @@ const { Sequelize } = require('sequelize');
 const { Op } = require("sequelize");
 const dayjs = require('dayjs');
 
+// Polasci se u bazi vode kao tekst ("DD.MM.YYYY. HH:mm"), pa ih ne može poredati
+// ni baza ni obična usporedba stringova — 9:00 bi došlo iza 17:00 jer se
+// uspoređuje znak po znak. Zato se za redoslijed vrijeme pretvara u minute.
+const departureSortKey = (value) => {
+    const s = String(value || '').trim();
+    const m = /^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})\.?\s+(\d{1,2}):(\d{2})/.exec(s);
+    if (m) {
+        const [, d, mo, y, h, min] = m;
+        return Date.UTC(+y, +mo - 1, +d, +h, +min);
+    }
+    const iso = Date.parse(s);
+    return Number.isNaN(iso) ? Number.MAX_SAFE_INTEGER : iso;
+};
+
+const sortByDeparture = (trips) =>
+    [...trips].sort((a, b) => departureSortKey(a.actual_departure) - departureSortKey(b.actual_departure));
+
 const searchTripsController = async(req,res)=>{
     const { RoutesModel, TimetablePricesModel } = req.app.locals.models;  
     console.log('SEARCH', req.body)
@@ -180,7 +197,7 @@ const searchTripsController = async(req,res)=>{
             status:200,                
             path:'tripsData',
             data: {
-              trips:tripsResult
+              trips: sortByDeparture(tripsResult)
             }              
         })
     } catch (error) {
@@ -366,7 +383,7 @@ const searchWebPageTripsController = async(req,res)=>{
 
         res.send({
             status:200,                
-            trips:tripsResult            
+            trips: sortByDeparture(tripsResult)            
         })
     } catch (error) {
         console.log('ERROR' , error)
