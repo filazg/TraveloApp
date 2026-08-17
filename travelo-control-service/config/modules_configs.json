@@ -400,7 +400,7 @@
             "key": "BOAT",
             "acr": "TRAD",
             "kind": "transport",
-            "always_on": false,
+            "always_on": true,
             "order": 10,
             "title": {
                 "hr": "Brod",
@@ -511,7 +511,7 @@
             "key": "BOAT_SALES",
             "acr": "SALE",
             "kind": "transport",
-            "always_on": false,
+            "always_on": true,
             "requires": [
                 "BOAT"
             ],
@@ -536,7 +536,7 @@
             "key": "BOAT_DISPATCHER",
             "acr": "DISP",
             "kind": "transport",
-            "always_on": false,
+            "always_on": true,
             "requires": [
                 "BOAT"
             ],
@@ -559,7 +559,7 @@
             "key": "BOAT_KAPETAN",
             "acr": "KAPETAN",
             "kind": "transport",
-            "always_on": false,
+            "always_on": true,
             "requires": [
                 "BOAT"
             ],
