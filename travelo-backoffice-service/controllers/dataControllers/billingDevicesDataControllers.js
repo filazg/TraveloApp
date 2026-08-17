@@ -307,7 +307,7 @@ const addBillingDeviceController = async(req,res)=>{
 }
 
 const updateBillingDeviceController = async(req,res)=>{
-    const { BillingDevicesModel, BillingDevicesPermissionsModel, BillingDevicesPaymentMethodsModel, BusinessPremisesModel } = req.app.locals.models;
+    const { BillingDevicesModel, BillingDevicesPermissionsModel, BillingDevicesPaymentMethodsModel, BusinessPremisesModel, DeviceSerialNumbersModel } = req.app.locals.models;
     try {
         const data = req.body.body
          console.log('UPDATE  DATA')
@@ -342,11 +342,43 @@ const updateBillingDeviceController = async(req,res)=>{
                 const newType = data.type || currentType;
                 const isWeb = newType === 'web';
                 const isMobile = newType === 'mobile';
+
+                // Model i serijski broj vrijede samo za mobilnu blagajnu, a SN samo
+                // za modele koji ga vode u zalihi. Promjena SN-a mora i prebaciti
+                // rezervaciju u device_serial_numbers, inače stari ostane zauzet.
+                const deviceModel = isMobile
+                    ? (data.device_model !== undefined ? (data.device_model || null) : billingDeviceExist.device_model)
+                    : null;
+                const wantsSerial = deviceModel && modelRequiresSerial(deviceModel);
+                const newSerial = wantsSerial
+                    ? (data.serial_number !== undefined ? (data.serial_number || null) : billingDeviceExist.serial_number)
+                    : null;
+                const oldSerial = billingDeviceExist.serial_number || null;
+
+                if (newSerial && newSerial !== oldSerial) {
+                    const sn = await DeviceSerialNumbersModel.findOne({
+                        where: { serial_number: newSerial, is_active: true }
+                    });
+                    if (!sn) {
+                        return res.status(404).send({
+                            status: 404,
+                            msg: `Serijski broj "${newSerial}" ne postoji u zalihi.`,
+                        });
+                    }
+                    if (sn.billing_device_uuid && sn.billing_device_uuid !== data.uuid) {
+                        return res.status(409).send({
+                            status: 409,
+                            msg: `Serijski broj "${newSerial}" je već dodijeljen uređaju "${sn.billing_device_name || sn.billing_device_uuid}".`,
+                        });
+                    }
+                }
+
                 const updateBillingDevice = await BillingDevicesModel.update({
                         name:data.name,
                         otp: isWeb ? null : (data.otp ?? billingDeviceExist.otp),
                         tid: isWeb ? null : (data.tid ?? billingDeviceExist.tid),
-                        serial_number:data.serial_number,
+                        device_model: deviceModel,
+                        serial_number: newSerial,
                         // Auto-validacija — honor što stigne s portala, neovisno o tipu.
                         // Prije je bilo isMobile-only što je rušilo save za bus terminale
                         // ako je type_uuid bio UUID (currentType !== 'mobile' → forced false).
@@ -359,6 +391,22 @@ const updateBillingDeviceController = async(req,res)=>{
                 },{where:{
                     uuid:data.uuid
                 }})
+                    // Oslobodi stari SN pa zauzmi novi.
+                    if (newSerial !== oldSerial) {
+                        if (oldSerial) {
+                            await DeviceSerialNumbersModel.update(
+                                { billing_device_uuid: null, billing_device_name: null },
+                                { where: { serial_number: oldSerial } }
+                            );
+                        }
+                        if (newSerial) {
+                            await DeviceSerialNumbersModel.update(
+                                { billing_device_uuid: data.uuid, billing_device_name: data.name },
+                                { where: { serial_number: newSerial } }
+                            );
+                        }
+                    }
+
                     const updateBillingDevicePermissions = await BillingDevicesPermissionsModel.update({
                         is_active:false
                     },{where:{

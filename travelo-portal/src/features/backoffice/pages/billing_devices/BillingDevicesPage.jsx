@@ -25,6 +25,7 @@ export default function BillingDevicesPage (){
     // jer ih koristi samo ova forma.
     const [deviceModels, setDeviceModels] = useState([])
     const [serialNumbers, setSerialNumbers] = useState([])
+    const [serialNumbersEdit, setSerialNumbersEdit] = useState([])
     const [tidError, setTidError] = useState("")
     const [tidLoading, setTidLoading] = useState(false)
     const [otpLoading, setOtpLoading] = useState(false)
@@ -37,6 +38,7 @@ export default function BillingDevicesPage (){
     }), [authData.backendURL])
 
     const selectedModel = deviceModels.find((m) => m.code === newData.device_model) || null
+    const selectedModelEdit = deviceModels.find((m) => m.code === editedData?.device_model) || null
     const modelNameByCode = (code) => deviceModels.find((m) => m.code === code)?.name || code || ""
 
     // Gateway odmata jedan sloj odgovora, pa polje može doći i top-level i pod .data.
@@ -77,8 +79,28 @@ export default function BillingDevicesPage (){
         return () => { active = false }
     },[api, newData.device_model, deviceModels])
 
+    // Za uređivanje traži slobodne SN-ove, ali uključi i onaj koji je već na ovom
+    // uređaju — inače bi ispao iz popisa i izgledao kao da je obrisan.
+    useEffect(()=>{
+        const code = editedData?.device_model
+        const model = deviceModels.find((m) => m.code === code)
+        if (!code || !model?.has_serial_numbers) { setSerialNumbersEdit([]); return }
+        let active = true
+        api.get('/portal/backoffice/device_serial_numbers', {
+            params: { model: code, only_free: 1, include: editedData?.serial_number || '' },
+        })
+            .then((r) => { if (active) setSerialNumbersEdit(unwrap(r, 'device_serial_numbers') || []) })
+            .catch(() => { if (active) setSerialNumbersEdit([]) })
+        return () => { active = false }
+    },[api, editedData?.device_model, editedData?.serial_number, deviceModels])
+
     const handleChange = async (e) => {
         setNewData({...newData, [e.target.name] : e.target.value})
+    };
+
+    // Promjena modela pri uređivanju poništava odabrani serijski broj.
+    const handleChangeModelEdit = (e) => {
+        setEditedData({ ...editedData, device_model: e.target.value, serial_number: "" })
     };
 
     // Promjena tipa poništava TID i sve što je vezano uz mobilnu blagajnu —
@@ -814,6 +836,46 @@ export default function BillingDevicesPage (){
                     </Stack>
                     {otpEditError && (
                         <Alert severity="error" sx={{ mt: 1 }} onClose={() => setOtpEditError("")}>{otpEditError}</Alert>
+                    )}
+                    {(editedData?.type_name === 'mobile' || editedData?.type === 'mobile') && (
+                        <>
+                            <TextField
+                                variant="outlined"
+                                fullWidth
+                                label={t('backoffice.billing_devices.device_model')}
+                                select
+                                value={editedData?.device_model || ""}
+                                onChange={handleChangeModelEdit}
+                                name="device_model"
+                                sx={{ mt: 1 }}
+                            >
+                                {deviceModels.map((m) => (
+                                    <MenuItem key={m.code} value={m.code}>{m.name}</MenuItem>
+                                ))}
+                            </TextField>
+                            {selectedModelEdit?.has_serial_numbers && (
+                                <TextField
+                                    variant="outlined"
+                                    fullWidth
+                                    label={t('backoffice.billing_devices.serial_number')}
+                                    select
+                                    value={editedData?.serial_number || ""}
+                                    onChange={handleChangeEdit}
+                                    name="serial_number"
+                                    sx={{ mt: 1 }}
+                                    helperText={serialNumbersEdit.length === 0
+                                        ? `Nema slobodnih serijskih brojeva za ${selectedModelEdit.name}.`
+                                        : "Stari broj se oslobađa, novi se zauzima pri spremanju"}
+                                >
+                                    {serialNumbersEdit.map((sn) => (
+                                        <MenuItem key={sn.uuid} value={sn.serial_number}>
+                                            {sn.serial_number}
+                                            {sn.serial_number === editedData?.serial_number ? " (trenutni)" : ""}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            )}
+                        </>
                     )}
                     <TextField
                         type="text"
