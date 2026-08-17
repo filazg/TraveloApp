@@ -89,8 +89,8 @@ android {
         applicationId "hr.koris.roko"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "2.0.0"
+        versionCode 3
+        versionName "1.0.1"
         // Allow HTTP gateway URLs (e.g. 192.168.0.100:5100) in debug/staging.
         // For production switch this to false and use HTTPS.
         manifestPlaceholders = [usesCleartextTraffic:"true"]
