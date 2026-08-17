@@ -1,8 +1,8 @@
 import axios from "axios";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { resolveBackendUrl } from "../../helpers/backendUrl"
 
-const prod = false;
-const backendURL = prod ? "https://bookingtest.krilo.hr/app" : "http://localhost:5100";
+const backendURL = resolveBackendUrl('/app')
 
 const api = axios.create({
     baseURL: backendURL,
