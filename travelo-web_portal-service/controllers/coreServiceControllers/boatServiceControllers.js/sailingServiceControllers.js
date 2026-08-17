@@ -11,6 +11,80 @@ const bookingBase = async () => {
     return cfg.services.booking?.url;
 };
 
+const transactionsBase = async () => {
+    const cfg = await getCoreServiceConfigData();
+    return cfg.services.transactions?.url;
+};
+
+// "17.08.2026. 09:00" ili "2026-08-17 09:00" → "2026-08-17".
+// tickets_search traži datum, a polasci ga nose kao slobodan tekst.
+const isoDateFromDeparture = (value) => {
+    const s = String(value || '').trim();
+    if (!s) return null;
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    const hr = /^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})/.exec(s);
+    if (hr) {
+        const [, d, m, y] = hr;
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s);
+    if (slash) {
+        const [, d, m, y] = slash;
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    return null;
+};
+
+/**
+ * Validirane karte po luci ukrcaja i kategoriji.
+ *
+ * Validacija na terminalu mijenja samo status karte, brojač na booking retku
+ * nitko ne održava — zato se broji iz samih karata. Time je podatak i otporan
+ * na storno i na ponovni init booking redaka: karta koja više nije validirana
+ * jednostavno se ne prebroji.
+ *
+ * Karte se traže po route_uuid-ovima polaska (jedinstveni su po vozni red +
+ * sekvenca + datum, pa implicitno određuju baš taj polazak).
+ */
+const validatedCountsForVoyage = async (legs, departurePlaned) => {
+    const routeUuids = (legs || []).map((l) => l.uuid).filter(Boolean);
+    const date = isoDateFromDeparture(departurePlaned);
+    if (!routeUuids.length || !date) return null;
+
+    const tUrl = await transactionsBase();
+    const bUrl = await bookingBase();
+    if (!tUrl || !bUrl) return null;
+
+    const [ticketsResp, mappingsResp] = await Promise.all([
+        axios.get(tUrl + '/tickets_search', {
+            params: { date, route_uuids: routeUuids.join(','), status: 'validated', limit: 5000 },
+            timeout: 8000,
+            validateStatus: () => true,
+        }),
+        axios.get(bUrl + '/ticket_type_mappings', { timeout: 6000, validateStatus: () => true }),
+    ]);
+    if (ticketsResp.status !== 200) return null;
+
+    const tickets = ticketsResp.data?.data?.tickets || ticketsResp.data?.tickets || [];
+    const mappings = mappingsResp.status === 200
+        ? (mappingsResp.data?.data?.mappings || mappingsResp.data?.mappings || [])
+        : [];
+    const categoryByType = new Map(mappings.map((m) => [m.ticket_type_uuid, m.category_code]));
+
+    const counts = {};
+    for (const t of tickets) {
+        if (t.is_canceled) continue;
+        const category = categoryByType.get(t.ticket_type_uuid);
+        if (!category) continue;
+        const harbor = t.departure_harbor_id;
+        if (!harbor) continue;
+        counts[harbor] = counts[harbor] || {};
+        counts[harbor][category] = (counts[harbor][category] || 0) + 1;
+    }
+    return counts;
+};
+
 const getSailingsController = async (params = {}) => {
     try {
         const url = await boatBase();
@@ -79,7 +153,24 @@ const getSailingDetailsController = async (uuid) => {
         }
 
         const merged = sailingResp.data || {};
-        if (merged.data) merged.data.bookings = bookings;
+        if (merged.data) {
+            // Validirano se ne vodi kao brojač nego se broji iz karata polaska.
+            try {
+                const counts = await validatedCountsForVoyage(
+                    merged.data.legs,
+                    merged.data.sailing?.departure_planed || merged.data.sailing?.departure,
+                );
+                if (counts) {
+                    for (const b of bookings) {
+                        b.validated = counts[b.departure_harbor_id]?.[b.category_code] || 0;
+                    }
+                }
+            } catch (e) {
+                // Bez brojanja Kapetan i dalje radi — samo ostaje spremljena vrijednost.
+                console.log('sailing validated counts failed:', e?.message || e);
+            }
+            merged.data.bookings = bookings;
+        }
         return merged;
     } catch (error) {
         console.log('getSailingDetailsController error:', error?.message || error);
