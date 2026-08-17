@@ -9,6 +9,7 @@ const emptySettings = (channel) => ({
     channel,
     business_premise_uuid: null,
     business_premise_name: null,
+    business_premise_fiscal_mark: null,
     billing_device_uuid: null,
     billing_device_fiscal_mark: null,
     payment_method_uuid: null,
@@ -68,6 +69,7 @@ const upsertChannelSettingDataController = async (req, res) => {
         const values = {
             business_premise_uuid: data.business_premise_uuid || null,
             business_premise_name: data.business_premise_name || null,
+            business_premise_fiscal_mark: data.business_premise_fiscal_mark || null,
             billing_device_uuid: data.billing_device_uuid || null,
             billing_device_fiscal_mark: data.billing_device_fiscal_mark || null,
             payment_method_uuid: data.payment_method_uuid || null,

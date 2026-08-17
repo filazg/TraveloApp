@@ -31,6 +31,10 @@ module.exports = (sequelize) => {
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            business_premise_fiscal_mark: {
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             billing_device_uuid: {
                 type: DataTypes.STRING,
                 allowNull: true

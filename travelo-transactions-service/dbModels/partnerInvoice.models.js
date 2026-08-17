@@ -110,6 +110,40 @@ module.exports = (sequelize) => {
                 allowNull: false,
                 defaultValue: "issued",
             },
+            // Kontekst izdavanja s postavki kanala (Administracija → Partnerska
+            // prodaja). Partnerski računi dosad nisu imali fiskalne oznake.
+            business_premise_uuid: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            business_premise_name: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            business_premise_fiscal_mark: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            billing_device_uuid: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            billing_device_fiscal_mark: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            payment_method_uuid: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            payment_method_name: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            cost_center: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
             fiskal_required: {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,

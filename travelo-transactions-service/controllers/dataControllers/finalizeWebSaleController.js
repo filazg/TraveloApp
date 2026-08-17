@@ -44,18 +44,32 @@ const loadFiscalContext = async () => {
         const backofficeUrl = coreConfig?.services?.backoffice?.url;
         if (!backofficeUrl) return {};
 
-        const [companyResp, bpResp, bdResp] = await Promise.all([
+        const [companyResp, bpResp, bdResp, csResp] = await Promise.all([
             axios.get(`${backofficeUrl}/company`, { timeout: 5000, validateStatus: () => true }),
             axios.get(`${backofficeUrl}/business_premises`, { timeout: 5000, validateStatus: () => true }),
             axios.get(`${backofficeUrl}/billing_devices`, { timeout: 5000, validateStatus: () => true }),
+            axios.get(`${backofficeUrl}/channel_settings/web`, { timeout: 5000, validateStatus: () => true }),
         ]);
 
         const company = companyResp.data?.data?.company || null;
         const bps = bpResp.data?.data?.business_premises || [];
         const bds = bdResp.data?.data?.billing_devices || [];
 
-        // Pronađi JEDINI aktivni premise tipa Web prodaja (WEB_OFFICE) + njegov JEDINI
-        // aktivni uređaj. Singleton-i su enforceani u backoffice-u.
+        // Postavke kanala (Administracija → Web prodaja) su mjerodavne ako su
+        // postavljene. Tek ako nisu, vrijedi staro pravilo: JEDINI aktivni premise
+        // tipa Web prodaja (WEB_OFFICE) + njegov JEDINI aktivni uređaj.
+        const cs = csResp.data?.data?.channel_settings || null;
+        if (cs && cs.is_active && cs.business_premise_uuid && cs.billing_device_uuid) {
+            const bp = bps.find((x) => x.uuid === cs.business_premise_uuid);
+            const bd = bds.find((x) => x.uuid === cs.billing_device_uuid);
+            if (bp && bd) {
+                return { company, businessPremise: bp, billingDevice: bd, channelSettings: cs };
+            }
+            console.log(
+                "finalizeWebSale: postavke kanala pokazuju na nepostojeće prodajno mjesto ili uređaj — koristim zatečeno pravilo"
+            );
+        }
+
         const webBp = bps.find((bp) => bp.type === "WEB_OFFICE" && bp.is_active);
         if (!webBp) {
             throw new Error("Nema aktivnog prodajnog mjesta tipa Web prodaja. Dodajte ga u Backoffice → Prodajna mjesta.");
@@ -93,6 +107,9 @@ const finalizeWebSaleController = async (req, res) => {
         const company = fiscal.company || {};
         const bp = fiscal.businessPremise || {};
         const bd = fiscal.billingDevice || {};
+        const cs = fiscal.channelSettings || {};
+        // Jezik s postavki kanala vrijedi kad ga kupac nije izabrao.
+        const invoiceLanguage = language || cs.invoice_language || "hr";
 
         const invoice_uuid = crypto.randomUUID();
         const invoiceDate = new Date();
@@ -212,7 +229,8 @@ const finalizeWebSaleController = async (req, res) => {
         const invoice_year = invoiceDate.getFullYear();
         const invoice_no = await nextInvoiceNo(InvoiceModel, invoice_year, bd.uuid);
         // F2 = kupac dao OIB → nema fiskalni broj (e-račun). Inače sekvencijalni F1 broj.
-        const fiskalRequired = Boolean(buyer.summary_buyer_company_vat_id);
+        // Fiskalizacija: R1 (kupac s OIB-om) uvijek, inače kako je postavljeno na kanalu.
+        const fiskalRequired = Boolean(buyer.summary_buyer_company_vat_id) || cs.fiskal_required === true;
         const invoice_fiskal_no = fiskalRequired
             ? null
             : await nextInvoiceFiskalNo(InvoiceModel, invoice_year, bd.uuid);
@@ -229,7 +247,8 @@ const finalizeWebSaleController = async (req, res) => {
             invoice_date: invoiceDate,
             invoice_is_pay: true,
             invoice_payment_data: monri_meta,
-            invoice_payment_method_name: "Monri",
+            invoice_payment_method_uuid: cs.payment_method_uuid || null,
+            invoice_payment_method_name: cs.payment_method_name || "Monri",
             // Company (issuer) snapshot
             company_name: company.name || null,
             company_address: company.address || null,
@@ -260,7 +279,7 @@ const finalizeWebSaleController = async (req, res) => {
             invoice_vat: total_vat,
             invoice_harbor_tax: total_harbor_tax,
             order_uuid: orderLinks.join(","),
-            language,
+            language: invoiceLanguage,
             invoice_status: "paid",
             invoice_canceled: false,
             // F2 fiscalization: required when buyer submitted R1 (OIB present)
@@ -348,7 +367,7 @@ const finalizeWebSaleController = async (req, res) => {
                 ]);
                 await sendWebSaleEmail({
                     to: buyer.summary_buyer_email,
-                    lang: language === "en" ? "en" : "hr",
+                    lang: invoiceLanguage === "en" ? "en" : "hr",
                     buyerName: buyer.summary_buyer_name,
                     invoicePdf,
                     ticketsPdf,

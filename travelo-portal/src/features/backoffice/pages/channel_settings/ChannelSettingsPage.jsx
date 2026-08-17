@@ -88,6 +88,7 @@ export default function ChannelSettingsPage({ channel, title, subtitle, hint }) 
         set({
             business_premise_uuid: uuid,
             business_premise_name: bp?.name || null,
+            business_premise_fiscal_mark: bp?.fiskal_mark || null,
             billing_device_uuid: "",
             billing_device_fiscal_mark: null,
         });

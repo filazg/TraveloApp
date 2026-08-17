@@ -14,6 +14,25 @@ async function fetchPartnersFromBackoffice() {
     return resp.data?.data?.partners || [];
 }
 
+// Postavke izdavanja za kanal "partner" (Administracija → Partnerska prodaja).
+// Nose fiskalne oznake i sredstvo plaćanja; provizija i dinamika ostaju po partneru.
+async function fetchPartnerChannelSettings() {
+    try {
+        const coreConfig = await getCoreServiceConfigData();
+        const boUrl = coreConfig?.services?.backoffice?.url;
+        if (!boUrl) return {};
+        const resp = await axios.get(`${boUrl}/channel_settings/partner`, {
+            timeout: 10000,
+            validateStatus: () => true,
+        });
+        const cs = resp.data?.data?.channel_settings;
+        return cs && cs.is_active ? cs : {};
+    } catch (err) {
+        console.log("fetchPartnerChannelSettings error:", err?.message || err);
+        return {};
+    }
+}
+
 async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
     const now = asOfDate ? new Date(asOfDate) : new Date();
     const currentYear = now.getFullYear();
@@ -22,6 +41,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
     const sequelize = getSequelize();
 
     const partners = await fetchPartnersFromBackoffice();
+    const channel = await fetchPartnerChannelSettings();
     const partnersToProcess = onlyPartnerUuid
         ? partners.filter((p) => p.uuid === onlyPartnerUuid)
         : partners.filter((p) => p.is_active);
@@ -60,7 +80,8 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
 
         const commissionPct = parseFloat(partner.commission_pct) || 0;
         const vatRate = parseFloat(partner.vat_rate) || 0;
-        const fiskalRequired = Boolean(partner.f2_required);
+        // Fiskalizira se ako to traži partner ili ako je uključeno na kanalu.
+        const fiskalRequired = Boolean(partner.f2_required) || channel.fiskal_required === true;
 
         let gross = 0;
         const ticketItems = tickets.map((t) => {
@@ -115,6 +136,14 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                     vat_base: vatBase,
                     vat_amount: vatAmount,
                     status: "issued",
+                    business_premise_uuid: channel.business_premise_uuid || null,
+                    business_premise_name: channel.business_premise_name || null,
+                    business_premise_fiscal_mark: channel.business_premise_fiscal_mark || null,
+                    billing_device_uuid: channel.billing_device_uuid || null,
+                    billing_device_fiscal_mark: channel.billing_device_fiscal_mark || null,
+                    payment_method_uuid: channel.payment_method_uuid || null,
+                    payment_method_name: channel.payment_method_name || null,
+                    cost_center: channel.cost_center || null,
                     fiskal_required: fiskalRequired,
                 },
                 { transaction: tx }
