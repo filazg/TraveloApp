@@ -7,11 +7,26 @@ const bcrypt = require('bcrypt');
 
 const saltRounds = 10;
 
-const hashedPassword = async(password) =>{ 
+const hashedPassword = async(password) =>{
     const pass = await bcrypt.hash(password, saltRounds)
     console.log('PASS JE ', pass)
     return pass
 }
+
+// Šifra za prijavu na terminalu — prazna vrijednost se sprema kao null da
+// više djelatnika bez šifre ne ispadne "duplikat".
+const normalizeCode = (code) => {
+    if (code === undefined || code === null) return null;
+    const trimmed = String(code).trim();
+    return trimmed === '' ? null : trimmed;
+};
+
+const findUserByCode = async (UsersModel, code, excludeUuid) => {
+    const value = normalizeCode(code);
+    if (!value) return null;
+    const users = await UsersModel.findAll({ where: { code: value } });
+    return users.find((u) => u.uuid !== excludeUuid) || null;
+};
 
 const getUsersDataController = async(req,res)=>{
     const {UsersModel, UsersPermissionsModel} = req.app.locals.models;
@@ -158,6 +173,16 @@ const addUserDataController = async(req,res)=>{
                         mark:data.mark,
                     }
                 })
+                // Šifra je alternativa korisničkom imenu pri prijavi na terminalu,
+                // pa dva djelatnika ne smiju dijeliti istu — inače je prijava
+                // dvosmislena i račun bi mogao dobiti krivog operatera.
+                const codeExist = await findUserByCode(UsersModel, data.code);
+                if(codeExist){
+                    return res.send({
+                        status:208,
+                        msg:'Code already exist',
+                    })
+                }
                 if(!markExist){
                     const addUser = await UsersModel.create({
                         uuid:crypto.randomUUID(16),
@@ -170,7 +195,7 @@ const addUserDataController = async(req,res)=>{
                         is_company_employee:data.is_company_employee,
                         partner_uuid:data.partner_uuid,
                         partner_name:data.partner_name,
-                        code:data.code,
+                        code:normalizeCode(data.code),
                         saop_clerk_id:data.saop_clerk_id || null,
                         is_active:true
                     })
@@ -215,6 +240,15 @@ const updateUserDataController = async(req,res)=>{
             }
             
             if(userExist){
+                if(data.code !== undefined){
+                    const codeExist = await findUserByCode(UsersModel, data.code, data.uuid);
+                    if(codeExist){
+                        return res.send({
+                            status:208,
+                            msg:'Code already exist',
+                        })
+                    }
+                }
                 const updateUser = await UsersModel.update({
                     name:data.name,
                     surname:data.surname,
@@ -222,6 +256,7 @@ const updateUserDataController = async(req,res)=>{
                     is_active:data.is_active,
                     ...(data.legal_id !== undefined ? { legal_id: data.legal_id } : {}),
                     ...(data.mark !== undefined ? { mark: data.mark } : {}),
+                    ...(data.code !== undefined ? { code: normalizeCode(data.code) } : {}),
                     ...(data.saop_clerk_id !== undefined ? { saop_clerk_id: data.saop_clerk_id || null } : {}),
                 },{
                     where:{

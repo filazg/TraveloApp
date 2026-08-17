@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Box, Button, Checkbox, Drawer, Grid, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, Drawer, Grid, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useDispatch, useSelector } from "react-redux";
 import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
@@ -20,6 +20,21 @@ export default function UsersPage (){
     const [openAdd, setOpenAdd] = useState(false)
     const [newData, setNewData] = useState({})
     const [editedData, setEditedData] = useState({})
+    const [addError, setAddError] = useState("")
+    const [editError, setEditError] = useState("")
+
+    // Jezgra odbija duplu oznaku ili šifru statusom 208; bez ovoga bi forma
+    // izgledala kao da je spremila, a zapis ne bi bio promijenjen.
+    const rejectionMessage = (payload) => {
+        const result = payload?.result
+        if (!result || result.status === undefined) return ""
+        if (result.status === 201 || result.status === 202 || result.status === 200) return ""
+        const msg = String(result.msg || "")
+        if (msg.startsWith('Code')) return t('backoffice.users.code_taken')
+        if (msg.startsWith('Mark')) return t('backoffice.users.mark_taken')
+        if (msg.startsWith('User')) return t('backoffice.users.username_taken')
+        return msg || t('backoffice.users.save_failed')
+    }
 
     const syncData = async () =>{
         await dispatch(setAuthData({path:'loading', value:true}))
@@ -60,26 +75,38 @@ export default function UsersPage (){
 
     const handleSubmit = async(e)=>{
         e.preventDefault();
+        setAddError("")
         await dispatch(setAuthData({path:'loading', value:true}))
         await dispatch(setAuthData({path:'loadingMessage', value:'Dodavanje novog korisnika'}))
-        await dispatch(postBackofficeThunk({path:'users', data:newData}))
+        const res = await dispatch(postBackofficeThunk({path:'users', data:newData}))
+        await dispatch(setAuthData({path:'loading', value:false}))
+        const rejected = rejectionMessage(res?.payload)
+        if(rejected){
+            setAddError(rejected)
+            return
+        }
         setNewData({})
         setOpenAdd(false)
         await handleMe()
-        await dispatch(setAuthData({path:'loading', value:false}))
     }
 
     const handleSubmitEdit = async(e)=>{
         e.preventDefault();
         console.log(right)
-        
+
+        setEditError("")
         await dispatch(setAuthData({path:'loading', value:true}))
         await dispatch(setAuthData({path:'loadingMessage', value:'Ažuriranje podataka o korinisku'}))
-        await dispatch(patchBackofficeThunk({path:'users', data:editedData}))
+        const res = await dispatch(patchBackofficeThunk({path:'users', data:editedData}))
+        await dispatch(setAuthData({path:'loading', value:false}))
+        const rejected = rejectionMessage(res?.payload)
+        if(rejected){
+            setEditError(rejected)
+            return
+        }
         setEditedData({})
         setSelectedRow(null)
         await handleMe()
-        await dispatch(setAuthData({path:'loading', value:false}))
     }
 
     function not(a, b) {
@@ -363,6 +390,18 @@ export default function UsersPage (){
                         type="text"
                         variant="outlined"
                         fullWidth
+                        label={t('backoffice.users.code')}
+                        placeholder="npr. 1234"
+                        helperText={t('backoffice.users.code_helper')}
+                        value={newData.code || ""}
+                        onChange={handleChange}
+                        name="code"
+                        sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
                         label="SAOP ID"
                         placeholder="npr. 0000046"
                         value={newData.saop_clerk_id || ""}
@@ -370,6 +409,7 @@ export default function UsersPage (){
                         name="saop_clerk_id"
                         sx={{ mt:1 }}
                     />
+                    {addError && <Alert severity="error" sx={{ mt: 2 }} onClose={() => setAddError("")}>{addError}</Alert>}
                     <Button
                         type="submit"
                         onClick={handleSubmit}
@@ -511,6 +551,18 @@ export default function UsersPage (){
                         type="text"
                         variant="outlined"
                         fullWidth
+                        label={t('backoffice.users.code')}
+                        placeholder="npr. 1234"
+                        helperText={t('backoffice.users.code_helper')}
+                        value={editedData?.code || ""}
+                        onChange={handleChangeEdit}
+                        name="code"
+                        sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
                         label="SAOP ID"
                         placeholder="npr. 0000046"
                         value={editedData?.saop_clerk_id || ""}
@@ -579,6 +631,7 @@ export default function UsersPage (){
                     </Stack>
                     <Grid sx={{minWidth:200}}>{customList(right)}</Grid>
                     </Stack>
+                    {editError && <Alert severity="error" sx={{ mt: 3 }} onClose={() => setEditError("")}>{editError}</Alert>}
                     <Button
                         type="submit"
                         onClick={handleSubmitEdit}
