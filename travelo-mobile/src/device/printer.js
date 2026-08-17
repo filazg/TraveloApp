@@ -168,3 +168,17 @@ export async function nativePrintTickets(data) {
 }
 
 export const sunmiPrinterAvailable = isAvailable;
+
+// Serijski broj uređaja za zero-touch uparivanje. Ne treba bind na printer
+// servis, pa radi i kad printer nije dostupan. Vraća null umjesto da baca —
+// pozivatelj tada jednostavno ide na ručno uparivanje.
+export async function getDeviceSerialNumber() {
+    if (!isAvailable || !SunmiPrinter.getSerialNumber) return null;
+    try {
+        const sn = await SunmiPrinter.getSerialNumber();
+        return sn ? String(sn).trim() : null;
+    } catch (e) {
+        console.log('getDeviceSerialNumber:', e?.message || e);
+        return null;
+    }
+}

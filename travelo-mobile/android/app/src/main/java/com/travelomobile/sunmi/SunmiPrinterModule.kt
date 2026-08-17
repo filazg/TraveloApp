@@ -46,6 +46,41 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
 
     override fun getName(): String = "SunmiPrinter"
 
+    /**
+     * Serijski broj uređaja — koristi se za zero-touch uparivanje terminala.
+     * Ne traži bind na printer servis; čita se iz system propertyja.
+     */
+    @ReactMethod
+    fun getSerialNumber(promise: Promise) {
+        try {
+            var sn = getSystemProperty("ro.sunmi.serial")
+            if (sn.isNullOrEmpty()) sn = getSystemProperty("ro.serialno")
+            if (sn.isNullOrEmpty()) {
+                // Build.getSerial traži READ_PHONE_STATE na nekim uređajima.
+                sn = try { android.os.Build.getSerial() } catch (t: Throwable) { null }
+            }
+            if (sn.isNullOrEmpty()) sn = android.os.Build.SERIAL
+            if (sn.isNullOrEmpty() || sn.equals("unknown", ignoreCase = true)) {
+                promise.reject("NO_SERIAL", "Serijski broj nije dostupan")
+                return
+            }
+            promise.resolve(sn)
+        } catch (e: Exception) {
+            promise.reject("SERIAL_ERROR", e.message)
+        }
+    }
+
+    /** Čita Android system property (npr. ro.sunmi.serial) preko refleksije. */
+    private fun getSystemProperty(key: String): String? {
+        return try {
+            val sp = Class.forName("android.os.SystemProperties")
+            val get = sp.getMethod("get", String::class.java)
+            get.invoke(null, key) as? String
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
     @ReactMethod
     fun bind(promise: Promise) {
         if (connected && printer != null) { promise.resolve(true); return }
