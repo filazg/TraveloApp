@@ -15,6 +15,7 @@ const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrF
 const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
 const { handleGetHolidaysFeature, handleAddHolidaysFeature, handleUpdateHolidaysFeature } = require('../features/backoffice/holidaysHandlers');
 const { handleGetCountriesFeature, handleAddCountryFeature, handleUpdateCountryFeature } = require('../features/backoffice/countriesHandlers');
+const { handleGetChannelSettingsFeature, handleGetChannelSettingFeature, handleUpsertChannelSettingFeature } = require('../features/backoffice/channelSettingsHandlers');
 const { handleGetAccountsFeature, handleAddAccountFeature, handleUpdateAccountFeature, handleGetAccountMappingsFeature, handleUpsertAccountMappingFeature } = require('../features/backoffice/accountsHandlers');
 const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature, handleGetDailyRealizationDemoFeature, handleSendDailyRealizationDemoToErpFeature } = require('../features/transactions/dailyRealizationHandlers');
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
@@ -135,6 +136,15 @@ router
 router
     .route('/backoffice/billing_devices/next_otp')
     .get(handleGetNextOtpFeature)
+
+router
+    .route('/backoffice/channel_settings')
+    .get(handleGetChannelSettingsFeature)
+
+router
+    .route('/backoffice/channel_settings/:channel')
+    .get(handleGetChannelSettingFeature)
+    .patch(handleUpsertChannelSettingFeature)
 
 router
     .route('/backoffice/device_models')
