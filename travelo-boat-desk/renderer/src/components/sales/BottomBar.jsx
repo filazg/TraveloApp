@@ -108,12 +108,34 @@ export default function BottomBar() {
     let paymentResponse = {};
     const pay= true
 
-    if(appData.saleData.selectedPaymentMethod.payment_method_is_card_payment){
+    // Koji uređaj naplaćuje određuje `card_provider` sa sredstva plaćanja
+    // (postavlja se u portalu). Blagajna vodi samo OTP_POS; MONRI je web naplata,
+    // SEVENPAY još nije implementiran, a kartica bez providera znači vanjski
+    // terminal — račun se tada izda bez pokretanja transakcije.
+    //
+    // Sredstvo plaćanja je redak iz payment_methods, pa se polje zove
+    // `is_card_payment`. Prije se provjeravalo `payment_method_is_card_payment`,
+    // koje na tom objektu ne postoji — uvjet je uvijek bio netočan, POS se nikad
+    // nije pozvao i kartična prodaja je tiho prolazila kao obična.
+    const selectedPayment = appData.saleData.selectedPaymentMethod || {}
+    const cardProvider = selectedPayment.is_card_payment ? (selectedPayment.card_provider || '') : ''
+
+    if (cardProvider && cardProvider !== 'OTP_POS') {
+      await dispatch(setStateData({path:'alertData', value:{
+        message: `Sredstvo plaćanja "${selectedPayment.name}" naplaćuje ${cardProvider}, što blagajna ne podržava.`,
+        severity: 'error'
+      }}))
+      await dispatch(setStateData({path:'status', value:'ready'}))
+      return
+    }
+
+    if(cardProvider === 'OTP_POS'){
       await dispatch(setStateData({path:'loadingText', value:'Kartično plačanje...'}))
       payment = await window.api.app.cardPaymentIPC({
         comPort: appData.basicData.settings.pos_port,
-        transactionType: "01",// polje 5 (2) Sale OVO 
-        printerFlag: "0",     // polje 6 (1)
+        transactionType: "01",// polje 5 (2) Sale OVO
+        // Isto kao kod storna: ispisuje li slip POS ili aplikacija određuje postavka.
+        printerFlag: appData.basicData.settings.pos_print_on_app ? "0" : "1",
         cashierId: "01",      // polje 7 (2)
         transactionNumber: "",// polje 8 (0 or 6) - prazno
         amount1: invoiceSubtotal.toFixed(2),      // polje 10 (Transaction Amount 1) - u najmanjim jedinicama (100 -> 1.00 HRK ako exponent +2) OVO 

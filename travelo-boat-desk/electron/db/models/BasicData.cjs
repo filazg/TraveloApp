@@ -152,6 +152,12 @@ const paymentMethodsModel = sequelize.define('payment_methods',{
         type:Sequelize.BOOLEAN,
         allowNull:false
     },
+    // MONRI / OTP_POS / SEVENPAY, postavlja se u portalu. Blagajna pokreće
+    // terminal samo za OTP_POS; ostali provideri su tuđi kanali.
+    card_provider:{
+        type:Sequelize.STRING,
+        allowNull:true
+    },
     payment_type_uuid:{
         type:Sequelize.STRING,
         allowNull:false
