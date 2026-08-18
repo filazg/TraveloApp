@@ -115,16 +115,20 @@ pm2 restart ecosystem.config.js --update-env
 
 Razilaženje ovih portova znači 502 od nginxa — iza njega tada nitko ne sluša.
 
-## Zatvaranje web prodaje pred polazak
+## Zatvaranje prodaje pred polazak
 
-Web prodaja prestaje nuditi polazak 10 minuta prije vremena polaska. Vremena su
-hrvatska lokalna (`Europe/Zagreb`) i računaju se eksplicitno u toj zoni, jer VM
-radi u UTC-u. Prag se mijenja bez diranja koda:
+Web i partnerska prodaja prestaju nuditi polazak 10 minuta prije vremena polaska,
+a narudžba za takav polazak se odbija s HTTP 409. Vremena su hrvatska lokalna
+(`Europe/Zagreb`) i računaju se eksplicitno u toj zoni, jer VM radi u UTC-u.
+Prag se mijenja bez diranja koda, istom varijablom u oba servisa:
 
 ```bash
-export WEB_SALES_CUTOFF_MINUTES=10   # 0 = prodaja do samog polaska
-pm2 restart travelo-web-sales-service --update-env
+export SALE_CUTOFF_MINUTES=10   # 0 = prodaja do samog polaska
+pm2 restart travelo-web-sales-service travelo-sales-service --update-env
 ```
+
+Šalterska prodaja (boat-desk, terminali) i portal nisu obuhvaćeni — ondje se
+karta legitimno izdaje i minutu prije polaska.
 
 Napomena: `--update-env` postojeću varijablu ne uklanja, samo je prepisuje — za
 povratak na default vrijednost postavi `WEB_SALES_CUTOFF_MINUTES=10` ili napravi

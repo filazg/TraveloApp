@@ -22,6 +22,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import dayjs from 'dayjs'
 import { fetchHarbors, fetchRoutes } from '../features/sales/salesSlice'
 import ReservationDialog from '../features/sales/ReservationDialog'
+import { isSaleOpen, SALE_CUTOFF_MINUTES } from '../features/sales/departureCutoff'
 
 export default function SearchPage() {
   const dispatch = useDispatch()
@@ -45,6 +46,9 @@ export default function SearchPage() {
       .filter((r) => !fromCode || r.departure_harbor_id === fromCode)
       .filter((r) => !toCode || r.arrival_harbor_id === toCode)
       .filter((r) => !dateStr || r.departure_date === dateStr)
+      // Polasci koji su krenuli (ili im je do polaska manje od cutoffa) ne idu u
+      // prodaju — vidi features/sales/departureCutoff.js.
+      .filter((r) => isSaleOpen(r))
       .sort((a, b) => (a.departure_time > b.departure_time ? 1 : -1))
   }, [routes, fromCode, toCode, date, submitted])
 
@@ -162,7 +166,9 @@ export default function SearchPage() {
                 {!results.length && (
                   <TableRow>
                     <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                      Nema polazaka za odabrane kriterije.
+                      Nema polazaka za odabrane kriterije. Prodaja se zatvara{' '}
+                      {SALE_CUTOFF_MINUTES} min prije polaska, pa se polasci koji su
+                      krenuli više ne prikazuju.
                     </TableCell>
                   </TableRow>
                 )}

@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const axios = require("axios");
 const { getCoreServiceConfigData } = require("../configSyncController");
+const { isSaleOpen, saleClosedMessage } = require("../../helpers/departureCutoff");
 
 const createOrderController = async (req, res) => {
     const { OrdersModel, RoutesModel, TimetablePricesModel } = req.app.locals.models;
@@ -15,6 +16,22 @@ const createOrderController = async (req, res) => {
         const route = await RoutesModel.findOne({ where: { uuid: body.route_uuid } });
         if (!route) {
             return res.status(404).json({ status: 404, data: { message: "route not found" } });
+        }
+
+        // Prodaja se zatvara 10 min prije polaska (Europe/Zagreb). Ovdje prolaze
+        // i partnerska i web prodaja, pa je ovo zadnja brana — prodajno sučelje
+        // takav polazak više ne nudi, ali korisnik može sjediti na njemu dok
+        // cutoff prođe.
+        if (!isSaleOpen(route.actual_departure)) {
+            console.log("createOrderController odbijen — prodaja zatvorena za", route.actual_departure);
+            return res.status(409).json({
+                status: 409,
+                data: {
+                    message: saleClosedMessage(route.actual_departure, body.language),
+                    route_uuid: body.route_uuid,
+                    actual_departure: route.actual_departure,
+                },
+            });
         }
 
         // Re-price on the server — don't trust client totals

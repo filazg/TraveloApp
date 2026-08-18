@@ -15,11 +15,12 @@ dayjs.extend(customParseFormat);
 const TZ = 'Europe/Zagreb';
 
 // Prodaja se zatvara ovoliko minuta PRIJE polaska. Promjenjivo bez diranja koda
-// preko WEB_SALES_CUTOFF_MINUTES (npr. 0 = prodaja do samog polaska).
+// preko SALE_CUTOFF_MINUTES (npr. 0 = prodaja do samog polaska). Isto ime koristi
+// i sales-service, da web i partnerska prodaja ne mogu odlutati na različite pragove.
 const DEFAULT_CUTOFF_MINUTES = 10;
 
 const cutoffMinutes = () => {
-    const raw = Number(process.env.WEB_SALES_CUTOFF_MINUTES);
+    const raw = Number(process.env.SALE_CUTOFF_MINUTES);
     return Number.isFinite(raw) && raw >= 0 ? raw : DEFAULT_CUTOFF_MINUTES;
 };
 
