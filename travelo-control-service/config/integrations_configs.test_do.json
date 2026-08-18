@@ -24,5 +24,16 @@
             "akd_ca_cert_path": "",
             "seop_sign_cert_path": ""
         }
+    },
+    "sevenpay": {
+        "_comment": "7pay SoftPOS na mobilnim terminalima. Kredencijali NE idu u repo — popuniti na posluzitelju.",
+        "package_name": "com.sevenpay.tnp_test",
+        "api_key": "",
+        "email": "",
+        "password": "",
+        "partner_id": "",
+        "sender_app_id": "",
+        "version": "2.1",
+        "ecr_id": 1234
     }
 }

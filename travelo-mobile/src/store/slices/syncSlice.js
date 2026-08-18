@@ -27,8 +27,13 @@ export const syncBasicDataThunk = createAsyncThunk(
         try {
             const resp = await api.get(ENDPOINTS.basicData);
             const payload = resp.data?.data ?? resp.data ?? {};
+            // 7pay konfiguracija stize uz basic_data kao zaseban kljuc; drzimo je
+            // unutar basic_data objekta da je prodajni ekran ima na jednom mjestu.
+            const basic = payload.basic_data
+                ? { ...payload.basic_data, payment_7pay: payload.payment_7pay || null }
+                : null;
             await saveBasicData(
-                payload.basic_data || null,
+                basic,
                 payload.users || [],
                 payload.payment_method || []
             );

@@ -70,6 +70,9 @@ const finalizeTerminalSaleController = async (req, res) => {
             items = [],
             terminal_uuid,
             payment_method_uuid,
+            // Odgovor platnog uredaja (7pay na mobilnom terminalu) — zapisuje se
+            // uz racun da se transakcija moze povezati s naplatom i stornirati.
+            payment_data = null,
             operator = {},
             buyer = {},
             // Client-provided fiskalni identifikatori — POS (NU) je autoritativni
@@ -260,6 +263,7 @@ const finalizeTerminalSaleController = async (req, res) => {
             invoice_payment_method_uuid: pm.uuid,
             invoice_payment_method_name: pm.name,
             invoice_payment_method_fiscal_mark: pm.payment_type_acr || null,
+            invoice_payment_data: payment_data,
             // Company (issuer) snapshot
             company_name: company.name || null,
             company_address: company.address || null,

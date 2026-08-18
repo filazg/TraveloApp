@@ -15,6 +15,7 @@ import com.travelomobile.sunmi.SunmiScannerPackage
 import com.travelomobile.akd.AkdCardPackage
 import com.travelomobile.sound.AppSoundPackage
 import com.travelomobile.auth.AppAuthPackage
+import com.travelomobile.sevenpay.SevenPayPackage
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 
@@ -35,6 +36,7 @@ class MainApplication : Application(), ReactApplication {
                     add(AkdCardPackage())
                     add(AppSoundPackage())
                     add(AppAuthPackage())
+                    add(SevenPayPackage())
                 }
 
             override fun getJSMainModuleName(): String = "index"

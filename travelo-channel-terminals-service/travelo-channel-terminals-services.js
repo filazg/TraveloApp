@@ -1,7 +1,7 @@
 const express = require('express')
 const app = express()
 const bodyParser = require('body-parser');
-const { syncChannelServiceConfigData, syncCoreServiceConfigData, getChannelServiceConfigData } = require('./controllers/configServices/configSyncController');
+const { syncChannelServiceConfigData, syncCoreServiceConfigData, syncIntegrationsConfigData, getChannelServiceConfigData } = require('./controllers/configServices/configSyncController');
 
 app.use(express.json({ limit: "10mb" }))
 app.use(bodyParser.json({ limit: "10mb" }))
@@ -10,6 +10,7 @@ const startService = async ()=>{
     try {
         await syncChannelServiceConfigData()
         await syncCoreServiceConfigData()
+        await syncIntegrationsConfigData()
         const config = await getChannelServiceConfigData()
         const router = require('./routes/routes');
         app.use('/', router);

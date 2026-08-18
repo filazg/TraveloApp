@@ -1,4 +1,5 @@
 const { getCompanyController, getBusinessPremisesController, getBillingDevicesController, getUsersController, getPaymentMethodsController } = require("../controllers/coreServiceControllers/backofficeServiceControllers")
+const { getIntegrationsConfigData } = require("../controllers/configServices/configSyncController")
 
 const getTerminalBasicDataHandler = async(data)=>{
     try {
@@ -58,10 +59,26 @@ const getTerminalBasicDataHandler = async(data)=>{
                 billing_device_footer:terminaData.footer || '',
                 billing_device_auto_validate:terminaData.auto_validate || ''
             }
+            // 7pay (kartično placanje na mobilnom terminalu) — kredencijali dolaze
+            // iz control-servisa, terminal ih ne drzi trajno. Salju se samo ako su
+            // popunjeni, da uredaj ne dobije poluprazan config.
+            const sevenPayConfig = getIntegrationsConfigData()?.sevenpay
+            const payment7pay = sevenPayConfig?.api_key ? {
+                package_name: sevenPayConfig.package_name || 'com.sevenpay.tnp_test',
+                api_key: sevenPayConfig.api_key,
+                email: sevenPayConfig.email,
+                password: sevenPayConfig.password,
+                partner_id: sevenPayConfig.partner_id,
+                sender_app_id: sevenPayConfig.sender_app_id,
+                version: sevenPayConfig.version || '2.1',
+                ecr_id: sevenPayConfig.ecr_id || 1234,
+            } : null
+
             dataToSend = {
                 basic_data:basicData,
                 users:usersForTerminal,
-                payment_method:paymentsForTerminal
+                payment_method:paymentsForTerminal,
+                payment_7pay:payment7pay
             }
             return(dataToSend)
             }

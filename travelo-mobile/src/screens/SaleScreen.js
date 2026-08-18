@@ -23,6 +23,7 @@ import {
     listCachedTickets, countCachedValidated,
 } from '../store/slices/validationSlice';
 import api from '../api/client';
+import { payByCard, TX_SALE } from '../services/cardPayment';
 import { ENDPOINTS } from '../api/config';
 import { loadRecentBuyers, saveBuyer, findTicketByUuidOrCode } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
@@ -544,6 +545,35 @@ export default function SaleScreen() {
         }
         if (!items.length) return;
 
+        // Kartično plaćanje na terminalu ide preko 7pay-a; koji uređaj naplaćuje
+        // određuje card_provider sa sredstva plaćanja (postavlja se u portalu).
+        // Račun se izdaje tek kad transakcija prođe — obrnutim redoslijedom bi
+        // ostao izdan račun bez naplate.
+        const cardProvider = pm?.is_card_payment ? (pm.card_provider || '') : '';
+        let cardPaymentDetails = null;
+        if (cardProvider === 'SEVENPAY') {
+            setIssueModalOpen(false);
+            setPrinting(true);
+            setPrintingLabel('Kartično plaćanje…');
+            const amount = items.reduce((sum, i) => sum + Number(i.unit_price) * Number(i.qty), 0);
+            const payRes = await payByCard({
+                amount,
+                paymentCfg: sync.basicData?.payment_7pay,
+                merchantTaxID: sync.basicData?.client_legal_id,
+                transactionType: TX_SALE,
+            });
+            if (!payRes.ok) {
+                setPrinting(false);
+                setPrintingLabel('');
+                Alert.alert('Kartično plaćanje', payRes.message || 'Naplata nije uspjela.');
+                return;
+            }
+            cardPaymentDetails = payRes.details || null;
+        } else if (cardProvider) {
+            Alert.alert('Kartično plaćanje', `Sredstvo "${pm.name}" naplaćuje ${cardProvider}, što terminal ne podržava.`);
+            return;
+        }
+
         const op = auth.operator || {};
         const payload = {
             items,
@@ -557,6 +587,7 @@ export default function SaleScreen() {
                 oib: op.user_legal_id || op.legal_id || null,
             },
             buyer: buyer || {},
+            payment_data: cardPaymentDetails,
             _voyageKey: v ? `${v.timetable_uuid}|${v.sequence}|${v.departure_date}` : null,
         };
 
