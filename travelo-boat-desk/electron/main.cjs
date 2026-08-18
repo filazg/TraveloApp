@@ -78,13 +78,14 @@ function createWindow() {
   });
 
   // DEV vs PROD
+  // DevTools se više ne otvaraju sami — ni u devu ni u prodakciji. Na blagajni
+  // su smetali (otimali fokus i pola ekrana). Kad trebaju: Ctrl+Shift+I, ili
+  // DEBUG_PROD za instalirani build.
   if (!app.isPackaged) {
     logToFile("MODE: dev", DEV_SERVER_URL);
     win.loadURL(DEV_SERVER_URL);
-    win.webContents.openDevTools({ mode: "detach" });
   } else {
     const indexHtml = getProdIndexHtmlPath();
-    win.webContents.openDevTools({ mode: "detach" });
     logToFile("MODE: prod", "indexHtml:", indexHtml);
 
     // Ako index.html ne postoji, odmah logiraj

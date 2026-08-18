@@ -2,9 +2,14 @@ const { systemSettingsDataModel } = require("../db/models/Settings.cjs")
 
 
 const getSystemSetingsDataService = async ()=>{
-    const [settings] = await Promise.all([
-    systemSettingsDataModel.findOne({attributes: { exclude: ["createdAt", "updatedAt"] }}),
-  ]);
+  // Na svježoj instalaciji zapisa još nema, pa bi se postavke otvorile prazne.
+  // Zato se prvi put stvori redak s predefiniranim vrijednostima iz modela —
+  // blagajnik onda mijenja samo ono što se stvarno razlikuje.
+  let settings = await systemSettingsDataModel.findOne({attributes: { exclude: ["createdAt", "updatedAt"] }});
+  if (!settings) {
+    await systemSettingsDataModel.create({});
+    settings = await systemSettingsDataModel.findOne({attributes: { exclude: ["createdAt", "updatedAt"] }});
+  }
   return {
     system_settings: settings ? settings.toJSON() : {},
     meta: { fetchedAt: new Date().toISOString() },

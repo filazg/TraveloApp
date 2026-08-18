@@ -14,7 +14,7 @@ const storage = {
 
     const isPaired = localStorage.getItem("isPaired") === "false";
     const authToken = localStorage.getItem("authToken");
-    const themeMode = localStorage.getItem("themeMode") || "dark";
+    const themeMode = localStorage.getItem("themeMode") || "light";
     return { isPaired, authToken, themeMode };
   },
 
@@ -47,7 +47,8 @@ export const bootstrapApp = createAsyncThunk("app/bootstrap", async () => {
   // podrška za obje varijante: authToken ili isLoggedIn iz API-ja
   const isLoggedIn = data?.isLoggedIn ?? Boolean(authToken);
 
-  const themeMode = data?.themeMode === "light" ? "light" : "dark";
+  // Svijetla tema je zadana; tamna se bira tek eksplicitno.
+  const themeMode = data?.themeMode === "dark" ? "dark" : "light";
 
   return { isPaired, authToken, isLoggedIn, themeMode };
 });
@@ -185,7 +186,7 @@ const initialState = {
   searchData:{},
   saleData:{},
 
-  themeMode: localStorage.getItem("themeMode") || "dark",
+  themeMode: localStorage.getItem("themeMode") || "light",
 
   error: null,
 };
@@ -283,7 +284,7 @@ const appSlice = createSlice({
     },
 
     themeModeSet(state, action) {
-      const mode = action.payload === "light" ? "light" : "dark";
+      const mode = action.payload === "dark" ? "dark" : "light";
       state.themeMode = mode;
       // persist (fire and forget)
       storage.setThemeMode(mode);
