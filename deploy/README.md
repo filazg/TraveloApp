@@ -115,6 +115,21 @@ pm2 restart ecosystem.config.js --update-env
 
 Razilaženje ovih portova znači 502 od nginxa — iza njega tada nitko ne sluša.
 
+## Zatvaranje web prodaje pred polazak
+
+Web prodaja prestaje nuditi polazak 10 minuta prije vremena polaska. Vremena su
+hrvatska lokalna (`Europe/Zagreb`) i računaju se eksplicitno u toj zoni, jer VM
+radi u UTC-u. Prag se mijenja bez diranja koda:
+
+```bash
+export WEB_SALES_CUTOFF_MINUTES=10   # 0 = prodaja do samog polaska
+pm2 restart travelo-web-sales-service --update-env
+```
+
+Napomena: `--update-env` postojeću varijablu ne uklanja, samo je prepisuje — za
+povratak na default vrijednost postavi `WEB_SALES_CUTOFF_MINUTES=10` ili napravi
+`pm2 delete` + `pm2 start`.
+
 ## Adrese backenda u SPA-ovima
 
 Ne postavljaju se: svaki SPA gađa origin s kojeg je otvoren (`/app` za gateway,

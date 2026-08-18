@@ -1,6 +1,6 @@
 const { Sequelize } = require('sequelize');
 const { Op } = require("sequelize");
-const dayjs = require('dayjs');
+const { isSaleOpen } = require('../../helpers/departureCutoff');
 
 // Polasci se u bazi vode kao tekst ("DD.MM.YYYY. HH:mm"), pa ih ne može poredati
 // ni baza ni obična usporedba stringova — 9:00 bi došlo iza 17:00 jer se
@@ -38,7 +38,6 @@ const searchTripsController = async(req,res)=>{
       }
    
       const travelDate = formatDate(new Date(date));
-      const today = dayjs(new Date()).format("DD.MM.YYYY HH:mm");
       console.log(travelDate) 
   
       const tripsForSearch = await RoutesModel.findAll({
@@ -59,40 +58,12 @@ const searchTripsController = async(req,res)=>{
       //console.log(tripsForSearch)
       let tripsResult = [];
 
-      //provjera za danasnje polaske da li je prosao
-
-      const isFutureInTrip = (trip) => {
-        console.log('is future trip funkcija')
-        console.log(trip.actual_departure)
-        console.log(today)
-        console.log('is future trip funkcija')
-        const travelD =  trip.actual_departure.split(". ");
-        const todayD = today.split(" ");
-        if (travelD[0] === todayD[0]) {
-          console.log('isti dan')
-          console.log(travelD[1])
-          console.log(today[1])
-          const travelTime = travelD[1].split(":");
-          const todayTime = todayD[1].split(":");
-          if(parseInt(travelTime[0]) < parseInt(todayTime[0])){
-            return false;
-          }else if(parseInt(travelTime[0]) === parseInt(todayTime[0])){
-            if(parseInt(travelTime[1]) <= parseInt(todayTime[1])){
-              return false;
-            }else{
-              return true;
-            }
-          }else{
-            return true;
-          } 
-        }else{
-          return true;
-        }
-      }
+      // Polasci kojima je prodaja zatvorena (10 min prije polaska, Europe/Zagreb)
+      // ne smiju uopce doci do kupca — vidi helpers/departureCutoff.js.
 
       if (tripsForSearch) {
         for (const trip of tripsForSearch) {
-          if(isFutureInTrip(trip)){
+          if(isSaleOpen(trip.actual_departure)){
 
         
           console.log(trip)
@@ -226,7 +197,6 @@ const searchWebPageTripsController = async(req,res)=>{
       }
    
       const travelDate = formatDate(new Date(date));
-      const today = dayjs(new Date()).format("DD.MM.YYYY HH:mm");
       console.log(travelDate) 
   
       const tripsForSearch = await RoutesModel.findAll({
@@ -247,40 +217,12 @@ const searchWebPageTripsController = async(req,res)=>{
       //console.log(tripsForSearch)
       let tripsResult = [];
 
-      //provjera za danasnje polaske da li je prosao
-
-      const isFutureInTrip = (trip) => {
-        console.log('is future trip funkcija')
-        console.log(trip.actual_departure)
-        console.log(today)
-        console.log('is future trip funkcija')
-        const travelD =  trip.actual_departure.split(". ");
-        const todayD = today.split(" ");
-        if (travelD[0] === todayD[0]) {
-          console.log('isti dan')
-          console.log(travelD[1])
-          console.log(today[1])
-          const travelTime = travelD[1].split(":");
-          const todayTime = todayD[1].split(":");
-          if(parseInt(travelTime[0]) < parseInt(todayTime[0])){
-            return false;
-          }else if(parseInt(travelTime[0]) === parseInt(todayTime[0])){
-            if(parseInt(travelTime[1]) <= parseInt(todayTime[1])){
-              return false;
-            }else{
-              return true;
-            }
-          }else{
-            return true;
-          } 
-        }else{
-          return true;
-        }
-      }
+      // Polasci kojima je prodaja zatvorena (10 min prije polaska, Europe/Zagreb)
+      // ne smiju uopce doci do kupca — vidi helpers/departureCutoff.js.
 
       if (tripsForSearch) {
         for (const trip of tripsForSearch) {
-          if(isFutureInTrip(trip)){
+          if(isSaleOpen(trip.actual_departure)){
 
         
           console.log(trip)

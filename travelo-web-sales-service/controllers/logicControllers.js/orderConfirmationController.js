@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { getCoreServiceConfigData } = require('../configSyncController');
+const { isSaleOpen, saleClosedMessage } = require('../../helpers/departureCutoff');
 
 const createOrderConfirmationController = async (req, res) => {
     try {
@@ -23,6 +24,29 @@ const createOrderConfirmationController = async (req, res) => {
                 status: 400,
                 data: { message: 'order_number and data (routes) required' },
             });
+        }
+
+        // Pretraga već izbacuje polaske kojima je prodaja zatvorena, ali kupac
+        // može sjediti na sažetku dok cutoff prođe. Bez ove provjere bi platio
+        // kartu za brod koji je otišao, pa se narudžba odbija prije Monrija.
+        const { RoutesModel } = req.app.locals.models;
+        for (const route of routes) {
+            if (!route?.sales_route_uuid) continue;
+            const routeData = await RoutesModel.findOne({
+                where: { uuid: route.sales_route_uuid },
+            });
+            if (!routeData) continue;
+            if (!isSaleOpen(routeData.actual_departure)) {
+                console.log('order_confirmation odbijen — prodaja zatvorena za', routeData.actual_departure);
+                return res.status(409).json({
+                    status: 409,
+                    data: {
+                        message: saleClosedMessage(routeData.actual_departure, language),
+                        sales_route_uuid: route.sales_route_uuid,
+                        actual_departure: routeData.actual_departure,
+                    },
+                });
+            }
         }
 
         const coreConfig = await getCoreServiceConfigData();
