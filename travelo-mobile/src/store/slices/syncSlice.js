@@ -37,7 +37,10 @@ export const syncBasicDataThunk = createAsyncThunk(
                 payload.users || [],
                 payload.payment_method || []
             );
-            return payload;
+            // Vracamo dopunjeni basic_data — reducer sprema bas njega u store, pa
+            // bi inace 7pay konfiguracija postojala u bazi, a nedostajala u
+            // aplikaciji do prvog ponovnog pokretanja.
+            return { ...payload, basic_data: basic };
         } catch (err) {
             return rejectWithValue({ message: err.response?.data?.msg || err.message });
         }
