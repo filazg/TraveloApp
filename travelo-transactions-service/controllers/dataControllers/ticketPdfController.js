@@ -26,7 +26,9 @@ const toTemplateTicket = async (t) => ({
     departure: t.departure,
     departure_harbor_name: t.departure_harbor_name,
     departure_harbor_id: t.departure_harbor_id,
-    arrival: t.arrival || t.departure_planed,
+    // Fallback je isao na departure_planed, pa je karta bez upisanog dolaska
+    // pokazivala vrijeme POLASKA kao vrijeme dolaska. Radije prazno nego krivo.
+    arrival: t.arrival || t.arrival_planed || '',
     arrival_harbor_name: t.arrival_harbor_name,
     arrival_harbor_id: t.arrival_harbor_id,
     line_code: t.line_code,

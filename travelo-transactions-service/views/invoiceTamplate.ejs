@@ -136,8 +136,23 @@
 <%
     var d = invoice.invoiceData;
     var pad2 = function (n) { return String(n).padStart(2, '0'); };
-    var dateStr = pad2(d.invoice_date.getDate()) + '.' + pad2(d.invoice_date.getMonth() + 1) + '.' + d.invoice_date.getFullYear();
-    var timeStr = pad2(d.invoice_date.getHours()) + ':' + pad2(d.invoice_date.getMinutes());
+    // Datum i vrijeme izdavanja MORAJU biti hrvatsko lokalno vrijeme. getDate()/
+    // getHours() vracaju vrijeme zone procesa, a posluzitelj radi u UTC-u, pa je
+    // na racunu ljeti pisalo dva sata unatrag. Zato eksplicitno Europe/Zagreb.
+    var zagreb = (function (value) {
+        var dt = value instanceof Date ? value : new Date(value);
+        if (isNaN(dt.getTime())) return { day: '', month: '', year: '', hour: '', minute: '' };
+        return new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Zagreb',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+        }).formatToParts(dt).reduce(function (acc, part) {
+            if (part.type !== 'literal') acc[part.type] = part.value;
+            return acc;
+        }, {});
+    })(d.invoice_date);
+    var dateStr = zagreb.day + '.' + zagreb.month + '.' + zagreb.year;
+    var timeStr = (zagreb.hour === '24' ? '00' : zagreb.hour) + ':' + zagreb.minute;
     var fmtEur = function (n) { return (Number(n) || 0).toFixed(2) + ' EUR'; };
     var hasCompanyBuyer = d.buyer_company_name || d.buyer_oib;
     var invoiceNoFull = d.invoice_fiskal_no
