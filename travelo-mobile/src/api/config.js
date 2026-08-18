@@ -1,7 +1,7 @@
 // Gateway base URL for the mobile app. Persisted per-device in SQLite after
 // first successful pairing — the default below is just a hint shown in
 // PairingScreen for fresh devices.
-export const DEFAULT_GATEWAY_URL = 'http://46.101.176.117:5100';
+export const DEFAULT_GATEWAY_URL = 'https://bookingtest.krilo.hr/app';
 
 // Endpoints (paths are concatenated with gateway URL).
 export const ENDPOINTS = {
