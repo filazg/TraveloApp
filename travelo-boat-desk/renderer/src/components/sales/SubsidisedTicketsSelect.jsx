@@ -95,17 +95,24 @@ const handleAddTickets = async(data) => {
    }
 
 
+  // Ruta se uzima iz selectedTrip (konkretna relacija koju je operater odabrao),
+  // isto kao u redovnoj prodaji (TripPricesBar). selectedDeparture je samo prvi
+  // segment polaska i nema polje `sales_routes_uuid` — tablica sales_routes ima
+  // `uuid`, pa je sales_route_uuid ispadao undefined i bulkCreate stavki računa
+  // je pucao na notNull ("Validation error"), a karte se nisu ni kreirale ni
+  // isprintale. Modal je ionako dostupan samo kad selectedTrip postoji (FilterBar).
+  const salesRoute = appData.searchData.selectedTrip
   const newTicket = {
     id: 1,
-    sales_route_uuid:appData.searchData.selectedDeparture.sales_routes_uuid,
-    line_code: appData.searchData.selectedDeparture.line_code,
-    line_name: appData.searchData.selectedDeparture.line_name,
-    departure: appData.searchData.selectedDeparture.departure,
-    departure_harbor_id:appData.searchData.selectedDeparture.departure_harbor_id,
-    departure_harbor_name:appData.searchData.selectedDeparture.departure_harbor_name,
-    arrival: appData.searchData.selectedDeparture.arrival,
-    arrival_harbor_id: appData.searchData.selectedDeparture.arrival_harbor_id,
-    arrival_harbor_name:appData.searchData.selectedDeparture.arrival_harbor_name,
+    sales_route_uuid: salesRoute.uuid,
+    line_code: salesRoute.line_code,
+    line_name: salesRoute.line_name,
+    departure: salesRoute.departure,
+    departure_harbor_id: salesRoute.departure_harbor_id,
+    departure_harbor_name: salesRoute.departure_harbor_name,
+    arrival: salesRoute.arrival,
+    arrival_harbor_id: salesRoute.arrival_harbor_id,
+    arrival_harbor_name: salesRoute.arrival_harbor_name,
     ticket_type_name: data?.type  ? data.type :data.price.ticket_type_name,
     ticket_type_id: data?.type  ? data.type :data.price.ticket_type_id,
     ticket_type_uuid: data?.type  ? data.type :data.price.ticket_type_uuid,
