@@ -2,6 +2,11 @@ const { getSequelize } = require("../../config/database")
 
 const sequelize = getSequelize();
 
+// Portal salje boolean iz <select>-a kao string, a "false" je u JS-u truthy —
+// bez normalizacije bi negativan odabir prosao kao karticni.
+const asBool = (v) => v === true || v === 'true'
+
+
 const getPaymentMethodsDataController = async(req,res)=>{
     const {PaymentMethodsModel} = req.app.locals.models;
     try {
@@ -41,7 +46,8 @@ const addPaymentMethodDataController = async(req,res)=>{
                 const addPaymentMethod = await PaymentMethodsModel.create({
                     uuid:crypto.randomUUID(16),
                     name:data.name,
-                    is_card_payment:data.is_card_payment,
+                    is_card_payment:asBool(data.is_card_payment),
+                    card_provider:asBool(data.is_card_payment) ? (data.card_provider || null) : null,
                     payment_type_uuid:data.type.uuid,
                     payment_type_acr:data.type.acr,
                     fiscalization:data.fiscalization
@@ -82,8 +88,13 @@ const updatePaymentMethodDataController = async(req,res)=>{
                 }
             })
             if(paymentMethodExist){
+                // Uz naziv se sada spremaju i kartične postavke — bez toga se
+                // provider ne bi mogao promijeniti na postojećem sredstvu.
+                // Tip i fiskalizacija se i dalje ne mijenjaju kroz uređivanje.
                 const updatePAymentMethod = await PaymentMethodsModel.update({
                     name:data.name,
+                    is_card_payment:asBool(data.is_card_payment),
+                    card_provider:asBool(data.is_card_payment) ? (data.card_provider || null) : null,
                 },{
                     where:{
                         uuid:data.uuid

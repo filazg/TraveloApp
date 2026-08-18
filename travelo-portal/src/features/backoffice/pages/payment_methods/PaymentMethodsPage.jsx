@@ -9,6 +9,17 @@ import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
 
 
+// Tko provodi karticnu transakciju. Prodajni kanal po ovome zna smije li
+// sredstvo ponuditi i koji uredaj pokrece: MONRI je web naplata, OTP_POS je
+// serijski terminal na blagajni, SEVENPAY je 7pay. Prazno = kartica bez
+// integracije, aplikacija ne pokrece nikakvu transakciju.
+const CARD_PROVIDERS = [
+    { value: '', label: 'Bez integracije' },
+    { value: 'MONRI', label: 'Monri (web)' },
+    { value: 'OTP_POS', label: 'OTP POS (blagajna)' },
+    { value: 'SEVENPAY', label: '7pay' },
+];
+
 export default function PaymentMethodsPage (){
     const dispatch = useDispatch()
     const backofficeData = useSelector(backofficeSliceData)
@@ -68,6 +79,8 @@ export default function PaymentMethodsPage (){
      const columns = [
        { field: 'name', headerName:t('backoffice.payment_methods.name'), flex: 2},
         { field: 'is_card_payment', type: 'boolean', headerName: t('backoffice.payment_methods.is_card_payment'), flex: 2},
+        { field: 'card_provider', headerName: t('backoffice.payment_methods.card_provider'), flex: 2,
+          valueGetter: (value) => CARD_PROVIDERS.find((p) => p.value === value)?.label || ''},
         { field: 'payment_type_acr', headerName: t('backoffice.payment_methods.acr'),align:'right', flex: 2},     
     ];
 
@@ -150,22 +163,23 @@ export default function PaymentMethodsPage (){
                         <MenuItem value='false'>{t('backoffice.payment_methods.is_card_payment_no')}</MenuItem>
                     </TextField>
                     <TextField
-                        type="boolean"
                         variant="outlined"
                         fullWidth
                         select
-                        label={t('backoffice.payment_methods.is_monri_card_payment')}
-                        placeholder={t('backoffice.payment_methods.is_monri_card_payment')}
-                        required
-                        value={newData.is_card_payment_monri || ""}
+                        disabled={newData.is_card_payment !== 'true'}
+                        helperText={newData.is_card_payment !== 'true' ? t('backoffice.payment_methods.card_provider_hint') : ''}
+                        label={t('backoffice.payment_methods.card_provider')}
+                        placeholder={t('backoffice.payment_methods.card_provider')}
+                        value={newData.card_provider ?? ""}
                         onChange={handleChange}
-                        name="is_card_payment_monri"
+                        name="card_provider"
                         sx={{
                             mt:1
                         }}
                         >
-                        <MenuItem value='true' >{t('backoffice.payment_methods.is_card_payment_yes')}</MenuItem>
-                        <MenuItem value='false'>{t('backoffice.payment_methods.is_card_payment_no')}</MenuItem>
+                        {CARD_PROVIDERS.map((cp) => (
+                            <MenuItem key={cp.value || 'none'} value={cp.value}>{cp.label}</MenuItem>
+                        ))}
                     </TextField>
                     <TextField
                         type="boolean"
@@ -252,19 +266,24 @@ export default function PaymentMethodsPage (){
                         }}
                     />
                     <TextField
-                        type="boolean"
                         variant="outlined"
                         fullWidth
-                        disabled
-                        label={t('backoffice.payment_methods.is_monri_card_payment')}
-                        placeholder={t('backoffice.payment_methods.is_monri_card_payment')}
-                        required
-                        value={editedData?.is_card_payment_monri || ""}
-                        name="is_card_payment_monri"
+                        select
+                        disabled={editedData?.is_card_payment !== true && String(editedData?.is_card_payment) !== 'true'}
+                        helperText={editedData?.is_card_payment !== true && String(editedData?.is_card_payment) !== 'true' ? t('backoffice.payment_methods.card_provider_hint') : ''}
+                        label={t('backoffice.payment_methods.card_provider')}
+                        placeholder={t('backoffice.payment_methods.card_provider')}
+                        value={editedData?.card_provider ?? ""}
+                        onChange={handleChangeEdit}
+                        name="card_provider"
                         sx={{
                             mt:1
                         }}
-                    />
+                        >
+                        {CARD_PROVIDERS.map((cp) => (
+                            <MenuItem key={cp.value || 'none'} value={cp.value}>{cp.label}</MenuItem>
+                        ))}
+                    </TextField>
                     <TextField
                         type="boolean"
                         variant="outlined"

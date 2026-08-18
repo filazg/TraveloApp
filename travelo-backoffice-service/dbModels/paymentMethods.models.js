@@ -21,6 +21,15 @@ module.exports = (sequelize)=>{
                 type:DataTypes.BOOLEAN,
                 allowNull:false
             },
+            // Tko provodi kartičnu transakciju za ovo sredstvo plaćanja. Prodajni
+            // kanal po ovome zna smije li ga uopće ponuditi i koji uređaj/servis
+            // pokreće: MONRI (web), OTP_POS (serijski terminal na blagajni),
+            // SEVENPAY. Prazno = kartično bez integracije (ručni imprinter,
+            // vanjski terminal), transakcija se ne pokreće iz aplikacije.
+            card_provider:{
+                type:DataTypes.STRING,
+                allowNull:true
+            },
             payment_type_uuid:{
                 type:DataTypes.STRING,
                 allowNull:false
