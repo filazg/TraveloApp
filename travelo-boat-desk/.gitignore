@@ -15,6 +15,11 @@ out/
 build/
 release/
 *.exe
+# TesseraCli je isporučeni self-contained .NET publish, ne build output —
+# bez ovih iznimki apphost ne uđe u repo i čitanje kartica puca s
+# "TesseraCli.exe not found".
+!resources/tessera-cli/TesseraCli.exe
+!resources/tessera-cli/createdump.exe
 *.dmg
 *.msi
 *.AppImage
