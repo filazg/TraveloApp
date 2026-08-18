@@ -63,6 +63,12 @@ const getTerminalBasicDataHandler = async(data)=>{
             // iz control-servisa, terminal ih ne drzi trajno. Salju se samo ako su
             // popunjeni, da uredaj ne dobije poluprazan config.
             const sevenPayConfig = getIntegrationsConfigData()?.sevenpay
+            // Bez ovoga se ne vidi zasto uredaj javlja "nedostaje 7pay konfiguracija":
+            // razlika je izmedu praznog integrations configa (terminals se digao
+            // prije control-servisa) i nepopunjenih kredencijala.
+            console.log('[7pay] integrations config ucitan:', !!getIntegrationsConfigData(),
+                '| sevenpay sekcija:', !!sevenPayConfig,
+                '| api_key postavljen:', !!sevenPayConfig?.api_key)
             const payment7pay = sevenPayConfig?.api_key ? {
                 package_name: sevenPayConfig.package_name || 'com.sevenpay.tnp_test',
                 api_key: sevenPayConfig.api_key,
