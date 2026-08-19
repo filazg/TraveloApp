@@ -1,7 +1,7 @@
 const { ThermalPrinter, PrinterTypes, CharacterSet, BreakLine } = require('node-thermal-printer');
 const { systemSettingsDataModel } = require('../../db/models/Settings.cjs');
 
-const { runPrintJob } = require('./printJob.cjs');
+const { runPrintJob, cutOrFeed } = require('./printJob.cjs');
 
 
 const printInvoice = async ({ invoice, items, copy }) => {
@@ -50,7 +50,7 @@ const printInvoice = async ({ invoice, items, copy }) => {
                 printer.println("ISPIS ZA TRGOVCA");
                 printer.drawLine();
                 printer.drawLine();
-                printer.cut();
+                cutOrFeed(printer);
                 printer.beep();
                 await sleep(5000); // pauza 1 sekunda
             }
@@ -206,7 +206,7 @@ const printInvoice = async ({ invoice, items, copy }) => {
                 printer.setTextNormal();
             }
         }
-        printer.cut();
+        cutOrFeed(printer);
         printer.beep();
 
         return await runPrintJob(printer, 'RAČUN');
@@ -326,7 +326,7 @@ const printTickets = async ({ tickets,copy }) => {
             printer.drawLine();
             printer.println('Dozvoljena osobna prtljaga do 23kg / Maximum luggage weight up to 23kg')
             printer.println('Dužni ste predočiti kartu s kodom prilikom ukrcaja / You are obligated to present the code printed on the ticket while boarding')
-            printer.cut();
+            cutOrFeed(printer);
         }
         printer.beep();
 

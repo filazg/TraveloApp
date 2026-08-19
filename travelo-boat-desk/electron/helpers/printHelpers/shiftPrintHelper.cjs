@@ -1,6 +1,6 @@
 const { ThermalPrinter, PrinterTypes, CharacterSet, BreakLine } = require('node-thermal-printer');
 const { systemSettingsDataModel } = require('../../db/models/Settings.cjs');
-const { runPrintJob } = require('./printJob.cjs');
+const { runPrintJob, cutOrFeed } = require('./printJob.cjs');
 
 const date = new Date()
 
@@ -115,7 +115,7 @@ const shiftPrintHelper = async (data) => {
         printer.drawLine();
         printer.leftRight('UKUPNO:', data.shift_sale.amount.toFixed(2) + ' EUR')
         printer.drawLine();
-        printer.cut();
+        cutOrFeed(printer);
 
 
         printer.beep();
