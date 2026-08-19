@@ -155,6 +155,9 @@ const runFinalizationOnce = async ({ paymentRef, approved, meta }) => {
                 line_name: o.line_name,
                 departure_date: o.departure_date,
                 departure_time: o.departure_time,
+                // Bez ovoga karta ostaje bez vremena dolaska — narudzba ga ima,
+                // ali se ovdje rucno prepisuju polja i lako ispadne iz popisa.
+                arrival_planned: o.arrival_planned,
                 departure_harbor_code: o.departure_harbor_code,
                 departure_harbor_name: o.departure_harbor_name,
                 arrival_harbor_code: o.arrival_harbor_code,
