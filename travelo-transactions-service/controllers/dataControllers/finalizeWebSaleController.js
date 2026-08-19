@@ -172,7 +172,9 @@ const finalizeWebSaleController = async (req, res) => {
                 departure: `${order.departure_date || ""} ${order.departure_time || ""}`.trim(),
                 departure_harbor_id: order.departure_harbor_code || "",
                 departure_harbor_name: order.departure_harbor_name || "",
-                arrival: `${order.departure_date || ""} ${order.departure_time || ""}`.trim(),
+                // Ovdje je prije stajalo vrijeme POLASKA, pa je stavka racuna
+                // tvrdila da brod stize u trenutku kad krece.
+                arrival: order.arrival_planned || "",
                 arrival_harbor_id: order.arrival_harbor_code || "",
                 arrival_harbor_name: order.arrival_harbor_name || "",
                 item_amount: itemAmount,
@@ -221,8 +223,10 @@ const finalizeWebSaleController = async (req, res) => {
                         line_name: order.line_name || null,
                         departure_harbor_id: order.departure_harbor_code,
                         departure_harbor_name: order.departure_harbor_name,
-                        arrival_planed: null,
-                        arrival: null,
+                        // Vrijeme dolaska s voznog reda; bez njega je karta imala
+                        // prazan dolazak (ili, s ranijim fallbackom, vrijeme polaska).
+                        arrival_planed: order.arrival_planned || null,
+                        arrival: order.arrival_planned || null,
                         arrival_harbor_id: order.arrival_harbor_code,
                         arrival_harbor_name: order.arrival_harbor_name,
                         deactivate: false,
