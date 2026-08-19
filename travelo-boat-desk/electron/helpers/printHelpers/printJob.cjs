@@ -1,20 +1,22 @@
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// PRIVREMENO: cutter na printeru je u kvaru, pa se rez preskace i papir se trga
-// rucno. Vraca se na true (ili preko env-a DESK_PRINTER_CUT=1) cim se printer
-// popravi — jedino mjesto koje treba dirati.
-const CUT_ENABLED = process.env.DESK_PRINTER_CUT === '1';
+// Koliko praznih redova izvuci kad se ne reze — glava printera je nekoliko
+// centimetara iznad ruba kucista, pa bez ovoga zadnji redovi ispisa ostanu
+// unutra i potrga se preko teksta.
+const FEED_LINES = 6;
 
-// Umjesto printer.cut() — kad je rez iskljucen, ostavi malo praznog papira da
-// se ima gdje potrgati.
-const cutOrFeed = (printer) => {
-    if (CUT_ENABLED) {
+// Umjesto printer.cut(). Rez se ukljucuje/iskljucuje u postavkama sustava
+// (printer_cut) — iskljuci ga kad je cutter u kvaru pa se papir trga rucno.
+// Postavka koja jos nije upisana (NULL na staroj instalaciji) znaci ukljucen
+// rez, jer je to normalno stanje printera.
+const cutOrFeed = (printer, cutEnabled) => {
+    if (cutEnabled !== false) {
         printer.cut();
         return;
     }
-    printer.newLine();
-    printer.newLine();
-    printer.newLine();
+    for (let i = 0; i < FEED_LINES; i++) {
+        printer.newLine();
+    }
 };
 
 /**
@@ -41,4 +43,4 @@ const runPrintJob = async (printer, label, attempts = 3) => {
     return false;
 };
 
-module.exports = { runPrintJob, wait, cutOrFeed, CUT_ENABLED };
+module.exports = { runPrintJob, wait, cutOrFeed };

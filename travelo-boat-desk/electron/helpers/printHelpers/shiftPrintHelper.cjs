@@ -115,7 +115,7 @@ const shiftPrintHelper = async (data) => {
         printer.drawLine();
         printer.leftRight('UKUPNO:', data.shift_sale.amount.toFixed(2) + ' EUR')
         printer.drawLine();
-        cutOrFeed(printer);
+        cutOrFeed(printer, settingsData.printer_cut);
 
 
         printer.beep();

@@ -11,6 +11,7 @@ const DEFAULTS = {
     printer_width: '42',
     card_reader: 'ACS ACR1252 1S CL Reader PICC 0',
     pos_port: 'COM6',
+    printer_cut: true,
 };
 
 const systemSettingsDataModel = sequelize.define('system_settings',{
@@ -60,6 +61,13 @@ const systemSettingsDataModel = sequelize.define('system_settings',{
     pos_print_additional_slip:{
         type: Sequelize.BOOLEAN,
         allowNull:true
+    },
+    // Rez papira na printeru. Isključi kad je cutter u kvaru — tada se umjesto
+    // reza izvuče višak papira da se ispis ima gdje potrgati rukom.
+    printer_cut:{
+        type: Sequelize.BOOLEAN,
+        allowNull:true,
+        defaultValue: DEFAULTS.printer_cut
     },
 },{
     freezeTableName:true

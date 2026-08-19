@@ -50,7 +50,7 @@ const printInvoice = async ({ invoice, items, copy }) => {
                 printer.println("ISPIS ZA TRGOVCA");
                 printer.drawLine();
                 printer.drawLine();
-                cutOrFeed(printer);
+                cutOrFeed(printer, settingsData.printer_cut);
                 printer.beep();
                 await sleep(5000); // pauza 1 sekunda
             }
@@ -206,7 +206,7 @@ const printInvoice = async ({ invoice, items, copy }) => {
                 printer.setTextNormal();
             }
         }
-        cutOrFeed(printer);
+        cutOrFeed(printer, settingsData.printer_cut);
         printer.beep();
 
         return await runPrintJob(printer, 'RAČUN');
@@ -326,7 +326,7 @@ const printTickets = async ({ tickets,copy }) => {
             printer.drawLine();
             printer.println('Dozvoljena osobna prtljaga do 23kg / Maximum luggage weight up to 23kg')
             printer.println('Dužni ste predočiti kartu s kodom prilikom ukrcaja / You are obligated to present the code printed on the ticket while boarding')
-            cutOrFeed(printer);
+            cutOrFeed(printer, settingsData.printer_cut);
         }
         printer.beep();
 

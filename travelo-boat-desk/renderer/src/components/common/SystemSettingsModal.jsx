@@ -239,6 +239,31 @@ export default function SystemSettingsModal() {
                     }
                     labelPlacement="start"
                 />
+                <FormControlLabel
+                    sx={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    ml: 0,
+                    }}
+                    control={
+                    <Switch
+                        checked={settingsData?.printer_cut !== false}
+                        onChange={(e) =>
+                        setNewSettingsData((prev) => ({
+                            ...prev,
+                            printer_cut: e.target.checked,
+                        }))
+                        }
+                    />
+                    }
+                    label={
+                    <Typography>
+                        Rez papira na printeru
+                    </Typography>
+                    }
+                    labelPlacement="start"
+                />
                 </Box>
             <Button sx={{ height: 60, mb:2 }} fullWidth variant="contained">POŠALJI NEPOSLANE DOKUMNETE</Button> 
             <Button sx={{ height: 60, mb:2 }} fullWidth variant="contained">UKLONI UPARIVANJE</Button> 
