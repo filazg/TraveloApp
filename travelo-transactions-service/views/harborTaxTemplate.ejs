@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="utf-8" />
+    <title><%= title %></title>
+    <style>
+        @page { margin: 18mm 14mm; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            color: #1e293b;
+            line-height: 1.4;
+            margin: 0;
+        }
+        .header {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 14px;
+        }
+        .header td { vertical-align: top; padding: 0 8px; }
+        .header td + td { border-left: 1px solid #e2e8f0; text-align: right; }
+        .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .party { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+        .title {
+            text-align: center;
+            margin: 8px 0 14px;
+            padding: 10px 0;
+            border-top: 2px solid #0f172a;
+            border-bottom: 2px solid #0f172a;
+        }
+        .title h1 { font-size: 19px; margin: 0 0 4px; letter-spacing: 0.5px; }
+        .title .sub { font-size: 13px; font-weight: 700; }
+        .title .muted { color: #64748b; font-size: 11px; margin-top: 4px; }
+        table.data {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        table.data th {
+            background: #f1f5f9;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #475569;
+            padding: 6px 8px;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        table.data td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        table.data th.num, table.data td.num { text-align: right; }
+        table.data tr.group td {
+            background: #f8fafc;
+            font-weight: 700;
+        }
+        table.data tr.total td {
+            border-top: 2px solid #0f172a;
+            border-bottom: none;
+            font-weight: 700;
+            font-size: 12px;
+            padding-top: 8px;
+        }
+        .harbor-name { padding-left: 18px; color: #334155; }
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            margin: 0 0 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #334155;
+        }
+        .note {
+            margin-top: 18px;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 10px;
+            color: #64748b;
+        }
+        .note p { margin: 0 0 3px; }
+    </style>
+</head>
+<body>
+    <table class="header">
+        <tr>
+            <td>
+                <div class="label">Prijevoznik</div>
+                <div class="party"><%= company.name || "" %></div>
+                <% if (company.address) { %><div><%= company.address %></div><% } %>
+                <% if (company.postal_code || company.town) { %>
+                    <div><%= [company.postal_code, company.town].filter(Boolean).join(" ") %></div>
+                <% } %>
+                <% if (company.legal_id) { %><div>OIB: <%= company.legal_id %></div><% } %>
+            </td>
+            <td>
+                <div class="label">Izvještaj izrađen</div>
+                <div><%= generatedAt %></div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="title">
+        <h1>OBRAČUN LUČKIH NAKNADA</h1>
+        <div class="sub"><%= scopeLabel %></div>
+        <div class="muted">Razdoblje: <%= periodLabel %></div>
+    </div>
+
+    <% if (!regions.length) { %>
+        <p>Za odabrano razdoblje nema prodanih karata.</p>
+    <% } else { %>
+        <div class="section-title"><%= sectionTitle %></div>
+        <table class="data">
+            <thead>
+                <tr>
+                    <th><%= firstColumnLabel %></th>
+                    <th>Kod</th>
+                    <th class="num">Broj karata</th>
+                    <th class="num">Lučka naknada</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% regions.forEach(function (r) { %>
+                    <tr class="group">
+                        <td><%= r.region_name %></td>
+                        <td></td>
+                        <td class="num"><%= r.tickets %></td>
+                        <td class="num"><%= fmt(r.total) %></td>
+                    </tr>
+                    <% r.harbors.forEach(function (h) { %>
+                        <tr>
+                            <td class="harbor-name"><%= h.harbor_name %></td>
+                            <td><%= h.harbor_code %></td>
+                            <td class="num"><%= h.tickets %></td>
+                            <td class="num"><%= fmt(h.total) %></td>
+                        </tr>
+                    <% }) %>
+                <% }) %>
+                <tr class="total">
+                    <td>UKUPNO</td>
+                    <td></td>
+                    <td class="num"><%= totalTickets %></td>
+                    <td class="num"><%= fmt(totalAmount) %></td>
+                </tr>
+            </tbody>
+        </table>
+    <% } %>
+
+    <div class="note">
+        <p>Lučka naknada iznosi <%= ratePct %>% cijene karte i pripisuje se lučkoj upravi luke polaska svake pojedine karte.</p>
+        <p>Obuhvaćene su sve prodane karte u razdoblju, bez obzira na kanal prodaje (blagajna, web, mobilni POS, partneri, API). Stornirane karte nisu uključene.</p>
+    </div>
+</body>
+</html>

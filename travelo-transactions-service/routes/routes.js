@@ -11,6 +11,7 @@ const { generatePartnerInvoicesController, listPartnerInvoicesController, getPar
 const { listTicketsController } = require('../controllers/dataControllers/ticketsSearchController');
 const { cancelTicketsController } = require('../controllers/dataControllers/cancelTicketsController');
 const { harborTaxReportController } = require('../controllers/dataControllers/harborTaxReportController');
+const { harborTaxPdfController } = require('../controllers/dataControllers/harborTaxPdfController');
 const { finalizeTerminalSaleController } = require('../controllers/dataControllers/finalizeTerminalSaleController');
 const { cancelSailingController, sendSailingMessageController } = require('../controllers/dataControllers/dispatcherController');
 const { emailInvoiceTicketsController } = require('../controllers/dataControllers/emailInvoiceTicketsController');
@@ -90,6 +91,10 @@ router
 router
     .route('/harbor_tax_report')
     .get(harborTaxReportController)
+
+router
+    .route('/harbor_tax_report_pdf')
+    .get(harborTaxPdfController)
 
 router
     .route('/finalize_terminal_sale')

@@ -670,4 +670,25 @@ export const downloadInvoicePdf = async (invoice_uuid, filename) => {
     setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
 };
 
+// Obračun lučkih naknada u PDF-u. Bez `region` preuzima se zbirni izvještaj za
+// sve uprave, s njim samo ta uprava — svakoj se predaje njezin obračun. Ime
+// datoteke slaže backend, pa se ovdje čita iz content-disposition.
+export const downloadHarborTaxPdf = async ({ year, month, region } = {}) => {
+    const resp = await api.get("/portal/transactions/harbor_tax_report_pdf", {
+        params: { year, month: month || undefined, region: region || undefined },
+        responseType: "blob",
+    });
+    const disposition = resp.headers?.["content-disposition"] || "";
+    const match = /filename="?([^"]+)"?/.exec(disposition);
+    const blob = new Blob([resp.data], { type: "application/pdf" });
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = match?.[1] || `lucke-naknade-${year}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+};
+
 export default financeSlice.reducer;

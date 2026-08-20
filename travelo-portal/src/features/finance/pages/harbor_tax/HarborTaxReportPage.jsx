@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
     Accordion,
@@ -8,6 +8,8 @@ import {
     Box,
     Button,
     Chip,
+    CircularProgress,
+    IconButton,
     MenuItem,
     Stack,
     Table,
@@ -17,11 +19,15 @@ import {
     TableHead,
     TableRow,
     TextField,
+    Tooltip,
     Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
+import DownloadIcon from "@mui/icons-material/Download";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import {
+    downloadHarborTaxPdf,
     fetchHarborTaxReportThunk,
     financeSliceData,
     setHarborTaxReportFilter,
@@ -50,6 +56,8 @@ export default function HarborTaxReportPage() {
         harborTaxReportError,
         harborTaxReportFilters,
     } = useSelector(financeSliceData);
+    const [downloading, setDownloading] = useState(null);
+    const [downloadError, setDownloadError] = useState("");
 
     useEffect(() => {
         dispatch(setAuthData({ path: "loading", value: false }));
@@ -69,6 +77,35 @@ export default function HarborTaxReportPage() {
 
     const regions = harborTaxReport?.by_region || [];
     const total = harborTaxReport?.total_harbor_tax || 0;
+
+    // Razdoblje se uzima iz prikazanog izvještaja, a ne iz filtara — inače bi
+    // se preuzeo PDF za mjesec koji je odabran u izborniku, ali još nije izrađen.
+    const period = harborTaxReport?.period;
+
+    // Ključ uprave iz backenda; luke koje još nisu povezane s upravom nemaju
+    // uuid, pa se tada šalje naziv.
+    const regionKey = (r) => r?.region_key || r?.region_uuid || r?.region_name;
+
+    const handleDownload = async (r) => {
+        const key = r ? regionKey(r) : null;
+        setDownloading(key || "__ALL__");
+        setDownloadError("");
+        try {
+            await downloadHarborTaxPdf({
+                year: period?.year,
+                month: period?.month,
+                region: key,
+            });
+        } catch {
+            setDownloadError(
+                r
+                    ? `Preuzimanje izvještaja za ${r.region_name} nije uspjelo.`
+                    : "Preuzimanje zbirnog izvještaja nije uspjelo."
+            );
+        } finally {
+            setDownloading(null);
+        }
+    };
 
     return (
         <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
@@ -108,10 +145,23 @@ export default function HarborTaxReportPage() {
                 >
                     Izradi izvještaj
                 </Button>
+                {regions.length > 0 && (
+                    <Button
+                        variant="outlined"
+                        size="large"
+                        startIcon={<PictureAsPdfIcon />}
+                        onClick={() => handleDownload(null)}
+                        disabled={downloading !== null}
+                        sx={{ height: 56, px: 3 }}
+                    >
+                        {downloading === "__ALL__" ? "Priprema…" : "Preuzmi zbirni PDF"}
+                    </Button>
+                )}
                 {harborTaxReport && <Chip label={`Ukupno: ${fmtEUR(total)}`} color="primary" />}
             </Stack>
 
             {harborTaxReportError && <Alert severity="error" sx={{ mb: 2 }}>{harborTaxReportError}</Alert>}
+            {downloadError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setDownloadError("")}>{downloadError}</Alert>}
 
             {harborTaxReport && regions.length === 0 && (
                 <Alert severity="info">Nema podataka za odabrano razdoblje.</Alert>
@@ -127,16 +177,32 @@ export default function HarborTaxReportPage() {
                                     <TableCell align="right"><b>Broj karata</b></TableCell>
                                     <TableCell align="right"><b>Iznos</b></TableCell>
                                     <TableCell align="right"><b>Udio</b></TableCell>
+                                    <TableCell align="center"><b>Izvještaj</b></TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {regions.map((r) => (
-                                    <TableRow key={r.region_uuid || r.region_name}>
+                                    <TableRow key={regionKey(r)}>
                                         <TableCell>{r.region_name}</TableCell>
                                         <TableCell align="right">{r.tickets}</TableCell>
                                         <TableCell align="right"><b>{fmtEUR(r.total)}</b></TableCell>
                                         <TableCell align="right">
                                             {total > 0 ? `${((r.total / total) * 100).toFixed(1)} %` : "—"}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Tooltip title={`Preuzmi PDF za ${r.region_name}`}>
+                                                <span>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleDownload(r)}
+                                                        disabled={downloading !== null}
+                                                    >
+                                                        {downloading === regionKey(r)
+                                                            ? <CircularProgress size={18} />
+                                                            : <DownloadIcon fontSize="small" />}
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -145,6 +211,21 @@ export default function HarborTaxReportPage() {
                                     <TableCell align="right"><b>{regions.reduce((s, r) => s + r.tickets, 0)}</b></TableCell>
                                     <TableCell align="right"><b>{fmtEUR(total)}</b></TableCell>
                                     <TableCell align="right">—</TableCell>
+                                    <TableCell align="center">
+                                        <Tooltip title="Preuzmi zbirni PDF za sve lučke uprave">
+                                            <span>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => handleDownload(null)}
+                                                    disabled={downloading !== null}
+                                                >
+                                                    {downloading === "__ALL__"
+                                                        ? <CircularProgress size={18} />
+                                                        : <DownloadIcon fontSize="small" />}
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
+                                    </TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>

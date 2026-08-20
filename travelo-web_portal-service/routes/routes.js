@@ -22,7 +22,7 @@ const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDe
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
 const { handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
 const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
-const { handleGetHarborTaxReportFeature } = require('../features/transactions/harborTaxReportHandler');
+const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
 const { handleCancelSailingFeature, handleSendSailingMessageFeature } = require('../features/transactions/dispatcherHandler');
 const { handleGetShiftsFeature } = require('../features/transactions/shiftsHandlers');
@@ -229,6 +229,10 @@ router
 router
     .route('/transactions/harbor_tax_report')
     .get(handleGetHarborTaxReportFeature)
+
+router
+    .route('/transactions/harbor_tax_report_pdf')
+    .get(handleGetHarborTaxReportPdfFeature)
 
 router
     .route('/transactions/daily_realization')
