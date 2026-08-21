@@ -95,6 +95,13 @@ android {
         // For production switch this to false and use HTTPS.
         manifestPlaceholders = [usesCleartextTraffic:"true"]
     }
+    // Podaci o release ključu stoje u ~/.gradle/gradle.properties, izvan repoa —
+    // lozinke ne smiju u verzioniranje. Bez njih (npr. na tuđem stroju) release
+    // se i dalje složi, ali debug ključem, pa ga store neće primiti; zato build
+    // to i ispiše umjesto da se tiho potpiše krivim ključem.
+    def releaseStorePath = project.findProperty('TRAVELO_RELEASE_STORE_FILE')
+    def hasReleaseKeystore = releaseStorePath != null && file(releaseStorePath).exists()
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -102,15 +109,27 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasReleaseKeystore) {
+            release {
+                storeFile file(releaseStorePath)
+                storePassword project.property('TRAVELO_RELEASE_STORE_PASSWORD')
+                keyAlias project.property('TRAVELO_RELEASE_KEY_ALIAS')
+                keyPassword project.property('TRAVELO_RELEASE_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.warn("UPOZORENJE: nema release keystorea (TRAVELO_RELEASE_STORE_FILE) — " +
+                        "build se potpisuje debug ključem i NIJE za objavu na store.")
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
