@@ -764,6 +764,31 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                 dline(p)
             }
 
+            // ----- STORNO -----
+            // Isti raspored kao sekcija plaćanja ispod, samo su iznosi ono što je
+            // vraćeno. Storna su već uračunata u iznose po sredstvu (negativan
+            // iznos ih umanjuje) — ovo je pregled koliko je izašlo iz blagajne.
+            // Razlikuje se od gornje sekcije STORNIRANE KARTE, koja je razrada po
+            // linijama i kategorijama.
+            val stornoFinance = if (shift.hasKey("shift_storno")) shift.getArray("shift_storno") else null
+            if (stornoFinance != null && stornoFinance.size() > 0) {
+                p.lineWrap(1, null)
+                p.printText(center("STORNO") + "\n", null)
+                p.printText(lrLine("Sredstvo plaćanja", "Iznos") + "\n", null)
+                dline(p)
+                for (n in 0 until stornoFinance.size()) {
+                    val row = stornoFinance.getMap(n) ?: continue
+                    val name = safeString(row, "payment_type_name").ifEmpty { "-" }
+                    val cnt = safeDouble(row, "count").toInt()
+                    val amt = safeDouble(row, "payment_amount")
+                    val label = if (cnt > 0) "$name ($cnt)" else name
+                    p.printText(lrLine(label, "%.2f EUR".format(amt)) + "\n", null)
+                }
+                dline(p)
+                p.printText(lrLine("UKUPNO STORNIRANO", "%.2f EUR".format(safeDouble(shift, "shift_storno_amount"))) + "\n", null)
+                dline(p)
+            }
+
             // ----- SREDSTVA PLAĆANJA -----
             val finance = if (shift.hasKey("shift_finance")) shift.getArray("shift_finance") else null
             if (finance != null && finance.size() > 0) {

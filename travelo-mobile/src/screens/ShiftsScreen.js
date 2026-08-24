@@ -20,7 +20,9 @@ import {
     loadCurrentOpenThunk,
     loadRecentShiftsThunk,
     clearShiftPreview,
+    computeShiftBreakdown,
 } from '../store/slices/shiftsSlice';
+import { loadInvoicesForShift } from '../db/repo';
 import { syncData } from '../store/slices/syncSlice';
 import { printShiftReport } from '../device/printSale';
 import { colors, shadows, layout } from '../theme/colors';
@@ -70,6 +72,34 @@ export default function ShiftsScreen() {
         setActuals({});
         setRemark('');
         setView('close');
+    };
+
+    // Ponovni ispis zaključka. Smjene zatvorene prije nego je rekapitulacija
+    // storna uvedena nemaju shift_storno u spremljenom zapisu, pa se u tom
+    // slučaju doračuna iz lokalnih računa te smjene — kopija tako izgleda isto
+    // kao original. Ako računa nema (npr. očišćena baza), ispisuje se bez te
+    // sekcije umjesto da ispis padne.
+    const reprintShift = async (s) => {
+        let shift = s;
+        if (!Array.isArray(s?.shift_storno)) {
+            try {
+                const invoices = await loadInvoicesForShift(s.shift_uuid);
+                const b = computeShiftBreakdown(invoices);
+                shift = {
+                    ...s,
+                    shift_storno: b.storno,
+                    shift_storno_count: b.storno_count,
+                    shift_storno_amount: b.storno_amount,
+                };
+            } catch (e) {
+                console.log('[reprintShift] doračun storna nije uspio:', e?.message || e);
+            }
+        }
+        try {
+            await printShiftReport({ shift, basicData: sync.basicData, isReprint: true });
+        } catch (e) {
+            Alert.alert('Ispis', 'Ispis kopije nije uspio.');
+        }
     };
 
     const handleCloseConfirm = () => {
@@ -150,7 +180,7 @@ export default function ShiftsScreen() {
                             {s.shift_end && (
                                 <TouchableOpacity
                                     style={styles.printBtn}
-                                    onPress={() => printShiftReport({ shift: s, basicData: sync.basicData, isReprint: true })}
+                                    onPress={() => reprintShift(s)}
                                 >
                                     <Text style={styles.printBtnText}>Ispiši</Text>
                                 </TouchableOpacity>
@@ -180,6 +210,27 @@ export default function ShiftsScreen() {
                 <Row label="Lučka pristojba" value={fmtEUR(preview?.shift_harbor_tax)} />
                 <Row label="Ukupno" value={fmtEUR(preview?.shift_amount)} bold />
             </View>
+
+            {/* Rekapitulacija storna — isti raspored kao kartica plaćanja, samo
+                su iznosi ono što je vraćeno. Storna su već uračunata u očekivane
+                iznose ispod (negativan iznos ih umanjuje); ovdje se vide zasebno
+                da blagajnik zna koliko je izašlo iz blagajne i po kojem sredstvu. */}
+            {(preview?.storno || []).length > 0 ? (
+                <View style={[styles.card, { marginTop: 12 }]}>
+                    <Text style={styles.cardTitle}>Storno</Text>
+                    {(preview?.storno || []).map((row) => (
+                        <View key={`storno-${row.payment_type_uuid}`} style={styles.payRow}>
+                            <View style={styles.payHead}>
+                                <Text style={styles.payName}>{row.payment_type_name}</Text>
+                                <Text style={styles.payCount}>{row.count} storno</Text>
+                            </View>
+                            <Row label="Stornirano" value={fmtEUR(row.payment_amount)} />
+                        </View>
+                    ))}
+                    <View style={styles.divider} />
+                    <Row label="Ukupno stornirano" value={fmtEUR(preview?.storno_amount)} bold />
+                </View>
+            ) : null}
 
             <View style={[styles.card, { marginTop: 12 }]}>
                 <Text style={styles.cardTitle}>Po vrsti plaćanja</Text>

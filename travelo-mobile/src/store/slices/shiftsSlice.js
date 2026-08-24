@@ -89,6 +89,12 @@ export const computeShiftBreakdown = (invoices = []) => {
     let vat = 0;
     let harbor_tax = 0;
     const byPayment = new Map();
+    // Storna se ne izdvajaju iz ukupnih iznosa — negativan iznos ionako umanjuje
+    // očekivano po vrsti plaćanja. Ovdje se samo zasebno zbrajaju, da blagajnik
+    // pri zaključku vidi koliko je vraćeno i po kojem sredstvu.
+    const stornoByPayment = new Map();
+    let stornoCount = 0;
+    let stornoAmount = 0;
     let firstInvoice = null;
     let lastInvoice = null;
 
@@ -111,6 +117,23 @@ export const computeShiftBreakdown = (invoices = []) => {
             cur.payment_amount += total;
             cur.count += 1;
             byPayment.set(pmUuid, cur);
+
+            if (inv.is_storno) {
+                const st = stornoByPayment.get(pmUuid) || {
+                    payment_type_uuid: pmUuid,
+                    payment_type_name: pmName,
+                    payment_amount: 0,
+                    count: 0,
+                };
+                st.payment_amount += total;
+                st.count += 1;
+                stornoByPayment.set(pmUuid, st);
+            }
+        }
+
+        if (inv.is_storno) {
+            stornoCount += 1;
+            stornoAmount += total;
         }
 
         const no = inv.invoice_no || inv.invoice_fiskal_no || null;
@@ -125,6 +148,11 @@ export const computeShiftBreakdown = (invoices = []) => {
         payment_amount: Number(row.payment_amount.toFixed(2)),
     }));
 
+    const storno = [...stornoByPayment.values()].map((row) => ({
+        ...row,
+        payment_amount: Number(row.payment_amount.toFixed(2)),
+    }));
+
     return {
         shift_amount: Number(amount.toFixed(2)),
         shift_vat_base: Number(vat_base.toFixed(2)),
@@ -133,6 +161,9 @@ export const computeShiftBreakdown = (invoices = []) => {
         shift_first_invoice: firstInvoice,
         shift_last_invoice: lastInvoice,
         finance,
+        storno,
+        storno_count: stornoCount,
+        storno_amount: Number(stornoAmount.toFixed(2)),
     };
 };
 
@@ -187,6 +218,11 @@ export const closeShiftThunk = createAsyncThunk(
             shift_last_invoice: breakdown.shift_last_invoice,
             remark: remark || null,
             shift_finance: financeRows,
+            // Rekapitulacija storna se sprema uz smjenu da se vidi i na kasnijem
+            // ponovnom ispisu — inače bi postojala samo dok je smjena otvorena.
+            shift_storno: breakdown.storno,
+            shift_storno_count: breakdown.storno_count,
+            shift_storno_amount: breakdown.storno_amount,
         };
 
         const ok = await pushShiftToBackend(closed, financeRows);
