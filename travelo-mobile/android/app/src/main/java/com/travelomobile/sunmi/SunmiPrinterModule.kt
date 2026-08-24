@@ -859,7 +859,6 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     p.printText(center("P R I J E V O Z N A   K A R T A") + "\n", null)
                     try { p.sendRAWData(byteArrayOf(0x1B, 0x47, 0x00), null) } catch (_: Exception) {}
                     p.setAlignment(0, null)
-                    p.lineWrap(1, null)
                     dline(p)
 
                     // ----- STATUS markeri -----
@@ -920,7 +919,6 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     val lineLabel = safeString(t, "line_name").ifEmpty { safeString(t, "line_code") }
                     p.printText(lrLine("Linija / Line", lineLabel) + "\n", null)
                     dline(p)
-                    p.lineWrap(1, null)
 
                     // ----- POVLAŠTENA KARTA -----
                     // Mobile API šalje SEOP polja direktno na ticket objektu (is_island,
@@ -1001,8 +999,7 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                         safeString(t, "ticket_uuid")
                     ).firstOrNull { it.isNotEmpty() } ?: ""
                     if (qrData.isNotEmpty()) {
-                        try { printRawQR(p, qrData, 8, 49) } catch (_: Exception) {}
-                        p.lineWrap(1, null)
+                        try { printRawQR(p, qrData, 5, 49) } catch (_: Exception) {}
                     }
                     val ticketCode = safeString(t, "ticket_code")
                     if (ticketCode.isNotEmpty()) {
@@ -1028,7 +1025,7 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     for (line in wrapLines("Dozvoljena osobna prtljaga do 23kg / Maximum luggage weight up to 23kg", W)) p.printText("$line\n", null)
                     for (line in wrapLines("Dužni ste predočiti kartu s kodom prilikom ukrcaja / You are obligated to present the code printed on the ticket while boarding", W)) p.printText("$line\n", null)
 
-                    p.lineWrap(3, null)
+                    p.lineWrap(1, null)
                     try { p.cutPaper(null) } catch (_: Exception) {}
                     p.exitPrinterBuffer(true)
                 } catch (e: Exception) {
