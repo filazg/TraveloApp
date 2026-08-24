@@ -21,29 +21,39 @@ export default function FilterBar() {
   };
 
 
-    const handleSetDate = async(date) => {
-        await dispatch(
-        setStateData({
-            path:'searchData/travelDate',
-            value: date.toLocaleDateString("en-GB"),
-        })
-        );
-        //setSearchDataChange(!searchDataChange);
+    // Sve ispod datuma je izračunato za taj konkretni datum: luka polaska nudi
+    // polaske tog dana, relacije i cijene vise o odabranom polasku. Kad se datum
+    // promijeni, to se mora počistiti — inače na ekranu ostane jučerašnji polazak
+    // uz novi datum i blagajnik proda kartu za krivi dan.
+    // Linija i njezine luke (lineHarbors) ne ovise o datumu pa ostaju.
+    const DATE_DEPENDENT_PATHS = [
+        'searchData/selectedFromHarbor',
+        'searchData/availableDepartures',
+        'searchData/selectedDeparture',
+        'searchData/harborsForSelectedDeparture',
+        'searchData/bookingData',
+        'searchData/selectedTrip',
+        'searchData/selectedTripPrices',
+        'searchData/ticketsCounter',
+    ];
+
+    const applyTravelDate = async (date) => {
+        const value = date.toLocaleDateString("en-GB");
+        // Ponovni odabir istog datuma (npr. klik na DANAS kad je već danas) ne
+        // smije obrisati ono što je blagajnik u međuvremenu odabrao.
+        if (value !== appData.searchData?.travelDate) {
+            await dispatch(resetStateData({ paths: DATE_DEPENDENT_PATHS }));
+        }
+        await dispatch(setStateData({ path:'searchData/travelDate', value }));
         setDay(date);
-        //dispatch(resetSelectedSalesRouteDataAll());
+    };
+
+    const handleSetDate = async(date) => {
+        await applyTravelDate(date);
     };
 
     const handleSetToday = async() => {
-        const date = new Date();
-        //console.log(date.toLocaleDateString("en-GB"));
-        await dispatch(
-        setStateData({
-            path:'searchData/travelDate',
-            value: date.toLocaleDateString("en-GB"),
-        })
-        );
-        //dispatch(resetSelectedSalesRouteDataAll());
-        setDay(date);
+        await applyTravelDate(new Date());
     };
 
     useEffect(() => {
@@ -103,7 +113,9 @@ export default function FilterBar() {
             handleSetDepartures()
             
         }
-    }, [appData.searchData.selectedFromHarbor || appData.searchData.selectedLine || appData.searchData.travelDate]);
+        // Odvojene ovisnosti, ne `a || b || c` — taj izraz je jedna vrijednost, pa
+        // dok je luka odabrana promjena datuma nije osvježavala popis polazaka.
+    }, [appData.searchData.selectedFromHarbor, appData.searchData.selectedLine, appData.searchData.travelDate]);
 
     const updateBooking = async (data) => {
       const dataToSearch = {
