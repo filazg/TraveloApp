@@ -23,7 +23,7 @@ import {
 } from '../store/slices/shiftsSlice';
 import { syncData } from '../store/slices/syncSlice';
 import { printShiftReport } from '../device/printSale';
-import { colors, shadows } from '../theme/colors';
+import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
 
 const fmtEUR = (n) => `${(Number(n) || 0).toFixed(2)} €`;
@@ -237,10 +237,10 @@ export default function ShiftsScreen() {
                     style={styles.backBtn}
                     onPress={() => (view === 'close' ? setView('home') : dispatch(resetSection()))}
                 >
-                    <Text style={styles.backText}>‹ {view === 'close' ? 'Pregled' : 'Izbornik'}</Text>
+                    <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>{view === 'close' ? 'Detalji smjene' : 'Smjene'}</Text>
-                <View style={{ width: 80, alignItems: 'flex-end', paddingRight: 8 }}>
+                <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
                     <HomeButton />
                 </View>
             </View>
@@ -259,12 +259,17 @@ const Row = ({ label, value, bold }) => (
 const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
+        minHeight: layout.headerHeight,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 8, paddingVertical: 12,
+        paddingHorizontal: layout.headerPaddingH, paddingVertical: 12,
         backgroundColor: colors.primary,
     },
-    backBtn: { paddingVertical: 6, paddingHorizontal: 10, minWidth: 80 },
-    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    backBtn: {
+        backgroundColor: colors.secondary, borderRadius: 8,
+        width: layout.headerButtonHeight, height: layout.headerButtonHeight,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    backText: { color: colors.textOnSecondary, fontSize: 32, fontWeight: '800', lineHeight: 34 },
     title: { fontSize: 18, fontWeight: '700', color: colors.textOnPrimary },
     card: {
         backgroundColor: colors.surface, borderRadius: 12, padding: 16,

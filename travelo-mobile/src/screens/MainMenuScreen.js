@@ -5,7 +5,7 @@ import { authData, logoutOperator } from '../store/slices/authSlice';
 import { syncData } from '../store/slices/syncSlice';
 import { setSection } from '../store/slices/navSlice';
 import { shiftsData } from '../store/slices/shiftsSlice';
-import { colors, shadows } from '../theme/colors';
+import { colors, shadows, layout } from '../theme/colors';
 
 export default function MainMenuScreen() {
     const dispatch = useDispatch();
@@ -102,14 +102,15 @@ const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: colors.bg },
 
     header: {
+        minHeight: layout.headerHeight,
         flexDirection: 'row', alignItems: 'center',
         backgroundColor: colors.primary,
-        paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16,
+        paddingHorizontal: layout.headerPaddingH, paddingVertical: 12,
     },
     title: { fontSize: 24, fontWeight: '800', color: colors.textOnPrimary, letterSpacing: 0.3 },
     subtitle: { fontSize: 12, color: colors.secondary, marginTop: 2, fontWeight: '500' },
     logoutBtn: {
-        paddingHorizontal: 14, paddingVertical: 8,
+        paddingHorizontal: 14, height: layout.headerButtonHeight, justifyContent: 'center',
         backgroundColor: colors.secondary, borderRadius: 8,
     },
     logoutText: { color: colors.textOnSecondary, fontSize: 13, fontWeight: '700' },

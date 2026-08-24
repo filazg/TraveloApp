@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { resetSection } from '../store/slices/navSlice';
 import { clearLine, clearVoyage } from '../store/slices/voyageSlice';
-import { colors } from '../theme/colors';
+import { colors, layout } from '../theme/colors';
 
 // Univerzalni "kućica" gumb gore desno na svim sekcijskim ekranima.
 // Vraća na MainMenuScreen tako što čisti nav.section + voyage.selected + voyage.selectedLine.
@@ -23,11 +23,10 @@ export default function HomeButton({ tint, style }) {
 
 const styles = StyleSheet.create({
     btn: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
+        width: layout.headerButtonHeight,
+        height: layout.headerButtonHeight,
         backgroundColor: colors.secondary,
         borderRadius: 8,
-        minWidth: 44,
         alignItems: 'center',
         justifyContent: 'center',
     },

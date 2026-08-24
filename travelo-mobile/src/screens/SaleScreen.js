@@ -36,7 +36,7 @@ import {
     getPrinterStatus, initPrinter, lineWrap, printQRCode, printRawQR, printText, setAlignment, setFontSize,
     setHeatingParams, setPrinterStyle, sunmiPrinterAvailable, waitPrinterIdle,
 } from '../device/printer';
-import { colors, shadows } from '../theme/colors';
+import { colors, shadows, layout } from '../theme/colors';
 
 const fmtEUR = (n) => `${(Number(n) || 0).toFixed(2)} €`;
 
@@ -690,7 +690,7 @@ export default function SaleScreen() {
                     console.log('[backBtn] tapped — dispatching clearVoyage');
                     dispatch(clearVoyage());
                 }}>
-                    <Text style={styles.backText} numberOfLines={1}>‹ Polasci</Text>
+                    <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
                 {/* MODE TOGGLE — Prodaja / Validacija */}
                 <View style={styles.modeToggle}>
@@ -707,7 +707,7 @@ export default function SaleScreen() {
                         <Text style={[styles.modeBtnText, mode === 'validate' && styles.modeBtnTextActive]}>Validacija</Text>
                     </TouchableOpacity>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: 100 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: layout.headerButtonHeight }}>
                     {sales.pendingCount > 0 ? (
                         <TouchableOpacity
                             style={styles.pendingBadge}
@@ -1879,23 +1879,29 @@ const styles = StyleSheet.create({
     },
 
     header: {
+        minHeight: layout.headerHeight,
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 8, paddingVertical: 12,
+        paddingHorizontal: layout.headerPaddingH, paddingVertical: 12,
         backgroundColor: colors.primary,
     },
-    backBtn: { paddingVertical: 6, paddingHorizontal: 10, width: 100 },
-    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    backBtn: {
+        backgroundColor: colors.secondary, borderRadius: 8,
+        width: layout.headerButtonHeight, height: layout.headerButtonHeight,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    backText: { color: colors.textOnSecondary, fontSize: 32, fontWeight: '800', lineHeight: 34 },
     headerTitle: { flex: 1, textAlign: 'center', color: colors.textOnPrimary, fontSize: 18, fontWeight: '700' },
     modeToggle: {
         flex: 1, flexDirection: 'row', backgroundColor: colors.primaryDark,
-        borderRadius: 8, padding: 3, marginHorizontal: 4,
+        borderRadius: 8, marginHorizontal: 12,
+        height: layout.headerButtonHeight,
     },
     modeBtn: {
-        flex: 1, paddingVertical: 8, borderRadius: 6,
+        flex: 1, borderRadius: 8,
         alignItems: 'center', justifyContent: 'center',
     },
     modeBtnActive: { backgroundColor: colors.surface },
-    modeBtnText: { color: colors.secondary, fontSize: 13, fontWeight: '700' },
+    modeBtnText: { color: colors.secondary, fontSize: 16, fontWeight: '700' },
     modeBtnTextActive: { color: colors.primary },
     pendingBadge: {
         width: 100, height: 32,

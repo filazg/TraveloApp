@@ -13,7 +13,7 @@ import api from '../api/client';
 import { ENDPOINTS } from '../api/config';
 import { markTicketsCanceled, markInvoiceCanceled, saveSale, markInvoiceSynced } from '../db/repo';
 import { buildLocalStorno } from '../store/localSale';
-import { colors, shadows } from '../theme/colors';
+import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
 
 const fmtEUR = (n) => `${(Number(n) || 0).toFixed(2)} €`;
@@ -349,7 +349,7 @@ export default function DocumentsScreen() {
         <SafeAreaView style={styles.wrap}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => dispatch(resetSection())}>
-                    <Text style={styles.backText}>‹ Izbornik</Text>
+                    <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>Dokumenti</Text>
                 <TouchableOpacity style={styles.syncBtn} onPress={handleSync} disabled={sales.syncing}>
@@ -528,14 +528,19 @@ export default function DocumentsScreen() {
 const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
+        minHeight: layout.headerHeight,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 8, paddingVertical: 12,
+        paddingHorizontal: layout.headerPaddingH, paddingVertical: 12,
         backgroundColor: colors.primary,
     },
-    backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    backBtn: {
+        backgroundColor: colors.secondary, borderRadius: 8,
+        width: layout.headerButtonHeight, height: layout.headerButtonHeight,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    backText: { color: colors.textOnSecondary, fontSize: 32, fontWeight: '800', lineHeight: 34 },
     title: { fontSize: 18, fontWeight: '700', color: colors.textOnPrimary },
-    syncBtn: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: colors.secondary, borderRadius: 6 },
+    syncBtn: { paddingHorizontal: 12, height: layout.headerButtonHeight, justifyContent: 'center', backgroundColor: colors.secondary, borderRadius: 6 },
     syncText: { color: colors.textOnSecondary, fontWeight: '700' },
     summary: {
         flexDirection: 'row', justifyContent: 'space-between',

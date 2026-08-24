@@ -14,7 +14,7 @@ import { todayDmy } from '../api/config';
 import { syncTransportDataThunk, syncData } from '../store/slices/syncSlice';
 import { setLine } from '../store/slices/voyageSlice';
 import { resetSection } from '../store/slices/navSlice';
-import { colors, shadows } from '../theme/colors';
+import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
 
 export default function LineSelectScreen() {
@@ -41,10 +41,10 @@ export default function LineSelectScreen() {
         <SafeAreaView style={styles.wrap}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => dispatch(resetSection())}>
-                    <Text style={styles.backText}>‹ Izbornik</Text>
+                    <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>Odabir linije</Text>
-                <View style={{ width: 80, alignItems: 'flex-end', paddingRight: 8 }}>
+                <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
                     <HomeButton />
                 </View>
             </View>
@@ -81,12 +81,17 @@ export default function LineSelectScreen() {
 const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
+        minHeight: layout.headerHeight,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 16, paddingVertical: 12,
+        paddingHorizontal: layout.headerPaddingH, paddingVertical: 12,
         backgroundColor: colors.primary,
     },
-    backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    backBtn: {
+        backgroundColor: colors.secondary, borderRadius: 8,
+        width: layout.headerButtonHeight, height: layout.headerButtonHeight,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    backText: { color: colors.textOnSecondary, fontSize: 32, fontWeight: '800', lineHeight: 34 },
     title: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700' },
     sub: { color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 8 },
     center: { padding: 40, alignItems: 'center' },

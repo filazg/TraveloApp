@@ -35,6 +35,22 @@ export const colors = {
     errorLight: '#FEE2E2',
 };
 
+// Dimenzije zaglavlja — jedno mjesto istine da svi ekrani izgledaju isto.
+// Visina je prije ispadala iz zbroja paddinga i broja redova teksta na svakom
+// ekranu posebno (glavni izbornik ~80, ostali ~45), pa je zaglavlje "poskakivalo"
+// pri prelasku s ekrana na ekran.
+export const layout = {
+    headerHeight: 88,
+    // Gumbi prate visinu zaglavlja — na POS terminalu su ujedno i dodirna meta,
+    // pa im visina ne smije ovisiti o duljini teksta u njima. Uz okomiti padding
+    // zaglavlja od 12 gumb mora ostati ispod headerHeight, inače ga razvuče.
+    headerButtonHeight: 60,
+    // Bočni razmak zaglavlja — bio je 8 na većini ekrana, 16 na odabiru linije
+    // i 20 na glavnom izborniku, pa su gumbi "plesali" lijevo-desno pri prelasku
+    // s ekrana na ekran. Mjera je uzeta s odabira linije.
+    headerPaddingH: 16,
+};
+
 // Common shadow stilovi (RN — koristi `elevation` na Androidu, `shadow*` na iOS-u).
 export const shadows = {
     card: {

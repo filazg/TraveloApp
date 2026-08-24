@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { todayDmy } from '../api/config';
 import { syncTransportDataThunk, syncData } from '../store/slices/syncSlice';
 import { setVoyage, clearLine, voyageData } from '../store/slices/voyageSlice';
-import { colors, shadows } from '../theme/colors';
+import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
 
 // Group sales_routes by (timetable_uuid, sequence, departure_date) → one voyage per group.
@@ -76,13 +76,13 @@ export default function VoyageSelectScreen() {
         <SafeAreaView style={styles.wrap}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => dispatch(clearLine())}>
-                    <Text style={styles.backText}>‹ Linije</Text>
+                    <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
                 <View style={{ flex: 1, alignItems: 'center' }}>
                     <Text style={styles.title}>{line?.code || 'Polazak'}</Text>
                     <Text style={styles.subtitle}>{line?.name || ''} · {today}</Text>
                 </View>
-                <View style={{ width: 80, alignItems: 'flex-end', paddingRight: 8 }}>
+                <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
                     <HomeButton />
                 </View>
             </View>
@@ -126,12 +126,17 @@ export default function VoyageSelectScreen() {
 const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: colors.bg },
     header: {
+        minHeight: layout.headerHeight,
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 8, paddingVertical: 12,
+        paddingHorizontal: layout.headerPaddingH, paddingVertical: 12,
         backgroundColor: colors.primary,
     },
-    backBtn: { paddingVertical: 6, paddingHorizontal: 10, width: 80 },
-    backText: { color: colors.secondary, fontSize: 16, fontWeight: '600' },
+    backBtn: {
+        backgroundColor: colors.secondary, borderRadius: 8,
+        width: layout.headerButtonHeight, height: layout.headerButtonHeight,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    backText: { color: colors.textOnSecondary, fontSize: 32, fontWeight: '800', lineHeight: 34 },
     title: { fontSize: 18, fontWeight: '800', color: colors.textOnPrimary },
     subtitle: { fontSize: 11, color: colors.secondary, marginTop: 2 },
     center: { padding: 40, alignItems: 'center' },
