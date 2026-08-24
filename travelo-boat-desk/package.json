@@ -1,6 +1,6 @@
 {
   "name": "travelo-boat-desk",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev:renderer": "cd renderer && npm run dev",
     "dev:electron": "wait-on http://localhost:5182 && electron .",
     "build:renderer": "cd renderer && npm run build",
-    "rebuild:sqlite3": "set npm_config_runtime=electron&& set npm_config_target=27.3.11&& set npm_config_disturl=https://electronjs.org/headers&& npm rebuild sqlite3 --build-from-source",
+    "rebuild:sqlite3": "npm rebuild sqlite3",
     "package": "npm run build:renderer && npm run rebuild:sqlite3 && electron-builder",
     "postinstall": "electron-builder install-app-deps"
   },
