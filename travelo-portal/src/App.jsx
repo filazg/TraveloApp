@@ -21,6 +21,7 @@ import TicketsTypesPage from './features/boat/pages/ticketTypes/TicketsTypesPage
 import PartnersPage from './features/backoffice/pages/partners/PartnersPage';
 import AddressbookPage from './features/backoffice/pages/addressbook/AddressbookPage';
 import HolidaysPage from './features/backoffice/pages/holidays/HolidaysPage';
+import StornoPercentagesPage from './features/backoffice/pages/storno_percentages/StornoPercentagesPage';
 import InvoicesPage from './features/finance/pages/invoices/InvoicesPage';
 import FinanceInvoicesPage from './features/finance/FinanceInvoicesPage';
 import FinancePage from './features/finance/FinancePage';
@@ -69,6 +70,7 @@ function App() {
                 <Route path='backoffice/partners' element={<PartnersPage/>}></Route>
                 <Route path='backoffice/addressbook' element={<AddressbookPage/>}></Route>
                 <Route path='backoffice/holidays' element={<HolidaysPage/>}></Route>
+                <Route path='backoffice/storno_percentages' element={<StornoPercentagesPage/>}></Route>
                 <Route path='backoffice/countries' element={<CountriesPage/>}></Route>
                 <Route path='backoffice/web_sales_settings' element={<WebSalesSettingsPage/>}></Route>
                 <Route path='backoffice/partner_sales_settings' element={<PartnerSalesSettingsPage/>}></Route>

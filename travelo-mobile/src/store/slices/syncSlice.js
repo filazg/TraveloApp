@@ -29,8 +29,15 @@ export const syncBasicDataThunk = createAsyncThunk(
             const payload = resp.data?.data ?? resp.data ?? {};
             // 7pay konfiguracija stize uz basic_data kao zaseban kljuc; drzimo je
             // unutar basic_data objekta da je prodajni ekran ima na jednom mjestu.
+            // Postotci storniranja stižu uz basic_data kao zaseban ključ; drže se
+            // unutar basic_data objekta jer se on sprema u SQLite, pa terminal ima
+            // ponuđene postotke i bez mreže.
             const basic = payload.basic_data
-                ? { ...payload.basic_data, payment_7pay: payload.payment_7pay || null }
+                ? {
+                    ...payload.basic_data,
+                    payment_7pay: payload.payment_7pay || null,
+                    storno_percentages: payload.storno_percentages || [],
+                }
                 : null;
             await saveBasicData(
                 basic,

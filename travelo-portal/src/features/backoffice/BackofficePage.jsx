@@ -9,6 +9,7 @@ import PaymentsIcon from "@mui/icons-material/Payments";
 import ContactsIcon from "@mui/icons-material/Contacts";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import PublicIcon from "@mui/icons-material/Public";
+import PercentIcon from "@mui/icons-material/Percent";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -94,6 +95,7 @@ export default function BackofficePage() {
         { title: t("backoffice.addressbook.title"), subtitle: "Adresar kupaca", icon: ContactsIcon, path: "/backoffice/addressbook" },
         { title: t("backoffice.holidays.title"), subtitle: "Praznici", icon: EditCalendarIcon, path: "/backoffice/holidays" },
         { title: t("backoffice.countries.title"), subtitle: "Šifarnik država", icon: PublicIcon, path: "/backoffice/countries" },
+        { title: "Postotci storniranja", subtitle: "Ponuđeni postotci pri povratu", icon: PercentIcon, path: "/backoffice/storno_percentages" },
         { title: "Web prodaja", subtitle: "Postavke izdavanja računa", icon: StorefrontIcon, path: "/backoffice/web_sales_settings" },
         { title: "Partnerska prodaja", subtitle: "Postavke izdavanja računa", icon: HandshakeIcon, path: "/backoffice/partner_sales_settings" },
     ];

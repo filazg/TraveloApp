@@ -7,6 +7,7 @@ const { getChannelSettingsDataController, getChannelSettingDataController, upser
 const { getUsersDataController, addUserDataController, updateUserDataController } = require('../controllers/dataControllers/usersDataControllers');
 const { getPartnersDataController, addPartnerDataController, updatePartnerDataController, getPartnersWebUsersDataController, getPartnersAPIUsersDataController } = require('../controllers/dataControllers/partnersDataControllers');
 const { getHolidaysDataController, addHolidayDataController, updateHolidayDataController } = require('../controllers/dataControllers/holidaysDataControllers');
+const { getStornoPercentagesDataController, addStornoPercentageDataController, updateStornoPercentageDataController } = require('../controllers/dataControllers/stornoPercentagesDataControllers');
 const { getPaymentMethodsDataController, addPaymentMethodDataController, updatePaymentMethodDataController } = require('../controllers/dataControllers/paymentMethodsDataControllers');
 const { getPaymentTypesDataController } = require('../controllers/dataControllers/paymentTypeDataControllers');
 const { getAddressbookDataController, addAddressbookDataController, updateAddressbookDataController } = require('../controllers/dataControllers/addressbookDataControllers');
@@ -81,6 +82,12 @@ router
     .get(getHolidaysDataController)
     .post(addHolidayDataController)
     .patch(updateHolidayDataController)
+
+router
+    .route('/storno_percentages')
+    .get(getStornoPercentagesDataController)
+    .post(addStornoPercentageDataController)
+    .patch(updateStornoPercentageDataController)
 
 router
     .route('/payment_methods')

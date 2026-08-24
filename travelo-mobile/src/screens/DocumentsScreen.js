@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
     Alert, FlatList, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -42,8 +42,28 @@ export default function DocumentsScreen() {
     const [stornoOpen, setStornoOpen] = useState(false);
     const [stornoTicketUuids, setStornoTicketUuids] = useState({}); // { ticket_uuid: true }
     const [stornoPaymentUuid, setStornoPaymentUuid] = useState('');
-    const [stornoPct, setStornoPct] = useState('100');
+    const [stornoPct, setStornoPct] = useState('');
     const [stornoSubmitting, setStornoSubmitting] = useState(false);
+
+    // Ponuđeni postotci povrata — šifarnik iz portala, stigne kroz sync unutar
+    // basic_data pa radi i offline. Postotak se više ne upisuje slobodno.
+    const stornoPercentages = useMemo(() => {
+        const raw = sync.basicData?.storno_percentages || [];
+        return raw
+            .filter((p) => p && p.is_active !== false)
+            .map((p) => {
+                const value = Number(p.percentage);
+                return {
+                    uuid: p.uuid,
+                    value,
+                    // 100.00 → "100 %", 12.50 → "12.5 %"
+                    label: `${String(value).replace(/\.0+$/, '')} %`,
+                    name: p.name || '',
+                };
+            })
+            .filter((p) => Number.isFinite(p.value))
+            .sort((a, b) => b.value - a.value);
+    }, [sync.basicData]);
 
     const refresh = useCallback(async () => {
         setLoading(true);
@@ -145,7 +165,9 @@ export default function DocumentsScreen() {
         const initial = {};
         for (const t of stillActive) initial[t.ticket_uuid] = true;
         setStornoTicketUuids(initial);
-        setStornoPct('100');
+        // Predloži najveći ponuđeni postotak (obično puni povrat); blagajnik ga
+        // može promijeniti, ali samo na jednu od dopuštenih vrijednosti.
+        setStornoPct(stornoPercentages.length ? String(stornoPercentages[0].value) : '');
         const firstPm = (sync.paymentMethods || []).find((p) => p.is_active !== false);
         setStornoPaymentUuid(firstPm?.uuid || '');
         setStornoOpen(true);
@@ -154,7 +176,7 @@ export default function DocumentsScreen() {
     const closeStorno = () => {
         setStornoOpen(false);
         setStornoTicketUuids({});
-        setStornoPct('100');
+        setStornoPct('');
         setStornoPaymentUuid('');
     };
 
@@ -162,7 +184,13 @@ export default function DocumentsScreen() {
         const ticketUuids = Object.keys(stornoTicketUuids).filter((u) => stornoTicketUuids[u]);
         if (!ticketUuids.length) { Alert.alert('Storno', 'Odaberite barem jednu kartu.'); return; }
         const pct = Math.max(0, Math.min(100, parseFloat(stornoPct) || 0));
-        if (pct <= 0) { Alert.alert('Storno', 'Postotak povrata mora biti > 0.'); return; }
+        if (pct <= 0) { Alert.alert('Storno', 'Odaberite postotak povrata.'); return; }
+        // Postotak mora biti jedan od ponuđenih — slobodan upis više nije dopušten,
+        // pa ni vrijednost koja bi ostala iz nekog ranijeg stanja.
+        if (!stornoPercentages.some((p) => p.value === pct)) {
+            Alert.alert('Storno', 'Odabrani postotak nije u šifarniku. Osvježite podatke i pokušajte ponovno.');
+            return;
+        }
         if (!stornoPaymentUuid) { Alert.alert('Storno', 'Odaberite način povrata.'); return; }
         const terminalUuid = sync.basicData?.billing_device_uuid;
         if (!terminalUuid) { Alert.alert('Storno', 'Nije postavljen naplatni uređaj.'); return; }
@@ -481,14 +509,35 @@ export default function DocumentsScreen() {
                         </ScrollView>
 
                         <View style={{ marginTop: 12 }}>
-                            <Text style={styles.modalSub}>Postotak povrata (%)</Text>
-                            <TextInput
-                                style={styles.input}
-                                keyboardType="number-pad"
-                                value={stornoPct}
-                                onChangeText={(t) => setStornoPct(t.replace(/[^0-9]/g, ''))}
-                                editable={!stornoSubmitting}
-                            />
+                            <Text style={styles.modalSub}>Postotak povrata</Text>
+                            {stornoPercentages.length ? (
+                                <View style={styles.pctGrid}>
+                                    {stornoPercentages.map((p) => {
+                                        const val = String(p.value);
+                                        const on = stornoPct === val;
+                                        return (
+                                            <TouchableOpacity
+                                                key={p.uuid || val}
+                                                style={[styles.pctBtn, on && styles.pctBtnOn]}
+                                                onPress={() => setStornoPct(val)}
+                                                disabled={stornoSubmitting}
+                                            >
+                                                <Text style={[styles.pctText, on && styles.pctTextOn]}>{p.label}</Text>
+                                                {p.name ? (
+                                                    <Text style={[styles.pctSub, on && styles.pctSubOn]} numberOfLines={2}>{p.name}</Text>
+                                                ) : null}
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            ) : (
+                                // Šifarnik je prazan ili još nije sinkroniziran — bez ovoga
+                                // blagajnik ne bi mogao stornirati uopće.
+                                <Text style={styles.muted}>
+                                    Nema definiranih postotaka storniranja. Dodajte ih u portalu
+                                    (Administracija → Postotci storniranja) i osvježite podatke.
+                                </Text>
+                            )}
                         </View>
 
                         <View style={{ marginTop: 12 }}>
@@ -600,4 +649,23 @@ const styles = StyleSheet.create({
     pmBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
     pmText: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
     pmTextOn: { color: colors.textOnPrimary },
+
+    muted: { color: colors.textSecondary, fontSize: 13, marginTop: 4 },
+
+    // Postotci povrata — tri gumba u redu. Širina je 31% pa uz razmake stanu
+    // točno tri, bez obzira koliko ih šifarnik ima.
+    pctGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4, justifyContent: 'flex-start' },
+    pctBtn: {
+        width: '31.5%', marginRight: '2.75%', marginBottom: 8,
+        paddingVertical: 12, paddingHorizontal: 8,
+        backgroundColor: colors.surface, borderRadius: 8,
+        borderWidth: 1, borderColor: colors.border,
+        alignItems: 'center', justifyContent: 'center',
+        minHeight: 56,
+    },
+    pctBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+    pctText: { color: colors.textPrimary, fontSize: 18, fontWeight: '800' },
+    pctTextOn: { color: colors.textOnPrimary },
+    pctSub: { color: colors.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 2 },
+    pctSubOn: { color: colors.secondary },
 });

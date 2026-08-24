@@ -1,4 +1,4 @@
-const { getCompanyController, getBusinessPremisesController, getBillingDevicesController, getUsersController, getPaymentMethodsController } = require("../controllers/coreServiceControllers/backofficeServiceControllers")
+const { getCompanyController, getBusinessPremisesController, getBillingDevicesController, getUsersController, getPaymentMethodsController, getStornoPercentagesController } = require("../controllers/coreServiceControllers/backofficeServiceControllers")
 const { getIntegrationsConfigData } = require("../controllers/configServices/configSyncController")
 
 const getTerminalBasicDataHandler = async(data)=>{
@@ -8,6 +8,7 @@ const getTerminalBasicDataHandler = async(data)=>{
         const billingDevicesData = await getBillingDevicesController()
         const usersData = await getUsersController()
         const paymentsData = await getPaymentMethodsController()
+        const stornoPercentagesData = await getStornoPercentagesController()
         const terminaData = billingDevicesData.data.billing_devices.find((terminal)=> terminal.uuid === data.header.data.t && terminal.is_active)
         if(terminaData){
             let usersForTerminal = []
@@ -84,7 +85,11 @@ const getTerminalBasicDataHandler = async(data)=>{
                 basic_data:basicData,
                 users:usersForTerminal,
                 payment_method:paymentsForTerminal,
-                payment_7pay:payment7pay
+                payment_7pay:payment7pay,
+                // Sifarnik postotaka storniranja — terminal ih nudi kao izbor
+                // umjesto slobodnog upisa. Ako backoffice ne odgovori, ide prazna
+                // lista pa uredaj zadrzi zadnje sinkronizirane.
+                storno_percentages: stornoPercentagesData?.data?.storno_percentages || []
             }
             return(dataToSend)
             }

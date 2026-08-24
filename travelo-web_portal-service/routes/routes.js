@@ -14,6 +14,7 @@ const { handleGetTicketTypesFeature, handleAddTicketTypesFeature, handleUpdateTi
 const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrFeature } = require('../features/backoffice/partnersHandlers');
 const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
 const { handleGetHolidaysFeature, handleAddHolidaysFeature, handleUpdateHolidaysFeature } = require('../features/backoffice/holidaysHandlers');
+const { handleGetStornoPercentagesFeature, handleAddStornoPercentageFeature, handleUpdateStornoPercentageFeature } = require('../features/backoffice/stornoPercentagesHandlers');
 const { handleGetCountriesFeature, handleAddCountryFeature, handleUpdateCountryFeature } = require('../features/backoffice/countriesHandlers');
 const { handleGetChannelSettingsFeature, handleGetChannelSettingFeature, handleUpsertChannelSettingFeature } = require('../features/backoffice/channelSettingsHandlers');
 const { handleGetAccountsFeature, handleAddAccountFeature, handleUpdateAccountFeature, handleGetAccountMappingsFeature, handleUpsertAccountMappingFeature } = require('../features/backoffice/accountsHandlers');
@@ -123,6 +124,12 @@ router
     .get(handleGetHolidaysFeature)
     .post(handleAddHolidaysFeature)
     .patch(handleUpdateHolidaysFeature)
+
+router
+    .route('/backoffice/storno_percentages')
+    .get(handleGetStornoPercentagesFeature)
+    .post(handleAddStornoPercentageFeature)
+    .patch(handleUpdateStornoPercentageFeature)
 
 router
     .route('/backoffice/countries')

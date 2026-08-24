@@ -56,10 +56,23 @@ const getPaymentMethodsController = async()=>{
     }
 }
 
+// Postotci storniranja — terminal ih nudi blagajniku kao izbor pri povratu.
+// Bez `all=1` vraćaju se samo aktivni; deaktivirane ne treba nuditi.
+const getStornoPercentagesController = async()=>{
+    try {
+        const coreConfigData = await getCoreServiceConfigData()
+        const response = await axios.get(coreConfigData.services.backoffice.url + '/storno_percentages')
+        return (response.data)
+    } catch (error) {
+        console.log('getStornoPercentagesController error:', error?.message || error)
+    }
+}
+
 module.exports = {
     getCompanyController,
     getBusinessPremisesController,
     getBillingDevicesController,
     getUsersController,
-    getPaymentMethodsController
+    getPaymentMethodsController,
+    getStornoPercentagesController
 }
