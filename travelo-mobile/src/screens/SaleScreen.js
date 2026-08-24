@@ -18,8 +18,8 @@ import { voyageData, clearVoyage } from '../store/slices/voyageSlice';
 import { authData } from '../store/slices/authSlice';
 import { finalizeSaleThunk, salesData, clearLastInvoice, syncPendingSalesThunk, refreshPendingCountThunk } from '../store/slices/salesSlice';
 import {
-    fetchVoyageTicketsThunk, validateScanThunk, validationData, clearScanResult,
-    getCachedTicket, updateCachedTicket, findRelatedTickets, addTicketsToCache,
+    fetchVoyageTicketsThunk, fetchLineTicketsThunk, validateScanThunk, validationData, clearScanResult,
+    getCachedTicket, getCachedLineTicket, updateCachedTicket, findRelatedTickets, addTicketsToCache,
     listCachedTickets, countCachedValidated,
 } from '../store/slices/validationSlice';
 import api from '../api/client';
@@ -97,14 +97,14 @@ export default function SaleScreen() {
 
     // Sve route_uuid-ovi koji pripadaju odabranom polasku — koristi se za fetch
     // svih karata polaska iz svih prodajnih kanala (validacija scope).
-    const voyageRouteUuids = useMemo(() => {
+    const voyageRoutes = useMemo(() => {
         if (!v) return [];
         return (sync.salesRoutes || [])
             .filter((r) => r.timetable_uuid === v.timetable_uuid
                 && r.sequence === v.sequence
-                && r.departure_date === v.departure_date)
-            .map((r) => r.uuid);
+                && r.departure_date === v.departure_date);
     }, [v, sync.salesRoutes]);
+    const voyageRouteUuids = useMemo(() => voyageRoutes.map((r) => r.uuid), [voyageRoutes]);
 
     // Default payment method = first active sync'd one.
     useEffect(() => {
@@ -153,6 +153,13 @@ export default function SaleScreen() {
                     }
                 } catch (_) {}
             }
+            // Zadnja stanica: karte ostalih polazaka iste linije tog dana. Bez
+            // ovoga bi karta s drugog polaska pala na "nije pronađena" i djelatnik
+            // ne bi imao što odobriti.
+            if (!local) {
+                const lineTicket = getCachedLineTicket(ticketUuid);
+                if (lineTicket) local = lineTicket;
+            }
             // Provjera pripada li karta TRENUTNOM polasku. SQLite fallback
             // (findTicketByUuidOrCode) vraća bilo koju kartu koju je terminal
             // prodao — može biti za drugi datum/liniju, pa moramo dodatno filtrirati.
@@ -173,11 +180,26 @@ export default function SaleScreen() {
                 && String(local.departure_planed).slice(0, 10) !== String(v.departure_date).slice(0, 10)
             );
 
+            // Iznimka: karta za isti dan, istu liniju i istu relaciju, ali drugi
+            // polazak. Putnik je propustio svoj brod ili došao na raniji — to nije
+            // neispravna karta, pa se ne odbija nego se djelatniku ponudi da sam
+            // odobri ukrcaj. Validacija ni tada nije automatska.
+            const ticketRoute = voyageMismatch
+                ? (sync.salesRoutes || []).find((r) => String(r.uuid) === String(local.route_uuid))
+                : null;
+            const otherVoyageSameRelation = Boolean(
+                ticketRoute
+                && voyageRoutes.some((r) => r.departure_date === ticketRoute.departure_date
+                    && r.line_code === ticketRoute.line_code
+                    && String(r.departure_harbor_id) === String(ticketRoute.departure_harbor_id)
+                    && String(r.arrival_harbor_id) === String(ticketRoute.arrival_harbor_id))
+            );
+
             let result;
             if (!local) {
                 result = { kind: 'reject', message: 'Karta nije pronađena za ovaj polazak.' };
                 soundError();
-            } else if (voyageMismatch || dateMismatch) {
+            } else if ((voyageMismatch || dateMismatch) && !otherVoyageSameRelation) {
                 result = { kind: 'reject', message: 'Karta nije za ovaj polazak.', ticket: local };
                 soundError();
             } else if (local.is_canceled) {
@@ -202,6 +224,11 @@ export default function SaleScreen() {
                     harborMismatch,
                     expectedHarborName: local.departure_harbor_name,
                     selectedHarborName: selectedHarbor?.name || '',
+                    // Karta s drugog polaska iste linije, relacije i datuma —
+                    // djelatnik odlučuje pušta li putnika.
+                    otherVoyage: otherVoyageSameRelation,
+                    ticketVoyageTime: timeOnly(ticketRoute?.departure_time) || '',
+                    currentVoyageTime: fromTime || '',
                     related,
                 };
                 soundPrompt();
@@ -275,8 +302,15 @@ export default function SaleScreen() {
             date: v.departure_date,
             routeUuids: voyageRouteUuids,
         }));
+        // Uz karte ovog polaska povuci i ostale karte iste linije tog dana —
+        // treba ih da se prepozna putnik koji dođe s drugog polaska. Drže se u
+        // zasebnom cacheu i ne ulaze u listu karata polaska.
+        dispatch(fetchLineTicketsThunk({
+            date: v.departure_date,
+            lineCode: v.line_code,
+        }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [v?.timetable_uuid, v?.sequence, v?.departure_date]);
+    }, [v?.timetable_uuid, v?.sequence, v?.departure_date, v?.line_code]);
 
     // Keep to-index at or after from-index.
     useEffect(() => {
@@ -1445,8 +1479,15 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
         const t = result.ticket || {};
         const related = result.related || [];
         const hasRelated = related.length > 0;
-        const bg = result.harborMismatch ? colors.warning : colors.primaryDark;
-        const title = result.harborMismatch ? '⚠ KRIVA LUKA UKRCAJA' : '✓ KARTA VALJANA';
+        // Karta s drugog polaska je upozorenje jednako kao kriva luka — valjana
+        // je, ali djelatnik mora svjesno odobriti ukrcaj.
+        const warn = result.harborMismatch || result.otherVoyage;
+        const bg = warn ? colors.warning : colors.primaryDark;
+        const title = result.harborMismatch
+            ? '⚠ KRIVA LUKA UKRCAJA'
+            : result.otherVoyage
+                ? '⚠ KARTA ZA DRUGI POLAZAK'
+                : '✓ KARTA VALJANA';
         return (
             <View style={[overlayStyles.full, { backgroundColor: bg }]}>
                 <View style={overlayStyles.choiceHeader}>
@@ -1464,6 +1505,23 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
                         <View style={overlayStyles.harborRow}>
                             <Text style={overlayStyles.harborLabel}>Odabrana luka:</Text>
                             <Text style={overlayStyles.harborValue}>{String(result.selectedHarborName || '—')}</Text>
+                        </View>
+                    </View>
+                ) : null}
+
+                {result.otherVoyage ? (
+                    <View style={overlayStyles.harborInfo}>
+                        <View style={overlayStyles.harborRow}>
+                            <Text style={overlayStyles.harborLabel}>Karta vrijedi za:</Text>
+                            <Text style={overlayStyles.harborValue}>{String(result.ticketVoyageTime || '—')}</Text>
+                        </View>
+                        <View style={overlayStyles.harborRow}>
+                            <Text style={overlayStyles.harborLabel}>Ovaj polazak:</Text>
+                            <Text style={overlayStyles.harborValue}>{String(result.currentVoyageTime || '—')}</Text>
+                        </View>
+                        <View style={overlayStyles.harborRow}>
+                            <Text style={overlayStyles.harborLabel}>Ista linija i relacija</Text>
+                            <Text style={overlayStyles.harborValue}>DA</Text>
                         </View>
                     </View>
                 ) : null}
