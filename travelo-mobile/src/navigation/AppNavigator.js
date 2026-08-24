@@ -5,6 +5,7 @@ import { colors } from '../theme/colors';
 import { authData, autoPairThunk, restoreTokenThunk } from '../store/slices/authSlice';
 import { syncBasicDataThunk, syncTransportDataThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
 import { loadCurrentOpenThunk, loadRecentShiftsThunk, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
+import { syncPendingSalesThunk } from '../store/slices/salesSlice';
 import { openDb } from '../db/db';
 import { voyageData } from '../store/slices/voyageSlice';
 import { navData } from '../store/slices/navSlice';
@@ -16,6 +17,9 @@ import VoyageSelectScreen from '../screens/VoyageSelectScreen';
 import ShiftsScreen from '../screens/ShiftsScreen';
 import DocumentsScreen from '../screens/DocumentsScreen';
 import SaleScreen from '../screens/SaleScreen';
+
+// Koliko često terminal sam pokušava gurnuti zaostale prodaje.
+const SYNC_RETRY_MS = 2 * 60 * 1000;
 
 export default function AppNavigator() {
     const dispatch = useDispatch();
@@ -81,6 +85,22 @@ export default function AppNavigator() {
         dispatch(loadRecentShiftsThunk());
         dispatch(syncPendingShiftsThunk());
     }, [sync.hydrated, auth.operator, sync.basicData, dispatch]);
+
+    // Zaostale prodaje (synced=0) guraju se same, u pozadini. Terminal radi
+    // offline-first — račun se uvijek izda i spremi lokalno, a slanje je
+    // najbolji trud — pa bez ovoga zaostatak visi dok ga netko ne primijeti na
+    // gumbu Sync u Dokumentima. Pokušava se i pri povratku aplikacije u prvi
+    // plan, jer je mreža tada najčešće opet dostupna.
+    useEffect(() => {
+        if (!sync.hydrated || !auth.token || !sync.basicData) return;
+        const push = () => dispatch(syncPendingSalesThunk());
+        push();
+        const timer = setInterval(push, SYNC_RETRY_MS);
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') push();
+        });
+        return () => { clearInterval(timer); sub.remove(); };
+    }, [sync.hydrated, auth.token, sync.basicData, dispatch]);
 
     // Dok traje provjera zero-touch uparivanja držimo spinner, da ekran za ručno
     // uparivanje ne bljesne na trenutak prije nego uređaj sam dobije token.

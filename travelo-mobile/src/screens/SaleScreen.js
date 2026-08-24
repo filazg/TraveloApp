@@ -612,9 +612,11 @@ export default function SaleScreen() {
                 setQtyByType({});
                 setIslandTickets([]);
                 dispatch(clearLastInvoice());
-                if (!r._local && sales.pendingCount > 0) {
-                    dispatch(syncPendingSalesThunk());
-                }
+                // Guranje zaostataka se pokušava i kad ova prodaja nije prošla —
+                // prije je stajao uvjet `!r._local`, pa se sync preskakao baš u
+                // trenutku kad zaostatak nastane i račun bi ostao čekati da ga
+                // netko ručno pošalje iz Dokumenata.
+                dispatch(syncPendingSalesThunk());
             } else {
                 Alert.alert('Greška', res.payload?.message || 'Izdavanje nije uspjelo');
             }

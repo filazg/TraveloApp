@@ -33,24 +33,68 @@ const nextInvoiceFiskalNo = async (InvoiceModel, year, billingDeviceUuid) => {
     return Number.isFinite(max) ? max + 1 : 1;
 };
 
-const loadFiscalContext = async (terminalUuid) => {
+// Tvrtka, poslovni prostori i naplatni uređaji mijenjaju se rijetko, a dohvaćali
+// su se pri SVAKOJ prodaji — svaki poziv ide na backoffice, a njegova baza je u
+// Amsterdamu (~100 ms po turi, hladno spajanje preko sekunde). Kad se hladni
+// pozivi poklope, rok od 5 s se probije i cijela prodaja padne s 500, iako se
+// radi o podacima koji se nisu promijenili tjednima.
+//
+// Zato se drže u kratkom kešu. Zadnji uspješan dohvat čuva se i kao zaliha bez
+// roka: ako backoffice zakaže, radije se izda račun s podacima od maloprije nego
+// da se prodaja odbije — terminal ionako čuva sve lokalno i gura sinkom.
+const FISCAL_CACHE_TTL_MS = 5 * 60 * 1000;
+let fiscalCache = { at: 0, data: null };
+
+const fetchFiscalReferences = async () => {
     const coreConfig = await getCoreServiceConfigData();
     const boUrl = coreConfig?.services?.backoffice?.url;
     if (!boUrl) throw new Error("backoffice service URL missing in core config");
 
     const [companyResp, bpResp, bdResp] = await Promise.all([
-        axios.get(`${boUrl}/company`, { timeout: 5000, validateStatus: () => true }),
-        axios.get(`${boUrl}/business_premises`, { timeout: 5000, validateStatus: () => true }),
-        axios.get(`${boUrl}/billing_devices`, { timeout: 5000, validateStatus: () => true }),
+        axios.get(`${boUrl}/company`, { timeout: 15000, validateStatus: () => true }),
+        axios.get(`${boUrl}/business_premises`, { timeout: 15000, validateStatus: () => true }),
+        axios.get(`${boUrl}/billing_devices`, { timeout: 15000, validateStatus: () => true }),
     ]);
 
     const company = companyResp.data?.data?.company || {};
     const bps = bpResp.data?.data?.business_premises || [];
     const bds = bdResp.data?.data?.billing_devices || [];
-    const bd = bds.find((x) => x.uuid === terminalUuid);
+    // Prazna lista uređaja znači da backoffice nije stvarno odgovorio (npr. 500
+    // uz validateStatus), pa je ne spremaj preko dobrog keša.
+    if (!bds.length) throw new Error("backoffice vratio prazan popis naplatnih uređaja");
+    return { company, businessPremises: bps, billingDevices: bds };
+};
+
+const loadFiscalReferences = async () => {
+    const fresh = Date.now() - fiscalCache.at < FISCAL_CACHE_TTL_MS;
+    if (fresh && fiscalCache.data) return fiscalCache.data;
+    try {
+        const data = await fetchFiscalReferences();
+        fiscalCache = { at: Date.now(), data };
+        return data;
+    } catch (error) {
+        if (fiscalCache.data) {
+            console.log("loadFiscalReferences: backoffice nedostupan, koristim zadnje poznate podatke:", error?.message || error);
+            return fiscalCache.data;
+        }
+        throw error;
+    }
+};
+
+const loadFiscalContext = async (terminalUuid) => {
+    let refs = await loadFiscalReferences();
+    let bd = refs.billingDevices.find((x) => x.uuid === terminalUuid);
+    // Uređaj kojeg nema u kešu je vjerojatno tek dodan u backofficeu — osvježi
+    // jednom prije nego odbiješ prodaju, inače novi terminal ne bi mogao raditi
+    // dok keš ne istekne.
+    if (!bd && fiscalCache.at) {
+        fiscalCache = { at: 0, data: fiscalCache.data };
+        refs = await loadFiscalReferences();
+        bd = refs.billingDevices.find((x) => x.uuid === terminalUuid);
+    }
     if (!bd) throw new Error(`billing device ${terminalUuid} not found`);
-    const bp = bps.find((x) => x.uuid === bd.business_premise_uuid) || {};
-    return { company, businessPremise: bp, billingDevice: bd };
+    const bp = refs.businessPremises.find((x) => x.uuid === bd.business_premise_uuid) || {};
+    return { company: refs.company, businessPremise: bp, billingDevice: bd };
 };
 
 const finalizeTerminalSaleController = async (req, res) => {
