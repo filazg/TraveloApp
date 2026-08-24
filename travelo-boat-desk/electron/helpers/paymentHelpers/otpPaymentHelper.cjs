@@ -1,4 +1,5 @@
 const { SerialPort } = require("serialport");
+const { app } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const { systemSettingsDataModel } = require("../../db/models/Settings.cjs");
@@ -14,7 +15,20 @@ const STX = 0x02;
 const ETX = 0x03;
 const FS = 0x1C;
 
-const SEQ_FILE = path.resolve("./seq.json");
+// Brojač sekvence za EFTPOS. Kao i baza, ne smije stajati u instalacijskom
+// direktoriju — NSIS ga pri nadogradnji očisti, pa bi se sekvenca vratila na 1.
+// Zatečena datoteka se jednom preseli u userData.
+const SEQ_FILE = path.join(app.getPath("userData"), "seq.json");
+const LEGACY_SEQ_FILE = path.resolve("./seq.json");
+if (!fs.existsSync(SEQ_FILE) && fs.existsSync(LEGACY_SEQ_FILE)) {
+    try {
+        fs.mkdirSync(path.dirname(SEQ_FILE), { recursive: true });
+        fs.copyFileSync(LEGACY_SEQ_FILE, SEQ_FILE);
+        console.log("seq.json preseljen:", LEGACY_SEQ_FILE, "->", SEQ_FILE);
+    } catch (e) {
+        console.log("seq.json preseljenje nije uspjelo:", e?.message || e);
+    }
+}
 const ACK_TIMEOUT_MS = 3000;
 const MAX_RETRIES = 3;
 
