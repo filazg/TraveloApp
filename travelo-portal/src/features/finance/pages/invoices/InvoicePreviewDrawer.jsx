@@ -110,16 +110,19 @@ export default function InvoicePreviewDrawer({ invoice: invoiceFromList, onClose
         }
     };
 
-    // R1 (F2/YesCor) — buyer_oib postoji → "R1 Račun {invoice_no}-{year}"; nema BP/BD format.
-    // F1 — koristi autoritativni invoice_code (već formatiran "${fiskal_no}/${BP}/${BD}").
+    // F2 — nema NO/PP/NU sekvencu nego vlastiti kod u invoice_code; po njemu se
+    // račun i prepoznaje, pa stoji u naslovu.
+    // R1 bez F2 ide u istu fiskalnu sekvencu kao B2C račun, dakle ista oznaka —
+    // razlikuju ga samo podaci o kupcu (usklađeno s ispisom na blagajni).
     // Fallback ako invoice_code još nije propagiran: invoice_no/BP/BD.
-    const invoiceTitle = invoice.buyer_oib
-        ? `R1 Račun/Invoice ${invoice.invoice_no}-${invoice.invoice_year || ""}`
-        : `Račun/Invoice ${invoice.invoice_code || [
-            invoice.invoice_no,
-            invoice.invoice_business_premise_fiscal_mark,
-            invoice.invoice_billing_device_fiscal_mark,
-        ].filter(Boolean).join("/")}`;
+    const fiscalLabel = invoice.invoice_code || [
+        invoice.invoice_no,
+        invoice.invoice_business_premise_fiscal_mark,
+        invoice.invoice_billing_device_fiscal_mark,
+    ].filter(Boolean).join("/");
+    const invoiceTitle = invoice.fiskal_required
+        ? `F2 Račun/Invoice ${fiscalLabel}`
+        : `Račun/Invoice ${fiscalLabel}`;
 
     let runningIdx = 0;
 

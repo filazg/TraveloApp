@@ -9,6 +9,7 @@ import {
     MenuItem,
     Stack,
     TextField,
+    Tooltip,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
@@ -99,11 +100,24 @@ export default function InvoicesPage() {
             },
             {
                 field: "invoice_code",
-                headerName: "Fiskalni broj",
+                headerName: "Broj računa",
                 width: 180,
-                valueGetter: (_v, row) => row.fiskal_required
-                    ? (row.invoice_JIR || (row.yescor_status === "submitted" ? "F2 u tijeku…" : "—"))
-                    : (row.invoice_code || "—"),
+                // F2 račun nema NO/PP/NU oznaku nego vlastiti kod u invoice_code —
+                // po njemu ga kupac i prepoznaje, pa se prikazuje jednako kao i
+                // fiskalna oznaka F1 računa. Stanje fiskalizacije ionako ima svoju
+                // kolonu (F2), a JIR se vidi u tooltipu kad stigne.
+                valueGetter: (_v, row) => row.invoice_code
+                    || row.invoice_JIR
+                    || (row.fiskal_required && row.yescor_status === "submitted" ? "F2 u tijeku…" : "—"),
+                renderCell: (params) => {
+                    const row = params.row || {};
+                    const jir = row.invoice_JIR;
+                    return (
+                        <Tooltip title={jir ? `JIR: ${jir}` : ""}>
+                            <span>{params.value}</span>
+                        </Tooltip>
+                    );
+                },
             },
             { field: "buyer_name", headerName: "Kupac", flex: 2, minWidth: 140 },
             { field: "buyer_email", headerName: "Email", flex: 2, minWidth: 180 },
@@ -254,7 +268,7 @@ export default function InvoicesPage() {
                     sx={{ width: 220 }}
                 />
                 <TextField
-                    label="Fiskalni broj"
+                    label="Broj računa"
                     value={filters.invoice_code}
                     onChange={(e) => dispatch(setFilter({ path: "invoice_code", value: e.target.value }))}
                     sx={{ width: 180 }}
