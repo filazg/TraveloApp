@@ -601,8 +601,12 @@ export default function SaleScreen() {
                 // Dodaj novoizdane karte u validation cache — pojavit će se
                 // na Validacija tabu bez potrebe za ručnim Refresh-om.
                 addTicketsToCache(r.tickets || []);
-                setPrintingLabel('Ispis računa…');
-                await printReceipt(r, items, pm.name);
+                // F2 račun se kupcu dostavlja kao e-račun (HRFISK20), pa se na
+                // blagajni ne ispisuje — na papir idu samo karte.
+                if (!r.is_f2) {
+                    setPrintingLabel('Ispis računa…');
+                    await printReceipt(r, items, pm.name);
+                }
                 setPrintingLabel(`Ispis karata… (${(r.tickets || []).length})`);
                 await printTickets(r.tickets || []);
                 setQtyByType({});

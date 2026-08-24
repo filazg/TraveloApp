@@ -96,17 +96,21 @@ export default function DocumentsScreen() {
                 }
                 return [...map.values()];
             })();
-            await printReceiptFn({
-                r,
-                items: itemsForPrint,
-                paymentName: r.payment_method_name || r.invoice_payment_method_name,
-                basicData: sync.basicData,
-                operator: { user_name: r.operater_name || '', user_surname: '' },
-                voyage: null,
-                fromHarbor: { name: detailTickets[0]?.departure_harbor_name || '' },
-                toHarbor: { name: detailTickets[0]?.arrival_harbor_name || '' },
-                isReprint: true,
-            });
+            // F2 račun ide kupcu kao e-račun, na blagajni se ne ispisuje ni pri
+            // ponovnom ispisu — vade se samo karte.
+            if (!r.is_f2) {
+                await printReceiptFn({
+                    r,
+                    items: itemsForPrint,
+                    paymentName: r.payment_method_name || r.invoice_payment_method_name,
+                    basicData: sync.basicData,
+                    operator: { user_name: r.operater_name || '', user_surname: '' },
+                    voyage: null,
+                    fromHarbor: { name: detailTickets[0]?.departure_harbor_name || '' },
+                    toHarbor: { name: detailTickets[0]?.arrival_harbor_name || '' },
+                    isReprint: true,
+                });
+            }
             await printTicketsFn({
                 tickets: detailTickets,
                 basicData: sync.basicData,

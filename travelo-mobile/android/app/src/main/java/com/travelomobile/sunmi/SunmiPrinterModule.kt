@@ -479,12 +479,9 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     p.setFontSize(34f, null)
                     try { p.sendRAWData(byteArrayOf(0x1B, 0x47, 0x01), null) } catch (_: Exception) {}
                 }
-                // R1 bez F2 fiskalizacije — postojeći format.
-                isR1 -> {
-                    p.printText("R1 RAČUN BR:\n", null)
-                    p.printText("${safeString(r, "invoice_no")}-${safeString(r, "invoice_year")}\n", null)
-                }
-                // F1 B2C — fiskalna oznaka NO/PP/NU.
+                // R1 bez F2 ide u istu fiskalnu sekvencu kao B2C račun, pa nosi i
+                // istu oznaku NO/PP/NU — od običnog računa razlikuje ga samo blok
+                // s podacima o kupcu nize.
                 else -> {
                     val fiscalCode = if (invoiceCode.isNotEmpty()) invoiceCode
                         else "${safeString(r, "invoice_no")}/${safeString(bd, "business_premise_fiscal_mark")}/${safeString(bd, "billing_device_fiscal_mark")}"
