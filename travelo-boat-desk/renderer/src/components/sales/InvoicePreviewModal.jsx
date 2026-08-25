@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
-import { Box, Dialog, DialogContent, DialogTitle, Divider, Modal, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { Box, Dialog, DialogContent, DialogTitle, Divider, IconButton, Modal, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { useEffect } from "react";
 
 // F2 (HRFISK20 e-račun) je izričita oznaka na računu. Stariji računi je nemaju,
@@ -24,15 +25,17 @@ export default function InvoicePreviewModal({params}) {
         appData.workingData.selectedInvoice.invoice_date
     );
 
+    // Pretpregled oponaša papirnati račun, pa ostaje uska bijela ploha —
+    // ali bez crnog okvira 2px i s temom usklađenim zaobljenjem.
     const style = {
         position: "absolute",
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        width: 400,
         bgcolor: "background.paper",
-        border: "2px solid #000",
+        borderRadius: 3,
         boxShadow: 24,
+        outline: "none",
         p: 4,
     };
 
@@ -49,11 +52,14 @@ export default function InvoicePreviewModal({params}) {
             <Box
                 sx={{
                     ...style,
-                    width: '40%',
+                    width: 'min(560px, 92vw)',
                     maxHeight: '90vh',
                     overflowY: 'auto',
                 }}
             >
+                <Stack direction="row" justifyContent="flex-end" sx={{ mb: -2 }}>
+                    <IconButton onClick={handleClose} size="small"><CloseIcon /></IconButton>
+                </Stack>
                 <Typography align="center">{appData.workingData.selectedInvoice.invoice_client_name}</Typography>
                 <Typography align="center">{appData.workingData.selectedInvoice.invoice_client_address}</Typography>
                 <Typography align="center">{appData.workingData.selectedInvoice.invoice_client_postal_code + ' ' + appData.workingData.selectedInvoice.invoice_client_town}</Typography>

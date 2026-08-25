@@ -1,4 +1,4 @@
-import { Box, Button, Modal, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Chip, IconButton, Modal, Stack, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
@@ -6,14 +6,14 @@ import { allAppData, setStateData } from "../../store/appSlice";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import CloseIcon from "@mui/icons-material/Close";
 import InvoicesActions from "./InvoiceActions";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import InvoicePreviewModal from "./InvoicePreviewModal";
-
+import { gridModalSx, gridBoxSx } from "./listModalStyles";
 
 
 export default function InvoicesListModal() {
-    const theme = useTheme();
     const dispatch = useDispatch();
     const appData = useSelector(allAppData);
     const [rowId, setRowId] = useState(null);
@@ -23,13 +23,17 @@ export default function InvoicesListModal() {
     }
 
     const columns = [
-        { field: 'invoice_no', headerName: 'Broj računa', flex: 2,align: 'right' },
+        // Nazivi zaglavlja su skraćeni: velika slova s razmakom zauzimaju
+        // osjetno više od običnog teksta, pa su se "Broj računa" i "Način
+        // plaćanja" rezali na tri točkice.
+        { field: 'invoice_no', headerName: 'Br.', width: 90, align: 'right', headerAlign: 'right' },
         {
         field: "invoice_date",
-        headerName: "Datum računa",
-        flex: 2,
+        headerName: "Datum",
+        width: 170,
         type: "dateTime",
         align: 'right',
+        headerAlign: 'right',
         valueGetter: (params) =>
             params ? new Date(params) : null,
 
@@ -47,48 +51,32 @@ export default function InvoicesListModal() {
             return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
         },
         },
-        { field: 'invoice_code', headerName: 'Kod računa', flex: 3,align: 'right' },
-        { field: 'invoice_operator_name', headerName: 'Operater', flex: 3,align: 'right' },
-        { field: 'invoice_payment_method_name', headerName: 'Način plaćanja', flex: 2,align: 'right' },
-        { field: 'invoice_status', headerName: 'Status računa', flex: 2,align: 'right',
+        // Tekst lijevo, brojevi i datumi desno — prije je sve bilo desno pa su
+        // imena i oznake visjele uz desni rub stupca.
+        { field: 'invoice_code', headerName: 'Kod', flex: 2 },
+        { field: 'invoice_operator_name', headerName: 'Operater', flex: 2 },
+        { field: 'invoice_payment_method_name', headerName: 'Plaćanje', flex: 1.5 },
+        { field: 'invoice_status', headerName: 'Status', width: 150, align: 'center', headerAlign: 'center',
+            // Oznaka umjesto obojenog cijelog polja — puna boja preko retka je
+            // gutala tekst i tukla se s bojom retka pri prelasku mišem.
             renderCell: (params) => {
-                const statusRender = (data)=>{
-                    let forReturn = {
-                        color:'',
-                        text:''
-                    }
-                    if(data === 'issued'){
-                        forReturn.color='#2e7d32',
-                        forReturn.text='IZDAN'
-                    }else if(data === 'canceled'){
-                        forReturn.color='#d32f2f',
-                        forReturn.text='STORNO'
-                    }else if(data === 'canceled-orginal'){
-                        forReturn.color='#d32f2f',
-                        forReturn.text='STORNIRAN'
-                    }else if(data === 'canceled-partial'){
-                        forReturn.color='#ed6c02',
-                        forReturn.text='DJELOMIČNO'
-                    }
-                    return(forReturn)
+                const map = {
+                    'issued':           { color: 'success', text: 'IZDAN' },
+                    'canceled':         { color: 'error',   text: 'STORNO' },
+                    'canceled-orginal': { color: 'error',   text: 'STORNIRAN' },
+                    'canceled-partial': { color: 'warning', text: 'DJELOMIČNO' },
                 }
-                return (
-                <Box display="flex" alignItems="center" justifyContent="center" width="100%" height='100%'
-                    sx={{
-                        background:statusRender(params.value).color
-                    }}
-                    >
-                    <Typography sx={{mt:1}}>{statusRender(params.value).text}</Typography>
-                </Box>
-                );
+                const conf = map[params.value]
+                if (!conf) return null
+                return <Chip size="small" label={conf.text} color={conf.color} sx={{ fontWeight: 700 }} />
             },
 
         },
-        { field: 'buyer_name', headerName: 'Kupac', flex: 3, },
+        { field: 'buyer_name', headerName: 'Kupac', flex: 2, },
         {
             field: 'f2_status',
             headerName: 'F2',
-            flex: 2,
+            width: 130,
             align: 'center',
             headerAlign: 'center',
             // Backend YesCor poller je autoritet — desk samo prikazuje sinkronizirana
@@ -102,64 +90,41 @@ export default function InvoicesListModal() {
             },
             renderCell: (params) => {
                 const map = {
-                    'n/a':         { color: 'transparent', text: '—' },
-                    'fiskaliziran':{ color: '#2e7d32',     text: 'F2 OK' },
-                    'obrada':      { color: '#ed6c02',     text: 'F2 obrada' },
-                    'greska':      { color: '#d32f2f',     text: 'F2 greška' },
+                    'fiskaliziran':{ color: 'success', text: 'F2 OK' },
+                    'obrada':      { color: 'warning', text: 'F2 obrada' },
+                    'greska':      { color: 'error',   text: 'F2 greška' },
+                }
+                if (params.value === 'n/a') {
+                    return <Typography color="text.secondary">—</Typography>
                 }
                 const conf = map[params.value] || map['obrada']
-                return (
-                    <Box display="flex" alignItems="center" justifyContent="center" width="100%" height="100%"
-                         sx={{ background: conf.color }}>
-                        <Typography sx={{mt:1}}>{conf.text}</Typography>
-                    </Box>
-                )
+                return <Chip size="small" label={conf.text} color={conf.color} sx={{ fontWeight: 700 }} />
             },
         },
         { field: "invoice_send",
             headerName: "Poslano",
-            flex: 1,
+            width: 110,
             align: "center",
             headerAlign: "center",
-            renderCell: (params) => {
-                const isSent = params.value === "SEND";
-
-                return (
-                <Box display="flex" alignItems="center" justifyContent="center" width="100%">
-                    {isSent ? (
-                    <CheckCircleIcon sx={{ color: "success.main", mt:2 }} />
-                    ) : (
-                    <CancelIcon sx={{ color: "error.main", mt:2 }} />
-                    )}
-                </Box>
-                );
-            },
+            renderCell: (params) => (
+                params.value === "SEND"
+                    ? <CheckCircleIcon color="success" titleAccess="Poslano backendu" />
+                    : <CancelIcon color="error" titleAccess="Nije poslano — čeka sinkronizaciju" />
+            ),
         },
         {
             field: 'actions',
             type: 'actions',
             headerAlign: "right",
             align: 'right',
-            headerName: 'Actions',
-            flex: 3,
+            headerName: 'Radnje',
+            width: 210,
             renderCell: (params) => (
                 <InvoicesActions {...{ params, rowId, setRowId, }} />
             ),
         },
        
     ];
-
-    const style = {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: 400,
-        bgcolor: 'background.paper',
-        border: '2px solid #000',
-        boxShadow: 24,
-        p: 4,
-    };
 
     return(
          <>
@@ -170,34 +135,20 @@ export default function InvoicesListModal() {
                 aria-labelledby="parent-modal-title"
                 aria-describedby="parent-modal-description"
             >
-                <Box
-                    sx={{
-                        ...style,
-                        width: '100%'
-                    }}
-                >
-                    <Box
-                        sx={{
-                            height: "65vh",
-                            width: 'auto',
-                            ml:2,
-                            mr:2,
-                            "& .MuiDataGrid-columnHeaders": {
-                                backgroundColor: theme.palette.grey[900],
-                            },
-                            "& .MuiDataGrid-virtualScroller": {
-                                backgroundColor: theme.palette.background.default,
-                            },
-                            "& .MuiCheckbox-root": {
-                                color: theme.palette.success.main,
-                            },
-                        }}
-                    >
+                <Box sx={gridModalSx}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pb: 2 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>Računi</Typography>
+                        <IconButton onClick={handleInvoiceModalClose}><CloseIcon /></IconButton>
+                    </Stack>
+                    <Box sx={gridBoxSx}>
                         <DataGrid
-                            rows={appData.workingData.invoices || ''}
+                            rows={appData.workingData.invoices || []}
                             columns={columns}
                             getRowId={(row) => row.id}
-                            onCellEditStart={(params) => setRowId(params)}                            
+                            rowHeight={56}
+                            disableColumnMenu
+                            disableRowSelectionOnClick
+                            localeText={{ noRowsLabel: "Nema računa" }}
                         />
                     </Box>
                 </Box>

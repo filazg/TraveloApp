@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
-import { Box, Modal, Typography, useTheme } from "@mui/material";
+import { useState } from "react";
+import { Box, Chip, IconButton, Modal, Stack, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
 
+import CloseIcon from "@mui/icons-material/Close";
 import TicketsActions from "./TicketsActions";
+import { gridModalSx, gridBoxSx } from "./listModalStyles";
 
 
 
 export default function TicketsListModal() {
-    const theme = useTheme();
     const dispatch = useDispatch();
     const appData = useSelector(allAppData);
     const [rowId, setRowId] = useState(null);
@@ -19,38 +20,27 @@ export default function TicketsListModal() {
     }
 
     const columns = [
-        { field: 'ticket_code', headerName: 'Oznaka karte', flex: 2},
-        { field: 'line_name', headerName: 'Linija', flex: 4},
-        { field: 'ticket_departure_harbor_name', headerName: 'Od', flex: 2},
-        { field: 'ticket_departure', headerName: 'Polazak', flex: 2},
-        { field: 'ticket_arrival_harbor_name', headerName: 'Do', flex: 2},
-        { field: 'ticket_arrival', headerName: 'Dolazakk', flex: 2},
-        { field: 'ticket_type_name', headerName: 'Kategorija', flex: 2},
-        { field: 'ticket_status', headerName: 'Status', flex: 2,
+        // Velika slova s razmakom u zaglavlju zauzimaju vise od obicnog teksta,
+        // pa se "Oznaka karte" rezalo — skraceno na "Oznaka".
+        { field: 'ticket_code', headerName: 'Oznaka', width: 160},
+        { field: 'line_name', headerName: 'Linija', flex: 3},
+        { field: 'ticket_departure_harbor_name', headerName: 'Od', flex: 1},
+        { field: 'ticket_departure', headerName: 'Polazak', width: 170, align: 'right', headerAlign: 'right'},
+        { field: 'ticket_arrival_harbor_name', headerName: 'Do', flex: 1},
+        { field: 'ticket_arrival', headerName: 'Dolazak', width: 170, align: 'right', headerAlign: 'right'},
+        { field: 'ticket_type_name', headerName: 'Kategorija', flex: 1.5},
+        { field: 'ticket_status', headerName: 'Status', width: 150, align: 'center', headerAlign: 'center',
+            // Oznaka umjesto obojenog cijelog polja — puna boja preko retka je
+            // gutala tekst i tukla se s bojom retka pri prelasku mišem.
             renderCell: (params) => {
-                const statusRender = (data)=>{
-                    let forReturn = {
-                        color:'',
-                        text:''
-                    }
-                    if(data === 'ISSUED'){
-                        forReturn.color='#2e7d32',
-                        forReturn.text='IZDANA'
-                    }else if(data === 'CANCELED'){
-                        forReturn.color='#d32f2f',
-                        forReturn.text='STORNIRANA'
-                    }
-                    return(forReturn)
+                const map = {
+                    'ISSUED':   { color: 'success', text: 'IZDANA' },
+                    'VALIDATE': { color: 'info',    text: 'VALIDIRANA' },
+                    'CANCELED': { color: 'error',   text: 'STORNIRANA' },
                 }
-                return (
-                <Box display="flex" alignItems="center" justifyContent="center" width="100%" height='100%'
-                    sx={{
-                        background:statusRender(params.value).color
-                    }}
-                    >
-                    <Typography sx={{mt:1}}>{statusRender(params.value).text}</Typography>
-                </Box>
-                );
+                const conf = map[params.value]
+                if (!conf) return null
+                return <Chip size="small" label={conf.text} color={conf.color} sx={{ fontWeight: 700 }} />
             },
 
          },
@@ -59,25 +49,13 @@ export default function TicketsListModal() {
             type: 'actions',
             headerAlign: "right",
             align: 'right',
-            headerName: 'Actions',
-            width:130,
+            headerName: 'Radnje',
+            width:150,
             renderCell: (params) => (
                 <TicketsActions {...{ params, rowId, setRowId, }} />
             ),
         },
     ];
-
-    const style = {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: 400,
-        bgcolor: 'background.paper',
-        border: '2px solid #000',
-        boxShadow: 24,
-        p: 4,
-    };
 
     return(
          <>
@@ -87,34 +65,20 @@ export default function TicketsListModal() {
                 aria-labelledby="parent-modal-title"
                 aria-describedby="parent-modal-description"
             >
-                <Box
-                    sx={{
-                        ...style,
-                        width: '100%'
-                    }}
-                >
-                    <Box
-                        sx={{
-                            height: "65vh",
-                            width: 'auto',
-                            ml:2,
-                            mr:2,
-                            "& .MuiDataGrid-columnHeaders": {
-                                backgroundColor: theme.palette.grey[900],
-                            },
-                            "& .MuiDataGrid-virtualScroller": {
-                                backgroundColor: theme.palette.background.default,
-                            },
-                            "& .MuiCheckbox-root": {
-                                color: theme.palette.success.main,
-                            },
-                        }}
-                    >
+                <Box sx={gridModalSx}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pb: 2 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>Karte</Typography>
+                        <IconButton onClick={handleTicketsModalClose}><CloseIcon /></IconButton>
+                    </Stack>
+                    <Box sx={gridBoxSx}>
                         <DataGrid
-                            rows={appData.workingData.tickets || ''}
+                            rows={appData.workingData.tickets || []}
                             columns={columns}
                             getRowId={(row) => row.id}
-                            onCellEditStart={(params) => setRowId(params)}                            
+                            rowHeight={56}
+                            disableColumnMenu
+                            disableRowSelectionOnClick
+                            localeText={{ noRowsLabel: "Nema karata" }}
                         />
                     </Box>
                 </Box>
