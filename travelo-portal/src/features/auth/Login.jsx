@@ -115,10 +115,17 @@ export default function LoginPage (){
             bgcolor: "primary.main",
           }}
         >
+          {/* Velicina ide preko fontSize, a ne preko varijante, jer se ploca na
+              uzim ekranima suzava — na md je znak sirok skoro cijelu plocu. */}
           <BrandMark
-            variant="h2"
+            variant="h1"
             onPrimary
-            sx={{ textAlign: "center", px: 4 }}
+            sx={{
+              textAlign: "center",
+              px: 4,
+              fontSize: { md: 64, lg: 88 },
+              whiteSpace: "nowrap",
+            }}
           />
           {/* footer */}
           <Box

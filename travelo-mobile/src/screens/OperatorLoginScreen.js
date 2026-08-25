@@ -232,7 +232,10 @@ export default function OperatorLoginScreen() {
 const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: colors.bg },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-    logo: { fontSize: 36, fontWeight: '800', color: colors.primary, textAlign: 'center', marginBottom: 32 },
+    // Boju ne postavljamo ovdje — BrandMark sam boja "Travelo" i "APP".
+    // 48 je gornja granica koja na Sunmi V2s (360 dp sirine, 24 dp padding)
+    // jos stane u jedan redak.
+    logo: { fontSize: 48, fontWeight: '800', textAlign: 'center', marginBottom: 32 },
     deviceInfo: { marginTop: 24, alignItems: 'center' },
     infoLine: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 2 },
     infoLabel: { fontWeight: '700', color: colors.textSecondary },
