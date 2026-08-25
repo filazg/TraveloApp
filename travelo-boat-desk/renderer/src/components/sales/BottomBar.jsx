@@ -100,6 +100,13 @@ export default function BottomBar() {
 
   const invoiceSubtotal = subtotal(appData.saleData.addedTickets);
 
+  // Prodaja je spremna kad ima što naplatiti i čime. Otvorena smjena je zaseban
+  // uvjet: bez nje se račun ne može izdati, ali gumb ostaje aktivan i vodi na
+  // otvaranje smjene.
+  const saleReady = !!appData.saleData?.addedTickets?.length
+    && !!appData.saleData?.selectedPaymentMethod?.uuid;
+  const canIssueInvoice = saleReady && !appData.canOpenNewShift;
+
   const updateBooking = async () => {
     const data = appData.searchData.selectedDeparture
     const dataToSearch = {
@@ -393,16 +400,21 @@ export default function BottomBar() {
                 </Paper>
               ) : null}
             </Box>
+            {/* Zeleno = račun se može izdati. Plavo = prodaja je spremna, ali
+                nema otvorene smjene — klik tada vodi na smjene umjesto da gumb
+                bude mrtav i blagajnik traži zašto. Sivo = košarica ili sredstvo
+                plaćanja još nedostaju. */}
             <Button
               variant="contained"
-              disabled={!appData.saleData?.addedTickets?.length || !appData.saleData?.selectedPaymentMethod?.uuid || appData.canOpenNewShift}
+              color={canIssueInvoice ? "success" : "primary"}
+              disabled={!saleReady}
               sx={{
                 // Završna radnja prodaje — najveći natpis na ekranu, uz iznos
                 // koji blagajnik očitava naglas.
                 gridArea: "seven",
                 fontSize: "1.6rem",
               }}
-              onClick={handleConfirm}
+              onClick={canIssueInvoice ? handleConfirm : handleShiftModalOpen}
             >
               IZDAJ / {invoiceSubtotal.toFixed(2)} EUR
             </Button>
