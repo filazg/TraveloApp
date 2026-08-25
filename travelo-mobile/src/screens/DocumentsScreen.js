@@ -634,12 +634,9 @@ const styles = StyleSheet.create({
     ticketSub: { color: colors.textSecondary, fontSize: 11, marginTop: 1 },
     ticketPrice: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
     totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 6 },
-    // Gumbi dijele redak na jednake dijelove (flex: 1) umjesto da se sire po
-    // duljini teksta. S tri gumba (Ispis / Storno / Zatvori) zbroj sirina je na
-    // 360 dp ekranu prelazio raspolozivo pa se zadnji lomio u drugi red.
-    actions: { flexDirection: 'row', marginTop: 12, gap: 8 },
-    actionBtn: { flex: 1, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-    actionText: { color: colors.textOnPrimary, fontWeight: '700', textAlign: 'center' },
+    actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12, gap: 8 },
+    actionBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 6 },
+    actionText: { color: colors.textOnPrimary, fontWeight: '700' },
     actionBtnNeutral: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
     actionTextNeutral: { color: colors.textPrimary },
     checkbox: { fontSize: 22, color: colors.textMuted },
@@ -660,11 +657,12 @@ const styles = StyleSheet.create({
 
     muted: { color: colors.textSecondary, fontSize: 13, marginTop: 4 },
 
-    // Postotci povrata — tri gumba u redu. Širina je 31% pa uz razmake stanu
-    // točno tri, bez obzira koliko ih šifarnik ima.
-    pctGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4, justifyContent: 'flex-start' },
+    // Postotci povrata — tri gumba u redu, bez obzira koliko ih sifarnik ima.
+    // Razmak ide na gap, ne na marginRight: marginRight je stajao i na trecem
+    // gumbu pa je red trazio 3*31.5 + 3*2.75 = 102.75% i treci se lomio dolje.
+    pctGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4, justifyContent: 'flex-start', gap: 8 },
     pctBtn: {
-        width: '31.5%', marginRight: '2.75%', marginBottom: 8,
+        width: '31%',
         paddingVertical: 12, paddingHorizontal: 8,
         backgroundColor: colors.surface, borderRadius: 8,
         borderWidth: 1, borderColor: colors.border,
