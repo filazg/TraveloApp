@@ -96,8 +96,10 @@ export default function OperatorLoginScreen() {
         dispatch(syncBasicDataThunk());
     }, [dispatch, sync.loading]);
 
+    const osvjezavanje = sync.loading || sync.transportLoading;
+
     const onRefresh = async () => {
-        if (sync.loading) return;
+        if (osvjezavanje) return;
         // Povlači se i vozni red, ne samo osnovni podaci. Prije je gumb dohvaćao
         // samo basic_data, pa promjena linija dozvoljenih uređaju nije stizala
         // dok se ne povuče popis linija — a gumb kaže "Osvježi podatke".
@@ -192,12 +194,15 @@ export default function OperatorLoginScreen() {
                         )}
                     </TouchableOpacity>
 
+                    {/* I vozni red, ne samo sync.loading: basic_data zavrsi prije
+                        voznog reda, pa je pokazivac gasnuo dok se linije jos
+                        povlace i operater je usao na stari popis. */}
                     <TouchableOpacity
-                        style={[styles.btnLink, sync.loading && styles.btnDisabled]}
+                        style={[styles.btnLink, osvjezavanje && styles.btnDisabled]}
                         onPress={onRefresh}
-                        disabled={sync.loading}
+                        disabled={osvjezavanje}
                     >
-                        {sync.loading ? (
+                        {osvjezavanje ? (
                             <View style={styles.btnLinkRow}>
                                 <ActivityIndicator color={colors.textSecondary} size="small" />
                                 <Text style={[styles.btnLinkText, { marginLeft: 8 }]}>Osvježavanje…</Text>
