@@ -50,6 +50,60 @@ function getProdIndexHtmlPath() {
 // pikselu, pa je zaokruživanje znalo prelomiti redak.
 const CONTENT_MIN_WIDTH = 1646;
 
+// Od dvoklika do prvog prozora prođe nekoliko sekundi: Electron se digne, pa
+// sequelize.sync({alter:true}) prođe kroz sve tablice. Dotad na ekranu nema
+// ničega, pa blagajnik ne zna je li aplikacija uopće krenula i klikne ponovno.
+// Splash se digne prije baze i zatvara se kad glavni prozor ima što pokazati.
+let splashWin = null;
+
+const SPLASH_HTML = `<!doctype html>
+<html lang="hr"><head><meta charset="utf-8"><style>
+  html,body{margin:0;height:100%;overflow:hidden;
+    font-family:"Segoe UI",Roboto,Arial,sans-serif;-webkit-user-select:none;}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:22px;background:#F5F2EB;color:#383E42;border:1px solid #E5E0D6;border-radius:14px;}
+  .naziv{font-size:30px;font-weight:800;letter-spacing:.5px;color:#175BD0;}
+  .podnaslov{font-size:14px;color:#5C656B;}
+  .traka{width:220px;height:6px;border-radius:3px;background:#E5E0D6;overflow:hidden;}
+  .traka i{display:block;width:40%;height:100%;border-radius:3px;background:#175BD0;
+    animation:klizi 1.1s ease-in-out infinite;}
+  @keyframes klizi{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+</style></head><body>
+  <div class="naziv">TraveloAPP</div>
+  <div class="traka"><i></i></div>
+  <div class="podnaslov">Priprema podataka…</div>
+</body></html>`;
+
+function createSplash() {
+  splashWin = new BrowserWindow({
+    width: 420,
+    height: 240,
+    frame: false,
+    resizable: false,
+    movable: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    center: true,
+    transparent: true,
+    backgroundColor: "#00000000",
+    title: "TraveloAPP",
+    show: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  });
+  // Ugrađen HTML, ne datoteka — splash mora raditi i u devu (Vite još nije
+  // spreman) i u instaliranoj verziji, bez ovisnosti o rendereru.
+  splashWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(SPLASH_HTML));
+  splashWin.on("closed", () => { splashWin = null; });
+  return splashWin;
+}
+
+function closeSplash() {
+  if (splashWin && !splashWin.isDestroyed()) {
+    splashWin.close();
+  }
+  splashWin = null;
+}
+
 function createWindow() {
   logToFile("createWindow()");
   const win = new BrowserWindow({
@@ -58,9 +112,11 @@ function createWindow() {
     minWidth: 1200,
     minHeight: 1100,
     title: "TraveloAPP Boat Desk",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#F5F2EB",
     autoHideMenuBar: true,
-    show: true,
+    // Prozor se skriva dok renderer nema što pokazati — inače bi preko splasha
+    // sjedio prazan bijeli okvir.
+    show: false,
     icon: path.join(__dirname, 'assets', 'icon.ico'),
     webPreferences: {
       contextIsolation: true,
@@ -80,8 +136,21 @@ function createWindow() {
 
   win.once("ready-to-show", () => {
     logToFile("ready-to-show");
+    closeSplash();
     win.show();
+    win.focus();
   });
+
+  // Ako renderer ne javi ready-to-show (Vite nije podignut, index.html
+  // nedostaje), splash bi ostao visjeti nad praznim ekranom. Nakon 30s se
+  // odustaje i prozor se prikaže kakav jest, da se barem vidi greška.
+  setTimeout(() => {
+    if (!win.isDestroyed() && !win.isVisible()) {
+      logToFile("ready-to-show nije stigao u 30s — prikazujem prozor svejedno");
+      closeSplash();
+      win.show();
+    }
+  }, 30000);
 
   win.webContents.on("did-fail-load", (_e, code, desc, url) => {
     logToFile("did-fail-load:", code, desc, url);
@@ -127,10 +196,22 @@ function createWindow() {
 console.log("MAIN:", process.versions);
 
 app.whenReady().then(async () => {
+  const startedAt = Date.now();
   logToFile("=== APP START ===", new Date().toISOString(), "isPackaged:", app.isPackaged);
-  await sequelize.authenticate();
-  await sequelize.sync({alter:true}).then(()=> console.log('db is ready'))
-  //await sequelize.sync(); // za početak OK (kasnije migracije)
+  // Prvo splash, tek onda baza — priprema baze je i najduži dio starta.
+  createSplash();
+  try {
+    await sequelize.authenticate();
+    await sequelize.sync({alter:true}).then(()=> console.log('db is ready'))
+    //await sequelize.sync(); // za početak OK (kasnije migracije)
+  } catch (dbErr) {
+    // Bez ovoga bi splash ostao na ekranu zauvijek, a glavni prozor se ne bi ni
+    // stvorio — izgledalo bi kao da se aplikacija zaglavila na "Priprema podataka".
+    logToFile("greska pri pripremi baze:", dbErr?.stack || String(dbErr));
+    closeSplash();
+    throw dbErr;
+  }
+  logToFile("baza spremna nakon", Date.now() - startedAt, "ms");
   registerIpcHandlers();
   createWindow();
 
