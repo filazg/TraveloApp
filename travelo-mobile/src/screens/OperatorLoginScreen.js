@@ -225,8 +225,13 @@ export default function OperatorLoginScreen() {
                     </Text>
                 </View>
 
-                <Text style={styles.poweredBy}>powered by Tech4beeZ</Text>
             </ScrollView>
+
+            {/* Potpis stoji izvan ScrollViewa da bude uvijek na dnu ekrana.
+                Unutra je visio na marginTop pa je "plesao" gore-dolje kako se
+                forma skracuje ili produljuje (sifra ima jedno polje, korisnicko
+                ime dva). */}
+            <Text style={styles.poweredBy}>powered by Tech4beeZ</Text>
         </KeyboardAvoidingView>
     );
 }
@@ -242,7 +247,11 @@ const styles = StyleSheet.create({
     // Tekst izvan kartice stoji na plavoj podlozi pa ide na bijele neutrale.
     infoLine: { fontSize: 12, color: colors.textOnPrimaryMuted, textAlign: 'center', marginTop: 2 },
     infoLabel: { fontWeight: '700', color: colors.textOnPrimary },
-    poweredBy: { fontSize: 14, fontWeight: '700', color: colors.textOnPrimaryMuted, textAlign: 'center', marginTop: 56, fontStyle: 'italic' },
+    poweredBy: {
+        fontSize: 14, fontWeight: '700', color: colors.textOnPrimaryMuted,
+        textAlign: 'center', fontStyle: 'italic',
+        paddingBottom: 16, paddingTop: 8,
+    },
     form: {
         backgroundColor: colors.surface, padding: 20, borderRadius: 12,
         borderWidth: 1, borderColor: colors.border,
