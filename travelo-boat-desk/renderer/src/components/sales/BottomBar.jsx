@@ -6,6 +6,7 @@ import ShiftsView from "./ShiftView";
 import { useEffect } from "react";
 import InvoicesListModal from "./InvoicesListModal";
 import TicketsListModal from "./TicketsListModal";
+import ShortcutHint from "../common/ShortcutHint";
 
 export default function BottomBar() {
   const dispatch = useDispatch();
@@ -358,7 +359,7 @@ export default function BottomBar() {
               }}
               onClick={handleShiftModalOpen}
             >
-              SMJENE
+              SMJENE<ShortcutHint action="shifts" />
             </Button>
             <Button
               variant="contained"
@@ -368,7 +369,7 @@ export default function BottomBar() {
               }}
               onClick={handleInvoiceModalOpen}
             >
-              RAČUNI
+              RAČUNI<ShortcutHint action="invoices" />
             </Button>
             <Button
               variant="contained"
@@ -378,7 +379,7 @@ export default function BottomBar() {
               }}
               onClick={handleTicketsModalOpen}
             >
-              KARTE
+              KARTE<ShortcutHint action="tickets" />
             </Button>
             {/* Prazan prostor između gumba i IZDAJ — dovoljno širok da stane
                 cijeli naziv kupca, što na gumbu u stupcu Plaćanje nije stalo.
@@ -452,7 +453,7 @@ export default function BottomBar() {
               }}
               onClick={canIssueInvoice ? handleConfirm : handleShiftModalOpen}
             >
-              IZDAJ / {invoiceSubtotal.toFixed(2)} EUR
+              IZDAJ / {invoiceSubtotal.toFixed(2)} EUR<ShortcutHint action="issue" />
             </Button>
            
           </Grid>

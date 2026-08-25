@@ -8,6 +8,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
+import ShortcutHint from "../common/ShortcutHint";
 
 export default function FilterBar() {
     const dispatch = useDispatch();
@@ -324,7 +325,7 @@ export default function FilterBar() {
             }}
             onClick={handleResetForm}
           >
-            OSVJEŽI FORMU
+            OSVJEŽI FORMU<ShortcutHint action="reset" />
           </Button>
            <Button
             disabled={!canScan}
@@ -338,7 +339,7 @@ export default function FilterBar() {
             }}
             onClick={handleOpenSubsidizedModal}
           >
-            POVLAŠTENE KARTICE
+            POVLAŠTENE KARTICE<ShortcutHint action="subsidised" />
           </Button>
         </Grid>
         </Grid>

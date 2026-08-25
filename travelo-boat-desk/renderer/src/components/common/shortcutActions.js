@@ -31,6 +31,14 @@ export const svePonudjeneRadnje = (paymentMethods = []) => [
         .map((p) => ({ value: `payment:${p.uuid}`, label: `Plaćanje: ${p.name}` })),
 ];
 
+// Koja je tipka dodijeljena radnji — za oznaku na samom gumbu, npr. "KARTICA (F2)".
+// Prečaci se pamte kao { tipka: radnja }, a ovdje treba obrnuto; mapa je od 12
+// unosa pa se ne isplati držati drugi indeks.
+export const tipkaZaRadnju = (shortcuts, action) => {
+    if (!shortcuts || !action) return null;
+    return Object.keys(shortcuts).find((k) => shortcuts[k] === action) || null;
+};
+
 export const nazivRadnje = (value, paymentMethods = []) => {
     if (!value) return "";
     const nadjena = svePonudjeneRadnje(paymentMethods).find((r) => r.value === value);

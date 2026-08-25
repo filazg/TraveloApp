@@ -4,6 +4,7 @@ import EuroIcon from "@mui/icons-material/Euro";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
+import ShortcutHint from "../common/ShortcutHint";
 
 
 export default function OptionsBar() {
@@ -61,7 +62,7 @@ export default function OptionsBar() {
             >
               {/* Gumb samo otvara adresar; tko je odabran i ide li račun u F2
                   stoji u donjoj traci, gdje ima mjesta za cijeli naziv. */}
-              R1 RAČUN
+              R1 RAČUN<ShortcutHint action="r1" />
             </Button>
             <>
             {appData.basicData.payment_methods.map((payment) => (
@@ -88,7 +89,7 @@ export default function OptionsBar() {
                   )
                 }
               >
-                {payment.name}
+                {payment.name}<ShortcutHint action={`payment:${payment.uuid}`} />
               </Button>
             ))}
             </>
