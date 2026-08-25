@@ -233,13 +233,13 @@ export default function BillingDevicesPage (){
                     borderBottom: '2px solid',
                     borderColor: 'divider',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 1,
+                    alignItems: 'baseline',
+                    justifyContent: 'center',
+                    gap: 0.75,
                 }}
             >
                 <Typography variant="subtitle2" fontWeight={700} noWrap>{naslov}</Typography>
-                <Typography variant="caption" color="text.secondary">{items.length}</Typography>
+                <Typography variant="caption" color="text.secondary">({items.length})</Typography>
             </Box>
             <Box sx={{ height: 280, overflow: 'auto' }}>
                 {items.length ? sadrzaj : (
