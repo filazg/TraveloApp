@@ -295,11 +295,20 @@ export default function BottomBar() {
             >
               ODJAVA
             </Button>
+            {/* Bez otvorene smjene blagajna ne moze izdati racun, pa gumb koji
+                vodi do otvaranja to i pokazuje. Blaga crvena, ne puna kao na
+                ODJAVI pored — to je upozorenje, ne opasnost. */}
             <Button
               variant="contained"
               sx={{
                 gridArea: "two",
                 fontSize: "1.1rem",
+                ...(appData.canOpenNewShift
+                  ? {
+                      bgcolor: "error.light",
+                      "&:hover": { bgcolor: "error.main" },
+                    }
+                  : null),
               }}
               onClick={handleShiftModalOpen}
             >
