@@ -7,12 +7,14 @@ import { colors } from '../theme/colors';
 // (renderer/src/components/common/BrandMark.jsx) i splash u njegovom main.cjs.
 //
 // `onPrimary` je za mjesta gdje znak stoji NA plavoj podlozi (npr. zaglavlje
-// glavnog izbornika): ondje bi "Travelo" bio plavo na plavom. Tada "Travelo"
-// ide u bijelo, a "APP" u sekundarnu svijetloplavu — dvobojnost ostaje, a oboje
-// je čitljivo. Sekundarna se u tom zaglavlju već koristi za podnaslov.
+// glavnog izbornika): ondje bi "Travelo" bio plavo na plavom.
+//
+// Pravilo je isto na obje podloge: "Travelo" nosi plavu, "APP" nosi neutralnu.
+// Na svijetloj je to primary + tamni tekst, na plavoj sekundarna + bijelo. Tako
+// izgleda i zatečeni znak na ekranu prijave portala.
 export default function BrandMark({ style, onPrimary = false }) {
-    const brandColor = onPrimary ? colors.textOnPrimary : colors.primary;
-    const textColor = onPrimary ? colors.secondary : colors.textPrimary;
+    const brandColor = onPrimary ? colors.secondary : colors.primary;
+    const textColor = onPrimary ? colors.textOnPrimary : colors.textPrimary;
     return (
         <Text style={[{ fontWeight: '800', letterSpacing: 0.5 }, style]}>
             <Text style={{ color: brandColor }}>Travelo</Text>

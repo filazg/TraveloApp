@@ -82,20 +82,29 @@ export default function Topbar() {
   return (
     <AppBar position="static" elevation={1}>
       <Box
-        sx={{display:{xs:'flex', md:'none'}, alignItems: "center"}}
+        sx={{display:{xs:'flex', md:'none'}, alignItems: "center", justifyContent: "center"}}
       >
       <Typography variant="h5" textAlign='center'
         onClick={() =>{
           navigate("/")}
         }
-        sx={{fontWeight: 800, cursor: "pointer"}}>
-        <BrandMark variant="h5" /> - Admin portal
+        sx={{fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap"}}>
+        <BrandMark onPrimary /> - Admin portal
       </Typography>
 
       </Box>
-      <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
-        {/* LEFT */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      {/* Tri stupca umjesto space-between: naslov je srednji, a bočni stupci su
+          jednake širine (1fr) pa naslov stoji točno na sredini trake bez obzira
+          na to koliko je širok gumb izbornika ili koliko je kontrola desno. */}
+      <Toolbar sx={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 1 }}>
+        {/* LEFT — znak pa izbornik */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifySelf: "start", minWidth: 0 }}>
+          <BrandMark
+            variant="h6"
+            onPrimary
+            sx={{ display: { xs: "none", md: "block" }, cursor: "pointer", mr: 1 }}
+            onClick={() => navigate("/")}
+          />
           {menuSections.length > 0 ?
             <Button
               variant="outlined"
@@ -188,21 +197,21 @@ export default function Topbar() {
               </Box>
             ))}
           </Menu>
-          <Typography
-            
-            variant="h6"
-            sx={{ 
-              display: { xs: "none", md: "flex" },
-              fontWeight: 800, cursor: "pointer" }}
-            onClick={() => navigate("/")}
-          >
-            <BrandMark variant="h6" /> - Admin portal
-          </Typography>
-
         </Box>
 
+        {/* CENTER — samo naslov; znak stoji lijevo */}
+        <Typography
+          variant="h6"
+          sx={{
+            display: { xs: "none", md: "block" },
+            justifySelf: "center",
+            fontWeight: 800, whiteSpace: "nowrap" }}
+        >
+          Admin portal
+        </Typography>
+
         {/* RIGHT */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifySelf: "end" }}>
           {authData.loggedUserData?.username && (
             <Typography variant="body2" sx={{ opacity: 0.85 }}>
               {authData.loggedUserData?.username}

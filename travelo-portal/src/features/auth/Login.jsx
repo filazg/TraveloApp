@@ -20,7 +20,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { authSliceData, resetAuthData, setAuthData } from './authSlice';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import loginImg from "../../assets/TraveloAppIcon.png";
+import BrandMark from "../../layout/BrandMark";
 
 
 export default function LoginPage (){
@@ -101,17 +101,25 @@ export default function LoginPage (){
           boxShadow: "0 30px 80px rgba(15,23,42,0.18)",
         }}
       >
-        {/* LEFT – IMAGE */}
+        {/* LEFT – ZNAK */}
+        {/* Prije je ovdje stajala slika TraveloAppIcon.png s ukošenim natpisom.
+            Sada je puna brand plava i isti tekstualni znak koji nosi i gornja
+            traka — tako se logo drži na jednom mjestu i prati font aplikacije. */}
         <Grid
           size={{ xs: 0, md: 7 }}
           sx={{
             display: { xs: "none", md: "flex" },
             position: "relative",
-            backgroundImage: `url(${loginImg})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "primary.main",
           }}
         >
+          <BrandMark
+            variant="h2"
+            onPrimary
+            sx={{ textAlign: "center", px: 4 }}
+          />
           {/* footer */}
           <Box
             sx={{
