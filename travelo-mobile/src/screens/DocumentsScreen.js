@@ -326,10 +326,8 @@ export default function DocumentsScreen() {
             closeStorno();
             closeDetail();
             await refresh();
-            const stornoLabel = stornoLocal.is_f2
-                ? (stornoLocal.invoice_code || '-')
-                : `#${stornoLocal.invoice_no || '-'}`;
-            Alert.alert('Storno', `Storno proveden: račun ${stornoLabel}, iznos ${(Number(stornoLocal.total_amount) || 0).toFixed(2)} €.`);
+            // Bez potvrdnog prozorcica — storno racun se odmah ispise, a u
+            // pregledu se vidi po oznakama STORNO / STORNIRAN.
         } catch (e) {
             const msg = e?.response?.data?.data?.message || e?.message || 'Greška u stornu';
             Alert.alert('Greška', msg);
@@ -355,6 +353,11 @@ export default function DocumentsScreen() {
         const isSynced = item._synced;
         const isLocal = item.local;
         const hasIsland = (r.tickets || []).some((t) => t.is_island);
+        // STORNO = sam storno dokument, STORNIRAN = izvorni racun koji je
+        // storniran. Oznaka se cita i s payloada i s raw_response-a jer
+        // markInvoiceCanceled pise na vanjski payload, a backend na raw.
+        const isStorno = !!(item.is_storno || r.is_storno);
+        const isCanceled = !!(item.is_canceled || r.is_canceled || r.invoice_canceled);
         return (
             <TouchableOpacity style={styles.row} onPress={() => openDetail(item)}>
                 <View style={{ flex: 1 }}>
@@ -366,9 +369,13 @@ export default function DocumentsScreen() {
                     <Text style={styles.rowSub}>{fmtDt(item.created_at)}</Text>
                     {!(r.is_f2 || item.is_f2) && r.invoice_code ? <Text style={styles.rowSub}>{r.invoice_code}</Text> : null}
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
+                {/* maxWidth da oznake imaju gdje prelomiti — bez granice stupac
+                    raste po sadrzaju i gura naziv racuna lijevo. */}
+                <View style={{ alignItems: 'flex-end', flexShrink: 1, maxWidth: '55%' }}>
                     <Text style={styles.rowAmount}>{fmtEUR(item.amount)}</Text>
                     <View style={styles.badgeRow}>
+                        {isStorno ? <View style={[styles.badge, { backgroundColor: colors.error }]}><Text style={styles.badgeText}>STORNO</Text></View> : null}
+                        {isCanceled ? <View style={[styles.badge, { backgroundColor: colors.textSecondary }]}><Text style={styles.badgeText}>STORNIRAN</Text></View> : null}
                         {(r.is_f2 || item.is_f2) ? <View style={[styles.badge, { backgroundColor: colors.warning }]}><Text style={styles.badgeText}>F2</Text></View> : null}
                         {hasIsland ? <View style={[styles.badge, { backgroundColor: colors.success }]}><Text style={styles.badgeText}>Otočna</Text></View> : null}
                         <View style={[styles.badge, { backgroundColor: isSynced ? colors.primary : (isLocal ? colors.warning : colors.textMuted) }]}>
@@ -616,7 +623,8 @@ const styles = StyleSheet.create({
     rowTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
     rowSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
     rowAmount: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
-    badgeRow: { flexDirection: 'row', marginTop: 4 },
+    // wrap jer uz STORNO/STORNIRAN u redak vise ne stanu sve oznake odjednom.
+    badgeRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', marginTop: 4 },
     badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 4 },
     badgeText: { color: colors.textOnPrimary, fontSize: 10, fontWeight: '700' },
     empty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', padding: 20 },
