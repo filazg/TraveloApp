@@ -114,7 +114,7 @@ async function findConflictingActiveWebDevice(
 }
 
 const getBillingDevicesController = async(req,res)=>{
-    const { BillingDevicesModel, BillingDevicesPermissionsModel, BillingDevicesPaymentMethodsModel } = req.app.locals.models;
+    const { BillingDevicesModel, BillingDevicesPermissionsModel, BillingDevicesPaymentMethodsModel, BillingDevicesExcludedLinesModel } = req.app.locals.models;
     try {
         let billingDeviceDataToSend = []
         const result = await sequelize.transaction(async (t)=>{
@@ -131,6 +131,15 @@ const getBillingDevicesController = async(req,res)=>{
                     attributes: { exclude: ['createdAt','updatedAt'] }
                 })
                 const paymentMethodsForBillingDevice = await BillingDevicesPaymentMethodsModel.findAll({
+                    where:{
+                        billing_device_uuid:billingDevice.uuid,
+                        is_active:true
+                    },
+                    attributes: { exclude: ['createdAt','updatedAt'] }
+                })
+                // Linije koje su uređaju zabranjene. Prazna lista znači da su sve
+                // dozvoljene — to je i zadano stanje.
+                const excludedLinesForBillingDevice = await BillingDevicesExcludedLinesModel.findAll({
                     where:{
                         billing_device_uuid:billingDevice.uuid,
                         is_active:true
@@ -158,7 +167,8 @@ const getBillingDevicesController = async(req,res)=>{
                     footer:billingDevice.footer,
                     is_active:billingDevice.is_active,
                     permissions:permissionsForBillingDevice,
-                    payment:paymentMethodsForBillingDevice
+                    payment:paymentMethodsForBillingDevice,
+                    excluded_lines:excludedLinesForBillingDevice
                 }
                 billingDeviceDataToSend = [...billingDeviceDataToSend, dataTaAdd]
             }
@@ -265,7 +275,13 @@ const addBillingDeviceController = async(req,res)=>{
                         type_name:data.type,
                         header:data.header,
                         footer:data.footer,
-                        is_active:data.is_active
+                        // Stupac ne dopušta NULL, a forma zna poslati prazno ako
+                        // korisnik ne dirne izbornik — tada bi create pukao, a
+                        // korisnik bi vidio samo zatvorenu formu bez uređaja.
+                        // Novi uređaj je aktivan osim ako je izričito rečeno da nije.
+                        is_active: data.is_active === undefined || data.is_active === null || data.is_active === ''
+                            ? true
+                            : (data.is_active === true || data.is_active === 'true')
                     })
                     // Zauzmi SN da ga se ne može dodijeliti drugom uređaju.
                     if (serialNumber) {
@@ -309,7 +325,7 @@ const addBillingDeviceController = async(req,res)=>{
 }
 
 const updateBillingDeviceController = async(req,res)=>{
-    const { BillingDevicesModel, BillingDevicesPermissionsModel, BillingDevicesPaymentMethodsModel, BusinessPremisesModel, DeviceSerialNumbersModel } = req.app.locals.models;
+    const { BillingDevicesModel, BillingDevicesPermissionsModel, BillingDevicesPaymentMethodsModel, BillingDevicesExcludedLinesModel, BusinessPremisesModel, DeviceSerialNumbersModel } = req.app.locals.models;
     try {
         const data = req.body.body
          console.log('UPDATE  DATA')
@@ -456,7 +472,34 @@ const updateBillingDeviceController = async(req,res)=>{
                         }
                         const addBillingDevicePaymentMethods = await BillingDevicesPaymentMethodsModel.bulkCreate(dataForCreate)
                     }
-                    
+
+                    // Zabranjene linije — isti obrazac kao gore: sve postojeće se
+                    // ugase pa se upiše nova lista. Ako `excluded_lines` uopće ne
+                    // stigne (stariji portal), lista se ne dira, jer bi inače
+                    // spremanje bilo kojeg drugog polja tiho odblokiralo sve linije.
+                    if(data.excluded_lines){
+                        await BillingDevicesExcludedLinesModel.update({
+                            is_active:false
+                        },{where:{
+                            billing_device_uuid:data.uuid
+                        }})
+                        let dataForCreate = []
+                        for(const line of data.excluded_lines){
+                            const newLine = {
+                                billing_device_uuid:data.uuid,
+                                uuid:line.uuid,
+                                name:line.name,
+                                code:line.code,
+                                is_active:true
+                            }
+                            dataForCreate = [...dataForCreate, newLine]
+                        }
+                        if(dataForCreate.length){
+                            await BillingDevicesExcludedLinesModel.bulkCreate(dataForCreate)
+                        }
+                    }
+
+
                     console.log('TU SMO KRAJ')
                 publishBackofficeEvent('update_terminals')
                 res.send({

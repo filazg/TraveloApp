@@ -175,10 +175,48 @@ module.exports =  (sequelize) =>{
             { freezeTableName:true, tableName: "billing_devices_payment_methods", timestamps: true }
   );
 
+    // Linije koje NISU dozvoljene na uređaju.
+    // Pamti se iznimka, a ne dozvola: po pravilu su sve linije dozvoljene na
+    // svakom uređaju, pa novi uređaj i nova linija rade bez ijednog upisa.
+    // Da se pamtila dozvola, svaka nova linija bila bi nevidljiva svugdje dok
+    // je netko ručno ne doda na svaki uređaj.
+    const BillingDevicesExcludedLinesModel = sequelize.define(
+            "billing_devices_excluded_lines",
+            {
+                id:{
+                    type:DataTypes.INTEGER,
+                    primaryKey: true,
+                    autoIncrement: true
+                },
+                uuid:{
+                    type:DataTypes.STRING,
+                    allowNull:false
+                },
+                billing_device_uuid:{
+                    type:DataTypes.STRING,
+                    allowNull:false
+                },
+                name:{
+                    type:DataTypes.STRING,
+                    allowNull:true
+                },
+                code:{
+                    type:DataTypes.STRING,
+                    allowNull:true
+                },
+                is_active:{
+                    type:DataTypes.BOOLEAN,
+                    allowNull:false
+                }
+            },
+            { freezeTableName:true, tableName: "billing_devices_excluded_lines", timestamps: true }
+  );
+
 return{
         BillingDevicesModel,
         BillingDevicesPermissionsModel,
-        BillingDevicesPaymentMethodsModel
+        BillingDevicesPaymentMethodsModel,
+        BillingDevicesExcludedLinesModel
     }
 }
 

@@ -8,17 +8,25 @@ import { useEffect, useMemo, useState } from "react";
 import { authSliceData, setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+// Linije su u boat modulu, ne u backofficeu — ovdje trebaju samo kao šifarnik
+// za popis linija koje se uređaju zabranjuju.
+import { boatSliceData, getBoatThunk } from "../../../boat/boatSlice";
 
 
 export default function BillingDevicesPage (){
     const dispatch = useDispatch()
     const backofficeData = useSelector(backofficeSliceData)
+    const boatData = useSelector(boatSliceData)
     const authData = useSelector(authSliceData)
     const { t } = useT();
 
     const [selectedRow, setSelectedRow] = useState(null)
     const [openAdd, setOpenAdd] = useState(false)
-    const [newData, setNewData] = useState({})
+    // Novi uređaj je po defaultu aktivan. Bez toga bi izbornik ostao prazan, a
+    // is_active se ne bi poslao — stupac ne dopušta NULL pa se uređaj ne bi ni
+    // kreirao, a forma bi se svejedno zatvorila.
+    const NEW_DEVICE_DEFAULTS = { is_active: 'true' }
+    const [newData, setNewData] = useState(NEW_DEVICE_DEFAULTS)
     const [editedData, setEditedData] = useState({})
 
     // Modeli uređaja i zaliha serijskih brojeva — read-only, izvan redux slicea
@@ -51,6 +59,7 @@ export default function BillingDevicesPage (){
         await dispatch(getBackofficeThunk({path:'business_premises'}))
         await dispatch(getBackofficeThunk({path:'payment_methods'}))
         await dispatch(getBackofficeThunk({path:'users'}))
+        await dispatch(getBoatThunk({path:'lines'}))
         await dispatch(setAuthData({path:'loading', value:false}))
     }
     
@@ -181,7 +190,7 @@ export default function BillingDevicesPage (){
         await dispatch(setAuthData({path:'loading', value:true}))
         await dispatch(setAuthData({path:'loadingMessage', value:'Dodavanje novog naplatnog uređaja'}))
         await dispatch(postBackofficeThunk({path:'billing_devices', data:newData}))
-        setNewData({})
+        setNewData(NEW_DEVICE_DEFAULTS)
         setOpenAdd(false)
         await dispatch(setAuthData({path:'loading', value:false}))
     }
@@ -391,6 +400,93 @@ export default function BillingDevicesPage (){
         </Paper>
     );
 
+    //LINIJE — desna strana su ZABRANJENE linije (sve su dozvoljene dok se ne
+    //makne na desno), pa se u editedData sprema desna lista.
+
+    const [checkedLN, setCheckedLN] = useState([]);
+
+    const [leftLN, setLeftLN] = useState([])
+    const [rightLN, setRightLN] = useState([])
+
+    const leftCheckedLN = intersection(checkedLN, leftLN);
+    const rightCheckedLN = intersection(checkedLN, rightLN);
+
+    const handleToggleLN = (value) => () => {
+        const currentIndex = checkedLN.indexOf(value);
+        const newChecked = [...checkedLN];
+
+        if (currentIndex === -1) {
+        newChecked.push(value);
+        } else {
+        newChecked.splice(currentIndex, 1);
+        }
+
+        setCheckedLN(newChecked);
+    };
+
+    // Linije se u editedData spremaju samo s poljima koja backoffice zapisuje,
+    // da se cijeli objekt linije ne vuče kroz PATCH.
+    const linesForSave = (items) => items.map((l) => ({ uuid:l.uuid, name:l.name, code:l.code }))
+
+    const handleAllRightLN = () => {
+        const noviDesno = rightLN.concat(leftLN)
+        setRightLN(noviDesno);
+        setLeftLN([]);
+        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno) }));
+    };
+
+    const handleCheckedRightLN = () => {
+        const noviDesno = rightLN.concat(leftCheckedLN)
+        setRightLN(noviDesno);
+        setLeftLN(not(leftLN, leftCheckedLN));
+        setCheckedLN(not(checkedLN, leftCheckedLN));
+        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno) }));
+    };
+
+    const handleCheckedLeftLN = () => {
+        const noviDesno = not(rightLN, rightCheckedLN)
+        setLeftLN(leftLN.concat(rightCheckedLN));
+        setRightLN(noviDesno);
+        setCheckedLN(not(checkedLN, rightCheckedLN));
+        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno) }));
+    };
+
+    const handleAllLeftLN = () => {
+        setLeftLN(leftLN.concat(rightLN));
+        setRightLN([]);
+        setEditedData(prev => ({ ...prev, excluded_lines: [] }));
+    };
+
+    const customListLN = (items) => (
+        <Paper sx={{ width: 200, height: 230, overflow: 'auto' }}>
+        <List dense component="div" role="list">
+            {items.map((value) => {
+            const labelId = `transfer-list-item-${value}-label`;
+
+            return (
+                <ListItemButton
+                key={value.id}
+                role="listitem"
+                onClick={handleToggleLN(value)}
+                >
+                <ListItemIcon>
+                    <Checkbox
+                    checked={checkedLN.indexOf(value) !== -1}
+                    tabIndex={-1}
+                    disableRipple
+                    inputProps={{
+                        'aria-labelledby': labelId,
+                    }}
+                    />
+                </ListItemIcon>
+                <ListItemText id={labelId} primary={value.code ? `${value.code} · ${value.name}` : value.name} />
+                </ListItemButton>
+            );
+            })}
+        </List>
+        </Paper>
+    );
+
 
     useEffect(()=>{
         if(selectedRow){
@@ -400,10 +496,16 @@ export default function BillingDevicesPage (){
         const forRight = (backofficeData.backofficeData.payment_methods.filter(d => selectedRow?.payment.some(s => s.uuid === d.uuid)))
         const forLeftOP = (backofficeData.backofficeData.users.filter(d => !selectedRow?.permissions.some(s => s.uuid === d.uuid)))
         const forRightOP = (backofficeData.backofficeData.users.filter(d => selectedRow?.permissions.some(s => s.uuid === d.uuid)))
+        // Linije: desno stoje ZABRANJENE. Obrnuto od druge dvije liste, jer su
+        // linije po pravilu sve dozvoljene pa se pamti samo iznimka.
+        const excluded = selectedRow?.excluded_lines || []
+        const lines = boatData.boatData.lines || []
         setLeft(forLeft)
         setRight(forRight)
         setLeftOP(forLeftOP)
         setRightOP(forRightOP)
+        setLeftLN(lines.filter(d => !excluded.some(s => s.uuid === d.uuid)))
+        setRightLN(lines.filter(d => excluded.some(s => s.uuid === d.uuid)))
     }
     },[selectedRow])
 
@@ -1111,6 +1213,72 @@ export default function BillingDevicesPage (){
                         </Stack>
                         <Grid sx={{minWidth:200}}>{customListOP(rightOP)}</Grid>
                     </Stack>
+                    <Typography textAlign='center' sx={{mt:2}}>Linije</Typography>
+                    <Typography textAlign='center' variant="caption" color="text.secondary" component="div" sx={{mb:2}}>
+                        Lijevo su linije koje uređaj vidi, desno one koje mu nisu dozvoljene.
+                        Zadano su dozvoljene sve.
+                    </Typography>
+                    <Stack
+                        direction='row'
+                        alignItems="center"
+                        sx={{
+                            mt:2,
+                            overflowX: "auto"
+                        }}
+                        justifyContent='center'
+                    >
+                        <Grid sx={{minWidth:200}}>{customListLN(leftLN)}</Grid>
+                        <Stack
+                            direction='column'
+                            sx={{
+                                mx:2,
+                                minWidth:60
+                            }}
+                        >
+
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleAllRightLN}
+                                disabled={leftLN.length === 0}
+                                aria-label="move all right"
+                                >
+                                ≫
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5}}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleCheckedRightLN}
+                                disabled={leftCheckedLN.length === 0}
+                                aria-label="move selected right"
+                                >
+                                &gt;
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleCheckedLeftLN}
+                                disabled={rightCheckedLN.length === 0}
+                                aria-label="move selected left"
+                                >
+                                &lt;
+                            </Button>
+                            <Button
+                                sx={{ my: 0.5 }}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleAllLeftLN}
+                                disabled={rightLN.length === 0}
+                                aria-label="move all left"
+                                >
+                                ≪
+                            </Button>
+                        </Stack>
+                        <Grid sx={{minWidth:200}}>{customListLN(rightLN)}</Grid>
+                    </Stack>
                     <Button
                         type="submit"
                         onClick={handleSubmitEdit}
@@ -1122,7 +1290,7 @@ export default function BillingDevicesPage (){
                 </Box>   
             </Drawer>
             <Stack sx={{width:'96%', ml:1}} alignItems='flex-start'>
-                <Button onClick={()=>setOpenAdd(true)}>
+                <Button onClick={()=>{ setNewData(NEW_DEVICE_DEFAULTS); setOpenAdd(true); }}>
                     {t('backoffice.billing_devices.add_terminal')}
                 </Button>
             </Stack>
