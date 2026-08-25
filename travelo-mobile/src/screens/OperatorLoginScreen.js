@@ -115,7 +115,9 @@ export default function OperatorLoginScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-                <BrandMark style={styles.logo} />
+                {/* onPrimary jer podloga nije svijetla: "Travelo" svijetloplavo,
+                    "APP" bijelo — ista kombinacija kao na plavoj podlozi. */}
+                <BrandMark style={styles.logo} onPrimary />
 
                 <View style={styles.form}>
                     <View style={styles.modeRow}>
@@ -230,16 +232,17 @@ export default function OperatorLoginScreen() {
 }
 
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: colors.bg },
+    wrap: { flex: 1, backgroundColor: colors.primary },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
     // Boju ne postavljamo ovdje — BrandMark sam boja "Travelo" i "APP".
     // 48 je gornja granica koja na Sunmi V2s (360 dp sirine, 24 dp padding)
     // jos stane u jedan redak.
     logo: { fontSize: 48, fontWeight: '800', textAlign: 'center', marginBottom: 32 },
     deviceInfo: { marginTop: 24, alignItems: 'center' },
-    infoLine: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 2 },
-    infoLabel: { fontWeight: '700', color: colors.textSecondary },
-    poweredBy: { fontSize: 14, fontWeight: '700', color: colors.textSecondary, textAlign: 'center', marginTop: 56, fontStyle: 'italic' },
+    // Tekst izvan kartice stoji na plavoj podlozi pa ide na bijele neutrale.
+    infoLine: { fontSize: 12, color: colors.textOnPrimaryMuted, textAlign: 'center', marginTop: 2 },
+    infoLabel: { fontWeight: '700', color: colors.textOnPrimary },
+    poweredBy: { fontSize: 14, fontWeight: '700', color: colors.textOnPrimaryMuted, textAlign: 'center', marginTop: 56, fontStyle: 'italic' },
     form: {
         backgroundColor: colors.surface, padding: 20, borderRadius: 12,
         borderWidth: 1, borderColor: colors.border,

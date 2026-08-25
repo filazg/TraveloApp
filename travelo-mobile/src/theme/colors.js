@@ -25,6 +25,9 @@ export const colors = {
     textMuted: '#8A938F',       // pomoćni / placeholders / disabled
     textOnPrimary: '#FFFFFF',   // tekst na primary plavoj
     textOnSecondary: '#0F4BA8', // tekst na #96D1F2 — koristi tamniju plavu
+    // Meta tekst na primary plavoj. Neutrali za svijetlu podlogu
+    // (textSecondary #5C656B) na #175BD0 daju ~2.5:1 i necitljivi su.
+    textOnPrimaryMuted: 'rgba(255, 255, 255, 0.75)',
 
     // ===== Funkcionalni statusi (nisu brand) =====
     success: '#16A34A',
