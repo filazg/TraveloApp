@@ -44,6 +44,45 @@ async function pushShiftToBackend(shiftUuid) {
 
 const DATE_KEYS = ["shift_start", "shift_end"];
 
+// Storno dokument nosi invoice_status 'canceled' i negativan iznos. Originali
+// koje je storno pogodio dobivaju 'canceled-orginal' (cijeli račun) ili
+// 'canceled-partial' (pojedina karta) — to su i dalje prodajni računi i ne
+// smiju se brojati kao povrat.
+const isStornoInvoice = (invoice) => (invoice?.invoice_status || '') === 'canceled';
+
+// Rekapitulacija storna po sredstvu plaćanja. Storna su već uračunata u ukupan
+// promet smjene (negativan iznos ga umanjuje); ovdje se iskazuju zasebno da
+// blagajnik vidi koliko je izašlo iz blagajne i po kojem sredstvu. Iznosi se
+// prikazuju pozitivno — "vraćeno 25 EUR" se čita lakše od "-25 EUR".
+const buildStornoBreakdown = (shiftInvoices) => {
+    const byPayment = new Map();
+    let count = 0;
+    let amount = 0;
+    for (const row of shiftInvoices) {
+        const inv = row.dataValues || row;
+        if (!isStornoInvoice(inv)) continue;
+        const value = Math.abs(Number(inv.invoice_amount) || 0);
+        count += 1;
+        amount += value;
+        const uuid = inv.invoice_payment_method_uuid;
+        if (!uuid) continue;
+        const cur = byPayment.get(uuid) || {
+            payment_type_uuid: uuid,
+            payment_type_name: inv.invoice_payment_method_name,
+            invoice_quantity: 0,
+            amount: 0,
+        };
+        cur.invoice_quantity += 1;
+        cur.amount += value;
+        byPayment.set(uuid, cur);
+    }
+    return {
+        storno: [...byPayment.values()].map((r) => ({ ...r, amount: +r.amount.toFixed(2) })),
+        storno_count: count,
+        storno_amount: +amount.toFixed(2),
+    };
+};
+
 // Lista smjena per-operater. Više usera može paralelno raditi na desku, pa se
 // smjene moraju filtrirati po operater_username — operater vidi samo svoj rad i
 // promet. Bez username-a vraća sve (npr. za admin pregled, ako se ikad zatreba).
@@ -272,12 +311,16 @@ const closeShiftService = async(data) =>{
                 }
 
             })
-            const dataToSend = {
+            // Pridruživanje, ne nova deklaracija — dok je ovdje stajao `const`,
+            // vanjski `dataToSend` je ostajao prazan i pozivatelj je uvijek
+            // dobivao {} umjesto podataka o zatvorenoj smjeni.
+            dataToSend = {
                 shift:shiftToSend,
                 shift_finance:paymentSumByMethod,
                 shift_sale:shiftSaleData,
                 line_details:lineDetails,
-                deacttive_line_detials:deactLineDetails
+                deacttive_line_detials:deactLineDetails,
+                ...buildStornoBreakdown(shiftInvoices),
             }
             console.log('SHIFT DATA TO PRINT', dataToSend)
             // Smjena je zatvorena i kad printer zakaže, ali operater to mora
@@ -336,9 +379,11 @@ const shiftSummaryService = async(data)=>{
           }
           paymentSumByMethod = [...paymentSumByMethod, paymentData]
         }
+        const stornoBreakdown = buildStornoBreakdown(shiftInvoices)
         return ({
             //invoices:shiftInvoices,
-            shift_details:paymentSumByMethod
+            shift_details:paymentSumByMethod,
+            ...stornoBreakdown,
         })
     } catch (error) {
         console.log(error)

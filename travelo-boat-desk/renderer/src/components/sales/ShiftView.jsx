@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Box, Button, Modal, useTheme } from "@mui/material";
+import { Box, Button, IconButton, Modal, Stack, Typography } from "@mui/material";
 
-import { DataGrid, Toolbar, ToolbarButton } from "@mui/x-data-grid";
+import { DataGrid, Toolbar } from "@mui/x-data-grid";
 
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CloseIcon from '@mui/icons-material/Close';
 import DoDisturbOnIcon from '@mui/icons-material/DoDisturbOn';
 import { allAppData, setStateData } from "../../store/appSlice";
 import OpenNewShiftModal from "./ShiftOpenNew";
@@ -12,7 +13,6 @@ import ShiftActions from "./ShiftActions";
 import ShiftSummaryModal from "./ShiftSummaryModal";
 
 export default function ShiftsView({}) {
-  const theme = useTheme();
   const dispatch = useDispatch();
   const appData = useSelector(allAppData);
   const [rowId, setRowId] = useState(null);
@@ -28,16 +28,18 @@ export default function ShiftsView({}) {
   };
 
   const columns = [
-    { field: "id", headerName: "Broj smjene", flex: 3, editable: true },
+    // Broj smjene je id retka iz baze — uređivanje ga je moglo razbiti, a
+    // korist nikakva.
+    { field: "id", headerName: "Broj smjene", width: 140 },
     {
       field: "operater_name",
-      headerName: "Ime djelatnika",
-      flex: 3,
+      headerName: "Ime operatera",
+      flex: 2,
     },
     {
       field: "operater_surname",
       headerName: "Prezime operatera",
-      flex: 3,
+      flex: 2,
     },
     {
       field: "shift_start",
@@ -89,7 +91,9 @@ export default function ShiftsView({}) {
       field: "shift_open",
       headerName: "Otvorena smjena",
       type: 'boolean',
-      flex: 3,
+      flex: 2,
+      align: 'center',
+      headerAlign: 'center',
       renderCell: (params) => {
         return params.value ? (
           <CheckCircleIcon
@@ -136,18 +140,6 @@ export default function ShiftsView({}) {
   );
 };
 
-  const style = {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    width: 400,
-    bgcolor: "background.paper",
-    border: "2px solid #000",
-    boxShadow: 24,
-    p: 4,
-  };
-
   return (
     <>
       <OpenNewShiftModal/>
@@ -158,35 +150,60 @@ export default function ShiftsView({}) {
         aria-labelledby="parent-modal-title"
         aria-describedby="parent-modal-description"
       >
-
         <Box
           sx={{
-            ...style,
-            width: '100%',
-            height:'90%',
-            overflowY: 'auto',
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "96%",
+            height: "90%",
+            outline: "none",
+            bgcolor: "background.default",
+            borderRadius: 3,
+            boxShadow: 24,
+            p: 3,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>Smjene</Typography>
+            <IconButton onClick={handleShiftModalClose}><CloseIcon /></IconButton>
+          </Stack>
+          {/* Tablica preuzima preostalu visinu; prije je imala fiksnu visinu
+              unutar okvira koji skrola, pa su se skrolala dva sloja jedan u
+              drugom. Zaglavlje ide na istu boju kao naslovi stupaca na
+              prodajnom ekranu umjesto na grey[900], koje je u svijetloj temi
+              bilo gotovo crno. */}
           <Box
             sx={{
-              "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: theme.palette.grey[900],
+              flex: 1,
+              minHeight: 0,
+              "& .MuiDataGrid-root": {
+                bgcolor: "background.paper",
+                borderRadius: 3,
               },
-              "& .MuiDataGrid-virtualScroller": {
-                backgroundColor: theme.palette.background.default,
+              "& .MuiDataGrid-columnHeader": {
+                backgroundColor: "columnHeader",
               },
-              "& .MuiCheckbox-root": {
-                color: theme.palette.success.main,
+              "& .MuiDataGrid-columnHeaderTitle": {
+                fontWeight: 800,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
               },
             }}
           >
             <DataGrid
-              rows={appData.shiftsData?.shifts || ''}
+              rows={appData.shiftsData?.shifts || []}
               columns={columns}
               getRowId={(row) => row.id}
-              onCellEditStart={(params) => setRowId(params.id)}
+              rowHeight={56}
+              disableColumnMenu
+              disableRowSelectionOnClick
               slots={{ toolbar: CustomToolbar }}
               showToolbar
+              localeText={{ noRowsLabel: "Nema smjena" }}
             />
           </Box>
         </Box>

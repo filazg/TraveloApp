@@ -95,6 +95,30 @@ const shiftPrintHelper = async (data) => {
                 }
             }
         }
+        // STORNO PO SREDSTVU PLAĆANJA — iznad sredstava plaćanja, kao i na
+        // ekranu. "STORNIRANE KARTE" gore pokazuje ŠTO je vraćeno po linijama;
+        // ovdje stoji KOLIKO je i kojim sredstvom izašlo iz blagajne, jer se to
+        // pri primopredaji blagajne broji. Iznosi su pozitivni, već su uračunati
+        // u UKUPNO na dnu.
+        if(data.storno && data.storno.length > 0){
+            printer.drawLine();
+            printer.newLine();
+            printer.alignCenter();
+            printer.println("STORNO PO SREDSTVU PLAĆANJA")
+            printer.alignLeft();
+            printer.leftRight('Sredstvo plaćanja (kol)', 'Vraćeno')
+            printer.drawLine();
+            for (let n = 0; n < data.storno.length; n++) {
+                printer.leftRight(
+                    data.storno[n].payment_type_name + ' (' + data.storno[n].invoice_quantity + ')',
+                    data.storno[n].amount.toFixed(2) + ' EUR'
+                )
+            }
+            printer.drawLine();
+            printer.bold(true);
+            printer.leftRight('UKUPNO STORNIRANO:', (data.storno_amount || 0).toFixed(2) + ' EUR')
+            printer.bold(false);
+        }
         printer.drawLine();
         printer.newLine();
         //SREDSTVA PLAĆANJA
