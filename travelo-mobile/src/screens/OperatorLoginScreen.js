@@ -18,6 +18,7 @@ import { authData, setOperator } from '../store/slices/authSlice';
 import { syncBasicDataThunk, syncData } from '../store/slices/syncSlice';
 import { colors, shadows } from '../theme/colors';
 import pkg from '../../package.json';
+import BrandMark from '../components/BrandMark';
 
 // Native bcrypt verifier (Kotlin jbcrypt) — ~50-100ms umjesto 0.5-1.5s za pure-JS bcryptjs.
 // Fallback na bcryptjs ako native modul nije dostupan (npr. starije instalacije bez rebuildanog APK-a).
@@ -114,7 +115,7 @@ export default function OperatorLoginScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-                <Text style={styles.logo}>TraveloApp</Text>
+                <BrandMark style={styles.logo} />
 
                 <View style={styles.form}>
                     <View style={styles.modeRow}>

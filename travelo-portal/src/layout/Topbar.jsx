@@ -18,6 +18,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import HomeIcon from '@mui/icons-material/Home';
 import MenuIcon from '@mui/icons-material/Menu';
 import LanguageIcon from '@mui/icons-material/Menu';
+import BrandMark from "./BrandMark";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { authSliceData, resetAuthData, setAuthData } from "../features/auth/authSlice";
@@ -83,11 +84,13 @@ export default function Topbar() {
       <Box
         sx={{display:{xs:'flex', md:'none'}, alignItems: "center"}}
       >
-      <Typography variant="h5" textAlign='center' 
+      <Typography variant="h5" textAlign='center'
         onClick={() =>{
           navigate("/")}
-        }  
-        sx={{fontWeight: 800, cursor: "pointer"}}>TraveloApp - Admin portal</Typography>
+        }
+        sx={{fontWeight: 800, cursor: "pointer"}}>
+        <BrandMark variant="h5" /> - Admin portal
+      </Typography>
 
       </Box>
       <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -193,7 +196,7 @@ export default function Topbar() {
               fontWeight: 800, cursor: "pointer" }}
             onClick={() => navigate("/")}
           >
-            TraveloApp - Admin portal
+            <BrandMark variant="h6" /> - Admin portal
           </Typography>
 
         </Box>

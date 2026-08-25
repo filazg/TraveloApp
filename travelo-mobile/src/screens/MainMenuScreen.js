@@ -6,6 +6,7 @@ import { syncData } from '../store/slices/syncSlice';
 import { setSection } from '../store/slices/navSlice';
 import { shiftsData } from '../store/slices/shiftsSlice';
 import { colors, shadows, layout } from '../theme/colors';
+import BrandMark from '../components/BrandMark';
 
 export default function MainMenuScreen() {
     const dispatch = useDispatch();
@@ -34,7 +35,7 @@ export default function MainMenuScreen() {
             {/* Brand header — primary plava preko cijele širine */}
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.title}>TraveloApp</Text>
+                    <BrandMark style={styles.title} onPrimary />
                     <Text style={styles.subtitle}>
                         {sync.basicData?.business_premise_name} · {sync.basicData?.billing_device_name}
                     </Text>
