@@ -61,11 +61,12 @@ export default function FilterBar() {
         handleSetToday();
     }, []);
 
-    // Cijela pretraga na prazno + datum natrag na danas. Sve ispod linije
-    // (luke, polasci, relacije, cijene, brojači karata) visi o searchData pa
-    // odlazi zajedno s njom.
+    // Ekran natrag na početak: pretraga (linija, luke, polasci, relacije,
+    // cijene, brojači karata) i prodaja (košarica, R1 kupac, način plaćanja).
+    // Datum se vraća na danas. Isto što se dogodi i nakon izdanog računa, samo
+    // na zahtjev — kad blagajnik želi krenuti ispočetka.
     const handleResetForm = async () => {
-        await dispatch(resetStateData({ path: 'searchData' }));
+        await dispatch(resetStateData({ paths: ['searchData', 'saleData'] }));
         await handleSetToday();
     };
 
@@ -195,8 +196,8 @@ export default function FilterBar() {
             gridTemplateColumns: "repeat(8, 1fr)",
             gap: 1,
             gridTemplateRows: "auto",
-            gridTemplateAreas: `"two two four four reset reset seven eight"
-                        "two2 two2 four1 four1 reset reset seven eight"`,
+            gridTemplateAreas: `"two two four four reset six seven eight"
+                        "two2 two2 four1 four1 reset six1 seven eight"`,
           }}
         >
             {/* Kontrolirano poljem iz searchData — dok je bilo nekontrolirano,
@@ -289,17 +290,17 @@ export default function FilterBar() {
                 </MenuItem>
             ))}
           </TextField>
-          {/* Vraća pretragu na prazno i datum na danas. Košaricu ne dira —
-              karte se često skupljaju kroz više polazaka, pa bi brisanje
-              košarice zajedno s pretragom takvu prodaju onemogućilo; svaka
-              stavka u košarici ionako ima svoj UKLONI. */}
+          {/* Žuto jer briše i košaricu i kupca — dovoljno različito od plavih
+              gumba prodaje da se ne pritisne u prolazu. */}
           <Button
-            variant="outlined"
+            variant="contained"
+            color="warning"
             startIcon={<RefreshIcon />}
             sx={{
               gridArea: "reset",
               height: "100%",
               fontSize: "1.1rem",
+              lineHeight: 1.2,
             }}
             onClick={handleResetForm}
           >
