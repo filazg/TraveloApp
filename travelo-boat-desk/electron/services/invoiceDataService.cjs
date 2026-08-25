@@ -95,18 +95,68 @@ async function getInvoicesDetailsDataService(data){
 // F2 se okida ISKLJUČIVO kad operater označi F2 fiskalizaciju uz R1 kupca —
 // isto kao na mobilnoj blagajni (`buyer.f2_required`). R1 bez te oznake je
 // običan F1 račun koji nosi podatke o kupcu; samo OIB kupca NIJE dovoljan.
-const nextInvoiceNoLocal = async (year, billingDeviceUuid) => {
+// Postavljeni početak numeracije (preseljenje na drugo računalo) vrijedi kao
+// DONJA GRANICA i samo za godinu u kojoj je postavljen. Čim lokalni računi
+// prijeđu tu brojku, granica nema učinka — pa ne može uzrokovati duplikat, niti
+// spriječiti godišnji reset na 1.
+const applyFloor = (next, floor, year, floorYear) => {
+  if (!floor || !floorYear) return next
+  if (Number(floorYear) !== Number(year)) return next
+  return Math.max(next, Number(floor) || 0)
+}
+
+const nextInvoiceNoLocal = async (year, billingDeviceUuid, settings) => {
   const max = await invoicesModel.max('invoice_no', {
     where: { invoice_year: year, invoice_billing_device_uuid: billingDeviceUuid },
   })
-  return Number.isFinite(max) ? max + 1 : 1
+  const next = Number.isFinite(max) ? max + 1 : 1
+  return applyFloor(next, settings?.next_invoice_no, year, settings?.next_invoice_year)
 }
-const nextInvoiceFiskalNoLocal = async (year, billingDeviceUuid) => {
+const nextInvoiceFiskalNoLocal = async (year, billingDeviceUuid, settings) => {
   const max = await invoicesModel.max('invoice_fiskal_no', {
     where: { invoice_year: year, invoice_billing_device_uuid: billingDeviceUuid },
   })
-  return Number.isFinite(max) ? max + 1 : 1
+  const next = Number.isFinite(max) ? max + 1 : 1
+  return applyFloor(next, settings?.next_invoice_fiskal_no, year, settings?.next_invoice_year)
 }
+// Trenutno stanje brojača — za prikaz u postavkama, da se početak numeracije ne
+// upisuje naslijepo. Vraća i broj koji bi sljedeći račun stvarno dobio (dakle
+// nakon primjene donje granice) i broj koji proizlazi samo iz lokalnih računa.
+const getNextInvoiceNumbersService = async () => {
+  try {
+    const settings = await systemSettingsDataModel.findOne()
+    const basicData = await companyModel.findOne()
+    const year = new Date().getFullYear()
+    const bd = basicData?.billing_device_uuid
+    const maxNo = await invoicesModel.max('invoice_no', {
+      where: { invoice_year: year, invoice_billing_device_uuid: bd },
+    })
+    const maxFiskalNo = await invoicesModel.max('invoice_fiskal_no', {
+      where: { invoice_year: year, invoice_billing_device_uuid: bd },
+    })
+    const izLokalnih = Number.isFinite(maxNo) ? maxNo + 1 : 1
+    const izLokalnihFiskal = Number.isFinite(maxFiskalNo) ? maxFiskalNo + 1 : 1
+    return {
+      year,
+      // Ono što će sljedeći račun stvarno dobiti.
+      next_invoice_no: applyFloor(izLokalnih, settings?.next_invoice_no, year, settings?.next_invoice_year),
+      next_invoice_fiskal_no: applyFloor(izLokalnihFiskal, settings?.next_invoice_fiskal_no, year, settings?.next_invoice_year),
+      // Ono što proizlazi samo iz lokalnih računa, bez postavljene granice.
+      from_local_no: izLokalnih,
+      from_local_fiskal_no: izLokalnihFiskal,
+      // Postavljena granica i godina za koju vrijedi.
+      floor_no: settings?.next_invoice_no ?? null,
+      floor_fiskal_no: settings?.next_invoice_fiskal_no ?? null,
+      floor_year: settings?.next_invoice_year ?? null,
+      business_premise_fiscal_mark: basicData?.business_premise_fiscal_mark || '',
+      billing_device_fiscal_mark: basicData?.billing_device_fiscal_mark || '',
+    }
+  } catch (error) {
+    console.log('getNextInvoiceNumbersService error:', error?.message || error)
+    return { error: error?.message || 'error' }
+  }
+}
+
 // Alfabet bez 0/O/1/I — kod se čita s papira i prepisuje rukom. Identičan
 // generator kao na mobilnoj (localSale.js), da F2 kodovi izgledaju isto bez
 // obzira na kojoj je blagajni račun izdan.
@@ -273,8 +323,8 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
     const isF2 = isR1 && !!buyerData.f2_required;
     const invoiceYear = new Date().getFullYear();
     const billingDeviceUuid = basicData.billing_device_uuid;
-    const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
+    const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid, settingsData);
+    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid, settingsData);
     const invoiceCode = buildInvoiceCode(isF2, invoiceFiskalNo, basicData.business_premise_fiscal_mark, basicData.billing_device_fiscal_mark);
 
     const invoiceSubtotal = itemData
@@ -440,8 +490,8 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData, storno
     const isF2 = invoiceIsF2(invoiceData);
     const invoiceYear = new Date().getFullYear();
     const billingDeviceUuid = invoiceData.invoice_billing_device_uuid;
-    const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
+    const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid, settingsData);
+    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid, settingsData);
     const invoiceCode = buildInvoiceCode(isF2, invoiceFiskalNo, invoiceData.invoice_business_premise_fiscal_mark, invoiceData.invoice_billing_device_fiscal_mark);
 
     let itemsToAdd = []
@@ -765,8 +815,8 @@ const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPc
     const isF2 = invoiceIsF2(invoiceData);
     const invoiceYear = new Date().getFullYear();
     const billingDeviceUuid = basicData.billing_device_uuid;
-    const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
+    const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid, settingsData);
+    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid, settingsData);
     const invoiceCode = buildInvoiceCode(isF2, invoiceFiskalNo, basicData.business_premise_fiscal_mark, basicData.billing_device_fiscal_mark);
 
     let itemsToAdd = []
@@ -1082,5 +1132,6 @@ module.exports = {
   cancelTicketService,
   refreshInvoiceF2StatusService,
   refreshPendingF2InvoicesService,
+  getNextInvoiceNumbersService,
   syncPendingInvoicesService
 }

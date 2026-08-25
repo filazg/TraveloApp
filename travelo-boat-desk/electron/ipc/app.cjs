@@ -5,7 +5,7 @@ const { pairingWithBackendService, syncBasicDataService, syncTransportDataServic
 const { getLocalBasicDataService, getLocalTransportDataService } = require("../services/localDataService.cjs");
 const { getBookingDataService } = require("../services/bookingDataService.cjs");
 const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService } = require("../services/shiftsDataService.cjs");
-const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, syncPendingInvoicesService } = require("../services/invoiceDataService.cjs");
+const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService } = require("../services/invoiceDataService.cjs");
 const { getBuyersDataService } = require("../services/buyersDataService.cjs");
 const { otpPaymentHandler } = require("../helpers/paymentHelpers/otpPaymentHelper.cjs");
 const { setSystemSetingsDataService, getSystemSetingsDataService } = require("../services/systemSettingsDataService.cjs");
@@ -224,6 +224,14 @@ function registerAppIpc() {
       return ok(data);
     } catch (e) {
       return fail("Failed to refresh F2 status", e?.stack || String(e));
+    }
+  });
+  ipcMain.handle("app:getNextInvoiceNumbersIPC", async () => {
+    try {
+      const data = await getNextInvoiceNumbersService();
+      return ok(data);
+    } catch (e) {
+      return fail("Failed to read next invoice numbers", e?.stack || String(e));
     }
   });
   ipcMain.handle("app:refreshPendingF2StatusesIPC", async () => {

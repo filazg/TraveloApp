@@ -10,6 +10,7 @@ import {
   Alert,
   TextField,
   Box,
+  Divider,
   FormControlLabel,
   Switch,
 } from "@mui/material";
@@ -22,6 +23,23 @@ export default function SystemSettingsModal() {
   const [settingsData, setNewSettingsData] = useState(appData.basicData.settings)
   const [code, setCode] = useState('')
   const [calculated, setCalculated] = useState(false)
+  const [brojevi, setBrojevi] = useState(null)
+
+  // Trenutno stanje brojača se dohvaća tek kad se otključaju postavke — prije
+  // toga forma se ni ne prikazuje.
+  useEffect(() => {
+    if (!calculated) return
+    let otkazano = false
+    ;(async () => {
+      try {
+        const res = await window.api.app.getNextInvoiceNumbersIPC()
+        if (!otkazano && res?.ok) setBrojevi(res.data)
+      } catch (e) {
+        console.log('getNextInvoiceNumbersIPC nije uspio:', e?.message || e)
+      }
+    })()
+    return () => { otkazano = true }
+  }, [calculated])
 
   const handleClose = async() => {
       setCode('')
@@ -39,6 +57,20 @@ export default function SystemSettingsModal() {
         setNewSettingsData((prev) => ({
             ...prev,
             [name]: value,
+        }));
+    };
+
+  // Brojači idu u bazu kao INTEGER. Prazno polje mora ostati null (granica se
+  // ne primjenjuje), a ne 0 ili "" — inače bi Math.max dobio smeće.
+  const handleNumberChange = (e) => {
+        const { name, value } = e.target;
+        const ocisceno = String(value).replace(/\D/g, "");
+        setNewSettingsData((prev) => ({
+            ...prev,
+            [name]: ocisceno === "" ? null : Number(ocisceno),
+            // Godina se pamti automatski — granica vrijedi samo za godinu u kojoj
+            // je upisana, da ne blokira godišnji reset numeracije.
+            next_invoice_year: ocisceno === "" ? prev.next_invoice_year : new Date().getFullYear(),
         }));
     };
 
@@ -96,8 +128,16 @@ export default function SystemSettingsModal() {
         console.log('SUBMIT ', settingsData)
         const setData = await window.api.app.setSystemSettingsDataIpc(settingsData);
         const basicData = await window.api.app.getLocalBasicDataIpc()
-        
+
         await dispatch(setStateData({path:'basicData', value: basicData.data}));
+        // Osvježi prikaz brojača — nakon spremanja početka numeracije mora se
+        // vidjeti koji će broj sljedeći račun stvarno dobiti.
+        try {
+          const res = await window.api.app.getNextInvoiceNumbersIPC()
+          if (res?.ok) setBrojevi(res.data)
+        } catch (e) {
+          console.log('getNextInvoiceNumbersIPC nije uspio:', e?.message || e)
+        }
         
         //const getSettingsData = await window.api.e_setInitialSettingsData();
       
@@ -265,7 +305,65 @@ export default function SystemSettingsModal() {
                     labelPlacement="start"
                 />
                 </Box>
-            <Button sx={{ height: 60, mb:2 }} fullWidth variant="contained">POŠALJI NEPOSLANE DOKUMNETE</Button> 
+
+            {/* Numeracija se izvodi iz najvećeg broja u lokalnoj tablici računa.
+                Na novom računalu je ta tablica prazna, pa bi brojanje krenulo od
+                1 i ponovilo već izdane fiskalne brojeve. Ovdje se upisuje odakle
+                se nastavlja. */}
+            <Divider sx={{ mb: 2 }}>
+              <Typography variant="overline" color="text.secondary">Numeracija računa</Typography>
+            </Divider>
+
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Popunjava se samo kad se blagajna seli na drugo računalo. Upisani broj
+              vrijedi kao najmanji dopušteni — ako lokalni računi već imaju veći broj,
+              nastavlja se od njih. Vrijedi za tekuću godinu; iduće godine numeracija
+              svejedno kreće od 1.
+            </Alert>
+
+            {brojevi ? (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Sljedeći račun ({brojevi.year}) dobit će fiskalni broj{" "}
+                  <strong>
+                    {brojevi.next_invoice_fiskal_no}
+                    {brojevi.business_premise_fiscal_mark
+                      ? `/${brojevi.business_premise_fiscal_mark}/${brojevi.billing_device_fiscal_mark}`
+                      : ""}
+                  </strong>
+                  , redni broj <strong>{brojevi.next_invoice_no}</strong>.
+                </Typography>
+                {brojevi.floor_year && Number(brojevi.floor_year) === Number(brojevi.year) ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Postavljeni početak: fiskalni {brojevi.floor_fiskal_no ?? "—"}, redni{" "}
+                    {brojevi.floor_no ?? "—"} (iz lokalnih računa bi bilo{" "}
+                    {brojevi.from_local_fiskal_no} / {brojevi.from_local_no}).
+                  </Typography>
+                ) : null}
+              </Box>
+            ) : null}
+
+            <TextField
+                name="next_invoice_fiskal_no"
+                label="Sljedeći fiskalni broj računa (NO iz NO/PP/NU)"
+                type="number"
+                value={settingsData?.next_invoice_fiskal_no ?? ""}
+                onChange={handleNumberChange}
+                fullWidth
+                sx={{ mb: 2 }}
+            />
+            <TextField
+                name="next_invoice_no"
+                label="Sljedeći redni broj računa (interni brojač, uključuje F2)"
+                type="number"
+                value={settingsData?.next_invoice_no ?? ""}
+                onChange={handleNumberChange}
+                fullWidth
+                sx={{ mb: 2 }}
+            />
+
+            <Divider sx={{ mb: 2 }} />
+            <Button sx={{ height: 60, mb:2 }} fullWidth variant="contained">POŠALJI NEPOSLANE DOKUMNETE</Button>
             <Button sx={{ height: 60, mb:2 }} fullWidth variant="contained">UKLONI UPARIVANJE</Button> 
             <Button sx={{ height: 60 }} onClick={handleSubmit} fullWidth variant="contained">SPREMI IZMJENE</Button>   
         

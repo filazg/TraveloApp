@@ -12,7 +12,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 
-import { logout, unpair } from "../store/appSlice";
+import { logout, setStateData, unpair } from "../store/appSlice";
 import BrandMark from "../components/common/BrandMark";
 import ThemeToggleButton from "../components/common/ThemeToggleButton";
 import SystemSettingsModal from "../components/common/SystemSettingsModal";
@@ -32,7 +32,6 @@ import LoadingScreen from "../components/common/LoadingScreen";
 
 export default function SalesScreen() {
   const dispatch = useDispatch();
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const selectedDepartureData = true;
 
@@ -83,7 +82,14 @@ export default function SalesScreen() {
             <Stack direction="row" spacing={1} alignItems="center">
               <WifiIcon color="success"/>
               <ThemeToggleButton />
-              <IconButton onClick={() => setSettingsOpen(true)} aria-label="settings">
+              {/* SystemSettingsModal se otvara preko redux zastavice, ne preko
+                  propsa. Ovaj gumb je postavljao lokalni settingsOpen koji modal
+                  uopće ne gleda, pa se ništa nije događalo — postavke su bile
+                  dostupne samo s ekrana prijave. */}
+              <IconButton
+                onClick={() => dispatch(setStateData({ path: "modalsStates/showSystemSettingsModal", value: true }))}
+                aria-label="settings"
+              >
                 <SettingsIcon />
               </IconButton>
 
@@ -175,7 +181,7 @@ export default function SalesScreen() {
         </Paper>
       </Box>
 
-      <SystemSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SystemSettingsModal />
     </>
   );
 }

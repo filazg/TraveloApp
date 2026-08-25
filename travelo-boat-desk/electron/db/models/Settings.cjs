@@ -69,6 +69,30 @@ const systemSettingsDataModel = sequelize.define('system_settings',{
         allowNull:true,
         defaultValue: DEFAULTS.printer_cut
     },
+    // Početak numeracije pri preseljenju blagajne na drugo računalo. Brojevi se
+    // inače izvode iz MAX-a u lokalnoj tablici računa, a ta je na novom
+    // računalu prazna — numeracija bi krenula od 1 i ponovila već izdane
+    // fiskalne brojeve.
+    //
+    // Ponašaju se kao DONJA GRANICA, ne kao tvrda vrijednost: čim lokalni
+    // računi prijeđu tu brojku, granica više nema učinka i ne može uzrokovati
+    // duplikat.
+    //
+    // next_invoice_year veže granicu uz godinu u kojoj je postavljena.
+    // Numeracija se resetira svake godine, pa bi granica bez toga sljedeće
+    // godine spriječila povratak na 1.
+    next_invoice_no:{
+        type: Sequelize.INTEGER,
+        allowNull:true
+    },
+    next_invoice_fiskal_no:{
+        type: Sequelize.INTEGER,
+        allowNull:true
+    },
+    next_invoice_year:{
+        type: Sequelize.INTEGER,
+        allowNull:true
+    },
 },{
     freezeTableName:true
 })

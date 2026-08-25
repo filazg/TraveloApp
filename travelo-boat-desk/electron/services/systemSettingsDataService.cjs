@@ -1,4 +1,5 @@
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs")
+const { sequelize } = require("../db/index.cjs")
 
 
 const getSystemSetingsDataService = async ()=>{
@@ -19,10 +20,18 @@ const getSystemSetingsDataService = async ()=>{
 const setSystemSetingsDataService = async (data) =>{
     try {
         console.log('SYSTEM DATA SET', data)
-        systemSettingsDataModel.truncate()
-        systemSettingsDataModel.create(data)
+        // Prije se ni truncate ni create nisu čekali: poziv se vraćao dok je
+        // zapis još bio u tijeku, pa je pozivatelj odmah nakon spremanja znao
+        // pročitati stare postavke. Uz to, da je create pukao nakon truncate-a,
+        // instalacija bi ostala BEZ ijedne postavke — zato transakcija.
+        await sequelize.transaction(async (t) => {
+            await systemSettingsDataModel.destroy({ where: {}, transaction: t })
+            await systemSettingsDataModel.create(data, { transaction: t })
+        })
+        return { ok: true }
     } catch (error) {
-        console.log(error)
+        console.log('setSystemSetingsDataService error:', error?.message || error)
+        return { ok: false, reason: error?.message || 'error' }
     }
 }
 
