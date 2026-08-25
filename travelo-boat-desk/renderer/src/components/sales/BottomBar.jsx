@@ -305,8 +305,11 @@ export default function BottomBar() {
                 fontSize: "1.1rem",
                 ...(appData.canOpenNewShift
                   ? {
-                      bgcolor: "error.light",
-                      "&:hover": { bgcolor: "error.main" },
+                      // Na ovako svijetloj podlozi bijeli natpis se gubi, pa
+                      // tekst ide u tamnu crvenu.
+                      bgcolor: "#F5A3A3",
+                      color: "#7F1D1D",
+                      "&:hover": { bgcolor: "#EE8B8B" },
                     }
                   : null),
               }}
