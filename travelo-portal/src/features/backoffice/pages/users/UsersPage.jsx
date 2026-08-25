@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Alert, Box, Button, Checkbox, Drawer, Grid, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useDispatch, useSelector } from "react-redux";
 import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { authSliceData, resetAuthData, setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import TransferList from "../../../../helpers/TransferList";
 
 
 export default function UsersPage (){
@@ -175,36 +176,6 @@ export default function UsersPage (){
             permissions: []
         }));
     };
-
-     const customList = (items) => (
-        <Paper sx={{ width: 200, height: 230, overflow: 'auto' }}>
-        <List dense component="div" role="list">
-            {items.map((value) => {
-            const labelId = `transfer-list-item-${value}-label`;
-
-            return (
-                <ListItemButton
-                key={value.id}
-                role="listitem"
-                onClick={handleToggle(value)}
-                >
-                <ListItemIcon>
-                    <Checkbox
-                    checked={checked.indexOf(value) !== -1}
-                    tabIndex={-1}
-                    disableRipple
-                    inputProps={{
-                        'aria-labelledby': labelId,
-                    }}
-                    />
-                </ListItemIcon>
-                <ListItemText id={labelId} primary={value.module_name} />
-                </ListItemButton>
-            );
-            })}
-        </List>
-        </Paper>
-    );
 
     useEffect(()=>{
         if(selectedRow){
@@ -570,67 +541,22 @@ export default function UsersPage (){
                         name="saop_clerk_id"
                         sx={{ mt:1 }}
                     />
-                    <Stack
-                        direction='row'
-                        alignItems="center"
-                        sx={{
-                            mt:2,
-                            overflowX: "auto"
+                    <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Moduli</Typography>
+                    <TransferList
+                        lijevo={{ naslov: 'Nije dopušteno', items: left }}
+                        desno={{ naslov: 'Dopušteno', items: right }}
+                        oznaka={(v) => v.module_name}
+                        jeOznacen={(v) => checked.indexOf(v) !== -1}
+                        onToggle={handleToggle}
+                        akcije={{
+                            sveDesno: handleAllRight, oznaceneDesno: handleCheckedRight,
+                            oznaceneLijevo: handleCheckedLeft, sveLijevo: handleAllLeft,
                         }}
-                        justifyContent='center'
-                    >
-                    <Grid sx={{minWidth:200}}>{customList(left)}</Grid>
-                    <Stack
-                        direction='column'
-                        sx={{
-                            mx:2,
-                            minWidth:60
+                        mogucnosti={{
+                            sveDesno: left.length > 0, oznaceneDesno: leftChecked.length > 0,
+                            oznaceneLijevo: rightChecked.length > 0, sveLijevo: right.length > 0,
                         }}
-                    >
-
-                        <Button
-                            sx={{ my: 0.5 }}
-                            variant="outlined"
-                            size="small"
-                            onClick={handleAllRight}
-                            disabled={left.length === 0}
-                            aria-label="move all right"
-                            >
-                            ≫
-                        </Button>
-                        <Button
-                            sx={{ my: 0.5}}
-                            variant="outlined"
-                            size="small"
-                            onClick={handleCheckedRight}
-                            disabled={leftChecked.length === 0}
-                            aria-label="move selected right"
-                            >
-                            &gt;
-                        </Button>
-                        <Button
-                            sx={{ my: 0.5 }}
-                            variant="outlined"
-                            size="small"
-                            onClick={handleCheckedLeft}
-                            disabled={rightChecked.length === 0}
-                            aria-label="move selected left"
-                            >
-                            &lt;
-                        </Button>
-                        <Button
-                            sx={{ my: 0.5 }}
-                            variant="outlined"
-                            size="small"
-                            onClick={handleAllLeft}
-                            disabled={right.length === 0}
-                            aria-label="move all left"
-                            >
-                            ≪
-                        </Button>
-                    </Stack>
-                    <Grid sx={{minWidth:200}}>{customList(right)}</Grid>
-                    </Stack>
+                    />
                     {editError && <Alert severity="error" sx={{ mt: 3 }} onClose={() => setEditError("")}>{editError}</Alert>}
                     <Button
                         type="submit"

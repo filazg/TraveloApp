@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Checkbox, Drawer, Grid, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { authSliceData, setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import TransferList from "../../../../helpers/TransferList";
 // Linije su u boat modulu, ne u backofficeu — ovdje trebaju samo kao šifarnik
 // za popis linija koje se uređaju zabranjuju.
 import { boatSliceData, getBoatThunk } from "../../../boat/boatSlice";
@@ -212,73 +213,6 @@ export default function BillingDevicesPage (){
 
 
 
-    // Zbijeniji redak popisa: MUI-jevi razmaci su odmjereni za dodir prstom, a
-    // ovo je popis za miša — s njima je u okvir stalo upola manje stavki.
-    const stavkaSx = { py: 0, minHeight: 30 }
-    const kvacicaOkvirSx = { minWidth: 28 }
-    const kvacicaSx = { p: 0.25 }
-    const stavkaTekstSx = { fontSize: 13 }
-
-    // Zajednički okvir za sve tri prijenosne liste (plaćanja, operateri, linije).
-    // Naslov stoji u traci iznad popisa, s brojem stavki, da se na prvi pogled
-    // vidi koja je strana koja — prije su bila dva gola okvira bez ijedne oznake.
-    const transferOkvir = (naslov, items, sadrzaj) => (
-        <Paper
-            variant="outlined"
-            sx={{
-                flex: 1,
-                minWidth: 0,
-                borderWidth: 2,
-                borderRadius: 2,
-                overflow: 'hidden',
-            }}
-        >
-            <Box
-                sx={{
-                    px: 1.5, py: 0.75,
-                    bgcolor: 'action.hover',
-                    borderBottom: '2px solid',
-                    borderColor: 'divider',
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    justifyContent: 'center',
-                    gap: 0.75,
-                }}
-            >
-                <Typography variant="subtitle2" fontWeight={700} noWrap>{naslov}</Typography>
-                <Typography variant="caption" color="text.secondary">({items.length})</Typography>
-            </Box>
-            <Box sx={{ height: 280, overflow: 'auto' }}>
-                {items.length ? sadrzaj : (
-                    <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                        Nema stavki
-                    </Typography>
-                )}
-            </Box>
-        </Paper>
-    );
-
-    // Stupac sa strelicama je uvijek isti, mijenjaju se samo rukovatelji.
-    const transferStrelice = (svedesno, desno, lijevo, sveLijevo, mozeSveDesno, mozeDesno, mozeLijevo, mozeSveLijevo) => (
-        <Stack direction='column' sx={{ mx: 2, minWidth: 60 }}>
-            <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={svedesno} disabled={!mozeSveDesno} aria-label="move all right">≫</Button>
-            <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={desno} disabled={!mozeDesno} aria-label="move selected right">&gt;</Button>
-            <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={lijevo} disabled={!mozeLijevo} aria-label="move selected left">&lt;</Button>
-            <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={sveLijevo} disabled={!mozeSveLijevo} aria-label="move all left">≪</Button>
-        </Stack>
-    );
-
-    const transferRed = (sadrzaj) => (
-        <Stack
-            direction='row'
-            alignItems="stretch"
-            sx={{ mt: 1, mb: 1, width: '100%' }}
-            justifyContent='center'
-        >
-            {sadrzaj}
-        </Stack>
-    );
-
     function not(a, b) {
         return a.filter((value) => b.indexOf(value) === -1);
     }
@@ -346,37 +280,6 @@ export default function BillingDevicesPage (){
         }));
     };
 
-     const customList = (items) => (
-        <List dense disablePadding component="div" role="list">
-            {items.map((value) => {
-            const labelId = `transfer-list-item-${value}-label`;
-
-            return (
-                <ListItemButton
-                key={value.id}
-                role="listitem"
-                onClick={handleToggle(value)}
-                sx={stavkaSx}
-                >
-                <ListItemIcon sx={kvacicaOkvirSx}>
-                    <Checkbox
-                    size="small"
-                    sx={kvacicaSx}
-                    checked={checked.indexOf(value) !== -1}
-                    tabIndex={-1}
-                    disableRipple
-                    inputProps={{
-                        'aria-labelledby': labelId,
-                    }}
-                    />
-                </ListItemIcon>
-                <ListItemText id={labelId} primary={value.name} primaryTypographyProps={{ sx: stavkaTekstSx }} />
-                </ListItemButton>
-            );
-            })}
-        </List>
-    );
-
     //OPERATORS
 
     const [checkedOP, setCheckedOP] = useState([]);
@@ -438,36 +341,6 @@ export default function BillingDevicesPage (){
         }));
     };
 
-     const customListOP = (items) => (
-        <List dense disablePadding component="div" role="list">
-            {items.map((value) => {
-            const labelId = `transfer-list-item-${value}-label`;
-
-            return (
-                <ListItemButton
-                key={value.id}
-                role="listitem"
-                onClick={handleToggleOP(value)}
-                sx={stavkaSx}
-                >
-                <ListItemIcon sx={kvacicaOkvirSx}>
-                    <Checkbox
-                    size="small"
-                    sx={kvacicaSx}
-                    checked={checkedOP.indexOf(value) !== -1}
-                    tabIndex={-1}
-                    disableRipple
-                    inputProps={{
-                        'aria-labelledby': labelId,
-                    }}
-                    />
-                </ListItemIcon>
-                <ListItemText id={labelId} primary={value.name + ' ' + value.surname} primaryTypographyProps={{ sx: stavkaTekstSx }} />
-                </ListItemButton>
-            );
-            })}
-        </List>
-    );
 
     //LINIJE — desna strana su ZABRANJENE linije (sve su dozvoljene dok se ne
     //makne na desno), pa se u editedData sprema desna lista.
@@ -526,36 +399,6 @@ export default function BillingDevicesPage (){
         setEditedData(prev => ({ ...prev, excluded_lines: [] }));
     };
 
-    const customListLN = (items) => (
-        <List dense disablePadding component="div" role="list">
-            {items.map((value) => {
-            const labelId = `transfer-list-item-${value}-label`;
-
-            return (
-                <ListItemButton
-                key={value.id}
-                role="listitem"
-                onClick={handleToggleLN(value)}
-                sx={stavkaSx}
-                >
-                <ListItemIcon sx={kvacicaOkvirSx}>
-                    <Checkbox
-                    size="small"
-                    sx={kvacicaSx}
-                    checked={checkedLN.indexOf(value) !== -1}
-                    tabIndex={-1}
-                    disableRipple
-                    inputProps={{
-                        'aria-labelledby': labelId,
-                    }}
-                    />
-                </ListItemIcon>
-                <ListItemText id={labelId} primary={value.code ? `${value.code} · ${value.name}` : value.name} primaryTypographyProps={{ sx: stavkaTekstSx }} />
-                </ListItemButton>
-            );
-            })}
-        </List>
-    );
 
 
     useEffect(()=>{
@@ -1162,32 +1005,53 @@ export default function BillingDevicesPage (){
                         <MenuItem value='false'>{t('backoffice.billing_devices.is_active_no')}</MenuItem>
                     </TextField>
                     <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Sredstva plaćanja</Typography>
-                    {transferRed(<>
-                        {transferOkvir('Nije dopušteno', left, customList(left))}
-                        {transferStrelice(
-                            handleAllRight, handleCheckedRight, handleCheckedLeft, handleAllLeft,
-                            left.length > 0, leftChecked.length > 0, rightChecked.length > 0, right.length > 0,
-                        )}
-                        {transferOkvir('Dopušteno', right, customList(right))}
-                    </>)}
+                    <TransferList
+                        lijevo={{ naslov: 'Nije dopušteno', items: left }}
+                        desno={{ naslov: 'Dopušteno', items: right }}
+                        oznaka={(v) => v.name}
+                        jeOznacen={(v) => checked.indexOf(v) !== -1}
+                        onToggle={handleToggle}
+                        akcije={{
+                            sveDesno: handleAllRight, oznaceneDesno: handleCheckedRight,
+                            oznaceneLijevo: handleCheckedLeft, sveLijevo: handleAllLeft,
+                        }}
+                        mogucnosti={{
+                            sveDesno: left.length > 0, oznaceneDesno: leftChecked.length > 0,
+                            oznaceneLijevo: rightChecked.length > 0, sveLijevo: right.length > 0,
+                        }}
+                    />
                     <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Operateri</Typography>
-                    {transferRed(<>
-                        {transferOkvir('Nema pristup', leftOP, customListOP(leftOP))}
-                        {transferStrelice(
-                            handleAllRightOP, handleCheckedRightOP, handleCheckedLeftOP, handleAllLeftOP,
-                            leftOP.length > 0, leftCheckedOP.length > 0, rightCheckedOP.length > 0, rightOP.length > 0,
-                        )}
-                        {transferOkvir('Ima pristup', rightOP, customListOP(rightOP))}
-                    </>)}
+                    <TransferList
+                        lijevo={{ naslov: 'Nema pristup', items: leftOP }}
+                        desno={{ naslov: 'Ima pristup', items: rightOP }}
+                        oznaka={(v) => `${v.name} ${v.surname}`}
+                        jeOznacen={(v) => checkedOP.indexOf(v) !== -1}
+                        onToggle={handleToggleOP}
+                        akcije={{
+                            sveDesno: handleAllRightOP, oznaceneDesno: handleCheckedRightOP,
+                            oznaceneLijevo: handleCheckedLeftOP, sveLijevo: handleAllLeftOP,
+                        }}
+                        mogucnosti={{
+                            sveDesno: leftOP.length > 0, oznaceneDesno: leftCheckedOP.length > 0,
+                            oznaceneLijevo: rightCheckedOP.length > 0, sveLijevo: rightOP.length > 0,
+                        }}
+                    />
                     <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Linije</Typography>
-                    {transferRed(<>
-                        {transferOkvir('Omogućene', leftLN, customListLN(leftLN))}
-                        {transferStrelice(
-                            handleAllRightLN, handleCheckedRightLN, handleCheckedLeftLN, handleAllLeftLN,
-                            leftLN.length > 0, leftCheckedLN.length > 0, rightCheckedLN.length > 0, rightLN.length > 0,
-                        )}
-                        {transferOkvir('Nisu omogućene', rightLN, customListLN(rightLN))}
-                    </>)}
+                    <TransferList
+                        lijevo={{ naslov: 'Omogućene', items: leftLN }}
+                        desno={{ naslov: 'Nisu omogućene', items: rightLN }}
+                        oznaka={(v) => (v.code ? `${v.code} · ${v.name}` : v.name)}
+                        jeOznacen={(v) => checkedLN.indexOf(v) !== -1}
+                        onToggle={handleToggleLN}
+                        akcije={{
+                            sveDesno: handleAllRightLN, oznaceneDesno: handleCheckedRightLN,
+                            oznaceneLijevo: handleCheckedLeftLN, sveLijevo: handleAllLeftLN,
+                        }}
+                        mogucnosti={{
+                            sveDesno: leftLN.length > 0, oznaceneDesno: leftCheckedLN.length > 0,
+                            oznaceneLijevo: rightCheckedLN.length > 0, sveLijevo: rightLN.length > 0,
+                        }}
+                    />
                     <Button
                         type="submit"
                         onClick={handleSubmitEdit}
