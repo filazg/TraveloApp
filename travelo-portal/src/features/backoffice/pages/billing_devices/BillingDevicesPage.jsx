@@ -212,6 +212,66 @@ export default function BillingDevicesPage (){
 
 
 
+    // Zajednički okvir za sve tri prijenosne liste (plaćanja, operateri, linije).
+    // Naslov stoji u traci iznad popisa, s brojem stavki, da se na prvi pogled
+    // vidi koja je strana koja — prije su bila dva gola okvira bez ijedne oznake.
+    const transferOkvir = (naslov, items, sadrzaj) => (
+        <Paper
+            variant="outlined"
+            sx={{
+                flex: 1,
+                minWidth: 0,
+                borderWidth: 2,
+                borderRadius: 2,
+                overflow: 'hidden',
+            }}
+        >
+            <Box
+                sx={{
+                    px: 1.5, py: 0.75,
+                    bgcolor: 'action.hover',
+                    borderBottom: '2px solid',
+                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                }}
+            >
+                <Typography variant="subtitle2" fontWeight={700} noWrap>{naslov}</Typography>
+                <Typography variant="caption" color="text.secondary">{items.length}</Typography>
+            </Box>
+            <Box sx={{ height: 280, overflow: 'auto' }}>
+                {items.length ? sadrzaj : (
+                    <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                        Nema stavki
+                    </Typography>
+                )}
+            </Box>
+        </Paper>
+    );
+
+    // Stupac sa strelicama je uvijek isti, mijenjaju se samo rukovatelji.
+    const transferStrelice = (svedesno, desno, lijevo, sveLijevo, mozeSveDesno, mozeDesno, mozeLijevo, mozeSveLijevo) => (
+        <Stack direction='column' sx={{ mx: 2, minWidth: 60 }}>
+            <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={svedesno} disabled={!mozeSveDesno} aria-label="move all right">≫</Button>
+            <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={desno} disabled={!mozeDesno} aria-label="move selected right">&gt;</Button>
+            <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={lijevo} disabled={!mozeLijevo} aria-label="move selected left">&lt;</Button>
+            <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={sveLijevo} disabled={!mozeSveLijevo} aria-label="move all left">≪</Button>
+        </Stack>
+    );
+
+    const transferRed = (sadrzaj) => (
+        <Stack
+            direction='row'
+            alignItems="stretch"
+            sx={{ mt: 1, mb: 1, width: '100%' }}
+            justifyContent='center'
+        >
+            {sadrzaj}
+        </Stack>
+    );
+
     function not(a, b) {
         return a.filter((value) => b.indexOf(value) === -1);
     }
@@ -280,7 +340,6 @@ export default function BillingDevicesPage (){
     };
 
      const customList = (items) => (
-        <Paper sx={{ width: 200, height: 230, overflow: 'auto' }}>
         <List dense component="div" role="list">
             {items.map((value) => {
             const labelId = `transfer-list-item-${value}-label`;
@@ -306,7 +365,6 @@ export default function BillingDevicesPage (){
             );
             })}
         </List>
-        </Paper>
     );
 
     //OPERATORS
@@ -371,7 +429,6 @@ export default function BillingDevicesPage (){
     };
 
      const customListOP = (items) => (
-        <Paper sx={{ width: 200, height: 230, overflow: 'auto' }}>
         <List dense component="div" role="list">
             {items.map((value) => {
             const labelId = `transfer-list-item-${value}-label`;
@@ -397,7 +454,6 @@ export default function BillingDevicesPage (){
             );
             })}
         </List>
-        </Paper>
     );
 
     //LINIJE — desna strana su ZABRANJENE linije (sve su dozvoljene dok se ne
@@ -458,7 +514,6 @@ export default function BillingDevicesPage (){
     };
 
     const customListLN = (items) => (
-        <Paper sx={{ width: 200, height: 230, overflow: 'auto' }}>
         <List dense component="div" role="list">
             {items.map((value) => {
             const labelId = `transfer-list-item-${value}-label`;
@@ -484,7 +539,6 @@ export default function BillingDevicesPage (){
             );
             })}
         </List>
-        </Paper>
     );
 
 
@@ -843,12 +897,14 @@ export default function BillingDevicesPage (){
                     </Button>
                 </Box>
             </Drawer>
+            {/* Širi od forme za dodavanje: ovdje stoje tri prijenosne liste,
+                a dvije kolone od 680 px ispadaju preuske za nazive linija. */}
             <Drawer
                 anchor="right"
                 open={selectedRow}
                 onClose={() => setSelectedRow(null)}
                 PaperProps={{
-                sx: { width: { xs: "100vw", sm: 520, md: 680 }, maxWidth: "100vw" },
+                sx: { width: { xs: "100vw", sm: 560, md: 820, lg: 900 }, maxWidth: "100vw" },
                 }}
             >
                 <Box
@@ -1089,196 +1145,36 @@ export default function BillingDevicesPage (){
                         <MenuItem value='true'>{t('backoffice.billing_devices.is_active_yes')}</MenuItem>
                         <MenuItem value='false'>{t('backoffice.billing_devices.is_active_no')}</MenuItem>
                     </TextField>
-                    <Typography textAlign='center' sx={{my:2}}>Sredstva plaćanja</Typography>
-                    <Stack
-                        direction='row'
-                        alignItems="center"
-                        sx={{
-                            mt:2,
-                            overflowX: "auto"
-                        }}
-                        justifyContent='center'
-                    >
-                        <Grid sx={{minWidth:200}}>{customList(left)}</Grid>
-                        <Stack
-                            direction='column'
-                            sx={{
-                                mx:2,
-                                minWidth:60
-                            }}
-                        >
-
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleAllRight}
-                                disabled={left.length === 0}
-                                aria-label="move all right"
-                                >
-                                ≫
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5}}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleCheckedRight}
-                                disabled={leftChecked.length === 0}
-                                aria-label="move selected right"
-                                >
-                                &gt;
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleCheckedLeft}
-                                disabled={rightChecked.length === 0}
-                                aria-label="move selected left"
-                                >
-                                &lt;
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleAllLeft}
-                                disabled={right.length === 0}
-                                aria-label="move all left"
-                                >
-                                ≪
-                            </Button>
-                        </Stack>
-                        <Grid sx={{minWidth:200}}>{customList(right)}</Grid>
-                    </Stack>
-                    <Typography textAlign='center' sx={{my:2}}>Operateri</Typography>
-                    <Stack
-                        direction='row'
-                        alignItems="center"
-                        sx={{
-                            mt:2,
-                            overflowX: "auto"
-                        }}
-                        justifyContent='center'
-                    >
-                        <Grid sx={{minWidth:200}}>{customListOP(leftOP)}</Grid>
-                        <Stack
-                            direction='column'
-                            sx={{
-                                mx:2,
-                                minWidth:60
-                            }}
-                        >
-
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleAllRightOP}
-                                disabled={leftOP.length === 0}
-                                aria-label="move all right"
-                                >
-                                ≫
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5}}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleCheckedRightOP}
-                                disabled={leftCheckedOP.length === 0}
-                                aria-label="move selected right"
-                                >
-                                &gt;
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleCheckedLeftOP}
-                                disabled={rightCheckedOP.length === 0}
-                                aria-label="move selected left"
-                                >
-                                &lt;
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleAllLeftOP}
-                                disabled={rightOP.length === 0}
-                                aria-label="move all left"
-                                >
-                                ≪
-                            </Button>
-                        </Stack>
-                        <Grid sx={{minWidth:200}}>{customListOP(rightOP)}</Grid>
-                    </Stack>
-                    <Typography textAlign='center' sx={{mt:2}}>Linije</Typography>
-                    <Typography textAlign='center' variant="caption" color="text.secondary" component="div" sx={{mb:2}}>
-                        Lijevo su linije koje uređaj vidi, desno one koje mu nisu dozvoljene.
-                        Zadano su dozvoljene sve.
+                    <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Sredstva plaćanja</Typography>
+                    {transferRed(<>
+                        {transferOkvir('Nije na uređaju', left, customList(left))}
+                        {transferStrelice(
+                            handleAllRight, handleCheckedRight, handleCheckedLeft, handleAllLeft,
+                            left.length > 0, leftChecked.length > 0, rightChecked.length > 0, right.length > 0,
+                        )}
+                        {transferOkvir('Na uređaju', right, customList(right))}
+                    </>)}
+                    <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Operateri</Typography>
+                    {transferRed(<>
+                        {transferOkvir('Nema pristup', leftOP, customListOP(leftOP))}
+                        {transferStrelice(
+                            handleAllRightOP, handleCheckedRightOP, handleCheckedLeftOP, handleAllLeftOP,
+                            leftOP.length > 0, leftCheckedOP.length > 0, rightCheckedOP.length > 0, rightOP.length > 0,
+                        )}
+                        {transferOkvir('Ima pristup', rightOP, customListOP(rightOP))}
+                    </>)}
+                    <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Linije</Typography>
+                    <Typography textAlign='center' variant="caption" color="text.secondary" component="div">
+                        Zadano uređaj vidi sve linije — desno se stavljaju one koje mu nisu dozvoljene.
                     </Typography>
-                    <Stack
-                        direction='row'
-                        alignItems="center"
-                        sx={{
-                            mt:2,
-                            overflowX: "auto"
-                        }}
-                        justifyContent='center'
-                    >
-                        <Grid sx={{minWidth:200}}>{customListLN(leftLN)}</Grid>
-                        <Stack
-                            direction='column'
-                            sx={{
-                                mx:2,
-                                minWidth:60
-                            }}
-                        >
-
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleAllRightLN}
-                                disabled={leftLN.length === 0}
-                                aria-label="move all right"
-                                >
-                                ≫
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5}}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleCheckedRightLN}
-                                disabled={leftCheckedLN.length === 0}
-                                aria-label="move selected right"
-                                >
-                                &gt;
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleCheckedLeftLN}
-                                disabled={rightCheckedLN.length === 0}
-                                aria-label="move selected left"
-                                >
-                                &lt;
-                            </Button>
-                            <Button
-                                sx={{ my: 0.5 }}
-                                variant="outlined"
-                                size="small"
-                                onClick={handleAllLeftLN}
-                                disabled={rightLN.length === 0}
-                                aria-label="move all left"
-                                >
-                                ≪
-                            </Button>
-                        </Stack>
-                        <Grid sx={{minWidth:200}}>{customListLN(rightLN)}</Grid>
-                    </Stack>
+                    {transferRed(<>
+                        {transferOkvir('Uređaj vidi', leftLN, customListLN(leftLN))}
+                        {transferStrelice(
+                            handleAllRightLN, handleCheckedRightLN, handleCheckedLeftLN, handleAllLeftLN,
+                            leftLN.length > 0, leftCheckedLN.length > 0, rightCheckedLN.length > 0, rightLN.length > 0,
+                        )}
+                        {transferOkvir('Nije dozvoljeno', rightLN, customListLN(rightLN))}
+                    </>)}
                     <Button
                         type="submit"
                         onClick={handleSubmitEdit}
