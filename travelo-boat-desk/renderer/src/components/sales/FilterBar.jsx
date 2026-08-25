@@ -116,6 +116,14 @@ export default function FilterBar() {
             seen.add(r.sequence);
             uniqueDepartures.push(r);
         }
+        // Redoslijed je dolazio onakav kakav je stigao iz voznog reda, pa su
+        // popodnevni polasci znali stajati iznad jutarnjih. Sortira se po satu
+        // polaska ("HH:mm" pretvoren u minute, da radi i ako sat nije dvoznamenkast).
+        const minutes = (time) => {
+            const [h, m] = String(time || '').split(':');
+            return (Number(h) || 0) * 60 + (Number(m) || 0);
+        };
+        uniqueDepartures.sort((a, b) => minutes(a.departure_time) - minutes(b.departure_time));
         await dispatch(setStateData({path:'searchData/availableDepartures', value: uniqueDepartures}));
     }
 
@@ -258,9 +266,9 @@ export default function FilterBar() {
                 name="name"
                 sx={{ gridArea: "four" }}
             >
-                    <MenuItem value="">
-                        <em>None</em>
-                    </MenuItem>
+                {/* Bez praznog izbora — luka je obavezna, a "None" je samo
+                    nudio način da se pretraga vrati u polovično stanje. Za
+                    čišćenje postoji OSVJEŽI FORMU. */}
                 {appData.searchData?.lineHarbors?.map((harbor) => (
                 <MenuItem key={harbor.id} value={harbor}>
                     {harbor.name}
@@ -281,9 +289,6 @@ export default function FilterBar() {
                 name="selected_departure"
                 sx={{ gridArea: "four1" }}
             >
-                    <MenuItem value="">
-                        <em>None</em>
-                    </MenuItem>
                 {appData.searchData?.availableDepartures?.map((departure) => (
                 <MenuItem key={departure.id} value={departure}>
                     {departure.departure_time + " -> smjer " + departure.direction}
