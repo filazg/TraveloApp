@@ -11,6 +11,17 @@ export default function BottomBar() {
   const dispatch = useDispatch();
   const appData = useSelector(allAppData);
   const buyer = appData.saleData?.selectedBuyer;
+  // "Ulica 1, 10000 Zagreb, Hrvatska" — bez praznih dijelova, jer kupac iz
+  // adresara često nema poštanski broj ili državu.
+  const addressLine = [
+    buyer?.buyer_address,
+    [buyer?.buyer_postal_code, buyer?.buyer_town].filter(Boolean).join(" "),
+    buyer?.buyer_country,
+  ].map((x) => (x || "").trim()).filter(Boolean).join(", ");
+
+  const handleClearBuyer = () => {
+    dispatch(setStateData({ path: "saleData/selectedBuyer", value: null }));
+  };
 
   const handleLogout = async () => {
     dispatch(setStateData({path:'modalsStates/shohConfirmLogout', value: true}))
@@ -318,26 +329,54 @@ export default function BottomBar() {
                 cijeli naziv kupca, što na gumbu u stupcu Plaćanje nije stalo.
                 Bez odabranog kupca ostaje prazan: većina prodaje je B2C i
                 natpis "nema kupca" bi visio na ekranu cijelu smjenu. */}
-            <Box sx={{ gridArea: "four", display: "flex", alignItems: "center", minWidth: 0 }}>
+            <Box sx={{ gridArea: "four", minWidth: 0 }}>
               {buyer?.buyer_vat_id ? (
-                <Paper variant="accent" sx={{ px: 2, py: 1, width: "100%", minWidth: 0 }}>
-                  <Typography
-                    noWrap
-                    sx={{ fontWeight: 800, lineHeight: 1.3 }}
-                    title={buyer.buyer_company_name || buyer.buyer_name}
-                  >
-                    {buyer.buyer_company_name || buyer.buyer_name}
-                  </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                <Paper
+                  variant="accent"
+                  sx={{
+                    // Puna visina polja mreže, kao i gumb IZDAJ do njega.
+                    height: "100%",
+                    px: 2,
+                    py: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      noWrap
+                      sx={{ fontWeight: 800, lineHeight: 1.3 }}
+                      title={buyer.buyer_company_name || buyer.buyer_name}
+                    >
+                      {buyer.buyer_company_name || buyer.buyer_name}
+                    </Typography>
+                    {/* Adresa u jednom retku; dijelovi koje kupac nema se
+                        preskaču da ne ostanu prazni zarezi. */}
+                    {addressLine ? (
+                      <Typography variant="body2" color="text.secondary" noWrap title={addressLine}>
+                        {addressLine}
+                      </Typography>
+                    ) : null}
                     <Typography variant="body2" color="text.secondary" noWrap>
                       OIB: {buyer.buyer_vat_id}
                     </Typography>
+                  </Box>
+                  <Stack spacing={1} alignItems="stretch" sx={{ flexShrink: 0 }}>
                     <Chip
-                      size="small"
                       label={buyer.f2_required ? "F2 — e-račun" : "R1"}
                       color={buyer.f2_required ? "warning" : "success"}
                       sx={{ fontWeight: 700 }}
                     />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      onClick={handleClearBuyer}
+                    >
+                      UKLONI
+                    </Button>
                   </Stack>
                 </Paper>
               ) : null}
