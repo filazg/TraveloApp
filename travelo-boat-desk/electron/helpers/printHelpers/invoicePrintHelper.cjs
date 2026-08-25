@@ -16,10 +16,29 @@ const isF2Invoice = (invoice) => {
     return !!invoice.buyer_oib;
 };
 
+// Ispiše redak samo ako ima što ispisati. Bez ovoga prazno polje (npr. adresa
+// poslovnog prostora koja se ne popunjava) izađe kao prazan redak na papiru.
+const printAko = (printer, value) => {
+    const tekst = String(value ?? '').trim();
+    if (!tekst) return;
+    printer.println(tekst);
+};
+
+// Nadopuni tekst razmacima do pune širine retka i centriraj ga. Koristi se uz
+// invert(): printer boji samo ono što je ispisano, pa bez nadopune crna
+// pozadina stane oko same riječi umjesto preko cijelog retka.
+const centriranPunRedak = (tekst, sirina) => {
+    const t = String(tekst ?? '');
+    if (t.length >= sirina) return t;
+    const lijevo = Math.floor((sirina - t.length) / 2);
+    return ' '.repeat(lijevo) + t + ' '.repeat(sirina - t.length - lijevo);
+};
+
 const printInvoice = async ({ invoice, items, copy }) => {
     console.log('PRINT INVOICE')
     //console.log(items)
     const settingsData = await systemSettingsDataModel.findOne()
+    const sirinaIspisa = Number(settingsData.printer_width) || 42;
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     try {
         let printer = new ThermalPrinter({
@@ -69,32 +88,45 @@ const printInvoice = async ({ invoice, items, copy }) => {
         }
         printer.setCharacterSet(CharacterSet.SLOVENIA);
         printer.alignCenter();
-        printer.println(invoice.invoice_client_name);
-        printer.println(invoice.invoice_client_address);
-        printer.println(invoice.invoice_client_postal_code + ' ' + invoice.invoice_client_town);
-        printer.println(invoice.invoice_client_country);
-        printer.println("OIB: " + invoice.invoice_client_oib);
+        // Prazna polja se preskaču. Poslovni prostor npr. često ima samo naziv,
+        // a println('') ispiše prazan redak — na računu su to bili prazni redci
+        // između naziva poslovnice i crte iznad broja računa.
+        printAko(printer, invoice.invoice_client_name);
+        printAko(printer, invoice.invoice_client_address);
+        printAko(printer, [invoice.invoice_client_postal_code, invoice.invoice_client_town].filter(Boolean).join(' '));
+        printAko(printer, invoice.invoice_client_country);
+        printAko(printer, invoice.invoice_client_oib && ("OIB: " + invoice.invoice_client_oib));
         printer.drawLine();
-        printer.println(invoice.invoice_business_premise_name);
-        printer.println(invoice.invoice_business_premise_address);
-        printer.println(invoice.invoice_business_premise_postal_code + ' ' + invoice.invoice_business_premise_postal_town);
-        printer.drawLine();
-        printer.drawLine();
-        printer.alignLeft();
-        printer.bold(true);
+        printAko(printer, invoice.invoice_business_premise_name);
+        printAko(printer, invoice.invoice_business_premise_address);
+        printAko(printer, [invoice.invoice_business_premise_postal_code, invoice.invoice_business_premise_postal_town].filter(Boolean).join(' '));
+        // Jedna crta, ne dvije — druga je bila samo dvostruki razdjelnik prije
+        // broja računa.
         printer.alignCenter();
-        printer.setTextDoubleHeight();
-        if (invoice.invoice_canceled) {
-            printer.invert(true); 
-            printer.println("     STORNO    ")
-            printer.invert(false); 
-        }
+        // Kopija se najavljuje IZNAD crte koja odvaja zaglavlje od broja računa,
+        // pa ide vlastita crta, natpis, i tek onda crta ispred broja. Prije je
+        // natpis stajao ispod te crte, između tri crte za redom.
         if (copy) {
             printer.drawLine();
+            // Dvostruka visina, ista kao KOPIJA KARTE. Bold ide POSLIJE promjene
+            // veličine — setTextDoubleHeight šalje ESC ! koji ima i bit za
+            // podebljanje, pa bi obrnutim redoslijedom pregazio bold.
+            printer.setTextDoubleHeight();
+            printer.bold(true);
             printer.println("KOPIJA RAČUNA")
-            printer.drawLine();
+            printer.bold(false);
+            printer.setTextNormal();
         }
+        printer.drawLine();
+        printer.bold(true);
         printer.setTextDoubleHeight();
+        if (invoice.invoice_canceled) {
+            // Tekst se nadopuni do pune širine retka: printer boji samo ono što
+            // je ispisano, pa je crna pozadina inače stajala oko same riječi.
+            printer.invert(true);
+            printer.println(centriranPunRedak("STORNO", sirinaIspisa))
+            printer.invert(false);
+        }
         if (isF2Invoice(invoice)) {
             // F2 — vidljivi "Račun br" je 8-znakovni kod iz invoice_code; F1
             // sekvenca NO/PP/NU ovdje ne postoji. JIR stiže async od YesCor-a.
@@ -163,7 +195,6 @@ const printInvoice = async ({ invoice, items, copy }) => {
             { text: 'Luč. nak', align: "LEFT", cols: 12 },
             { text: invoice.invoice_harbor_tax.toFixed(2) + ' EUR', align: "RIGHT", cols: 15 }
         ])
-        printer.newLine();
         printer.setTextDoubleHeight();
         printer.bold(true);
         printer.tableCustom([
@@ -172,7 +203,6 @@ const printInvoice = async ({ invoice, items, copy }) => {
         ])
         printer.setTextNormal();
         printer.alignLeft();
-
         printer.drawLine();
         if (invoice.buyer_name) {
             printer.println('Kupac:')
@@ -246,42 +276,43 @@ const printTickets = async ({ tickets,copy }) => {
             lineCharacter: '-', // Use custom character for drawing lines
         });
         for (let t = 0; t < tickets.length; t++) {
+            // Zaglavlje karte je skraćeno: maknut je prazan redak ispod naslova
+            // i prazan redak s drugom crtom prije polaska. KOPIJA i STORNO
+            // ostaju — ispisuju se samo kad vrijede, a bez njih se stornirana
+            // karta ne razlikuje od važeće.
+            //
+            // NAPOMENA: naziv je upisan rukom, ne uzima se iz podataka tvrtke.
+            // Na drugoj instalaciji karta će i dalje pisati ovo.
             printer.alignCenter();
             printer.setTextDoubleHeight();
             printer.println('KAPETAN LUKA - KRILO');
             printer.setTextNormal();
             printer.println('P R I J E V O Z N A   K A R T A');
-            printer.newLine();
             printer.drawLine();
-            printer.alignCenter();
-            printer.setTextDoubleHeight();
             if (copy) {
+                printer.setTextDoubleHeight();
                 printer.println("KOPIJA KARTE")
+                printer.setTextNormal();
+                printer.drawLine();
             }
             if (tickets[t].ticket_deactivate) {
-                printer.drawLine();
-                printer.invert(true);                                       
+                printer.setTextDoubleHeight();
+                printer.invert(true);
                 printer.println("    KARTA JE STORNIRANA    ")
-                printer.invert(false);                                       
+                printer.invert(false);
+                printer.setTextNormal();
             }
-            printer.setTextNormal();
+            // Polazak i dolazak u po jednom retku: oznaka lijevo, luka i vrijeme
+            // desno. Prije je svaki zauzimao dva retka jer je oznaka bila u
+            // svom, a podatak poravnat desno u sljedećem.
             printer.alignLeft();
-            printer.newLine();
-            printer.drawLine();
-            printer.println("Departure/Polazak");
-            printer.alignRight();
-            printer.println(tickets[t].ticket_departure_harbor_name + ' / ' + tickets[t].ticket_departure);
-            printer.alignLeft();
-            printer.println("Arrival/Dolazak");
-            printer.alignRight();
-            printer.println(tickets[t].ticket_arrival_harbor_name + ' / ' + tickets[t].ticket_arrival);
-            printer.alignLeft();
+            printer.leftRight("Dep/Pol", tickets[t].ticket_departure_harbor_name + ' / ' + tickets[t].ticket_departure);
+            printer.leftRight("Arr/Dol", tickets[t].ticket_arrival_harbor_name + ' / ' + tickets[t].ticket_arrival);
             printer.drawLine();
             printer.leftRight("Passanger/Putnik", tickets[t].ticket_type_name);
             printer.drawLine();
             printer.leftRight("Line/Linija", tickets[t].line_name);
             printer.drawLine();
-            printer.newLine();
             if(tickets[t].ticket_type_name === "MOSI"){
                 printer.alignCenter();
                 printer.println("PODACI O POVLAŠTENOJ KARTI");
@@ -333,7 +364,9 @@ const printTickets = async ({ tickets,copy }) => {
                 + ";" + tickets[t].sales_route_uuid
                 + ";" + tickets[t].ticket_type_uuid
                 , {
-                    cellSize: 7,
+                    // Smanjen sa 7. QR nosi dosta podataka (uuid, linija, luke,
+                    // vrijeme, ruta, tip karte) pa je bio velik dio karte.
+                    cellSize: 5,
                     correction: 'M',
                     model: 2
                 });

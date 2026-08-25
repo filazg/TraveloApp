@@ -457,6 +457,16 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData, storno
         invoice_uuid:invoice.invoice_uuid
       }
     })
+    // Zadnja brana protiv dvostrukog storna. Sučelje gasi gumb, ali provjera
+    // mora stajati i ovdje — storno računa je nepovratan i dva storna za istu
+    // prodaju razbiju obračun smjene i fiskalnu sliku.
+    if (!invoiceData) {
+      return { ok: false, error: { message: 'Račun nije pronađen.' } }
+    }
+    if (['canceled', 'canceled-orginal', 'canceled-partial'].includes(invoiceData.invoice_status)) {
+      console.log('cancelInvoiceService: račun je već storniran —', invoiceData.invoice_status)
+      return { ok: false, error: { message: 'Račun je već storniran i ne može se stornirati ponovno.' } }
+    }
     const itemsForInvoice = await invoiceTransportItemsModel.findAll({
       where:{
         order_number:invoiceData.order_number
@@ -707,7 +717,11 @@ const printInvoiceCopyService = async (data)=>{
       basic_data:basicData,
       invoice: invoiceData,
       tickets_groups: ticketsGroups,
-      items: itemsToSend
+      items: itemsToSend,
+      // Bez ovoga printInvoice ne zna da je kopija pa natpis KOPIJA RAČUNA nije
+      // izlazio — kopija je izgledala identično originalu. Kopije karata su ovu
+      // zastavicu slale od početka, račun ne.
+      copy: true,
     }
     // Ishod se vraća pozivatelju — F2 račun se ne ispisuje, pa blagajnik mora
     // dobiti poruku umjesto tihog "ništa se nije dogodilo".
@@ -733,13 +747,22 @@ const printAllTicketsCopyService = async(data)=>{
         order_number:invoiceData.order_number
       }
     })
+    // Stornirane karte se preskaču, ostale s računa se ispišu. Kod djelomičnog
+    // storna račun i dalje ima valjane karte pa ispis ne treba odbiti u cijelosti.
+    const zaIspis = ticketsData.filter((t) => !(t.ticket_status === 'CANCELED' || t.ticket_is_canceled || t.ticket_deactivate))
+    if (!zaIspis.length) {
+      console.log('KOPIJE KARATA — sve karte računa su stornirane, ispis preskočen.')
+      return { printed: false, reason: 'storno' }
+    }
     const dataToSend = {
-      tickets:ticketsData,
+      tickets:zaIspis,
       copy:true
     }
     await copyAllTickets(dataToSend)
+    return { printed: true, skipped: ticketsData.length - zaIspis.length }
   } catch (error) {
     console.log(error)
+    return { printed: false, reason: 'error' }
   }
 }
 
@@ -750,11 +773,19 @@ const printTicketCopyService = async(data)=>{
         ticket_code:data
       }
     })
+    // Stornirana karta se ne ispisuje — ne vrijedi za ukrcaj, a otisnuta
+    // izgleda kao valjana.
+    const zaIspis = ticketData.filter((t) => !(t.ticket_status === 'CANCELED' || t.ticket_is_canceled || t.ticket_deactivate))
+    if (!zaIspis.length) {
+      console.log('KOPIJA KARTE — karta je stornirana, ispis preskočen.')
+      return { printed: false, reason: 'storno' }
+    }
     const dataToSend = {
-      tickets:ticketData,
+      tickets:zaIspis,
       copy:true
     }
     await copyAllTickets(dataToSend)
+    return { printed: true }
   } catch (error) {
     console.log(error)
   }
@@ -788,6 +819,18 @@ const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPc
         order_number:ticket.order_number
       }
     })
+    // Zadnja brana protiv dvostrukog storna karte — stanje se čita iz baze, ne
+    // iz onoga što je poslalo sučelje, jer se lista karata zna zadržati u
+    // memoriji nakon što je karta već stornirana.
+    const ticketState = await ticketsModel.findOne({ where: { ticket_uuid: ticket.ticket_uuid } })
+    if (!ticketState) {
+      return { ok: false, error: { message: 'Karta nije pronađena.' } }
+    }
+    if (ticketState.ticket_status === 'CANCELED' || ticketState.ticket_is_canceled || ticketState.ticket_deactivate) {
+      console.log('cancelTicketService: karta je već stornirana —', ticketState.ticket_code)
+      return { ok: false, error: { message: 'Karta je već stornirana i ne može se stornirati ponovno.' } }
+    }
+
     const ticketsGroup = await ticketsGroupsModel.findAll({
       where:{
         ticket_group_uuid:ticket.ticket_group_uuid

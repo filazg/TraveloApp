@@ -16,6 +16,13 @@ export default function InvoicesActions ({ params, rowId}) {
     // Postotak povrata — isti šifarnik i isti modal kao kod storna pojedine karte.
     const stornoPicker = useStornoPercentagePicker()
 
+    // Storno račun se ne stornira dalje, a već storniran original ne stornira se
+    // dvaput. 'canceled' je sam storno dokument, 'canceled-orginal' je original
+    // koji je storno pogodio u cijelosti, 'canceled-partial' je original kojemu
+    // su stornirane pojedine karte.
+    const nijeZaStorno = ['canceled', 'canceled-orginal', 'canceled-partial']
+        .includes(params.row?.invoice_status)
+
     const handlePreviewInvoice = async ()=>{
         console.log(params.row)
         const invoiceDetails = await  await window.api.app.getInvoiceDetailsIPC(params.row.invoice_uuid)
@@ -83,8 +90,11 @@ export default function InvoicesActions ({ params, rowId}) {
         await dispatch(setStateData({path:'status', value:'loading'}))
         await dispatch(setStateData({path:'loadingText', value:'Priprema podataka...'}))
         let canCancel = false;
-        if(params.row.invoice_status === 'canceled' || params.row.invoice_status === 'canceled-partial'){
-            message = payment.error || 'Račun ne može biti storniran';
+        if(nijeZaStorno){
+            // 'canceled-orginal' prije nije bio u ovom uvjetu, pa se već
+            // storniran račun mogao stornirati drugi put i proizvesti dva
+            // storno računa za istu prodaju.
+            message = 'Račun ne može biti storniran';
             severity = 'error'
             isOk = false;
             //await dispatch(setStateData({path:'alertData', value:{message:'Račun nije moguće stornirati',severity:'error'}})) 
@@ -204,13 +214,15 @@ export default function InvoicesActions ({ params, rowId}) {
             <PrintIcon />
             </Fab>
             <Fab
-            color={params.invoice_status === 'canceled' ? 'success' : "error"}
+            color="error"
             sx={{
                 width: 40,
                 height: 40,
                 ml:1
             }}
+            disabled={nijeZaStorno}
             onClick={handleCancelInvoice}
+            title={nijeZaStorno ? "Račun je već storniran" : "Storniraj račun"}
             >
             <CancelIcon />
             </Fab>

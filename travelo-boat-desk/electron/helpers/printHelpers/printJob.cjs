@@ -3,7 +3,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // Koliko praznih redova izvuci kad se ne reze — glava printera je nekoliko
 // centimetara iznad ruba kucista, pa bez ovoga zadnji redovi ispisa ostanu
 // unutra i potrga se preko teksta.
-const FEED_LINES = 6;
+//
+// Podignuto sa 6 na 8: sa 6 je zadnji redak jos znao zavrsiti pretijesno uz
+// rub, pa nije bilo gdje uhvatiti papir za trganje.
+const FEED_LINES = 8;
 
 // Umjesto printer.cut(). Rez se ukljucuje/iskljucuje u postavkama sustava
 // (printer_cut) — iskljuci ga kad je cutter u kvaru pa se papir trga rucno.

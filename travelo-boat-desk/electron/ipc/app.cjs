@@ -4,7 +4,7 @@ const { getPairingDataService } = require("../services/pairingDataService.cjs");
 const { pairingWithBackendService, syncBasicDataService, syncTransportDataService } = require("../services/backendDataService.cjs");
 const { getLocalBasicDataService, getLocalTransportDataService } = require("../services/localDataService.cjs");
 const { getBookingDataService } = require("../services/bookingDataService.cjs");
-const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService } = require("../services/shiftsDataService.cjs");
+const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService, reprintShiftService } = require("../services/shiftsDataService.cjs");
 const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService } = require("../services/invoiceDataService.cjs");
 const { getBuyersDataService } = require("../services/buyersDataService.cjs");
 const { otpPaymentHandler } = require("../helpers/paymentHelpers/otpPaymentHelper.cjs");
@@ -97,6 +97,14 @@ function registerAppIpc() {
       return ok(data);
     } catch (e) {
       return fail("Failed to load initial data", e?.stack || String(e));
+    }
+  });
+  ipcMain.handle("app:reprintShiftIpc", async (_event, shiftUuid) => {
+    try {
+      const data = await reprintShiftService(shiftUuid);
+      return ok(data);
+    } catch (e) {
+      return fail("Failed to reprint shift report", e?.stack || String(e));
     }
   });
   ipcMain.handle("app:getLocalBasicDataIpc", async () => {

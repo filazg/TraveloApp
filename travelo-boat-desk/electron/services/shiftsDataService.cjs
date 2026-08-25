@@ -177,6 +177,129 @@ async function openNewShiftService(data) {
     return openNewShift.toJSON();
 }
 
+// Razrada prodanih i storniranih karata po liniji i kategoriji. Računa se iz
+// spremljenih računa i karata, pa daje isti rezultat pri zatvaranju smjene i pri
+// naknadnom ispisu kopije zaključka.
+const buildLineDetails = async (shiftInvoices) => {
+    const invoicesUuids = shiftInvoices.map(item => item.invoice_uuid);
+    const ordersNumbers = shiftInvoices.map(item => item.order_number);
+
+    const InvoicesItems = await invoiceTransportItemsModel.findAll({
+        where: { invoice_uuid: { [Op.in]: invoicesUuids } }
+    });
+    const shiftTickets = await ticketsModel.findAll({
+        where: { order_number: { [Op.in]: ordersNumbers } }
+    });
+    const distinctLines = InvoicesItems.filter((v, i, a) => a.findIndex(t => (t.line_code === v.line_code)) === i)
+    let lineDetails = []
+    let deactLineDetails = []
+    for (const line of distinctLines) {
+        const itemsByLine = InvoicesItems.filter((inv) => inv.line_code === line.line_code)
+        const ticketsByLine = shiftTickets.filter((tic) => tic.line_code === line.line_code)
+        const ticketsByLineDeact = shiftTickets.filter((tic) => tic.line_code === line.line_code && tic.ticket_deactivate)
+        const categoryUuids = ticketsByLine.filter((v, i, a) => a.findIndex(t => (t.ticket_type_uuid === v.ticket_type_uuid)) === i)
+        const categoryUuidsDeact = ticketsByLineDeact.filter((v, i, a) => a.findIndex(t => (t.ticket_type_uuid === v.ticket_type_uuid)) === i)
+        const sumAmount = () => itemsByLine.reduce((sum, item) => sum + Number(item.item_amount ?? 0), 0);
+        let ticketsDetailsByCategory = []
+        let deacTicketsDetailsByCategory = []
+        for (const categoryUuid of categoryUuids) {
+            const ticketsByCategory = ticketsByLine.filter((tic) => tic.ticket_type_uuid === categoryUuid.ticket_type_uuid)
+            ticketsDetailsByCategory = [...ticketsDetailsByCategory, {
+                category_uuid: categoryUuid.ticket_type_uuid,
+                category_name: ticketsByCategory[0].ticket_type_name,
+                ticket_quantity: ticketsByCategory.length,
+                tickets_amount: ticketsByCategory
+                    .map(({ ticket_single_price }) => ticket_single_price)
+                    .reduce((sum, i) => sum + i, 0)
+            }]
+        }
+        for (const categoryUuid of categoryUuidsDeact) {
+            const ticketsByCategory = ticketsByLineDeact.filter((tic) => tic.ticket_type_uuid === categoryUuid.ticket_type_uuid)
+            deacTicketsDetailsByCategory = [...deacTicketsDetailsByCategory, {
+                category_uuid: categoryUuid.ticket_type_uuid,
+                category_name: ticketsByCategory[0].ticket_type_name,
+                ticket_quantity: ticketsByCategory.length,
+                tickets_amount: ticketsByCategory
+                    .map(({ ticket_single_price }) => ticket_single_price)
+                    .reduce((sum, i) => sum + i, 0)
+            }]
+        }
+        if (ticketsDetailsByCategory.length) {
+            lineDetails = [...lineDetails, {
+                line_code: line.line_code, line_name: line.line_name,
+                amount: sumAmount(), tickets_details: ticketsDetailsByCategory,
+            }]
+        }
+        if (deacTicketsDetailsByCategory.length) {
+            deactLineDetails = [...deactLineDetails, {
+                line_code: line.line_code, line_name: line.line_name,
+                amount: sumAmount(), tickets_details: deacTicketsDetailsByCategory,
+            }]
+        }
+    }
+    return { lineDetails, deactLineDetails }
+}
+
+// Sredstva plaćanja za smjenu. Računi bez payment_method_uuid se preskaču —
+// shift_financ ima NOT NULL pa bi bulkCreate srušio zatvaranje smjene.
+const buildPaymentSums = (shiftInvoices, shiftUuid) => {
+    const invoicesWithPayment = shiftInvoices.filter((v) => !!v.invoice_payment_method_uuid)
+    const distinctPayment = invoicesWithPayment.filter((v, i, a) => a.findIndex(t => (t.invoice_payment_method_uuid === v.invoice_payment_method_uuid)) === i)
+    return distinctPayment.map((payment) => {
+        const invoiceByPayment = invoicesWithPayment.filter((inv) => inv.invoice_payment_method_uuid === payment.invoice_payment_method_uuid)
+        return {
+            shift_financ_uuid: crypto.randomBytes(16).toString("hex"),
+            shift_uuid: shiftUuid,
+            payment_type_uuid: payment.invoice_payment_method_uuid,
+            payment_type_name: payment.invoice_payment_method_name,
+            payment_amount: invoiceByPayment.map(({ invoice_amount }) => invoice_amount).reduce((sum, i) => sum + i, 0),
+        }
+    })
+}
+
+// Cijeli sadržaj zaključka smjene. Koristi ga i zatvaranje i naknadni ispis
+// kopije, pa se papir ne može razići ovisno o tome kad je ispisan.
+const buildShiftReport = async (shiftUuid) => {
+    const shiftData = await shiftModel.findOne({ where: { shift_uuid: shiftUuid } })
+    if (!shiftData) return null
+    const shiftInvoices = await invoicesModel.findAll({
+        where: { shift_uuid: shiftUuid },
+        order: [['invoice_payment_method_name', 'ASC']]
+    })
+    const totals = buildShiftTotals(shiftInvoices)
+    const { lineDetails, deactLineDetails } = await buildLineDetails(shiftInvoices)
+    return {
+        shift: shiftData,
+        shift_finance: buildPaymentSums(shiftInvoices, shiftUuid),
+        shift_sale: {
+            shift_sale_uuid: crypto.randomBytes(16).toString("hex"),
+            shift_uuid: shiftUuid,
+            amount: totals.shift_amount,
+            vat_base: totals.shift_vat_base,
+            vat: totals.shift_vat,
+            harbor_tax: totals.shift_harbor_tax,
+        },
+        line_details: lineDetails,
+        deacttive_line_detials: deactLineDetails,
+        ...totals,
+        ...buildStornoBreakdown(shiftInvoices),
+    }
+}
+
+// Naknadni ispis zaključka zatvorene smjene. Ne mijenja ništa u bazi — samo
+// ponovno složi isti izvještaj i pošalje ga na printer, s oznakom KOPIJA.
+const reprintShiftService = async (shiftUuid) => {
+    try {
+        const report = await buildShiftReport(shiftUuid)
+        if (!report) return { ok: false, reason: 'smjena nije pronađena' }
+        const printed = await shiftPrintHelper({ ...report, copy: true })
+        return { ok: !!printed, printed: !!printed }
+    } catch (error) {
+        console.log('reprintShiftService error:', error?.message || error)
+        return { ok: false, reason: error?.message || 'error' }
+    }
+}
+
 const closeShiftService = async(data) =>{
     try {
         console.log('SHIFT CLOSE CONTROLLER')
@@ -208,7 +331,6 @@ const closeShiftService = async(data) =>{
             // prvog F2 računa u smjeni razilazila s onim što piše na računu.
             // Sada se uzima invoice_code sa samog računa.
             const totals = buildShiftTotals(shiftInvoices);
-            const sumByField = (field) => shiftInvoices.reduce((sum, item) => sum + Number(item[field] ?? 0), 0);
             await shiftModel.update({
                shift_end:new Date(),
                shift_open: false,
@@ -224,116 +346,16 @@ const closeShiftService = async(data) =>{
                     shift_uuid:data.shift_uuid
                 }
             })
-            let paymentSumByMethod = []
-                // Filtriraj invoice-e bez payment_method_uuid — shift_financ ima NOT NULL
-                // constraint pa bulkCreate baci constraint error i ruši close transakciju.
-                const invoicesWithPayment = shiftInvoices.filter((v) => !!v.invoice_payment_method_uuid)
-                const distinctPayment = invoicesWithPayment.filter((v, i, a) => a.findIndex(t => (t.invoice_payment_method_uuid === v.invoice_payment_method_uuid)) === i)
-                for(const payment of distinctPayment){
-                    console.log(payment.dataValues.invoice_payment_method_uuid)
-                    console.log(payment.dataValues.invoice_payment_method_name)
-                    const invoiceByPayment = invoicesWithPayment.filter((inv)=>inv.dataValues.invoice_payment_method_uuid === payment.dataValues.invoice_payment_method_uuid)
-                    console.log(invoiceByPayment.length)
-                    const paymentSubtotal = invoiceByPayment
-                .map(({ invoice_amount }) => invoice_amount)
-                .reduce((sum, i) => sum + i, 0);
-                const paymentData = {
-                    shift_financ_uuid:crypto.randomBytes(16).toString("hex"),
-                    shift_uuid:shiftData.shift_uuid,
-                    payment_type_uuid:payment.dataValues.invoice_payment_method_uuid,
-                    payment_type_name:payment.dataValues.invoice_payment_method_name,
-                    payment_amount:paymentSubtotal
-                }
-                paymentSumByMethod = [...paymentSumByMethod, paymentData]
-            }
-
-            const invoicesUuids = shiftInvoices.map(item => item.invoice_uuid);
-            const ordersNumbers = shiftInvoices.map(item => item.order_number);
-
-            const InvoicesItems = await invoiceTransportItemsModel.findAll({
-                where: {
-                    invoice_uuid: {
-                    [Op.in]: invoicesUuids
-                    }
-                }
-            });
-            const shiftTickets = await ticketsModel.findAll({
-                where: {
-                    order_number: {
-                    [Op.in]: ordersNumbers
-                    }
-                }
-            });
-            const distinctLines = InvoicesItems.filter((v, i, a) => a.findIndex(t => (t.line_code === v.line_code)) === i)
-            let lineDetails = []
-            let deactLineDetails = []
-            for(const line of distinctLines){
-                const itemsByLine = InvoicesItems.filter((inv)=>inv.line_code === line.line_code)
-                const ticketsByLine = shiftTickets.filter((tic)=>tic.line_code === line.line_code )
-                const ticketsByLineDeact = shiftTickets.filter((tic)=>tic.line_code === line.line_code && tic.ticket_deactivate)
-                const categoryUuids = ticketsByLine.filter((v, i, a) => a.findIndex(t => (t.ticket_type_uuid === v.ticket_type_uuid)) === i)
-                const categoryUuidsDeact = ticketsByLineDeact.filter((v, i, a) => a.findIndex(t => (t.ticket_type_uuid === v.ticket_type_uuid)) === i)
-                const sumAmount = () => itemsByLine.reduce((sum, item) => sum + Number(item.item_amount ?? 0), 0);
-                let ticketsDetailsByCategory = []
-                let deacTicketsDetailsByCategory = []
-                for(const categoryUuid of categoryUuids){
-                    const ticketsByCategory = ticketsByLine.filter((tic)=>tic.ticket_type_uuid === categoryUuid.ticket_type_uuid)
-                    const categoryTicketData = {
-                        category_uuid:categoryUuid.ticket_type_uuid,
-                        category_name:ticketsByCategory[0].ticket_type_name,
-                        ticket_quantity:ticketsByCategory.length,
-                        tickets_amount:ticketsByCategory
-                        .map(({ ticket_single_price }) => ticket_single_price)
-                        .reduce((sum, i) => sum + i, 0)
-                    }
-                    ticketsDetailsByCategory = [...ticketsDetailsByCategory, categoryTicketData]
-                }
-                if(ticketsByLineDeact.length > 0){
-                    console.log('IMA STORNIRANIH KARATA ZA LINIJU ' + ticketsByLineDeact)
-                    for(const categoryUuid of categoryUuidsDeact){
-                        const ticketsByCategory = ticketsByLineDeact.filter((tic)=>tic.ticket_type_uuid === categoryUuid.ticket_type_uuid)
-                        const categoryTicketData = {
-                            category_uuid:categoryUuidsDeact.ticket_type_uuid,
-                            category_name:ticketsByCategory[0].ticket_type_name,
-                            ticket_quantity:ticketsByCategory.length,
-                            tickets_amount:ticketsByCategory
-                            .map(({ ticket_single_price }) => ticket_single_price)
-                            .reduce((sum, i) => sum + i, 0)
-                        }
-                        deacTicketsDetailsByCategory = [...deacTicketsDetailsByCategory, categoryTicketData]
-                    }
-                }
-                if(ticketsDetailsByCategory.length){
-                    const lineNewDetail = {
-                        line_code:line.line_code,
-                        line_name:line.line_name,
-                        amount: sumAmount(),
-                        tickets_details: ticketsDetailsByCategory,
-                        
-                    }
-                    lineDetails = [...lineDetails, lineNewDetail]
-                }
-                if(deacTicketsDetailsByCategory.length){
-                    const lineNewDetail = {
-                        line_code:line.line_code,
-                        line_name:line.line_name,
-                        amount: sumAmount(),
-                        tickets_details: deacTicketsDetailsByCategory,
-                        
-                    }
-                    deactLineDetails = [...deactLineDetails, lineNewDetail]
-                }
-            }
-
+            const paymentSumByMethod = buildPaymentSums(shiftInvoices, shiftData.shift_uuid)
+            const { lineDetails, deactLineDetails } = await buildLineDetails(shiftInvoices)
             const shiftSaleData = {
                 shift_sale_uuid: crypto.randomBytes(16).toString("hex"),
                 shift_uuid: shiftData.shift_uuid,
-                amount: sumByField('invoice_amount'),
-                vat_base: sumByField('invoice_vat_base'),
-                vat: sumByField('invoice_vat'),
-                harbor_tax: sumByField('invoice_harbor_tax'),
+                amount: totals.shift_amount,
+                vat_base: totals.shift_vat_base,
+                vat: totals.shift_vat,
+                harbor_tax: totals.shift_harbor_tax,
             }
-
 
             await shiftFinancModel.bulkCreate(paymentSumByMethod)
             await shiftSaleModel.create(shiftSaleData)
@@ -453,5 +475,6 @@ module.exports = {
     openNewShiftService,
     closeShiftService,
     shiftSummaryService,
+    reprintShiftService,
     syncPendingShiftsService,
 };

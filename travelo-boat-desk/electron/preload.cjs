@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("api", {
     getShiftsDataIpc: (operaterUsername) => ipcRenderer.invoke("app:getShiftsDataIpc", operaterUsername),
     openShiftsDataIpc: (data) => ipcRenderer.invoke("app:openShiftsDataIpc", data),
     summaryShiftsDataIpc: (data) => ipcRenderer.invoke("app:summaryShiftsDataIpc", data),
+    reprintShiftIpc: (shiftUuid) => ipcRenderer.invoke("app:reprintShiftIpc", shiftUuid),
     closeShiftsDataIpc: (data) => ipcRenderer.invoke("app:closeShiftsDataIpc", data),
     getLocalBasicDataIpc: () => ipcRenderer.invoke("app:getLocalBasicDataIpc"),
     getLocalTransportDataIpc: () => ipcRenderer.invoke("app:getLocalTransportDataIpc"),

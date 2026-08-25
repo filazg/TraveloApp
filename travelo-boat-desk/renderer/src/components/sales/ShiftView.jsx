@@ -111,8 +111,11 @@ export default function ShiftsView({}) {
       type: "actions",
       headerAlign: "right",
       align: "right",
-      headerName: "Actions",
-      width:150,
+      // Tri gumba po 40px, razmak 8px između i 8px s obje strane = 152px.
+      // Sa 150 je zadnji (zatvaranje smjene) bio odrezan otkad je dodan ispis
+      // kopije zaključka.
+      headerName: "Radnje",
+      width: 210,
       renderCell: (params) => <ShiftActions {...{ params, rowId, setRowId }} />,
     },
   ];

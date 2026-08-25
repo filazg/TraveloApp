@@ -2,6 +2,7 @@ import { Box, Fab } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { Save } from '@mui/icons-material';
 import SummarizeIcon from '@mui/icons-material/Summarize';
+import PrintIcon from '@mui/icons-material/Print';
 import { allAppData, setStateData } from "../../store/appSlice";
 
 export default function ShiftActions({params, rowId, setRowId}) {
@@ -47,6 +48,21 @@ export default function ShiftActions({params, rowId, setRowId}) {
         await dispatch(setStateData({path:'status', value:'ready'}))
     };
 
+    // Naknadni ispis zaključka. Ne dira ništa u bazi — samo ponovno složi isti
+    // izvještaj i pošalje ga na printer, s oznakom KOPIJA. Dostupan tek kad je
+    // smjena zatvorena, jer zaključak otvorene smjene još nije konačan.
+    const handleReprint = async () => {
+        await dispatch(setStateData({path:'status', value:'loading'}))
+        await dispatch(setStateData({path:'loadingText', value:'Ispis kopije zaključka...'}))
+        const res = await window.api.app.reprintShiftIpc(params.row.shift_uuid)
+        await dispatch(setStateData({path:'status', value:'ready'}))
+        const uspjelo = res?.ok && res?.data?.printed
+        await dispatch(setStateData({path:'alertData', value: uspjelo
+            ? {message:'Kopija zaključka je ispisana.', severity:'success'}
+            : {message:'Kopija zaključka nije ispisana — provjerite printer.', severity:'error'}
+        }))
+    };
+
     return(
             <Box
             sx={{
@@ -64,6 +80,19 @@ export default function ShiftActions({params, rowId, setRowId}) {
                 onClick={handleSummary}
                 >
                 <SummarizeIcon />
+            </Fab>
+            <Fab
+                color="primary"
+                sx={{
+                    mr:1,
+                    width: 40,
+                    height: 40,
+                }}
+                disabled={params.row.shift_open}
+                onClick={handleReprint}
+                title="Ispiši kopiju zaključka"
+                >
+                <PrintIcon />
             </Fab>
             <Fab
                 color="primary"

@@ -18,6 +18,12 @@ export default function TicketsActions ({ params, rowId}) {
     // Postotak povrata — zajednička komponenta, ista i za storno računa.
     const stornoPicker = useStornoPercentagePicker()
 
+    // Stornirana karta se ni ne ispisuje ni ne stornira ponovno. Gumbi se gase
+    // umjesto da se klik dočeka porukom — blagajnik odmah vidi da ne ide.
+    const jeStornirana = params.row?.ticket_status === 'CANCELED'
+        || !!params.row?.ticket_is_canceled
+        || !!params.row?.ticket_deactivate
+
 
     const handleCloseCancelModal = async()=>{
         setCancelPaymentModal(false)
@@ -266,24 +272,30 @@ export default function TicketsActions ({ params, rowId}) {
                 position: 'relative',
             }}
             >
+                {/* Stornirana karta se ne ispisuje — ne vrijedi za ukrcaj, a
+                    otisnuta izgleda kao valjana. */}
                 <Fab
                 color="primary"
                 sx={{
                     width: 40,
                     height: 40,
                 }}
+                disabled={jeStornirana}
                 onClick={handlePrintTicket}
+                title={jeStornirana ? "Stornirana karta se ne ispisuje" : "Ispiši kopiju karte"}
                 >
                 <PrintIcon />
                 </Fab>
                 <Fab
-                color={params.invoice_status === 'canceled' ? 'success' : "error"}
+                color="error"
                 sx={{
                     width: 40,
                     height: 40,
                     ml:1
                 }}
+                disabled={jeStornirana}
                 onClick={handleCancelTicket}
+                title={jeStornirana ? "Karta je već stornirana" : "Storniraj kartu"}
                 >
                 <CancelIcon />
                 </Fab>

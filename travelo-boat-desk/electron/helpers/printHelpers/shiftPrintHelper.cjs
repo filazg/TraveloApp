@@ -4,6 +4,33 @@ const { runPrintJob, cutOrFeed } = require('./printJob.cjs');
 
 const date = new Date()
 
+// Ispiši samo ako ima što — prazna polja bi inače izašla kao prazni redci.
+const printAko = (printer, value) => {
+    const tekst = String(value ?? '').trim();
+    if (!tekst) return;
+    printer.println(tekst);
+};
+const leftRightAko = (printer, label, value) => {
+    const tekst = String(value ?? '').trim();
+    if (!tekst) return;
+    printer.leftRight(label, tekst);
+};
+
+// Format se slaže izričito, ne prepušta lokalnim postavkama računala — isti
+// oblik kao na mobilnoj blagajni.
+const dva = (n) => String(n).padStart(2, '0');
+const uDatum = (value) => (value instanceof Date ? value : new Date(value));
+const formatDatum = (value) => {
+    const d = uDatum(value);
+    if (!d || Number.isNaN(d.getTime())) return '';
+    return `${dva(d.getDate())}.${dva(d.getMonth() + 1)}.${d.getFullYear()}`;
+};
+const formatVrijeme = (value) => {
+    const d = uDatum(value);
+    if (!d || Number.isNaN(d.getTime())) return '';
+    return `${dva(d.getHours())}:${dva(d.getMinutes())}:${dva(d.getSeconds())}`;
+};
+
 const shiftPrintHelper = async (data) => {
     console.log("SHIFT PRINT DATA:", data)
     const settingsData = await systemSettingsDataModel.findOne()
@@ -20,41 +47,64 @@ const shiftPrintHelper = async (data) => {
         });
         printer.setCharacterSet(CharacterSet.SLOVENIA);
         printer.alignCenter();
-        printer.println(data.shift.client_name);
-        printer.println(data.shift.client_address);
-        printer.println(data.shift.client_postal_code + ' ' + data.shift.client_town);
-        printer.println(data.shift.client_country);
-        printer.println(' OIB: ' + data.shift.client_oib);
+        // Prazna polja se preskaču — kao na mobilnoj. Prije su izlazila kao
+        // prazni redci; poslovni prostor npr. često ima samo naziv.
+        printAko(printer, data.shift.client_name);
+        printAko(printer, data.shift.client_address);
+        printAko(printer, [data.shift.client_postal_code, data.shift.client_town].filter(Boolean).join(' '));
+        printAko(printer, data.shift.client_country);
+        printAko(printer, data.shift.client_oib && ('OIB: ' + data.shift.client_oib));
         printer.drawLine();
-        printer.println('POSLOVN PPROSTOR: ');
-        printer.leftRight('Naziv:', data.shift.business_premise_name );
-        printer.leftRight('Adresa:', data.shift.business_premise_address );
-        printer.leftRight('Mjesto: ', data.shift.business_premise_postal_code + ' ' + data.shift.business_premise_postal_town);
-        printer.leftRight('Oznaka poslovnice:', data.shift.business_premise_fiscal_mark );
-        printer.leftRight('Oznaka blagajne:', data.shift.billing_device_fiscal_mark );
-        printer.drawLine();
-        printer.println('NAPOMENA: ');
         printer.alignLeft();
-        printer.println(data.shift.remark || '');
+        printer.println('POSLOVNI PROSTOR:');
+        leftRightAko(printer, 'Naziv:', data.shift.business_premise_name);
+        leftRightAko(printer, 'Adresa:', data.shift.business_premise_address);
+        leftRightAko(printer, 'Mjesto:', [data.shift.business_premise_postal_code, data.shift.business_premise_postal_town].filter(Boolean).join(' '));
+        leftRightAko(printer, 'Oznaka poslovnice:', data.shift.business_premise_fiscal_mark);
+        leftRightAko(printer, 'Oznaka blagajne:', data.shift.billing_device_fiscal_mark);
         printer.drawLine();
-        printer.bold(true);
+        // Napomena se ispisuje samo ako postoji — inače je izlazio prazan redak
+        // ispod naslova.
+        if (String(data.shift.remark || '').trim()) {
+            printer.println('NAPOMENA:');
+            printer.println(String(data.shift.remark).trim());
+            printer.drawLine();
+        }
         printer.alignCenter();
+        // Naknadni ispis se označava, kao na mobilnoj — inače se kopija ne
+        // razlikuje od zaključka koji je izašao pri zatvaranju smjene.
+        if (data.copy) {
+            printer.setTextDoubleHeight();
+            printer.bold(true);
+            printer.println("KOPIJA");
+            printer.bold(false);
+            printer.setTextNormal();
+            printer.drawLine();
+        }
+        printer.bold(true);
         printer.setTextDoubleHeight();
-        printer.println("ZAKLJUČAK BR: "+ data.shift.id); 
+        printer.println("ZAKLJUČAK BR: "+ data.shift.id);
         printer.setTextNormal();
         printer.alignLeft();
         printer.bold(false);
         printer.drawLine();
         printer.leftRight("Operater", data.shift.operater_name + ' ' + data.shift.operater_surname)
         printer.drawLine();
-        printer.leftRight("Datum otvaranje smjene", data.shift.shift_start.toLocaleDateString("en-UK"))
-        printer.leftRight("Vrijeme otvaranje smjene", data.shift.shift_start.toLocaleTimeString())
-        printer.leftRight("Datum zatvaranja smjene", data.shift.shift_end.toLocaleDateString("en-UK"))
-        printer.leftRight("Vrijeme zatvaranja smjene", data.shift.shift_end.toLocaleTimeString())
-        printer.leftRight("Br. prvog računa", data.shift.shift_first_invoice)
-        printer.leftRight("Br. zadnjeg računa", data.shift.shift_last_invoice)
+        // Datum i vrijeme se slažu izričito, kao na mobilnoj. Prije je stajalo
+        // toLocaleDateString("en-UK") — "UK" nije važeća oznaka regije (ispravno
+        // je "GB"), pa je format ovisio o postavkama računala.
+        printer.leftRight("Datum otvaranja smjene", formatDatum(data.shift.shift_start))
+        printer.leftRight("Vrijeme otvaranja smjene", formatVrijeme(data.shift.shift_start))
+        printer.leftRight("Datum zatvaranja smjene", formatDatum(data.shift.shift_end))
+        printer.leftRight("Vrijeme zatvaranja smjene", formatVrijeme(data.shift.shift_end))
+        leftRightAko(printer, "Br. prvog računa", data.shift.shift_first_invoice)
+        leftRightAko(printer, "Br. zadnjeg računa", data.shift.shift_last_invoice)
         printer.drawLine();
-        if(data.line_details && data.line_details.length > 0){
+        // PRIVREMENO SAKRIVENO — mobilna te dvije sekcije na ispisu nema, pa se
+        // zaključci nisu poklapali. Podaci se i dalje računaju (line_details i
+        // deacttive_line_detials dolaze u `data`), samo se ne ispisuju; za
+        // vraćanje je dovoljno maknuti `false &&` iz oba uvjeta.
+        if(false && data.line_details && data.line_details.length > 0){
             //PRODANE KARTE
 
             printer.newLine();
@@ -75,7 +125,8 @@ const shiftPrintHelper = async (data) => {
                 }
             }
         }
-        if(data.deacttive_line_detials && data.deacttive_line_detials.length > 0){
+        // PRIVREMENO SAKRIVENO — vidi napomenu kod PRODANIH KARATA.
+        if(false && data.deacttive_line_detials && data.deacttive_line_detials.length > 0){
             printer.drawLine();
             printer.newLine();
             printer.alignCenter();
@@ -104,9 +155,10 @@ const shiftPrintHelper = async (data) => {
             printer.drawLine();
             printer.newLine();
             printer.alignCenter();
-            printer.println("STORNO PO SREDSTVU PLAĆANJA")
+            // Naslov i stupci isti kao na mobilnoj.
+            printer.println("STORNO")
             printer.alignLeft();
-            printer.leftRight('Sredstvo plaćanja (kol)', 'Vraćeno')
+            printer.leftRight('Sredstvo plaćanja', 'Iznos')
             printer.drawLine();
             for (let n = 0; n < data.storno.length; n++) {
                 printer.leftRight(
@@ -132,20 +184,23 @@ const shiftPrintHelper = async (data) => {
 
         }
         
+        // Razrada iznosa (broj računa, PDV osnovica, PDV, lučka pristojba) je
+        // maknuta — mobilna je na ispisu nema, a zaključak se s njom razlikovao.
+        // Podaci i dalje stoje u pregledu smjene na ekranu.
         printer.drawLine();
         printer.newLine();
-        // Razrada iznosa — isti brojevi koje pregled smjene pokazuje na ekranu.
-        // Prije su na papiru stajala samo sredstva plaćanja i ukupan iznos, pa se
-        // izvještaj i ekran nisu dali usporediti.
-        printer.leftRight('Broj računa:', String(data.invoice_count ?? ''))
-        printer.leftRight('PDV osnovica:', data.shift_sale.vat_base.toFixed(2) + ' EUR')
-        printer.leftRight('PDV:', data.shift_sale.vat.toFixed(2) + ' EUR')
-        printer.leftRight('Lučka pristojba:', data.shift_sale.harbor_tax.toFixed(2) + ' EUR')
         printer.bold(true);
         printer.setTextDoubleHeight();
         printer.drawLine();
         printer.leftRight('UKUPNO:', data.shift_sale.amount.toFixed(2) + ' EUR')
         printer.drawLine();
+        // Vrijeme ispisa na dnu, kao na mobilnoj — po tome se razlikuje original
+        // od naknadnog ispisa istog zaključka.
+        printer.setTextNormal();
+        printer.bold(false);
+        printer.alignCenter();
+        printer.println('Ispisano: ' + formatDatum(new Date()) + ' ' + formatVrijeme(new Date()));
+        printer.alignLeft();
         cutOrFeed(printer, settingsData.printer_cut);
 
 
