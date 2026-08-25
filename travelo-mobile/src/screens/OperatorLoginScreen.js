@@ -235,9 +235,9 @@ const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: colors.primary },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
     // Boju ne postavljamo ovdje — BrandMark sam boja "Travelo" i "APP".
-    // 48 je gornja granica koja na Sunmi V2s (360 dp sirine, 24 dp padding)
-    // jos stane u jedan redak.
-    logo: { fontSize: 48, fontWeight: '800', textAlign: 'center', marginBottom: 32 },
+    // Gornja granica na Sunmi V2s (360 dp sirine, 24 dp padding) je 48; 40
+    // ostavlja vise zraka izmedu znaka i kartice.
+    logo: { fontSize: 40, fontWeight: '800', textAlign: 'center', marginBottom: 32 },
     deviceInfo: { marginTop: 24, alignItems: 'center' },
     // Tekst izvan kartice stoji na plavoj podlozi pa ide na bijele neutrale.
     infoLine: { fontSize: 12, color: colors.textOnPrimaryMuted, textAlign: 'center', marginTop: 2 },
