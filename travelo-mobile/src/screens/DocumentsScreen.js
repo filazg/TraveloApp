@@ -301,6 +301,11 @@ export default function DocumentsScreen() {
                     total_harbor_tax: stornoLocal.total_harbor_tax,
                     payment_method_name: pmName,
                     operater_name: 'STORNO',
+                    // Bez ovoga native sloj ne zna da je racun storno pa nije
+                    // ispisivao oznaku STORNO; is_f2 mu treba za oznaku
+                    // "F2 RAČUN BR" (inace storno F2 ispada kao obican racun).
+                    is_storno: true,
+                    is_f2: !!stornoLocal.is_f2,
                 };
                 const items = stornoLocal.items;
                 await printReceiptFn({
@@ -629,9 +634,12 @@ const styles = StyleSheet.create({
     ticketSub: { color: colors.textSecondary, fontSize: 11, marginTop: 1 },
     ticketPrice: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
     totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 6 },
-    actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12, gap: 8 },
-    actionBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 6 },
-    actionText: { color: colors.textOnPrimary, fontWeight: '700' },
+    // Gumbi dijele redak na jednake dijelove (flex: 1) umjesto da se sire po
+    // duljini teksta. S tri gumba (Ispis / Storno / Zatvori) zbroj sirina je na
+    // 360 dp ekranu prelazio raspolozivo pa se zadnji lomio u drugi red.
+    actions: { flexDirection: 'row', marginTop: 12, gap: 8 },
+    actionBtn: { flex: 1, paddingVertical: 10, paddingHorizontal: 8, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+    actionText: { color: colors.textOnPrimary, fontWeight: '700', textAlign: 'center' },
     actionBtnNeutral: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
     actionTextNeutral: { color: colors.textPrimary },
     checkbox: { fontSize: 22, color: colors.textMuted },

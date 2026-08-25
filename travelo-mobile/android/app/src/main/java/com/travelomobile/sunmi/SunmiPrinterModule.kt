@@ -361,6 +361,20 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
         return " ".repeat(pad) + t
     }
 
+    // Kao center(), ali nadopuni i desnu stranu do pune širine. Potrebno za
+    // inverzni ispis — inače crna pozadina stane na kraju riječi umjesto da
+    // prekrije cijeli redak.
+    private fun centerFull(s: String, w: Int = W): String {
+        val t = trunc(s, w)
+        val left = (w - t.length) / 2
+        return " ".repeat(left) + t + " ".repeat(w - t.length - left)
+    }
+
+    // ESC GS B n — bijelo na crnom. Sunmi SDK to ne izlaže pa ide RAW.
+    private fun invert(p: IWoyouService, on: Boolean) {
+        try { p.sendRAWData(byteArrayOf(0x1D, 0x42, if (on) 0x01 else 0x00), null) } catch (_: Exception) {}
+    }
+
     // Label lijevo, vrijednost desno — ukupna širina W. Default 16+16.
     private fun lrLine(label: String, value: String, leftW: Int = 16, rightW: Int = W - 16): String {
         return padR(label, leftW) + padL(value, rightW)
@@ -447,6 +461,15 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             // ----- STATUS markeri -----
             if (isReprint) {
                 p.printText(center("KOPIJA RAČUNA") + "\n", null)
+                dline(p)
+            }
+            // Storno račun — inverzno preko cijelog retka, isto kao na blagajni
+            // (boat-desk invoicePrintHelper). Stoji iznad oznake računa da se na
+            // prvi pogled razlikuje od redovnog računa.
+            if (safeBool(r, "is_storno")) {
+                invert(p, true)
+                p.printText(centerFull("STORNO") + "\n", null)
+                invert(p, false)
                 dline(p)
             }
             if (safeBool(r, "fiskal_required")) p.printText(center("FISKALIZACIJA 2.0") + "\n", null)
