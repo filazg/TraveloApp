@@ -219,7 +219,13 @@ export default function BottomBar() {
         paymentData: paymentResponse
       };
       const invoiceResult = await window.api.app.createInvoiceIPC(dataToSend);
+      // Sredstvo plaćanja preživljava izdavanje računa — blagajna po cijeli dan
+      // naplaćuje istim sredstvom, pa bi ga blagajnik nakon svake karte birao
+      // ispočetka. Košarica i R1 kupac se brišu, oni pripadaju tom računu.
       await dispatch(resetStateData({path:'saleData'}))
+      if (selectedPayment?.uuid) {
+        await dispatch(setStateData({path:'saleData/selectedPaymentMethod', value: selectedPayment}))
+      }
       await updateBooking()
       //const getInvoiceData = await window.api.e_getInvoices()
       //console.log(getInvoiceData)
