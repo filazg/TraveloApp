@@ -262,11 +262,15 @@ export default function BottomBar() {
                         "one two tree2 four four four seven seven"`,
             }}
           >
+            {/* Isti font na svim gumbima donje trake, kao u stupcu Plaćanje.
+                Riječ "PREGLED" je maknuta — gumb ionako otvara pregled, a bez
+                nje natpisi stanu u jedan red i lakše se čitaju. */}
             <Button
               variant="contained"
               color="error"
               sx={{
                 gridArea: "one",
+                fontSize: "1.1rem",
               }}
               onClick={handleLogout}
             >
@@ -276,38 +280,44 @@ export default function BottomBar() {
               variant="contained"
               sx={{
                 gridArea: "two",
+                fontSize: "1.1rem",
               }}
               onClick={handleShiftModalOpen}
             >
-              PREGLED SMJENE
+              SMJENE
             </Button>
             <Button
               variant="contained"
               sx={{
                 gridArea: "tree",
+                fontSize: "1.1rem",
               }}
               onClick={handleInvoiceModalOpen}
             >
-              PREGLED RAČUNA
+              RAČUNI
             </Button>
             <Button
               variant="contained"
               sx={{
                 gridArea: "tree2",
+                fontSize: "1.1rem",
               }}
               onClick={handleTicketsModalOpen}
             >
-              PREGLED KARATA
+              KARTE
             </Button>
             <Button
               variant="contained"
               disabled={!appData.saleData?.addedTickets?.length || !appData.saleData?.selectedPaymentMethod?.uuid || appData.canOpenNewShift}
               sx={{
+                // Završna radnja prodaje — najveći natpis na ekranu, uz iznos
+                // koji blagajnik očitava naglas.
                 gridArea: "seven",
+                fontSize: "1.6rem",
               }}
               onClick={handleConfirm}
             >
-              IZDAJ RAČUN / {invoiceSubtotal.toFixed(2)} EUR
+              IZDAJ / {invoiceSubtotal.toFixed(2)} EUR
             </Button>
            
           </Grid>

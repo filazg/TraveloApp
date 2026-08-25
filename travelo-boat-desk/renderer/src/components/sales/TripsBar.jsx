@@ -83,42 +83,54 @@ export default function TripsBar() {
         <>
       <Box
         sx={{
-          width: 420,
-          height: 535,
-          overflow: "auto",
+          // Visinu i skrolanje daje ColumnPanel; fiksna visina ovdje bi stvorila
+          // drugi skrol unutar prvog.
+          width: "100%",
         }}
       >
         {appData.searchData?.harborsForSelectedDeparture?.map((departure) => (
           <Button
             key={departure.id}
-            sx={{ width: 420 }}
+            // Puna širina stupca umjesto fiksnih 420px — kartica se sama
+            // prilagodi, pa nema ni vodoravne trake za pomicanje.
+            sx={{ width: "100%", p: 0 }}
             onClick={() => {
               handleSelectTrip(departure);
             }}
           >
             <Paper
+              variant="accent"
               sx={{
-                width: 420,
-                //backgroundColor:
-               //   selectedSalesRoute.selectedSalesRoute &&
-                //  departure.id === selectedSalesRoute.selectedSalesRoute.id
-                //</Button>    ? "#C7C8CC"
-                //    : "",
+                width: "100%",
+                my: 1,
+                p: 1.5,
               }}
             >
-              <Grid mt={2}>
-                <Typography>
-                  {departure.arrival_harbor_name} / {departure.arrival}
+              {/* Odredište lijevo, vrijeme desno — blagajnik traži luku po
+                  nazivu, a vrijeme uspoređuje niz desni rub. */}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
+                <Typography sx={{ fontWeight: 700 }}>
+                  {departure.arrival_harbor_name}
                 </Typography>
-              </Grid>
-              <Grid alignItems="flex-end" mt={2}>
+                <Typography sx={{ fontWeight: 700 }}>
+                  {departure.arrival}
+                </Typography>
+              </Box>
+              <Grid alignItems="flex-end" mt={1}>
                 <TableContainer>
                   <Table size="small" aria-label="a dense table">
                     <TableHead>
                       <TableRow>
-                        <TableCell align="right">PUTNICI</TableCell>
-                        <TableCell align="right">KAVEZI</TableCell>
-                        <TableCell align="right">BICIKLI</TableCell>
+                        <TableCell align="center">PUTNICI</TableCell>
+                        <TableCell align="center">KAVEZI</TableCell>
+                        <TableCell align="center">BICIKLI</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -127,13 +139,13 @@ export default function TripsBar() {
                           "&:last-child td, &:last-child th": { border: 0 },
                         }}
                       >
-                        <TableCell align="right" component="th" scope="row">
+                        <TableCell align="center" component="th" scope="row">
                           {capacity({ type: "passanger_free", id: departure })}
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell align="center">
                           {capacity({ type: "pets_free", id: departure })}
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell align="center">
                           {capacity({ type: "bicycle_free", id: departure })}
                         </TableCell>
                       </TableRow>

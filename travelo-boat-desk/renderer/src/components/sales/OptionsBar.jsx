@@ -23,7 +23,7 @@ export default function OptionsBar() {
         <>
       <Grid
         sx={{
-          width: 178,
+          width: "100%",
         }}
       >
         <Grid
@@ -50,11 +50,14 @@ export default function OptionsBar() {
               color={hasBuyer ? "success" : "primary"}
               startIcon={<ReceiptLongIcon />}
               sx={{
+                // Ista visina i font kao ostali gumbi u stupcu; razmak dolazi iz
+                // gap-a mreže, pa mb više ne treba — prije se zbrajao i to
+                // nejednako (2 ovdje, 1 na načinima plaćanja).
                 gridArea: "one",
-                height: 100,
-                mb: 2,
+                height: 88,
                 flexDirection: "column",
                 lineHeight: 1.2,
+                fontSize: "1.1rem",
               }}
               onClick={handleOpenAddressBook}
             >
@@ -77,9 +80,9 @@ export default function OptionsBar() {
                     : "primary"
                 }
                 sx={{
-                  height: 80,
-                  mb: 1,
+                  height: 88,
                   width: "100%",
+                  fontSize: "1.1rem",
                 }}
                 onClick={(e) => handleSelectPayment(e, payment)}
                 startIcon={

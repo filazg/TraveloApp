@@ -155,24 +155,20 @@ export default function FilterBar() {
   return (
     <Box
       sx={{
-        px: 2,
-        py: 2,
+        // Bez vlastitog paddinga — razmak oko trake daje ekran koji je ugošćuje
+        // (SalesScrean). Prije su se zbrajali pa je traka bila uvučenija od
+        // stupaca ispod.
         width: "100%",
         maxWidth: 1600, // kiosk friendly, možeš maknuti za full responsive
         mx: "auto",
       }}
     >
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 2,
-          borderRadius: 3,
-        }}
-      >
+      {/* Bez kartice — traka je sama po sebi bijela ploha punom širinom, kao
+          donja traka s gumbima. Kartica je ostavljala razmak do zaglavlja. */}
+      <Box>
         <Grid
         item
         sx={{
-          p: 1,
           borderRadius: 2,
           fontSize: "0.875rem",
           fontWeight: "700",
@@ -278,7 +274,9 @@ export default function FilterBar() {
             variant="contained"
             color={hasIslandPrice ? "warning" : "primary"}
             sx={{
+              // Isti font kao gumbi u stupcu Plaćanje i donjoj traci.
               gridArea: "eight",
+              fontSize: "1.1rem",
               fontWeight: hasIslandPrice ? 800 : 500,
             }}
             onClick={handleOpenSubsidizedModal}
@@ -287,7 +285,7 @@ export default function FilterBar() {
           </Button>
         </Grid>
         </Grid>
-      </Paper>
+      </Box>
     </Box>
   );
 }

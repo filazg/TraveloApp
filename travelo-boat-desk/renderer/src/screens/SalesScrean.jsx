@@ -19,6 +19,7 @@ import SystemSettingsModal from "../components/common/SystemSettingsModal";
 import { useState } from "react";
 import FilterBar from "../components/sales/FilterBar";
 import BottomBar from "../components/sales/BottomBar";
+import ColumnPanel from "../components/sales/ColumnPanel";
 import TripsBar from "../components/sales/TripsBar";
 import TripPricesBar from "../components/sales/TripPricesBar";
 import SelectedTicketsBar from "../components/sales/SelectedTicketsBar";
@@ -61,6 +62,9 @@ export default function SalesScreen() {
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
+            // Okvir aplikacije je radna ploha, ne kartica — inače bi kartice
+            // unutar njega bile bijele na bijelom i ne bi se razlikovale.
+            bgcolor: "background.default",
           }}
         >
           {/* HEADER */}
@@ -68,7 +72,7 @@ export default function SalesScreen() {
             direction="row"
             alignItems="center"
             justifyContent="space-between"
-            sx={{ px: 2, py: 1.25, minHeight: 56 }}
+            sx={{ px: 2, py: 1.25, minHeight: 64, bgcolor: "background.paper" }}
           >
             <Stack direction="row" alignItems="center" spacing={2}>
               {/* <HeaderView /> */}
@@ -90,17 +94,18 @@ export default function SalesScreen() {
           <Divider />
 
           {/* FILTER BAR */}
+          {/* Traka punom širinom, spojena sa zaglavljem — isti obrazac kao donja
+              traka s gumbima. Prije je bila kartica na krem plohi, pa je gore
+              ostajao razmak do zaglavlja. */}
           <Box
             sx={{
               px: 2,
-              py: 2,
+              py: 1.5,
               bgcolor: "background.paper",
             }}
           >
             { <FilterBar /> }
           </Box>
-
-          <Divider />
 
           {/* MAIN CONTENT */}
           <Box sx={{ flex: 1, p: 2, overflow: "hidden" }}>
@@ -109,65 +114,38 @@ export default function SalesScreen() {
               spacing={2}
               sx={{ height: "100%", width: "100%" }}
             >
-              {/* Trips (left) */}
-              <Grid item xs={12} md={4}>
-                <Paper
-                  variant="outlined"
-                  sx={{ height: 550, borderRadius: 3, overflow: "hidden" }}
-                  >
-                  
-                    <Box sx={{ p: 1, height: 560,width:445, overflow: "auto" }}>
-                     <TripsBar/>
-                    </Box>
-                  
-                </Paper>
+              {/* Odredišta (lijevo) */}
+              <Grid sx={{ width: 445, flexShrink: 0, height: "100%" }}>
+                <ColumnPanel title="Odredišta">
+                  <TripsBar/>
+                </ColumnPanel>
               </Grid>
 
-              {/* Selected Trip (middle) */}
-              <Grid item xs={12} md={3}>
-                <Paper
-                  variant="outlined"
-                  sx={{ height: 550, borderRadius: 3, overflow: "hidden" }}
-                >
-                  <Box sx={{ p: 1, height: 550,width:430, overflow: "auto" }}>
-                    {selectedDepartureData ? (
-                      <>
-                        {/* <SelectedTripView /> */}
-                        <TripPricesBar/>
-                      </>
-                    ) : (
-                      <Typography color="text.secondary">
-                        Odaberi polazak…
-                      </Typography>
-                    )}
-                  </Box>
-                </Paper>
+              {/* Karte (sredina) */}
+              <Grid sx={{ width: 430, flexShrink: 0, height: "100%" }}>
+                <ColumnPanel title="Karte">
+                  {selectedDepartureData ? (
+                    <TripPricesBar/>
+                  ) : (
+                    <Typography color="text.secondary">
+                      Odaberi polazak…
+                    </Typography>
+                  )}
+                </ColumnPanel>
               </Grid>
 
-              {/* Summary (right-middle) */}
-              <Grid item xs={12} md={3}>
-                <Paper
-                  variant="outlined"
-                  sx={{ height: 550, borderRadius: 3, overflow: "hidden" }}
-                >
-                  <Box sx={{ p: 1, height: 550,width:430, overflow: "auto" }}>
-                    {/* <Summary /> */}
-                    <SelectedTicketsBar />
-                  </Box>
-                </Paper>
+              {/* Košarica (desno) */}
+              <Grid sx={{ width: 430, flexShrink: 0, height: "100%" }}>
+                <ColumnPanel title="Košarica">
+                  <SelectedTicketsBar />
+                </ColumnPanel>
               </Grid>
 
-              {/* Options (right) */}
-              <Grid item xs={12} md={2}>
-                <Paper
-                  variant="outlined"
-                  sx={{ height: 550, borderRadius: 3, overflow: "hidden" }}
-                >
-                  <Box sx={{ p: 1, height: 550,width:195, overflow: "auto" }}>
-                    {/* <Options /> */}
-                    <OptionsBar/>
-                  </Box>
-                </Paper>
+              {/* Plaćanje (krajnje desno) */}
+              <Grid sx={{ width: 213, flexShrink: 0, height: "100%" }}>
+                <ColumnPanel title="Plaćanje">
+                  <OptionsBar/>
+                </ColumnPanel>
               </Grid>
             </Grid>
           </Box>

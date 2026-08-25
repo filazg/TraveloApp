@@ -126,15 +126,21 @@ export default function TripPricesBar() {
           <Grid
             sx={{
               width: '100%',
+              // Stupac pune visine: lista raste, gumb ispod ostaje na dnu.
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
             <Grid
               item
               sx={{
-                p: 1,
+                // Bez vlastitog paddinga — razmak do ruba stupca daje ColumnPanel,
+                // inače se zbraja i kartice ispadnu uvučenije nego u Odredištima.
                 fontSize: "0,875rem",
                 fontWeight: "700",
-                height: 430,
+                flex: 1,
+                minHeight: 0,
               }}
             >
               <Grid
@@ -161,16 +167,13 @@ export default function TripPricesBar() {
                 {pricesToShow ? (
                   <>
                     <Grid container direction="column">
-                      <Grid
-                        sx={{
-                            height:370,
-                            overflow: "auto",
-                        }}  
-                    >
+                      <Grid>
                         <TableContainer
                           component={Paper}
+                          variant="accent"
                           sx={{
                             my: 1,
+                            p: 1.5,
                           }}
                         >
                           <Table size="small" aria-label="a dense table">
@@ -185,21 +188,35 @@ export default function TripPricesBar() {
                                     border: 0,
                                   }}
                                 >
+                                  {/* Naziv lijevo, cijena desno, oboje podebljano —
+                                      isto kao kartice u Odredištima. Padding
+                                      tablice se poništava da tekst stoji uz rub
+                                      kartice, a ne uvučen. */}
                                   <TableCell
                                     align="left"
                                     component="th"
                                     scope="row"
                                     colSpan={4}
-                                    sx={{ border: "none" }}
+                                    sx={{
+                                      border: "none",
+                                      p: 0,
+                                      typography: "body1",
+                                      fontWeight: 700,
+                                    }}
                                   >
-                                    {price.ticket_type_name}{" "}
+                                    {price.ticket_type_name}
                                   </TableCell>
                                   <TableCell
                                     align="right"
                                     component="th"
                                     scope="row"
                                     colSpan={4}
-                                    sx={{ border: "none" }}
+                                    sx={{
+                                      border: "none",
+                                      p: 0,
+                                      typography: "body1",
+                                      fontWeight: 700,
+                                    }}
                                   >
                                     {price.price.toFixed(2)} EUR
                                   </TableCell>
@@ -279,13 +296,20 @@ export default function TripPricesBar() {
                 )}
               </Grid>
             </Grid>
+            {/* Gumb ostaje prikovan za dno stupca dok se lista tipova karata
+                skrola iznad njega — inače bi kod duljeg cjenika ispao izvan
+                vidljivog dijela i blagajnik bi ga morao tražiti skrolanjem. */}
+            {/* Traka na dnu stupca — negativne margine ponište padding panela
+                pa gumb ide od ruba do ruba, a donji kutovi prate zaobljenje
+                kartice (borderRadius 3 = 12px). */}
             <Grid
               sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: 1,
-                gridTemplateRows: "auto",
-                gridTemplateAreas: `"one1 one1"`,
+                flexShrink: 0,
+                mx: -1,
+                mb: -1,
+                mt: 1,
+                borderTop: 1,
+                borderColor: "divider",
               }}
             >
               <Button
@@ -293,9 +317,13 @@ export default function TripPricesBar() {
                 color="success"
                 disabled={!canSelectTickets}
                 sx={{
-                    width:'100%',
-                  height: 100,
-                  gridArea: "one1",
+                  width: "100%",
+                  height: 88,
+                  borderRadius: 0,
+                  borderBottomLeftRadius: 12,
+                  borderBottomRightRadius: 12,
+                  // Glavna radnja u stupcu — veći tekst od ostalih gumba.
+                  fontSize: "1.25rem",
                 }}
                 onClick={handleAddTickets}
               >

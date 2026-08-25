@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
 import { useEffect } from "react";
@@ -118,50 +118,47 @@ export default function SelectedTicketsBar() {
         <>
       <Grid
         sx={{
-          p: 1,
-          width: 410,
-          height: "100%",
-          overflow: "auto",
+          // Razmak do ruba stupca daje ColumnPanel; vlastiti padding bi se
+          // zbrajao pa bi kartice bile uvučenije nego u Odredištima.
+          width: "100%",
         }}
       >
         {appData.saleData?.addedTicketsGroups ? (
           <>
             {appData.saleData.addedTicketsGroups.map((row) => (
-              <Box
+              <Paper
                 key={row.sales_route_uuid}
-                alignItems="flex-end"
-                fullwidth="true"
+                variant="accent"
                 sx={{
-                  bgcolor: "background.paper",
-                  boxShadow: 2,
-                  borderRadius: 2,
-                  mb: 2,
-                  p: (0, 2, 2, 2),
+                  my: 1,
+                  p: 1.5,
                 }}
               >
                 <>
+                  {/* Relacija lijevo, vrijeme desno, oboje podebljano — isti
+                      obrazac kao kartice u Odredištima i Kartama. Prije je sve
+                      stajalo u jednom h3, a gumb UKLONI zauzimao cijeli redak
+                      iznad. */}
                   <Box
                     display="flex"
                     justifyContent="space-between"
                     alignItems="center"
+                    gap={1}
                   >
-
-
-                    <Button
-                      color="error"
-                      onClick={(e) => handleRemove(e, row)}
-                    >
-                      UKLONI
-                    </Button>
+                    {/* Velikim slovima kao nazivi luka u Odredištima, koji ih
+                        dobivaju od Buttona. */}
+                    <Typography sx={{ fontWeight: 700, textTransform: "uppercase" }}>
+                      {row.departure_harbor_name} – {row.arrival_harbor_name}
+                    </Typography>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {row.departure}
+                    </Typography>
                   </Box>
-                  <Grid>
-                    <h3>
-                      {row.departure_harbor_name} -- {row.arrival_harbor_name} / {row.departure}
-                    </h3>
-                  </Grid>
 
                   <Grid alignItems="flex-end">
-                    <TableContainer component={Paper}>
+                    {/* Bijela unutar plave kartice — da se razrada karata
+                        odvoji od stavke, a ne stopi s njom. */}
+                    <TableContainer component={Paper} variant="outlined" sx={{ my: 1, px: 1.5, py: 0.5 }}>
                       <Table size="small" aria-label="a dense table">
                         <TableHead>
                           <TableRow>
@@ -216,8 +213,20 @@ export default function SelectedTicketsBar() {
                       </Table>
                     </TableContainer>
                   </Grid>
+
+                  {/* Uklanjanje stavke je sporedna radnja — mali gumb u dnu
+                      desno, umjesto pune širine iznad naslova. */}
+                  <Box display="flex" justifyContent="flex-end">
+                    <Button
+                      color="error"
+                      size="small"
+                      onClick={(e) => handleRemove(e, row)}
+                    >
+                      UKLONI
+                    </Button>
+                  </Box>
                 </>
-              </Box>
+              </Paper>
             ))}
           </>
         ) : ''}
