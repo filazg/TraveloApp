@@ -16,6 +16,8 @@ import { logout, setStateData, unpair } from "../store/appSlice";
 import BrandMark from "../components/common/BrandMark";
 import ThemeToggleButton from "../components/common/ThemeToggleButton";
 import SystemSettingsModal from "../components/common/SystemSettingsModal";
+import OperatorSettingsModal from "../components/common/OperatorSettingsModal";
+import KeyboardShortcuts from "../components/common/KeyboardShortcuts";
 
 import { useState } from "react";
 import FilterBar from "../components/sales/FilterBar";
@@ -37,6 +39,8 @@ export default function SalesScreen() {
 
   return (
     <>
+      <KeyboardShortcuts/>
+      <OperatorSettingsModal/>
       <ComfirmLogout/>
       <SubsidisedTicketsSelect/>
       <AddressBookModal/>
@@ -82,13 +86,13 @@ export default function SalesScreen() {
             <Stack direction="row" spacing={1} alignItems="center">
               <WifiIcon color="success"/>
               <ThemeToggleButton />
-              {/* SystemSettingsModal se otvara preko redux zastavice, ne preko
-                  propsa. Ovaj gumb je postavljao lokalni settingsOpen koji modal
-                  uopće ne gleda, pa se ništa nije događalo — postavke su bile
-                  dostupne samo s ekrana prijave. */}
+              {/* Osobne postavke operatera (prečaci), ne postavke sustava — one
+                  su stvar instalacije i otvaraju se s ekrana prijave, iza koda.
+                  Prije je ovaj gumb postavljao lokalni settingsOpen koji nijedan
+                  modal nije gledao, pa nije radio ništa. */}
               <IconButton
-                onClick={() => dispatch(setStateData({ path: "modalsStates/showSystemSettingsModal", value: true }))}
-                aria-label="settings"
+                onClick={() => dispatch(setStateData({ path: "modalsStates/showOperatorSettingsModal", value: true }))}
+                aria-label="postavke operatera"
               >
                 <SettingsIcon />
               </IconButton>

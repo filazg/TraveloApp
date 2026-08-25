@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld("api", {
     refreshF2InvoiceStatusIPC: (data) => ipcRenderer.invoke("app:refreshF2InvoiceStatusIPC", data),
     refreshPendingF2StatusesIPC: () => ipcRenderer.invoke("app:refreshPendingF2StatusesIPC"),
     getNextInvoiceNumbersIPC: () => ipcRenderer.invoke("app:getNextInvoiceNumbersIPC"),
+    getOperatorSettingsIPC: (username) => ipcRenderer.invoke("app:getOperatorSettingsIPC", username),
+    setOperatorSettingsIPC: (data) => ipcRenderer.invoke("app:setOperatorSettingsIPC", data),
     syncPendingInvoicesIPC: () => ipcRenderer.invoke("app:syncPendingInvoicesIPC"),
   },
 });

@@ -166,8 +166,17 @@ const initialState = {
     showInvoicePreviewModal:false,
     showTicketsModal:false,
     showShiftSummaryModal:false,
-    showAddressBookModal:false
+    showAddressBookModal:false,
+    showOperatorSettingsModal:false
   },
+  // Osobne postavke prijavljenog operatera (prečaci na tipkovnici).
+  operatorSettings:{
+    shortcuts:{}
+  },
+  // Zadnji pritisak dodijeljene funkcijske tipke: { action, ts, key }.
+  // Komponenta koja tu radnju zna izvesti reagira na promjenu — vidi
+  // components/common/shortcutActions.js.
+  shortcutSignal:null,
   pairingData:{
     isPaired: false,
     tid: null,

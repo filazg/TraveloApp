@@ -10,6 +10,7 @@ const { getBuyersDataService } = require("../services/buyersDataService.cjs");
 const { otpPaymentHandler } = require("../helpers/paymentHelpers/otpPaymentHelper.cjs");
 const { setSystemSetingsDataService, getSystemSetingsDataService } = require("../services/systemSettingsDataService.cjs");
 const { runTesseraCli } = require("../helpers/cardReaderHelpers/subsidisedCardReader.cjs");
+const { getOperatorSettingsService, setOperatorSettingsService } = require("../services/operatorSettingsDataService.cjs");
 
 function ok(data) {
   return { ok: true, data };
@@ -224,6 +225,22 @@ function registerAppIpc() {
       return ok(data);
     } catch (e) {
       return fail("Failed to refresh F2 status", e?.stack || String(e));
+    }
+  });
+  ipcMain.handle("app:getOperatorSettingsIPC", async (_event, operaterUsername) => {
+    try {
+      const data = await getOperatorSettingsService(operaterUsername);
+      return ok(data);
+    } catch (e) {
+      return fail("Failed to load operator settings", e?.stack || String(e));
+    }
+  });
+  ipcMain.handle("app:setOperatorSettingsIPC", async (_event, in_data) => {
+    try {
+      const data = await setOperatorSettingsService(in_data || {});
+      return ok(data);
+    } catch (e) {
+      return fail("Failed to save operator settings", e?.stack || String(e));
     }
   });
   ipcMain.handle("app:getNextInvoiceNumbersIPC", async () => {

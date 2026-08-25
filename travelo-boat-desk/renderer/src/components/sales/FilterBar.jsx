@@ -70,6 +70,21 @@ export default function FilterBar() {
         await handleSetToday();
     };
 
+    // Prečaci s tipkovnice — vidi KeyboardShortcuts. Ovdje su radnje koje žive
+    // u traci pretrage.
+    const shortcutSignal = appData.shortcutSignal;
+    useEffect(() => {
+        const akcija = shortcutSignal?.action;
+        if (!akcija) return;
+        if (akcija === 'reset') { handleResetForm(); return; }
+        if (akcija === 'subsidised') {
+            // Isti uvjet kao na gumbu: bez otočne cijene na odabranoj relaciji
+            // modal nema cjenovni stavak i otvarati ga nema smisla.
+            if (hasIslandPrice) handleOpenSubsidizedModal();
+            return;
+        }
+    }, [shortcutSignal]);
+
     const handleSetLine = async (line) => {
         console.log("ODABRANA LINIJA:", line);
         await dispatch(resetStateData({path:'searchData'}));

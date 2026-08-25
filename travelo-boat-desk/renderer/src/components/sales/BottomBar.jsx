@@ -107,6 +107,36 @@ export default function BottomBar() {
     && !!appData.saleData?.selectedPaymentMethod?.uuid;
   const canIssueInvoice = saleReady && !appData.canOpenNewShift;
 
+  // Prečaci s tipkovnice. Handleri žive ovdje, uz svoje stanje, pa tipka samo
+  // upiše signal (KeyboardShortcuts) koji se ovdje izvede. Ovisnost je cijeli
+  // signal, ne samo radnja — dva ista pritiska nose različit ts pa se okine i
+  // drugi put.
+  const shortcutSignal = appData.shortcutSignal;
+  useEffect(() => {
+    const akcija = shortcutSignal?.action;
+    if (!akcija) return;
+    if (akcija === "invoices") { handleInvoiceModalOpen(); return; }
+    if (akcija === "tickets") { handleTicketsModalOpen(); return; }
+    if (akcija === "shifts") { handleShiftModalOpen(); return; }
+    if (akcija === "r1") {
+      dispatch(setStateData({ path: "modalsStates/showAddressBookModal", value: true }));
+      return;
+    }
+    if (akcija === "issue") {
+      // Tipka radi točno ono što i gumb: zeleno izdaje račun, plavo vodi na
+      // smjene. Kad prodaja nije spremna, ne radi ništa.
+      if (canIssueInvoice) handleConfirm();
+      else if (saleReady) handleShiftModalOpen();
+      return;
+    }
+    if (akcija.startsWith("payment:")) {
+      const uuid = akcija.slice("payment:".length);
+      const pm = (appData.basicData?.payment_methods || []).find((p) => p.uuid === uuid);
+      if (pm) dispatch(setStateData({ path: "saleData/selectedPaymentMethod", value: pm }));
+      return;
+    }
+  }, [shortcutSignal]);
+
   const updateBooking = async () => {
     const data = appData.searchData.selectedDeparture
     const dataToSearch = {
