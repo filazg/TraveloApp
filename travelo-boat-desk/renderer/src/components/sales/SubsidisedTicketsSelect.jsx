@@ -1,8 +1,65 @@
 import React, { useMemo, useState } from "react";
-import { Box, Button, FormControl, Grid, InputLabel, MenuItem, Modal, Select, Stack, TextField, Typography } from "@mui/material";
+import { alpha, Box, Button, Divider, FormControl, IconButton, InputLabel, MenuItem, Modal, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuid } from "uuid";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
+
+// Ploha koja nosi ishod provjere kartice. Ton zamjenjuje zatečene tvrdo
+// kodirane boje (#ffeb3b za važeću, #f28b82 za nevažeću, lightgray za MOSI) —
+// one su bile iste u svijetloj i tamnoj temi, pa je tekst na njima znao nestati.
+function StatusPanel({ tone = "neutral", title, children }) {
+    const key = tone === "neutral" ? "primary" : tone;
+    return (
+        <Paper
+            variant="outlined"
+            sx={{
+                borderRadius: 3,
+                p: 2,
+                bgcolor: (t) => alpha(t.palette[key].main, t.palette.mode === "dark" ? 0.18 : 0.1),
+                borderColor: (t) => alpha(t.palette[key].main, 0.5),
+            }}
+        >
+            {title ? (
+                <Typography
+                    align="center"
+                    sx={{ fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", mb: 2 }}
+                    color={tone === "neutral" ? "text.primary" : `${key}.main`}
+                >
+                    {title}
+                </Typography>
+            ) : null}
+            {children}
+        </Paper>
+    );
+}
+
+// Bijela kartica s podacima unutar plohe.
+function InfoCard({ title, children }) {
+    return (
+        <Paper variant="outlined" sx={{ flex: 1, minWidth: 0, p: 2, borderRadius: 3, bgcolor: "background.paper" }}>
+            <Typography
+                align="center"
+                variant="subtitle2"
+                color="text.secondary"
+                sx={{ fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase" }}
+            >
+                {title}
+            </Typography>
+            <Divider sx={{ my: 1 }} />
+            {children}
+        </Paper>
+    );
+}
+
+function DetailRow({ label, value }) {
+    return (
+        <Stack direction="row" justifyContent="space-between" spacing={2} sx={{ py: 0.5 }}>
+            <Typography color="text.secondary">{label}</Typography>
+            <Typography sx={{ fontWeight: 700, textAlign: "right" }}>{value}</Typography>
+        </Stack>
+    );
+}
 
 export default function SubsidisedTicketsSelect() {
     const dispatch = useDispatch()
@@ -472,322 +529,122 @@ function seopCardDetails() {
   const priceForSeopTicket = appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true)
   console.log('priceForSeopTicket',priceForSeopTicket)
   return(
-  <>
-        <Box
-            sx={{
-            width: "100%",
-            borderRadius: 2,
-            backgroundColor: isValidIsland ? "#ffeb3b" : "#f28b82",
-          }}
-        >
-        <Typography sx={{pt:2}} align="center" fontWeight="bold" gutterBottom>
-          Otočna kartica SEOP_P
-        </Typography>
-
-         
-      <Stack
-          direction="row"
-          sx={{ pt: 2, pb: 2 }}
-        >
-         <Box
-            sx={{
-               width: "50%",
-                ml:2,
-                p:2,
-                backgroundColor: "white",
-                borderRadius: 2,
-            }}
-            >
-            {/* Naslov */}
-            <Typography align="center" fontWeight="bold" gutterBottom>
-              PODACI O VLASNIKU
-            </Typography>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Ime i prezime:</Typography>
-              <Typography>{cardData.F2.FirstName} {cardData.F2.Surname}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>OIB:</Typography>
-              <Typography>{cardData.F2.OIB}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Adresa:</Typography>
-              <Typography>{cardData.F2.PermResAddress}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Mjesto:</Typography>
-              <Typography> {cardData.F2.PermResMuniciname}</Typography>
-            </Stack>
-          </Box>
-          <Box sx={{ 
-              width: "50%",
-              ml: 4, 
-              mr: 2,
-              p:2,
-              backgroundColor: "white",
-              borderRadius: 2,
-            }}>
-            {/* Naslov */}
-            <Typography align="center" fontWeight="bold" gutterBottom>
-              PODACI O PRAVIMA
-            </Typography>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Broj kartice:</Typography>
-              <Typography>{cardData.F2.CardNumber}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Vrijedi do:</Typography>
-              <Typography>
-                {cardData.F2.ExpirationDate.Day}/
-                {cardData.F2.ExpirationDate.Month}/
-                {cardData.F2.ExpirationDate.Year}
-                </Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Osnovno pravo:</Typography>
-              <Typography> {cardData.F2.BasicRight}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Vrijedi za otok:</Typography>
-              <Typography> {cardData.F2.IslandName}</Typography>
-            </Stack>
-          </Box>
+    <StatusPanel tone={isValidIsland ? "success" : "error"} title="Otočna kartica SEOP_P">
+      <Stack direction="row" spacing={2}>
+        <InfoCard title="Podaci o vlasniku">
+          <DetailRow label="Ime i prezime" value={`${cardData.F2.FirstName} ${cardData.F2.Surname}`} />
+          <DetailRow label="OIB" value={cardData.F2.OIB} />
+          <DetailRow label="Adresa" value={cardData.F2.PermResAddress} />
+          <DetailRow label="Mjesto" value={cardData.F2.PermResMuniciname} />
+        </InfoCard>
+        <InfoCard title="Podaci o pravima">
+          <DetailRow label="Broj kartice" value={cardData.F2.CardNumber} />
+          <DetailRow
+            label="Vrijedi do"
+            value={`${cardData.F2.ExpirationDate.Day}/${cardData.F2.ExpirationDate.Month}/${cardData.F2.ExpirationDate.Year}`}
+          />
+          <DetailRow label="Osnovno pravo" value={cardData.F2.BasicRight} />
+          <DetailRow label="Vrijedi za otok" value={cardData.F2.IslandName} />
+        </InfoCard>
       </Stack>
-      <Stack
-        sx={{pb: 2 }}
-      >
 
-       <Box
-            sx={{ 
-              width: "96%", 
-              ml:2,
-              backgroundColor: "white",
-              borderRadius: 2,
-            }}
-            >
-          <Typography sx={{pt:2}} align="center" fontWeight="bold" gutterBottom>
-            PRAVA
+      <Box sx={{ mt: 2 }}>
+        <InfoCard title="Prava">
+          <Typography align="center" sx={{ fontWeight: 600, py: 1 }}>
+            {rightOnCard
+              ? (isValidIsland ? rightOnCard.description : 'Pravo na kartici nije važeće za odabranu relaciju.')
+              : 'Nema odgovarajućeg prava na kartici.'}
           </Typography>
-          <Typography sx={{pt:2, pl:2, pr:2, pb:2}} align="center" fontWeight="bold" >
-            {rightOnCard ? 
-            isValidIsland ?
-              rightOnCard.description 
-              : 'Pravo na kartici nije važeće za odabranu relaciju.'
-            
-            : 'Nema odgovarajućeg prava na kartici.'}
-          </Typography>
-          {isValidIsland ?
-          <>
-          <Typography sx={{pt:2, pl:2, pr:2, pb:2}} align="center" fontWeight="bold" >            
-            {rightOnCard?.freeTicket && isValidIsland ? "KORISNIK IMA PRAVO NA BESPALATNU KARTU" : 'KORISNIK IMA PRAVO NA KARTU SA POPUSTOM'}
-          </Typography>
-          
-           <Button
+          {isValidIsland ? (
+            <>
+              <Typography
+                align="center"
+                color="success.main"
+                sx={{ fontWeight: 800, py: 1 }}
+              >
+                {rightOnCard?.freeTicket ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU' : 'KORISNIK IMA PRAVO NA KARTU SA POPUSTOM'}
+              </Typography>
+              <Button
                 disabled={!priceForSeopTicket && !rightOnCard?.freeTicket}
-              variant="contained"
-              color="success"
-              onClick={()=>handleAddTickets({price:priceForSeopTicket, rights:rightOnCard, type:'SEOP', free:rightOnCard.freeTicket})}
-              sx={{
-                height: 100,
-                mt: 4,
-                width: "100%",
-              }}
-            >
-              {rightOnCard?.freeTicket ? 
-              <Typography>
-                  BESPLATNA KARTA
-              </Typography>
-              :              
-              <Typography>
-                  IZNOS ZA PLAĆANJE {priceForSeopTicket?.price.toFixed(2)} EUR
-              </Typography>
-  }
-            </Button>
+                variant="contained"
+                color="success"
+                onClick={()=>handleAddTickets({price:priceForSeopTicket, rights:rightOnCard, type:'SEOP', free:rightOnCard.freeTicket})}
+                sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}
+              >
+                {rightOnCard?.freeTicket
+                  ? 'BESPLATNA KARTA'
+                  : `IZNOS ZA PLAĆANJE ${priceForSeopTicket?.price.toFixed(2)} EUR`}
+              </Button>
             </>
-          :
-          ''
-        }
-        </Box>
-
-      </Stack>
+          ) : null}
+        </InfoCard>
       </Box>
-    </>
+    </StatusPanel>
   )
 }
 
 function mosiCardDetails() {
   const isValidRights = cardData.F2.InvalidskaPrava.find((pravo => pravo.OznIP === 'MOB101'))
   return(
-    <>
-        <Box
-            sx={{
-            width: "100%",
-            borderRadius: 2,
-            backgroundColor: isValidRights ? "lightgray" : "#f28b82",
-          }}
-        >
-        <Typography sx={{pt:2}} align="center" fontWeight="bold" gutterBottom>
-          MOSI kartica
+    <StatusPanel tone={isValidRights ? "success" : "error"} title="MOSI kartica">
+      {isValidRights ? (
+        <>
+          <Stack direction="row" spacing={2}>
+            <InfoCard title="Podaci o vlasniku">
+              <DetailRow label="Ime i prezime" value={`${cardData.F2.Ime} ${cardData.F2.Prezime}`} />
+              <DetailRow label="OIB" value={cardData.F2.OIB} />
+              <DetailRow label="Adresa" value={cardData.F2.UlicaKBr} />
+              <DetailRow label="Mjesto" value={cardData.F2.Mjesto} />
+            </InfoCard>
+            <InfoCard title="Podaci o kartici">
+              <DetailRow label="Broj kartice" value={cardData.F2.SBr} />
+              <DetailRow
+                label="Vrijedi do"
+                value={`${cardData.F2.DatIsteka.Day}/${cardData.F2.DatIsteka.Month}/${cardData.F2.DatIsteka.Year}`}
+              />
+            </InfoCard>
+          </Stack>
+          <Box sx={{ mt: 2 }}>
+            <InfoCard title="Prava">
+              <Typography align="center" color="success.main" sx={{ fontWeight: 800, py: 1 }}>
+                KORISNIK IMA PRAVO NA BESPLATNU KARTU
+              </Typography>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={()=>handleAddTickets({price:{}, rights:{}, type:'MOSI', free:true})}
+                sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}
+              >
+                BESPLATNA KARTA
+              </Button>
+            </InfoCard>
+          </Box>
+        </>
+      ) : (
+        <Typography align="center" sx={{ fontWeight: 800, py: 2 }}>
+          NEODGOVARAJUĆA PRAVA
         </Typography>
-
-      {isValidRights ? 
-      
-     <>
-      <Stack
-        direction="row"
-        sx={{ pt: 2, pb: 2 }}
-        >
-         <Box
-            sx={{
-              width: "50%",
-              ml:2,
-              p:2,
-              backgroundColor: "white",
-              borderRadius: 2,
-            }}
-            >
-            {/* Naslov */}
-            <Typography align="center" fontWeight="bold" gutterBottom>
-              PODACI O VLASNIKU
-            </Typography>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Ime i prezime:</Typography>
-              <Typography>{cardData.F2.Ime} {cardData.F2.Prezime}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>OIB:</Typography>
-              <Typography> {cardData.F2.OIB}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Adresa:</Typography>
-              <Typography> {cardData.F2.UlicaKBr}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Mjesto:</Typography>
-              <Typography>{cardData.F2.Mjesto}</Typography>
-            </Stack>
-          </Box>
-          <Box sx={{
-              width: "50%",
-              ml: 4, 
-              mr: 2,
-              p:2,
-              backgroundColor: "white",
-              borderRadius: 2,
-              }}
-            >
-            {/* Naslov */}
-            <Typography align="center" fontWeight="bold" gutterBottom>
-              PODACI O KARTICI
-            </Typography>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Broj kartice:</Typography>
-              <Typography> {cardData.F2.SBr}</Typography>
-            </Stack>
-            <Stack direction='row' justifyContent='space-between'>
-              <Typography>Vrijedi do:</Typography>
-              <Typography>
-                {cardData.F2.DatIsteka.Day}/
-                {cardData.F2.DatIsteka.Month}/
-                {cardData.F2.DatIsteka.Year}
-              </Typography>
-            </Stack>
-          </Box>
-      </Stack>
-      <Stack
-        sx={{pb: 2 }}
-      >
-
-       <Box
-            sx={{ 
-              width: "96%", 
-              ml:2,
-              backgroundColor: "white",
-              borderRadius: 2,
-            }}
-            >
-          
-          <>
-          <Typography sx={{pt:2, pl:2, pr:2, pb:2}} align="center" fontWeight="bold" >            
-            "KORISNIK IMA PRAVO NA BESPALATNU KARTU"
-          </Typography>
-          
-           <Button
-              variant="contained"
-              color="success"
-              onClick={()=>handleAddTickets({price:{}, rights:{}, type:'MOSI', free:true})}
-              sx={{
-                height: 100,
-                mt: 4,
-                width: "100%",
-              }}
-            >
-              <Typography>
-                  BESPLATNA KARTA
-              </Typography>
-             
-            </Button>
-            </>
-         
-        </Box>
-
-      </Stack>
-      </>
-       :
-      <Stack
-        direction="row"
-        sx={{ pt: 2, pb: 2 }}
-        >
-           <Box
-            sx={{
-              width: "100%",
-              ml:2,
-              p:2,
-              borderRadius: 2,
-            }}
-            >
-               <Typography sx={{pt:2}} align="center" fontWeight="bold" gutterBottom>
-                NEODGOVARAJUĆA PRAVA
-              </Typography>
-            </Box>
-        </Stack>
-      }
-       </Box>
-    </>
+      )}
+    </StatusPanel>
   )
 }
 
 function noValidCard() {
-  return(
-    <>
-        
-          {cardData?.cardFamily ?
-           <Box
-            sx={{
-            width: "100%",
-            borderRadius: 2,
-            backgroundColor: "#f28b82",
-            pb:2,
-          }}
-        >
-        <Typography sx={{pt:2}} align="center" fontWeight="bold" gutterBottom>
+  if (cardData?.cardFamily) {
+    return (
+      <StatusPanel tone="error">
+        <Typography align="center" sx={{ fontWeight: 800, py: 1 }}>
           NEODGOVARAJUĆA KARTICA {cardData.cardFamily}
         </Typography>
-        </Box>
-          :
-          <Box
-            sx={{
-            width: "100%",
-            borderRadius: 2,
-            pb:2,
-          }}
-        >
-        <Typography sx={{pt:2}} align="center" fontWeight="bold" gutterBottom>
-          POSTAVI KARTICU NA ČITAČ i POKRENI SKENIRANJE KARTICE
-        </Typography>
-        </Box>
-          }
-      </>
+      </StatusPanel>
+    )
+  }
+  return (
+    <StatusPanel tone="neutral">
+      <Typography align="center" color="text.secondary" sx={{ fontWeight: 700, py: 1 }}>
+        Postavi karticu na čitač pa pokreni skeniranje.
+      </Typography>
+    </StatusPanel>
   )
 }
 
@@ -804,40 +661,19 @@ function noValidCard() {
 function virtualCardDetails() {
   const priceForSeopTicket = appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true)
   return(
-    <>
-      <Box
-            sx={{
-            width: "100%",
-            borderRadius: 2,
-            backgroundColor: "lightgrey",
-          }}
-        >
-           <Stack
-        direction="row"
-        sx={{ pt: 2, pb: 2 }}
-        >
-           <Box
-            sx={{ 
-              width: "96%", 
-              m:2,
-              borderRadius: 2,
-            }}
-            >
-
-          
-          <FormControl fullWidth>
+    <StatusPanel tone="neutral" title="Virtualna iskaznica">
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, bgcolor: "background.paper" }}>
+        <FormControl fullWidth>
           <InputLabel id="right-select-label">Broj virtualne kartice</InputLabel>
           <Select
             labelId="right-select-label"
             id="right-select"
             value={selectedCode}
-            label="Pravo"
+            label="Broj virtualne kartice"
             onChange={(e) => setSelectedCode(e.target.value)}
           >
-            <MenuItem value="">
-              <em>-- odaberi virtualnu karticu --</em>
-            </MenuItem>
-
+            {/* Bez praznog izbora — kartica je obavezna, a gumb je ionako
+                onemogućen dok nije odabrana. */}
             {virtualSeopCards.map((r) => (
               <MenuItem key={r.id} value={r.code}>
                 {r.code} {r.label ? `(${r.label})` : ""} — {r.description}
@@ -847,10 +683,7 @@ function virtualCardDetails() {
         </FormControl>
 
         <TextField
-        sx={{
-          mt:2,
-        }}
-         
+          sx={{ mt: 2 }}
           fullWidth
           label="Broj oznake odobrenja"
           value={textValue}
@@ -860,29 +693,19 @@ function virtualCardDetails() {
 
         <Button
           variant="contained"
+          color="success"
           onClick={()=>handleAddTickets({price:priceForSeopTicket, rights:{}, type:'VIRTUAL CARD', free:selectedRight?.free, card:selectedRight, odobrenje:textValue})}
           disabled={!isButtonEnabled}
-          sx={{
-            width:'100%',
-            height:100,
-            mt:2
-          }}
+          sx={{ width: '100%', height: 88, mt: 2, fontSize: "1.25rem" }}
         >
-          {!selectedRight ? (
-            <Typography>Odaberi virtualnu karticu</Typography>
-          ) : selectedRight.free === true ? (
-            <Typography>BESPLATNA KARTA</Typography>
-          ) : (
-            <Typography>
-              IZNOS ZA PLAĆANJE {Number(priceForSeopTicket?.price ?? 0).toFixed(2)} EUR
-            </Typography>
-          )}
+          {!selectedRight
+            ? 'Odaberi virtualnu karticu'
+            : selectedRight.free === true
+              ? 'BESPLATNA KARTA'
+              : `IZNOS ZA PLAĆANJE ${Number(priceForSeopTicket?.price ?? 0).toFixed(2)} EUR`}
         </Button>
-        </Box>
-        </Stack>
-        </Box>
-       
-    </>
+      </Paper>
+    </StatusPanel>
   )
 }
 
@@ -891,16 +714,21 @@ function virtualCardDetails() {
       top: "50%",
       left: "50%",
       transform: "translate(-50%, -50%)",
-      width: 800,
-      bgcolor: "background.paper",
-      border: "2px solid #000",
+      width: "min(900px, 94vw)",
+      maxHeight: "92vh",
+      overflowY: "auto",
+      // Radna ploha kao na prodajnom ekranu; kartice unutar nje su bijele.
+      bgcolor: "background.default",
+      borderRadius: 3,
       boxShadow: 24,
-      p: 4,
+      // Modal fokusira svoj okvir, pa Chrome oko njega crta focus ring.
+      outline: "none",
+      p: 3,
     };
 
   return (
     <>
-      
+
         <Modal
           open={appData.modalsStates.showSubsidisedTickets}
           onClose={handleCloseSubsidizedModal}
@@ -908,54 +736,40 @@ function virtualCardDetails() {
           aria-describedby="modal-modal-description"
         >
           <Box sx={style}>
-            <Typography
-              id="modal-modal-title"
-              variant="h6"
-              component="h2"
-              align="center"
-            >
-              Povlaštene karte
-            </Typography>
-            <Stack
-              direction="row">
-            <Button
-              variant="contained"
-              sx={{
-                height: 100,
-                mt: 2,
-                mr: 2,
-                mb: 2,
-                width: "100%",
-              }}
-              onClick={readCard}
-            >
-              SCAN KARTICE
-            </Button>
-            <Button
-              variant="contained"
-              sx={{
-                height: 100,
-                mt: 2,
-                ml: 2,
-                mb: 2,
-                width: "100%",
-              }}
-              onClick={handleVirtualCard}
-            >
-              VIRTUALNA KARTICA
-            </Button>
-
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pb: 2 }}>
+              <Typography id="modal-modal-title" variant="h6" component="h2" sx={{ fontWeight: 800 }}>
+                Povlaštene karte
+              </Typography>
+              <IconButton onClick={handleCloseSubsidizedModal}><CloseIcon /></IconButton>
             </Stack>
-  
-            {cardData?.cardFamily === 'SEOP_P' && !virtualCardData  ? 
-              seopCardDetails() :  
-              cardData?.cardFamily === 'MOSI' && !virtualCardData  ? 
-              mosiCardDetails() : 
+            {/* Razmak dolazi iz gap-a, ne iz mr/ml na svakom gumbu — prije su se
+                zbrajali pa je razmak između njih bio dvostruk. */}
+            <Stack direction="row" spacing={2} sx={{ pb: 2 }}>
+              <Button
+                variant="contained"
+                sx={{ height: 88, width: "100%", fontSize: "1.1rem" }}
+                onClick={readCard}
+              >
+                SKENIRAJ KARTICU
+              </Button>
+              <Button
+                variant="contained"
+                sx={{ height: 88, width: "100%", fontSize: "1.1rem" }}
+                onClick={handleVirtualCard}
+              >
+                VIRTUALNA KARTICA
+              </Button>
+            </Stack>
+
+            {cardData?.cardFamily === 'SEOP_P' && !virtualCardData  ?
+              seopCardDetails() :
+              cardData?.cardFamily === 'MOSI' && !virtualCardData  ?
+              mosiCardDetails() :
               virtualCardData ?
               virtualCardDetails() :
               noValidCard()
             }
-           
+
           </Box>
         </Modal>
         <Modal
@@ -975,9 +789,9 @@ function virtualCardDetails() {
                 width: "100%",
               }}
             >
-            
-            
-              
+
+
+
             </Button>
           </Box>
         </Modal>
