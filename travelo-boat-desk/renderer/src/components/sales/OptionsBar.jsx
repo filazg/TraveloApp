@@ -1,4 +1,4 @@
-import { Button, Grid, Typography } from "@mui/material";
+import { Button, Grid } from "@mui/material";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import EuroIcon from "@mui/icons-material/Euro";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -55,20 +55,13 @@ export default function OptionsBar() {
                 // nejednako (2 ovdje, 1 na načinima plaćanja).
                 gridArea: "one",
                 height: 88,
-                flexDirection: "column",
-                lineHeight: 1.2,
                 fontSize: "1.1rem",
               }}
               onClick={handleOpenAddressBook}
             >
-              {/* F2 se vidi na samom gumbu — blagajnik inače nema gdje provjeriti
-                  hoće li račun izaći na papir ili otići kupcu kao e-račun. */}
-              {hasBuyer && buyer.f2_required ? "R1 / F2" : "R1 RAČUN"}
-              {hasBuyer && (
-                <Typography variant="caption" sx={{ mt: 0.5, fontWeight: 600 }}>
-                  {(buyer.buyer_company_name || buyer.buyer_name || "").slice(0, 22)}
-                </Typography>
-              )}
+              {/* Gumb samo otvara adresar; tko je odabran i ide li račun u F2
+                  stoji u donjoj traci, gdje ima mjesta za cijeli naziv. */}
+              R1 RAČUN
             </Button>
             <>
             {appData.basicData.payment_methods.map((payment) => (

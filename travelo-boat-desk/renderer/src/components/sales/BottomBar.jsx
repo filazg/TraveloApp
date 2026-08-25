@@ -1,5 +1,5 @@
 
-import { Box, Button, Grid, Modal, TextField, Typography } from "@mui/material";
+import { Box, Button, Chip, Grid, Modal, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
 import ShiftsView from "./ShiftView";
@@ -10,6 +10,7 @@ import TicketsListModal from "./TicketsListModal";
 export default function BottomBar() {
   const dispatch = useDispatch();
   const appData = useSelector(allAppData);
+  const buyer = appData.saleData?.selectedBuyer;
 
   const handleLogout = async () => {
     dispatch(setStateData({path:'modalsStates/shohConfirmLogout', value: true}))
@@ -313,6 +314,34 @@ export default function BottomBar() {
             >
               KARTE
             </Button>
+            {/* Prazan prostor između gumba i IZDAJ — dovoljno širok da stane
+                cijeli naziv kupca, što na gumbu u stupcu Plaćanje nije stalo.
+                Bez odabranog kupca ostaje prazan: većina prodaje je B2C i
+                natpis "nema kupca" bi visio na ekranu cijelu smjenu. */}
+            <Box sx={{ gridArea: "four", display: "flex", alignItems: "center", minWidth: 0 }}>
+              {buyer?.buyer_vat_id ? (
+                <Paper variant="accent" sx={{ px: 2, py: 1, width: "100%", minWidth: 0 }}>
+                  <Typography
+                    noWrap
+                    sx={{ fontWeight: 800, lineHeight: 1.3 }}
+                    title={buyer.buyer_company_name || buyer.buyer_name}
+                  >
+                    {buyer.buyer_company_name || buyer.buyer_name}
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      OIB: {buyer.buyer_vat_id}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={buyer.f2_required ? "F2 — e-račun" : "R1"}
+                      color={buyer.f2_required ? "warning" : "success"}
+                      sx={{ fontWeight: 700 }}
+                    />
+                  </Stack>
+                </Paper>
+              ) : null}
+            </Box>
             <Button
               variant="contained"
               disabled={!appData.saleData?.addedTickets?.length || !appData.saleData?.selectedPaymentMethod?.uuid || appData.canOpenNewShift}
