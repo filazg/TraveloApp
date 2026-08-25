@@ -27,11 +27,9 @@ export default function OperatorSettingsModal() {
     const paymentMethods = appData.basicData?.payment_methods || [];
 
     const [shortcuts, setShortcuts] = useState({});
-    const [spremljeno, setSpremljeno] = useState(false);
 
     useEffect(() => {
         if (!open) return;
-        setSpremljeno(false);
         let otkazano = false;
         (async () => {
             try {
@@ -49,7 +47,6 @@ export default function OperatorSettingsModal() {
     };
 
     const handleChange = (tipka, value) => {
-        setSpremljeno(false);
         setShortcuts((prev) => {
             const novi = { ...prev };
             if (!value) {
@@ -72,7 +69,9 @@ export default function OperatorSettingsModal() {
             // Prečaci se čitaju iz store-a pri svakom pritisku tipke, pa se moraju
             // osvježiti odmah — bez ponovne prijave.
             await dispatch(setStateData({ path: "operatorSettings/shortcuts", value: shortcuts }));
-            setSpremljeno(true);
+            // Spremanje je kraj posla — prozor se zatvara umjesto da čeka još
+            // jedan klik na Zatvori. Rezultat se ionako odmah vidi na gumbima.
+            handleClose();
         } catch (e) {
             console.log("setOperatorSettingsIPC nije uspio:", e?.message || e);
         }
@@ -121,10 +120,6 @@ export default function OperatorSettingsModal() {
                         </Stack>
                     ))}
                 </Stack>
-
-                {spremljeno && (
-                    <Alert severity="success" sx={{ mt: 2 }}>Prečaci su spremljeni.</Alert>
-                )}
             </DialogContent>
 
             <DialogActions>

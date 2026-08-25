@@ -15,7 +15,9 @@ export default function OpenNewShiftModal() {
     }
 
     const getShiftData = async () => {
-        const getshiftsData = await window.api.app.getShiftsDataIpc();
+        // Bez korisničkog imena servis vraća smjene SVIH operatera — ista greška
+        // kao što je bila u ShiftActions nakon zatvaranja smjene.
+        const getshiftsData = await window.api.app.getShiftsDataIpc(appData.logedUser?.user_username);
         dispatch(setStateData({ path: "shiftsData/shifts", value: getshiftsData.data.shifts || [] }));
     };
 
@@ -32,6 +34,9 @@ export default function OpenNewShiftModal() {
         console.log(shiftData);
         const openShift = await window.api.app.openShiftsDataIpc(shiftData);
         handleNewShiftModalClose();
+        // I lista smjena — smjena je otvorena i blagajnik ide prodavati, a ne
+        // gledati popis. Prije je iza forme ostajao otvoren prozor sa smjenama.
+        dispatch(setStateData({ path: 'modalsStates/showShiftView', value: false }));
         setNewShift({});
         getShiftData();
     };
