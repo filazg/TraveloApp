@@ -39,6 +39,14 @@ function getProdIndexHtmlPath() {
   return path.join(__dirname, "..", "renderer", "dist", "index.html");
 }
 
+// Najuža širina sadržaja na kojoj prodajni ekran još stane cijel:
+//   stupci 445 + 430 + 430 + 213 = 1518, plus 3 razmaka po 16 = 1566
+//   + padding glavnog dijela 2×16 = 1598
+//   + padding oko cijelog ekrana 2×16 = 1630
+// Stupci imaju fiksne širine i ne skupljaju se, a okvir je overflow:hidden, pa
+// se ispod te širine stupac Plaćanje jednostavno odreže s desne strane.
+const CONTENT_MIN_WIDTH = 1630;
+
 function createWindow() {
   logToFile("createWindow()");
   const win = new BrowserWindow({
@@ -57,6 +65,15 @@ function createWindow() {
       preload: path.join(__dirname, "preload.cjs"),
     },
   });
+
+  // minWidth iz opcija mjeri cijeli prozor, a nama treba širina SADRŽAJA. Okvir
+  // (naslovna traka, rubovi) razlikuje se po OS-u i skaliranju ekrana, pa se
+  // mjeri umjesto da se pogađa. Visina ostaje kakva je bila.
+  const [winW] = win.getSize();
+  const [contentW] = win.getContentSize();
+  const [, minH] = win.getMinimumSize();
+  win.setMinimumSize(CONTENT_MIN_WIDTH + (winW - contentW), minH);
+  logToFile("minimalna sirina prozora:", CONTENT_MIN_WIDTH + (winW - contentW));
 
   win.once("ready-to-show", () => {
     logToFile("ready-to-show");
