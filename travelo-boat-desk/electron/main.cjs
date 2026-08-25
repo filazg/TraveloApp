@@ -44,8 +44,11 @@ function getProdIndexHtmlPath() {
 //   + padding glavnog dijela 2×16 = 1598
 //   + padding oko cijelog ekrana 2×16 = 1630
 // Stupci imaju fiksne širine i ne skupljaju se, a okvir je overflow:hidden, pa
-// se ispod te širine stupac Plaćanje jednostavno odreže s desne strane.
-const CONTENT_MIN_WIDTH = 1630;
+// se ispod te širine stupac Plaćanje odreže s desne strane.
+//
+// Dodanih 16px je zaliha: na točno 1630 grid je bio širok koliko i stupci u
+// pikselu, pa je zaokruživanje znalo prelomiti redak.
+const CONTENT_MIN_WIDTH = 1646;
 
 function createWindow() {
   logToFile("createWindow()");

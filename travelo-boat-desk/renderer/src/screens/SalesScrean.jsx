@@ -109,10 +109,15 @@ export default function SalesScreen() {
 
           {/* MAIN CONTENT */}
           <Box sx={{ flex: 1, p: 2, overflow: "hidden" }}>
+            {/* flexWrap: nowrap — Grid container se inače prelama. Stupci imaju
+                fiksne širine, pa je dovoljan piksel manjka da Plaćanje odleti u
+                drugi red, a taj red se ne vidi jer je ovaj Box overflow:hidden.
+                Izgledalo je kao da je stupac nestao. */}
             <Grid
               container
               spacing={2}
-              sx={{ height: "100%", width: "100%" }}
+              wrap="nowrap"
+              sx={{ height: "100%", width: "100%", flexWrap: "nowrap" }}
             >
               {/* Odredišta (lijevo) */}
               <Grid sx={{ width: 445, flexShrink: 0, height: "100%" }}>
