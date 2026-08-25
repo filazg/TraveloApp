@@ -56,20 +56,24 @@ const CONTENT_MIN_WIDTH = 1646;
 // Splash se digne prije baze i zatvara se kad glavni prozor ima što pokazati.
 let splashWin = null;
 
-const SPLASH_HTML = `<!doctype html>
+const splashHtml = () => `<!doctype html>
 <html lang="hr"><head><meta charset="utf-8"><style>
   html,body{margin:0;height:100%;overflow:hidden;
     font-family:"Segoe UI",Roboto,Arial,sans-serif;-webkit-user-select:none;}
   body{display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:22px;background:#F5F2EB;color:#383E42;border:1px solid #E5E0D6;border-radius:14px;}
-  .naziv{font-size:30px;font-weight:800;letter-spacing:.5px;color:#175BD0;}
+    gap:16px;background:#F5F2EB;color:#383E42;border:1px solid #E5E0D6;border-radius:14px;}
+  .naziv{font-size:30px;font-weight:800;letter-spacing:.5px;color:#175BD0;line-height:1;}
+  /* "APP" u tamnoj boji teksta iz teme — bijela bi se na krem podlozi izgubila. */
+  .naziv b{color:#383E42;font-weight:800;}
+  .verzija{font-size:13px;font-weight:600;color:#5C656B;letter-spacing:.5px;}
   .podnaslov{font-size:14px;color:#5C656B;}
-  .traka{width:220px;height:6px;border-radius:3px;background:#E5E0D6;overflow:hidden;}
+  .traka{width:220px;height:6px;border-radius:3px;background:#E5E0D6;overflow:hidden;margin-top:6px;}
   .traka i{display:block;width:40%;height:100%;border-radius:3px;background:#175BD0;
     animation:klizi 1.1s ease-in-out infinite;}
   @keyframes klizi{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
 </style></head><body>
-  <div class="naziv">TraveloAPP</div>
+  <div class="naziv">Travelo<b>APP</b></div>
+  <div class="verzija">v${app.getVersion()}</div>
   <div class="traka"><i></i></div>
   <div class="podnaslov">Priprema podataka…</div>
 </body></html>`;
@@ -92,7 +96,7 @@ function createSplash() {
   });
   // Ugrađen HTML, ne datoteka — splash mora raditi i u devu (Vite još nije
   // spreman) i u instaliranoj verziji, bez ovisnosti o rendereru.
-  splashWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(SPLASH_HTML));
+  splashWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(splashHtml()));
   splashWin.on("closed", () => { splashWin = null; });
   return splashWin;
 }
