@@ -1,5 +1,6 @@
 import { use, useEffect, useState } from "react";
 import { Box, Button, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import Autocomplete from "@mui/material/Autocomplete";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -60,9 +61,23 @@ export default function FilterBar() {
         handleSetToday();
     }, []);
 
+    // Cijela pretraga na prazno + datum natrag na danas. Sve ispod linije
+    // (luke, polasci, relacije, cijene, brojači karata) visi o searchData pa
+    // odlazi zajedno s njom.
+    const handleResetForm = async () => {
+        await dispatch(resetStateData({ path: 'searchData' }));
+        await handleSetToday();
+    };
+
     const handleSetLine = async (line) => {
         console.log("ODABRANA LINIJA:", line);
         await dispatch(resetStateData({path:'searchData'}));
+        // Brisanje linije (x u polju) samo očisti pretragu — bez ovoga bi
+        // `line.code` niže puknuo na null.
+        if (!line) {
+            await handleSetToday();
+            return;
+        }
         await dispatch(setStateData({path:'searchData/selectedLine', value: line}));
         await handleSetToday();
         //booking
@@ -180,16 +195,21 @@ export default function FilterBar() {
             gridTemplateColumns: "repeat(8, 1fr)",
             gap: 1,
             gridTemplateRows: "auto",
-            gridTemplateAreas: `"two two four four six six seven eight"
-                        "two2 two2 four1 four1 one six1 seven eight"`,
+            gridTemplateAreas: `"two two four four reset reset seven eight"
+                        "two2 two2 four1 four1 reset reset seven eight"`,
           }}
         >
+            {/* Kontrolirano poljem iz searchData — dok je bilo nekontrolirano,
+                osvježavanje forme bi obrisalo state ali bi naziv linije ostao
+                ispisan u polju. */}
             <Autocomplete
               disablePortal
               id="line"
               fullWidth
               options={transportData?.lines || []}
               getOptionLabel={(option) => option.name}
+              value={appData.searchData?.selectedLine || null}
+              isOptionEqualToValue={(option, value) => option.code === value?.code}
               renderInput={(params) => (
                 <TextField {...params} label="Odaberi liniju" />
               )}
@@ -269,6 +289,22 @@ export default function FilterBar() {
                 </MenuItem>
             ))}
           </TextField>
+          {/* Vraća pretragu na prazno i datum na danas. Košaricu ne dira —
+              karte se često skupljaju kroz više polazaka, pa bi brisanje
+              košarice zajedno s pretragom takvu prodaju onemogućilo; svaka
+              stavka u košarici ionako ima svoj UKLONI. */}
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            sx={{
+              gridArea: "reset",
+              height: "100%",
+              fontSize: "1.1rem",
+            }}
+            onClick={handleResetForm}
+          >
+            OSVJEŽI FORMU
+          </Button>
            <Button
             disabled={!canScan}
             variant="contained"
