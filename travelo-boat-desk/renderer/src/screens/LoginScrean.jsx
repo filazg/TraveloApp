@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 
 import { login, selectApp, errorCleared, allAppData, setStateData } from "../store/appSlice";
+import BrandMark from "../components/common/BrandMark";
 import ThemeToggleButton from "../components/common/ThemeToggleButton";
 import SystemSettingsModal from "../components/common/SystemSettingsModal";
 import LoadingScreen from "../components/common/LoadingScreen";
@@ -109,8 +110,15 @@ export default function LoginScreen() {
             <ThemeToggleButton />
         </Stack>
         <Stack spacing={2} component="form" onSubmit={onSubmit}>
-          <Typography variant="h5">Prijava u TraveloAPP</Typography>
-          
+          {/* Isti znak kao na splashu i u zaglavlju blagajne — prijava je prvo
+              što blagajnik vidi nakon splasha, pa da to bude isti ekran. */}
+          <Stack alignItems="center" spacing={0.5} sx={{ pb: 1 }}>
+            <BrandMark variant="h4" />
+            <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 600 }}>
+              Prijava
+            </Typography>
+          </Stack>
+
           {(localError || error) && (
             <Alert
               severity="error"

@@ -13,6 +13,7 @@ import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 
 import { logout, unpair } from "../store/appSlice";
+import BrandMark from "../components/common/BrandMark";
 import ThemeToggleButton from "../components/common/ThemeToggleButton";
 import SystemSettingsModal from "../components/common/SystemSettingsModal";
 
@@ -76,7 +77,7 @@ export default function SalesScreen() {
           >
             <Stack direction="row" alignItems="center" spacing={2}>
               {/* <HeaderView /> */}
-              <Typography variant="h6">TraveloAPP</Typography>
+              <BrandMark variant="h6" />
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
