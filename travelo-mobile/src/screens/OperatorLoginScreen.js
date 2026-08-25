@@ -15,7 +15,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import bcrypt from 'bcryptjs';
 import { authData, setOperator } from '../store/slices/authSlice';
-import { syncBasicDataThunk, syncData } from '../store/slices/syncSlice';
+import { syncBasicDataThunk, syncTransportDataThunk, syncData } from '../store/slices/syncSlice';
 import { colors, shadows } from '../theme/colors';
 import pkg from '../../package.json';
 import BrandMark from '../components/BrandMark';
@@ -98,10 +98,16 @@ export default function OperatorLoginScreen() {
 
     const onRefresh = async () => {
         if (sync.loading) return;
-        const res = await dispatch(syncBasicDataThunk());
+        // Povlači se i vozni red, ne samo osnovni podaci. Prije je gumb dohvaćao
+        // samo basic_data, pa promjena linija dozvoljenih uređaju nije stizala
+        // dok se ne povuče popis linija — a gumb kaže "Osvježi podatke".
+        const [res, transport] = await Promise.all([
+            dispatch(syncBasicDataThunk()),
+            dispatch(syncTransportDataThunk()),
+        ]);
         // Ručno osvježavanje je do sada tiho padalo, pa je izgledalo kao da su
         // podaci povučeni iako uređaj nije ni došao do poslužitelja.
-        if (res.meta.requestStatus !== 'fulfilled') {
+        if (res.meta.requestStatus !== 'fulfilled' || transport.meta.requestStatus !== 'fulfilled') {
             Alert.alert(
                 'Osvježavanje',
                 'Podaci nisu osvježeni — nema veze s poslužiteljem. Radi se sa zadnjim spremljenim podacima.',
