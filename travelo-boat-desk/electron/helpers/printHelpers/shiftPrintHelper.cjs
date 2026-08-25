@@ -134,6 +134,13 @@ const shiftPrintHelper = async (data) => {
         
         printer.drawLine();
         printer.newLine();
+        // Razrada iznosa — isti brojevi koje pregled smjene pokazuje na ekranu.
+        // Prije su na papiru stajala samo sredstva plaćanja i ukupan iznos, pa se
+        // izvještaj i ekran nisu dali usporediti.
+        printer.leftRight('Broj računa:', String(data.invoice_count ?? ''))
+        printer.leftRight('PDV osnovica:', data.shift_sale.vat_base.toFixed(2) + ' EUR')
+        printer.leftRight('PDV:', data.shift_sale.vat.toFixed(2) + ' EUR')
+        printer.leftRight('Lučka pristojba:', data.shift_sale.harbor_tax.toFixed(2) + ' EUR')
         printer.bold(true);
         printer.setTextDoubleHeight();
         printer.drawLine();

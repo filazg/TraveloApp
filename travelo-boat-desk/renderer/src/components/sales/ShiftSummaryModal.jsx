@@ -13,6 +13,23 @@ const formatDateTime = (value) => {
     return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
+// Redak sažetka — oznaka lijevo, vrijednost desno.
+function InfoRow({ label, value, bold }) {
+    return (
+        <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+            <Typography
+                sx={{ flex: 1, fontWeight: bold ? 800 : 500 }}
+                color={bold ? "text.primary" : "text.secondary"}
+            >
+                {label}
+            </Typography>
+            <Typography sx={{ fontWeight: bold ? 800 : 600 }} align="right">
+                {value}
+            </Typography>
+        </Stack>
+    );
+}
+
 // Jedan redak tablice — naziv lijevo, broj računa u sredini, iznos desno.
 // Isti raspored koriste i sredstva plaćanja i storno, da se stupci poklope.
 function SummaryRow({ name, count, amount, countLabel, bold, muted }) {
@@ -50,10 +67,14 @@ export default function ShiftSummaryModal() {
     const details = appData.workingData?.shiftDetails || [];
     const storno = appData.workingData?.shiftStorno || [];
     const stornoAmount = appData.workingData?.shiftStornoAmount || 0;
+    const totals = appData.workingData?.shiftTotals || {};
     const shift = appData.workingData?.shiftSummaryFor;
 
     const total = details.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
     const invoiceCount = details.reduce((sum, row) => sum + (Number(row.invoice_quantity) || 0), 0);
+    const invoiceRange = totals.shift_first_invoice
+        ? `${totals.shift_first_invoice} – ${totals.shift_last_invoice}`
+        : "–";
 
     const handleClose = () => {
         dispatch(setStateData({ path: "modalsStates/showShiftSummaryModal", value: false }));
@@ -92,17 +113,30 @@ export default function ShiftSummaryModal() {
                         <Typography variant="h6" sx={{ fontWeight: 800 }}>
                             Pregled smjene
                         </Typography>
+                        {/* Samo operater — trajanje smjene stoji u sažetku ispod,
+                            da se isti podatak ne piše dvaput. */}
                         {shift ? (
                             <Typography variant="body2" color="text.secondary">
-                                {[shift.operater_name, shift.operater_surname].filter(Boolean).join(" ")}
-                                {" · "}
-                                {formatDateTime(shift.shift_start)}
-                                {shift.shift_end ? ` – ${formatDateTime(shift.shift_end)}` : " – u tijeku"}
+                                Smjena {shift.id} · {[shift.operater_name, shift.operater_surname].filter(Boolean).join(" ")}
                             </Typography>
                         ) : null}
                     </Box>
                     <IconButton onClick={handleClose}><CloseIcon /></IconButton>
                 </Stack>
+
+                {/* Sažetak smjene — isti podaci i isti redoslijed kao u pregledu
+                    prije zatvaranja na mobilnoj blagajni. */}
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+                    <InfoRow label="Početak" value={formatDateTime(shift?.shift_start)} />
+                    <InfoRow label="Završetak" value={shift?.shift_end ? formatDateTime(shift.shift_end) : "u tijeku"} />
+                    <InfoRow label="Računa" value={String(totals.invoice_count ?? invoiceCount)} />
+                    <InfoRow label="Brojevi" value={invoiceRange} />
+                    <Divider sx={{ my: 1 }} />
+                    <InfoRow label="PDV osnovica" value={eur(totals.shift_vat_base)} />
+                    <InfoRow label="PDV" value={eur(totals.shift_vat)} />
+                    <InfoRow label="Lučka pristojba" value={eur(totals.shift_harbor_tax)} />
+                    <InfoRow label="Ukupno" value={eur(totals.shift_amount ?? total)} bold />
+                </Paper>
 
                 {/* Storno stoji IZNAD sredstava plaćanja, kao na mobilnoj: storna su
                     već uračunata u iznose ispod (negativan iznos ih umanjuje), pa

@@ -50,6 +50,42 @@ const DATE_KEYS = ["shift_start", "shift_end"];
 // smiju se brojati kao povrat.
 const isStornoInvoice = (invoice) => (invoice?.invoice_status || '') === 'canceled';
 
+// Oznaka računa kako stoji na samom računu. `invoice_code` je autoritativan —
+// za F1 je to "fiskalniBroj/BP/BD", za F2 8-znakovni kod. Fallback slaže F1
+// oznaku iz dijelova, za zatečene retke kojima invoice_code nije upisan.
+const invoiceLabel = (inv) => {
+    if (!inv) return null;
+    if (inv.invoice_code) return inv.invoice_code;
+    if (inv.invoice_fiskal_no && inv.invoice_business_premise_fiscal_mark && inv.invoice_billing_device_fiscal_mark) {
+        return `${inv.invoice_fiskal_no}/${inv.invoice_business_premise_fiscal_mark}/${inv.invoice_billing_device_fiscal_mark}`;
+    }
+    return inv.invoice_no != null ? String(inv.invoice_no) : null;
+};
+
+// Zbirni podaci smjene — isti skup koji mobilna pokazuje u pregledu prije
+// zatvaranja.
+//
+// Raspon "od–do" ide po fiskalnim (F1) računima, jer samo oni čine neprekinutu
+// sekvencu NO/PP/NU. F2 računi imaju vlastiti brojač i 8-znakovni kod, pa bi kao
+// rub raspona dali besmislicu tipa "VLT2FPMX – 39/ST1/1". Ako smjena nema
+// nijedan F1 račun, raspon se slaže od svih računa da polje ne ostane prazno.
+const buildShiftTotals = (shiftInvoices) => {
+    const rows = shiftInvoices.map((r) => r.dataValues || r);
+    const sumBy = (field) => rows.reduce((sum, inv) => sum + Number(inv[field] ?? 0), 0);
+    const byNo = (list) => [...list].sort((a, b) => Number(a.invoice_no ?? 0) - Number(b.invoice_no ?? 0));
+    const fiscal = byNo(rows.filter((inv) => inv.invoice_fiskal_no != null));
+    const range = fiscal.length ? fiscal : byNo(rows);
+    return {
+        invoice_count: rows.length,
+        shift_first_invoice: invoiceLabel(range[0]),
+        shift_last_invoice: invoiceLabel(range[range.length - 1]),
+        shift_amount: +sumBy('invoice_amount').toFixed(2),
+        shift_vat_base: +sumBy('invoice_vat_base').toFixed(2),
+        shift_vat: +sumBy('invoice_vat').toFixed(2),
+        shift_harbor_tax: +sumBy('invoice_harbor_tax').toFixed(2),
+    };
+};
+
 // Rekapitulacija storna po sredstvu plaćanja. Storna su već uračunata u ukupan
 // promet smjene (negativan iznos ga umanjuje); ovdje se iskazuju zasebno da
 // blagajnik vidi koliko je izašlo iz blagajne i po kojem sredstvu. Iznosi se
@@ -164,28 +200,24 @@ const closeShiftService = async(data) =>{
                 },order: [['invoice_payment_method_name', 'ASC']]
             })
 
-            const invoiceWithMinInvNo = shiftInvoices.length
-                ? shiftInvoices.reduce((min, current) =>
-                    current.invoice_no < min.invoice_no ? current : min
-                    )
-            : null;
-            const invoiceWithMaxInvNo = shiftInvoices.length
-                ? shiftInvoices.reduce((max, current) =>
-                    current.invoice_no > max.invoice_no ? current : max
-                    )
-            : null;
-
-            // Agregati za prikaz na portalu (ukupno, osnovica, PDV, lučka pristojba)
+            // Isti izračun kao u pregledu smjene, da se ekran i ispis poklope.
+            //
+            // Prvi/zadnji račun se prije slagao kao "invoice_no/BP/BD". Kako je
+            // invoice_no kontinuirani brojač svih računa, a fiskalna oznaka nosi
+            // invoice_fiskal_no (koji F2 računi preskaču), ta se oznaka nakon
+            // prvog F2 računa u smjeni razilazila s onim što piše na računu.
+            // Sada se uzima invoice_code sa samog računa.
+            const totals = buildShiftTotals(shiftInvoices);
             const sumByField = (field) => shiftInvoices.reduce((sum, item) => sum + Number(item[field] ?? 0), 0);
             await shiftModel.update({
                shift_end:new Date(),
                shift_open: false,
-               shift_first_invoice:invoiceWithMinInvNo ? invoiceWithMinInvNo.invoice_no +'/'+ invoiceWithMinInvNo.invoice_business_premise_fiscal_mark + '/'+ invoiceWithMinInvNo.invoice_billing_device_fiscal_mark: null,
-               shift_last_invoice:invoiceWithMaxInvNo ? invoiceWithMaxInvNo.invoice_no +'/'+ invoiceWithMaxInvNo.invoice_business_premise_fiscal_mark + '/'+ invoiceWithMaxInvNo.invoice_billing_device_fiscal_mark : null,
-               shift_amount: sumByField('invoice_amount'),
-               shift_vat_base: sumByField('invoice_vat_base'),
-               shift_vat: sumByField('invoice_vat'),
-               shift_harbor_tax: sumByField('invoice_harbor_tax'),
+               shift_first_invoice: totals.shift_first_invoice,
+               shift_last_invoice: totals.shift_last_invoice,
+               shift_amount: totals.shift_amount,
+               shift_vat_base: totals.shift_vat_base,
+               shift_vat: totals.shift_vat,
+               shift_harbor_tax: totals.shift_harbor_tax,
                shift_send: null, // resetiraj — closeShift mora ponovo gurnuti backendu
             },{
                 where:{
@@ -320,6 +352,7 @@ const closeShiftService = async(data) =>{
                 shift_sale:shiftSaleData,
                 line_details:lineDetails,
                 deacttive_line_detials:deactLineDetails,
+                ...totals,
                 ...buildStornoBreakdown(shiftInvoices),
             }
             console.log('SHIFT DATA TO PRINT', dataToSend)
@@ -379,11 +412,11 @@ const shiftSummaryService = async(data)=>{
           }
           paymentSumByMethod = [...paymentSumByMethod, paymentData]
         }
-        const stornoBreakdown = buildStornoBreakdown(shiftInvoices)
         return ({
             //invoices:shiftInvoices,
             shift_details:paymentSumByMethod,
-            ...stornoBreakdown,
+            ...buildShiftTotals(shiftInvoices),
+            ...buildStornoBreakdown(shiftInvoices),
         })
     } catch (error) {
         console.log(error)

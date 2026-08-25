@@ -14,10 +14,20 @@ export default function ShiftActions({params, rowId, setRowId}) {
         const data = params.row
         const shiftsData = await window.api.app.summaryShiftsDataIpc(data);
         console.log('SHIFTS ', shiftsData.data)
+        const summary = shiftsData?.data || {}
         await dispatch(setStateData({updates:[
-            {path:'workingData/shiftDetails', value: shiftsData?.data?.shift_details || []},
-            {path:'workingData/shiftStorno', value: shiftsData?.data?.storno || []},
-            {path:'workingData/shiftStornoAmount', value: shiftsData?.data?.storno_amount || 0},
+            {path:'workingData/shiftDetails', value: summary.shift_details || []},
+            {path:'workingData/shiftStorno', value: summary.storno || []},
+            {path:'workingData/shiftStornoAmount', value: summary.storno_amount || 0},
+            {path:'workingData/shiftTotals', value: {
+                invoice_count: summary.invoice_count,
+                shift_first_invoice: summary.shift_first_invoice,
+                shift_last_invoice: summary.shift_last_invoice,
+                shift_amount: summary.shift_amount,
+                shift_vat_base: summary.shift_vat_base,
+                shift_vat: summary.shift_vat,
+                shift_harbor_tax: summary.shift_harbor_tax,
+            }},
             {path:'workingData/shiftSummaryFor', value: params.row},
         ]}))
         dispatch(setStateData({path:'modalsStates/showShiftSummaryModal', value: true}))
