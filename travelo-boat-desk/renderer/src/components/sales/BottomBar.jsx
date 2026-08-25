@@ -218,6 +218,13 @@ export default function BottomBar() {
           message:'Račun je izdan, ali karte nisu ispisane — ispišite kopiju karte iz dokumenata.',
           severity:'warning',
         }}))
+      } else if (buyerData?.f2_required) {
+        // Bez ove poruke izgleda kao da je ispis računa zakazao — F2 se namjerno
+        // ne printa, kupcu ide kao e-račun.
+        await dispatch(setStateData({path:'alertData', value:{
+          message:'F2 račun je izdan — kupcu ide kao e-račun, ispisane su samo karte.',
+          severity:'success',
+        }}))
       } else {
         await dispatch(setStateData({path:'alertData', value:{message:'Račun je uredno izdan',severity:'success'}}))
       }

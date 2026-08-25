@@ -3,7 +3,15 @@ import { allAppData, setStateData } from "../../store/appSlice";
 import { Box, Dialog, DialogContent, DialogTitle, Divider, Modal, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 import { useEffect } from "react";
 
-
+// F2 (HRFISK20 e-račun) je izričita oznaka na računu. Stariji računi je nemaju,
+// pa tada vrijedi `fiskal_required` koji je do tada nosio istu ulogu — isti
+// redoslijed provjere kao u ispisu i u servisu računa.
+const isF2Invoice = (invoice) => {
+    if (!invoice) return false;
+    if (invoice.is_f2 != null) return !!invoice.is_f2;
+    if (invoice.fiskal_required != null) return !!invoice.fiskal_required;
+    return !!invoice.buyer_oib;
+};
 
 export default function InvoicePreviewModal({params}) {
     const dispatch = useDispatch();
@@ -62,12 +70,17 @@ export default function InvoicePreviewModal({params}) {
                         <Divider sx={{ my: 1 }} />
                     </>
                     : ''}
+                {/* Isti prikaz kao na ispisu: F2 nosi 8-znakovni kod, sve ostalo
+                    (uključujući R1 bez F2) nosi fiskalnu oznaku NO/PP/NU. */}
                 <Typography align="center"><strong>{
-                    appData.workingData.selectedInvoice.buyer_oib
-                        ? "R1 RAČUN BR: " + (appData.workingData.selectedInvoice.invoice_code || (appData.workingData.selectedInvoice.invoice_no + "-" + appData.workingData.selectedInvoice.invoice_year))
+                    isF2Invoice(appData.workingData.selectedInvoice)
+                        ? "F2 RAČUN BR: " + (appData.workingData.selectedInvoice.invoice_code || '-')
                         : "RAČUN BR: " + (appData.workingData.selectedInvoice.invoice_code
                             || (appData.workingData.selectedInvoice.invoice_no + "/" + appData.workingData.selectedInvoice.invoice_business_premise_fiscal_mark + "/" + appData.workingData.selectedInvoice.invoice_billing_device_fiscal_mark))
                 }</strong></Typography>
+                {isF2Invoice(appData.workingData.selectedInvoice)
+                    ? <Typography align="center" variant="caption" component="div">R1 fiskalizirani račun (HRFISK20)</Typography>
+                    : null}
                 <Divider sx={{ mt: 1 }} />
                 <Divider sx={{ mt: 1 }} />
                 <Typography

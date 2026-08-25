@@ -31,6 +31,14 @@ export default function InvoicesActions ({ params, rowId}) {
         await dispatch(setStateData({path:'loadingText', value:'Ispis kopije računa...'}))
         const invoicePrint = await  await window.api.app.printInvoiceCopyIPC(params.row.invoice_uuid)
         await dispatch(setStateData({path:'status', value:'ready'}))
+        // F2 se ne ispisuje ni kao kopija — bez poruke bi klik na printer izgledao
+        // kao da je zakazao.
+        if (invoicePrint?.data?.reason === 'f2') {
+            await dispatch(setStateData({path:'alertData', value:{
+                message:'F2 račun se ne ispisuje — kupcu je dostavljen kao e-račun. Karte se ispisuju zasebno.',
+                severity:'info'
+            }}))
+        }
     }
     
     const handlePrintAllTickets = async()=>{

@@ -20,7 +20,20 @@ const stripLocalKeys = (row) => {
 // Boat-desk (i Sunmi mobile) su autoriteti za fiskalnu numeraciju jer moraju raditi
 // offline. Računaju invoice_no/invoice_fiskal_no/invoice_code lokalno per (godina ×
 // billing_device) i šalju ih ovamo. Backend ovdje samo PASIVNO sprema dolazni payload
-// (idempotentno po invoice_uuid) i pokreće YesCor F2 kad ima buyer_oib.
+// (idempotentno po invoice_uuid) i pokreće YesCor F2 kad je račun tako označen.
+//
+// F2 je odluka blagajnika, ne posljedica OIB-a: R1 račun bez te oznake je običan
+// F1 račun koji samo nosi podatke o kupcu i NE ide u HRFISK20. Klijent tu odluku
+// šalje u `is_f2`. Stariji boat-desk buildovi to polje ne šalju — kod njih je
+// `fiskal_required` nosio istu ulogu, a ako ni njega nema, ostaje zatečeno
+// ponašanje (svaki R1 je F2), da nijedan račun ne ispadne iz fiskalizacije.
+const invoiceWantsF2 = (invoice) => {
+    if (!invoice) return false;
+    if (invoice.is_f2 != null) return Boolean(invoice.is_f2);
+    if (invoice.fiskal_required != null) return Boolean(invoice.fiskal_required);
+    return Boolean(invoice.buyer_oib);
+};
+
 const addTerminalSaleController = async(req,res)=>{
     try {
         const { InvoiceModel, InvoiceItemsModel, InvoiceItemDetailsModel, TicketsModel} = req.app.locals.models;
@@ -35,7 +48,7 @@ const addTerminalSaleController = async(req,res)=>{
             if(invoiceExist){
                 // Idempotentno — boat-desk može pokušati retry za isti invoice_uuid.
             }else{
-                const isR1 = !!data.invoice.buyer_oib;
+                const isF2 = invoiceWantsF2(data.invoice);
                 const invoiceToAdd = {
                     company_name:data.invoice.invoice_client_name,
                     company_address:data.invoice.invoice_client_address,
@@ -86,7 +99,7 @@ const addTerminalSaleController = async(req,res)=>{
                     invoice_harbor_tax:data.invoice.invoice_harbor_tax,
                     order_uuid:data.invoice.order_uuid || '',
                     language:data.invoice.language || 'cro',
-                    fiskal_required: isR1,
+                    fiskal_required: isF2,
                 }
                 let itemsToAdd = []
                 let itemDetailsToAdd = []
@@ -160,10 +173,10 @@ const addTerminalSaleController = async(req,res)=>{
             }
         }
 
-        // F2 fiskalizacija (YesCor) — okida se samo za R1 račune (kupac s OIB-om).
+        // F2 fiskalizacija (YesCor) — okida se samo za račune označene kao F2.
         // Fire-and-forget van transakcije: invoice je već spremljen, ako YesCor
         // padne yescor_status ostaje failed i poller će kasnije retry-ati.
-        if (createdNewInvoice && data.invoice.buyer_oib) {
+        if (createdNewInvoice && invoiceWantsF2(data.invoice)) {
             (async () => {
                 try {
                     const company = {

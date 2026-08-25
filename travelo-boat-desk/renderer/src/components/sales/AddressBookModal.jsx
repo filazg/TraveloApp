@@ -4,7 +4,9 @@ import {
     Alert,
     Box,
     Button,
+    Checkbox,
     Divider,
+    FormControlLabel,
     Grid,
     IconButton,
     Modal,
@@ -31,7 +33,7 @@ const emptyForm = {
     buyer_tel: "",
 };
 
-const fromBackend = (b) => ({
+const fromBackend = (b, f2Required) => ({
     buyer_uuid: "",
     buyer_company_name: b.name || "",
     buyer_name: b.name || "",
@@ -42,6 +44,7 @@ const fromBackend = (b) => ({
     buyer_country: "",
     buyer_email: b.email || "",
     buyer_tel: "",
+    f2_required: !!f2Required,
 });
 
 export default function AddressBookModal() {
@@ -56,12 +59,17 @@ export default function AddressBookModal() {
     const [mode, setMode] = useState("list"); // list | new
     const [form, setForm] = useState(emptyForm);
     const [error, setError] = useState("");
+    // F2 je odluka po računu, ne svojstvo kupca — bira se prije odabira kupca i
+    // vrijedi za oba puta (odabir iz liste i unos novog). Bez oznake je to
+    // običan R1: fiskalizira se kao F1 i ispisuje na blagajni.
+    const [f2Required, setF2Required] = useState(false);
 
     useEffect(() => {
         if (!open) return;
         setMode("list");
         setForm(emptyForm);
         setError("");
+        setF2Required(!!selected?.f2_required);
         let cancelled = false;
         (async () => {
             setLoading(true);
@@ -96,7 +104,7 @@ export default function AddressBookModal() {
     };
 
     const handlePick = (buyer) => {
-        dispatch(setStateData({ path: "saleData/selectedBuyer", value: fromBackend(buyer) }));
+        dispatch(setStateData({ path: "saleData/selectedBuyer", value: fromBackend(buyer, f2Required) }));
         handleClose();
     };
 
@@ -123,6 +131,7 @@ export default function AddressBookModal() {
                 buyer_country: form.buyer_country.trim(),
                 buyer_email: form.buyer_email.trim(),
                 buyer_tel: form.buyer_tel.trim(),
+                f2_required: f2Required,
             },
         }));
         handleClose();
@@ -165,8 +174,31 @@ export default function AddressBookModal() {
                         </Button>
                     }>
                         Trenutno odabran: <strong>{selected.buyer_company_name || selected.buyer_name}</strong> (OIB: {selected.buyer_vat_id})
+                        {selected.f2_required ? " — F2 fiskalizacija" : ""}
                     </Alert>
                 )}
+
+                {/* Odabire se PRIJE kupca — klik na redak u listi odmah zatvara
+                    modal, pa naknadno mijenjanje ne bi imalo gdje stati. */}
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={f2Required}
+                            onChange={(e) => setF2Required(e.target.checked)}
+                        />
+                    }
+                    label={
+                        <Box>
+                            <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                                F2 fiskalizacija (e-račun)
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Račun se kupcu šalje kao e-račun po HRFISK20 i ne ispisuje se na blagajni —
+                                na papir idu samo karte. Bez oznake je to običan R1 račun s podacima o kupcu.
+                            </Typography>
+                        </Box>
+                    }
+                />
 
                 {error && <Alert severity="error" onClose={() => setError("")}>{error}</Alert>}
 

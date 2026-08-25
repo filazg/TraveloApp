@@ -87,10 +87,14 @@ async function getInvoicesDetailsDataService(data){
 //
 // Numeracija per (godina × billing_device_uuid):
 //   • invoice_no — kontinuirano za F1 i F2 (HR fisk)
-//   • invoice_fiskal_no — sekvenca samo za F1; F2 (R1) ima NULL
+//   • invoice_fiskal_no — sekvenca samo za F1; F2 ima NULL
 //   • invoice_code — "${invoice_fiskal_no}/${BP_mark}/${BD_mark}" za F1;
-//                    10-znamenkasti random za F2 (interni reference ID, jer F2
+//                    8-znakovni random kod za F2 (vidljivi "Račun br", jer F2
 //                    nema F1 fiskalnu strukturu)
+//
+// F2 se okida ISKLJUČIVO kad operater označi F2 fiskalizaciju uz R1 kupca —
+// isto kao na mobilnoj blagajni (`buyer.f2_required`). R1 bez te oznake je
+// običan F1 račun koji nosi podatke o kupcu; samo OIB kupca NIJE dovoljan.
 const nextInvoiceNoLocal = async (year, billingDeviceUuid) => {
   const max = await invoicesModel.max('invoice_no', {
     where: { invoice_year: year, invoice_billing_device_uuid: billingDeviceUuid },
@@ -103,13 +107,31 @@ const nextInvoiceFiskalNoLocal = async (year, billingDeviceUuid) => {
   })
   return Number.isFinite(max) ? max + 1 : 1
 }
-const buildInvoiceCode = (isR1, fiskalNo, bpMark, bdMark) => {
-  if (isR1) {
-    // 10-znamenkasti random reference za R1 (F2) — služi kao interni invoice_code
-    // jer F2 nema strukturu fiskalni_broj/BP/BD.
-    return crypto.randomInt(1000000000, 10000000000).toString()
+// Alfabet bez 0/O/1/I — kod se čita s papira i prepisuje rukom. Identičan
+// generator kao na mobilnoj (localSale.js), da F2 kodovi izgledaju isto bez
+// obzira na kojoj je blagajni račun izdan.
+const ALPHA32 = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+const randomInvoiceCodeF2 = () => {
+  let s = ''
+  for (let i = 0; i < 8; i++) s += ALPHA32[crypto.randomInt(0, ALPHA32.length)]
+  return s
+}
+const buildInvoiceCode = (isF2, fiskalNo, bpMark, bdMark) => {
+  if (isF2) {
+    // F2 nema strukturu fiskalni_broj/BP/BD — vidljivi "Račun br" je ovaj kod.
+    return randomInvoiceCodeF2()
   }
   return (fiskalNo && bpMark && bdMark) ? `${fiskalNo}/${bpMark}/${bdMark}` : null
+}
+
+// Je li račun F2, gledano iz već spremljenog računa (storno, kopija ispisa).
+// Stariji računi nemaju `is_f2` — tada vrijedi `fiskal_required`, koji je do
+// sada nosio istu ulogu, pa ni jedan zatečeni R1 ne mijenja tip.
+const invoiceIsF2 = (invoice) => {
+  if (!invoice) return false
+  if (invoice.is_f2 != null) return !!invoice.is_f2
+  if (invoice.fiskal_required != null) return !!invoice.fiskal_required
+  return !!invoice.buyer_oib
 }
 
 const createInvoiceService = async ({ user, items, payment, buyer, paymentData }) => {
@@ -244,12 +266,16 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
 
     // Lokalno dodjeljivanje fiskalne numeracije (autoritet je boat-desk; mora
     // raditi offline). invoice_no kontinuirano F1+F2; invoice_fiskal_no samo F1.
+    // R1 = račun nosi podatke o kupcu. F2 = R1 koji uz to ide u HRFISK20
+    // fiskalizaciju i kupcu se dostavlja kao e-račun. To su dvije odvojene
+    // odluke; F2 bez OIB-a ne postoji, ali R1 bez F2 postoji i ostaje F1.
     const isR1 = !!buyerData.buyer_vat_id;
+    const isF2 = isR1 && !!buyerData.f2_required;
     const invoiceYear = new Date().getFullYear();
     const billingDeviceUuid = basicData.billing_device_uuid;
     const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceFiskalNo = isR1 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceCode = buildInvoiceCode(isR1, invoiceFiskalNo, basicData.business_premise_fiscal_mark, basicData.billing_device_fiscal_mark);
+    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
+    const invoiceCode = buildInvoiceCode(isF2, invoiceFiskalNo, basicData.business_premise_fiscal_mark, basicData.billing_device_fiscal_mark);
 
     const invoiceSubtotal = itemData
         .map(({ item_amount }) => item_amount)
@@ -269,7 +295,8 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
       invoice_no: invoiceNo,
       invoice_fiskal_no: invoiceFiskalNo,
       invoice_code: invoiceCode,
-      fiskal_required: isR1,
+      fiskal_required: isF2,
+      is_f2: isF2,
       invoice_year: invoiceYear,
       invoice_date: new Date(),
       invoice_client_uuid: basicData.clinet_uuid,
@@ -408,12 +435,14 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData, storno
       throw new Error(`Operater ${user.user_username} nema otvorenu smjenu — račun se ne može izdati.`)
     }
     // Lokalna numeracija (autoritet je boat-desk; mora raditi offline).
-    const isR1 = !!invoiceData.buyer_oib;
+    // Storno prati tip izvornog računa — storno F2 računa je F2, storno običnog
+    // R1 računa ide u F1 sekvencu kao i original.
+    const isF2 = invoiceIsF2(invoiceData);
     const invoiceYear = new Date().getFullYear();
     const billingDeviceUuid = invoiceData.invoice_billing_device_uuid;
     const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceFiskalNo = isR1 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceCode = buildInvoiceCode(isR1, invoiceFiskalNo, invoiceData.invoice_business_premise_fiscal_mark, invoiceData.invoice_billing_device_fiscal_mark);
+    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
+    const invoiceCode = buildInvoiceCode(isF2, invoiceFiskalNo, invoiceData.invoice_business_premise_fiscal_mark, invoiceData.invoice_billing_device_fiscal_mark);
 
     let itemsToAdd = []
     let ticketsGroupToAdd = []
@@ -466,14 +495,15 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData, storno
       itemsToAdd = [...itemsToAdd, newItem]
     }
 
-    // Storno R1 račun nasljeđuje OIB iz originala — backend YesCor okidač
-    // ovisi o buyer_oib pa se ovdje mora pravilno proslijediti.
+    // Storno R1 račun nasljeđuje OIB iz originala — bez podataka o kupcu
+    // storno ne bi bio uparen s računom koji ispravlja.
     const invoiceToAdd = {
       invoice_uuid: invoiceUUID,
       invoice_no: invoiceNo,
       invoice_fiskal_no: invoiceFiskalNo,
       invoice_code: invoiceCode,
-      fiskal_required: isR1,
+      fiskal_required: isF2,
+      is_f2: isF2,
       invoice_year: invoiceYear,
       invoice_date: new Date(),
       invoice_client_uuid: invoiceData.invoice_client_uuid,
@@ -629,10 +659,13 @@ const printInvoiceCopyService = async (data)=>{
       tickets_groups: ticketsGroups,
       items: itemsToSend
     }
-    await copyInvoicePrint(dataToSend)
+    // Ishod se vraća pozivatelju — F2 račun se ne ispisuje, pa blagajnik mora
+    // dobiti poruku umjesto tihog "ništa se nije dogodilo".
+    return await copyInvoicePrint(dataToSend)
 
   } catch (error) {
     console.log(error)
+    return { printed: false, reason: 'error' }
   }
 }
 
@@ -728,12 +761,13 @@ const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPc
       throw new Error(`Operater ${user.user_username} nema otvorenu smjenu — račun se ne može izdati.`)
     }
     // Lokalna numeracija (autoritet je boat-desk; mora raditi offline).
-    const isR1 = !!invoiceData.buyer_oib;
+    // Storno prati tip izvornog računa — vidi cancelInvoiceService.
+    const isF2 = invoiceIsF2(invoiceData);
     const invoiceYear = new Date().getFullYear();
     const billingDeviceUuid = basicData.billing_device_uuid;
     const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceFiskalNo = isR1 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
-    const invoiceCode = buildInvoiceCode(isR1, invoiceFiskalNo, basicData.business_premise_fiscal_mark, basicData.billing_device_fiscal_mark);
+    const invoiceFiskalNo = isF2 ? null : await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid);
+    const invoiceCode = buildInvoiceCode(isF2, invoiceFiskalNo, basicData.business_premise_fiscal_mark, basicData.billing_device_fiscal_mark);
 
     let itemsToAdd = []
     let ticketsGroupToAdd = []
@@ -787,14 +821,15 @@ const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPc
       }
       itemsToAdd = [...itemsToAdd, newItem]
 
-      // Storno karte nasljeđuje OIB iz originala — backend YesCor okidač
-      // ovisi o buyer_oib pa se mora pravilno proslijediti.
+      // Storno karte nasljeđuje OIB iz originala — bez podataka o kupcu storno
+      // ne bi bio uparen s računom koji ispravlja.
       const invoiceToAdd = {
         invoice_uuid: invoiceUUID,
         invoice_no: invoiceNo,
         invoice_fiskal_no: invoiceFiskalNo,
         invoice_code: invoiceCode,
-        fiskal_required: isR1,
+        fiskal_required: isF2,
+        is_f2: isF2,
         invoice_year: invoiceYear,
         invoice_date: new Date(),
         invoice_client_uuid: basicData.clinet_uuid,
@@ -948,8 +983,9 @@ const refreshInvoiceF2StatusService = async (invoiceUuid) => {
   }
 }
 
-// Bulk refresh F2 statusa za sve lokalne R1 račune čija fiskalizacija nije
-// uspješno završena. Pozovi prilikom otvaranja liste računa.
+// Bulk refresh F2 statusa za sve lokalne F2 račune čija fiskalizacija nije
+// uspješno završena. R1 računi bez F2 oznake se ovdje ne pojavljuju jer uopće
+// ne idu u YesCor. Pozovi prilikom otvaranja liste računa.
 const refreshPendingF2InvoicesService = async () => {
   try {
     const pending = await invoicesModel.findAll({

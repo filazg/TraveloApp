@@ -215,6 +215,13 @@ const invoicesModel = sequelize.define('invoices',{
         type: Sequelize.BOOLEAN,
         allowNull: true
     },
+    // F2 (HRFISK20 e-račun) je odluka operatera, ne posljedica OIB-a — R1 račun
+    // bez ove oznake ostaje običan F1 račun s podacima o kupcu. Isto značenje
+    // kao `is_f2` na mobilnoj blagajni.
+    is_f2:{
+        type: Sequelize.BOOLEAN,
+        allowNull: true
+    },
     invoice_fiskal_no:{
         type: Sequelize.INTEGER,
         allowNull: true

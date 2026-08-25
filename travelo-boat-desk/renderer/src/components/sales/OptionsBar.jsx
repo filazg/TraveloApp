@@ -61,7 +61,9 @@ export default function OptionsBar() {
               }}
               onClick={handleOpenAddressBook}
             >
-              R1 RAČUN
+              {/* F2 se vidi na samom gumbu — blagajnik inače nema gdje provjeriti
+                  hoće li račun izaći na papir ili otići kupcu kao e-račun. */}
+              {hasBuyer && buyer.f2_required ? "R1 / F2" : "R1 RAČUN"}
               {hasBuyer && (
                 <Typography variant="caption" sx={{ mt: 0.5, fontWeight: 600 }}>
                   {(buyer.buyer_company_name || buyer.buyer_name || "").slice(0, 22)}

@@ -3,6 +3,18 @@ const { systemSettingsDataModel } = require('../../db/models/Settings.cjs');
 
 const { runPrintJob, cutOrFeed } = require('./printJob.cjs');
 
+// F2 (HRFISK20) račun se kupcu dostavlja kao e-račun — na blagajni se ne
+// ispisuje ni pri izdavanju ni pri kopiji, na papir idu samo karte. Isto
+// pravilo vrijedi na mobilnoj blagajni.
+//
+// `is_f2` postoji od Taska #91; stariji računi ga nemaju, pa tada vrijedi
+// `fiskal_required` koji je do tada nosio istu ulogu.
+const isF2Invoice = (invoice) => {
+    if (!invoice) return false;
+    if (invoice.is_f2 != null) return !!invoice.is_f2;
+    if (invoice.fiskal_required != null) return !!invoice.fiskal_required;
+    return !!invoice.buyer_oib;
+};
 
 const printInvoice = async ({ invoice, items, copy }) => {
     console.log('PRINT INVOICE')
@@ -83,13 +95,17 @@ const printInvoice = async ({ invoice, items, copy }) => {
             printer.drawLine();
         }
         printer.setTextDoubleHeight();
-        const isR1 = !!invoice.buyer_oib;
-        if (isR1) {
-            // F2 (R1) račun — nema F1 fiskalni broj; JIR stiže async od YesCor-a.
-            printer.println("R1 RAČUN BR: " + invoice.invoice_no + "-" + invoice.invoice_year)
+        if (isF2Invoice(invoice)) {
+            // F2 — vidljivi "Račun br" je 8-znakovni kod iz invoice_code; F1
+            // sekvenca NO/PP/NU ovdje ne postoji. JIR stiže async od YesCor-a.
+            printer.println("F2 RAČUN BR: " + (invoice.invoice_code || '-'))
+            printer.setTextNormal();
+            printer.println("R1 fiskalizirani račun (HRFISK20)")
+            printer.setTextDoubleHeight();
         } else {
-            // F1: autoritativni invoice_code dolazi iz backenda u formatu
-            // "fiskalNo/BP/BD" (sekvenca per godina × billing_device, preskače R1).
+            // F1: oznaka "fiskalNo/BP/BD" (sekvenca per godina × billing_device).
+            // R1 bez F2 nosi istu oznaku kao i obični račun — razlikuje ga samo
+            // blok s podacima o kupcu niže.
             // Fallback (offline mode): složeno iz lokalnih invoice_no + BP + BD.
             const fiscalCode = invoice.invoice_code
                 || (invoice.invoice_no + "/" + invoice.invoice_business_premise_fiscal_mark + "/" + invoice.invoice_billing_device_fiscal_mark);
@@ -345,7 +361,11 @@ const invoicePrintHelper = async (data) => {
         // Račun i karte idu na isti printer. Prije se drugi posao slao dok je
         // prvi još bio u prijenosu (execute se nije čekao), pa je karta znala
         // ispasti bez ijedne poruke.
-        const invoiceOk = await printInvoice(data)
+        const skipInvoice = isF2Invoice(data?.invoice);
+        if (skipInvoice) {
+            console.log('PRINT RAČUN — F2 račun ide kupcu kao e-račun, ispis preskočen.');
+        }
+        const invoiceOk = skipInvoice ? true : await printInvoice(data)
         await sleep(800);
         const ticketCount = Array.isArray(data?.tickets) ? data.tickets.length : 0;
         if (!ticketCount) {
@@ -375,9 +395,15 @@ const cancelInvoicePrint = async (data) => {
 const copyInvoicePrint = async (data) => {
     try {
         console.log('cOPY INVOICE PRINT......')
+        if (isF2Invoice(data?.invoice)) {
+            console.log('KOPIJA RAČUNA — F2 račun se ne ispisuje, kupac ga dobiva kao e-račun.');
+            return { printed: false, reason: 'f2' };
+        }
         await printInvoice(data)
+        return { printed: true };
     } catch (error) {
         console.log(error)
+        return { printed: false, reason: 'error' };
     }
 }
 
