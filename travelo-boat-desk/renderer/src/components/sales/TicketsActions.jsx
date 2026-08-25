@@ -5,6 +5,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
 import { useCallback, useRef, useState } from "react";
+import { useStornoPercentagePicker } from "./StornoPercentagePicker";
 
 export default function TicketsActions ({ params, rowId}) {
     const dispatch = useDispatch()
@@ -13,6 +14,9 @@ export default function TicketsActions ({ params, rowId}) {
     const [cancelPaymentModal, setCancelPaymentModal] = useState(false)
 
     const [confirmed, setConfirmed] = useState(false);
+
+    // Postotak povrata — zajednička komponenta, ista i za storno računa.
+    const stornoPicker = useStornoPercentagePicker()
 
 
     const handleCloseCancelModal = async()=>{
@@ -49,6 +53,23 @@ export default function TicketsActions ({ params, rowId}) {
     };
     
     const handleCancelTicket = async()=>{
+        // Postotak se bira prije svega ostalog — ako blagajnik odustane, ništa se
+        // ne dira. Bez definiranog šifarnika storno nije moguć, jednako kao na
+        // mobilnoj: slobodan upis postotka više ne postoji.
+        if (!stornoPicker.percentages.length) {
+            await dispatch(setStateData({path:'alertData', value:{
+                message:'Nema definiranih postotaka storniranja. Dodajte ih u portalu (Administracija → Postotci storniranja) i pokrenite sinkronizaciju.',
+                severity:'error'
+            }}))
+            return
+        }
+        const pctAnswer = await stornoPicker.ask({
+            label: `Karta ${params.row?.ticket_code || ''}`,
+            amount: Number(params.row?.ticket_single_price || 0),
+        })
+        if (!pctAnswer?.status) return
+        const stornoPct = pctAnswer.value
+
         await dispatch(setStateData({path:'status', value:'loading'}))
         await dispatch(setStateData({path:'loadingText', value:'Priprema podataka...'}))
         let payment = {};
@@ -128,14 +149,14 @@ export default function TicketsActions ({ params, rowId}) {
                         message = "Račun je uspiješno storniran";
                         severity = 'success'
                         paymentResponse = data;
-                        paymentMethod = await appData.basicData.payment_methods.find((pay)=> pay.payment_method_uuid === invoiceData.data.invoice.invoice_payment_method_uuid)
+                        paymentMethod = await appData.basicData.payment_methods.find((pay)=> (pay.uuid || pay.payment_method_uuid) === invoiceData.data.invoice.invoice_payment_method_uuid)
                     }else{
                         message = "Nepoznat status";
                         severity = 'error'
                         isOk = false;
                     }
                 }else{
-                    paymentMethod = await appData.basicData.payment_methods.find((pay)=> pay.payment_method_uuid === invoiceData.data.invoice.invoice_payment_method_uuid)
+                    paymentMethod = await appData.basicData.payment_methods.find((pay)=> (pay.uuid || pay.payment_method_uuid) === invoiceData.data.invoice.invoice_payment_method_uuid)
                 }
             }
             
@@ -146,9 +167,17 @@ export default function TicketsActions ({ params, rowId}) {
                 user: appData.logedUser,
                 payment: paymentMethod,
                 paymentData: paymentResponse,
+                stornoPct,
             };
             console.log(dataToSend)
-            await window.api.app.cancelTicketIPC(dataToSend);
+            const res = await window.api.app.cancelTicketIPC(dataToSend);
+            if (res && res.ok === false) {
+                message = res.error?.message || 'Storno karte nije uspio';
+                severity = 'error';
+                console.error('[storno karte] neuspjeh:', res.error);
+            } else if (!message) {
+                message = 'Karta je uspješno stornirana';
+            }
         }
         await dispatch(setStateData({path:'loadingText', value:'Ažuriranje podataka...'}))
         const ticketsData = await window.api.app.getTicketsIPC()
@@ -172,6 +201,8 @@ export default function TicketsActions ({ params, rowId}) {
 
     return(
         <>
+        {stornoPicker.dialog}
+
         <Modal
             open={cancelPaymentModal}
             onClose={() => closeWithAnswer({status:false, data:''})}

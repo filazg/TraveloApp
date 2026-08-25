@@ -7,10 +7,14 @@ import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye';
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
 import { useEffect } from "react";
+import { useStornoPercentagePicker } from "./StornoPercentagePicker";
 
 export default function InvoicesActions ({ params, rowId}) {
     const dispatch = useDispatch()
     const appData = useSelector(allAppData);
+
+    // Postotak povrata — isti šifarnik i isti modal kao kod storna pojedine karte.
+    const stornoPicker = useStornoPercentagePicker()
 
     const handlePreviewInvoice = async ()=>{
         console.log(params.row)
@@ -45,6 +49,22 @@ export default function InvoicesActions ({ params, rowId}) {
 
     const handleCancelInvoice = async () => {
         console.log('InVOICE DATA',params.row)
+        // Postotak se bira prije svega ostalog — ako blagajnik odustane, ništa se
+        // ne dira. Bez šifarnika storno nije moguć; slobodan upis ne postoji.
+        if (!stornoPicker.percentages.length) {
+            await dispatch(setStateData({path:'alertData', value:{
+                message:'Nema definiranih postotaka storniranja. Dodajte ih u portalu (Administracija → Postotci storniranja) i pokrenite sinkronizaciju.',
+                severity:'error'
+            }}))
+            return
+        }
+        const pctAnswer = await stornoPicker.ask({
+            label: `Račun ${params.row?.invoice_code || ''}`,
+            amount: Number(params.row?.invoice_amount || 0),
+        })
+        if (!pctAnswer?.status) return
+        const stornoPct = pctAnswer.value
+
         let payment = {};
         let isOk = true;
         let message = '';
@@ -117,14 +137,22 @@ export default function InvoicesActions ({ params, rowId}) {
                     }
             }
             if(isOk){
-                paymentMethod = await appData.basicData.payment_methods.find((pay)=> pay.payment_method_uuid === params.row.invoice_payment_method_uuid)
+                paymentMethod = await appData.basicData.payment_methods.find((pay)=> (pay.uuid || pay.payment_method_uuid) === params.row.invoice_payment_method_uuid)
                 const dataToSend = {
                     invoice: params.row,
                     user: appData.logedUser,
                     payment: paymentMethod,
                     paymentData: paymentResponse,
+                    stornoPct,
                 };
-                await window.api.app.cancelInvoiceIPC(dataToSend);
+                const res = await window.api.app.cancelInvoiceIPC(dataToSend);
+                if (res && res.ok === false) {
+                    message = res.error?.message || 'Storno nije uspio';
+                    severity = 'error';
+                    console.error('[storno racuna] neuspjeh:', res.error);
+                } else if (!message) {
+                    message = 'Račun je uspješno storniran';
+                }
             }
 
         }
@@ -139,6 +167,7 @@ export default function InvoicesActions ({ params, rowId}) {
 
     return(
         <>
+        {stornoPicker.dialog}
         <Box
             sx={{
                 m: 1,

@@ -1,6 +1,6 @@
 const axios = require("axios");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
-const { usersModel, companyModel, paymentMethodsModel } = require("../db/models/BasicData.cjs");
+const { usersModel, companyModel, paymentMethodsModel, stornoPercentagesModel } = require("../db/models/BasicData.cjs");
 const { salesRoutesDataModel, salesRoutePricesDataModel, linesDataModel, harborsDataModel } = require("../db/models/TransportData.cjs");
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs");
 const https = require("https");
@@ -68,6 +68,13 @@ async function syncBasicDataService() {
       await companyModel.create(basicData.data.basic_data);
       await paymentMethodsModel.truncate();
       await paymentMethodsModel.bulkCreate(basicData.data.payment_method);
+      // Šifarnik postotaka storniranja. Ako ga backend ne pošalje (stariji
+      // servis), zadrži zadnje sinkronizirane umjesto da ostane prazno — bez
+      // njih blagajnik ne bi mogao stornirati.
+      if (Array.isArray(basicData.data.storno_percentages)) {
+        await stornoPercentagesModel.truncate();
+        await stornoPercentagesModel.bulkCreate(basicData.data.storno_percentages);
+      }
       const dataToSend = basicData.data;
       return { users: dataToSend.users };
     }

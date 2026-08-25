@@ -362,8 +362,14 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
   }
 }
 
-const cancelInvoiceService = async ({invoice, user, payment, paymentData }) => {
+const cancelInvoiceService = async ({invoice, user, payment, paymentData, stornoPct }) => {
   try {
+    // Postotak povrata bira blagajnik iz šifarnika. Bez njega — stariji poziv ili
+    // prazan šifarnik — vraća se puni iznos, kako je radilo i prije. Svaki iznos
+    // se zaokružuje na cent zasebno, da zbroj stavki odgovara iznosu računa.
+    const stornoFactor = Number.isFinite(Number(stornoPct)) && Number(stornoPct) > 0
+        ? Math.min(100, Number(stornoPct)) / 100
+        : 1;
     const basicData = await companyModel.findOne()
     const pairingDAta = await pairingDataModel.findOne();
     const settingsData = await systemSettingsDataModel.findOne();
@@ -423,11 +429,11 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData }) => {
               ticket_type_id: group.ticket_type_id,
               ticket_type_uuid: group.ticket_type_uuid,
               sales_route_uuid: group.sales_route_uuid,
-              single_price: group.single_price,
-              total_price: group.total_price,
-              total_vat_base: group.total_vat_base,
-              total_vat: group.total_vat,
-              total_harbor_tax: group.total_harbor_tax,
+              single_price: +(Number(group.single_price) * stornoFactor).toFixed(2),
+              total_price: +(Number(group.total_price) * stornoFactor).toFixed(2),
+              total_vat_base: +(Number(group.total_vat_base) * stornoFactor).toFixed(2),
+              total_vat: +(Number(group.total_vat) * stornoFactor).toFixed(2),
+              total_harbor_tax: +(Number(group.total_harbor_tax) * stornoFactor).toFixed(2),
               shift_uuid: shiftData.shift_uuid,
               order_number: orderUUID,
               item_uuid: itemUUID,
@@ -448,10 +454,10 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData }) => {
         arrival: item.arrival,
         arrival_harbor_id: item.arrival_harbor_id,
         arrival_harbor_name: item.arrival_harbor_name,
-        item_amount:item.item_amount * -1,
-        item_vat_base:item.item_vat_base * -1,
-        item_vat:item.item_vat * -1,
-        item_harbor_fee:item.item_harbor_fee * -1,
+        item_amount:+(Number(item.item_amount) * stornoFactor).toFixed(2) * -1,
+        item_vat_base:+(Number(item.item_vat_base) * stornoFactor).toFixed(2) * -1,
+        item_vat:+(Number(item.item_vat) * stornoFactor).toFixed(2) * -1,
+        item_harbor_fee:+(Number(item.item_harbor_fee) * stornoFactor).toFixed(2) * -1,
         shift_uuid: shiftData.shift_uuid,
         order_number: orderUUID,
         tickets_group: groupForItem,
@@ -495,7 +501,7 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData }) => {
       invoice_operator_mark: user.user_mark,
       invoice_payment_method_uuid: payment.uuid,
       invoice_payment_method_name: payment.name,
-      invoice_payment_method_fiscal_mark: payment.acr,
+      invoice_payment_method_fiscal_mark: payment.payment_type_acr || payment.acr,
       order_number: orderUUID,
       buyer_uuid: invoiceData.buyer_uuid || '',
       buyer_name: invoiceData.buyer_name || '',
@@ -511,10 +517,10 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData }) => {
       //shift_closed: false,
       invoice_status: 'canceled',
       invoice_canceled: true,
-      invoice_amount:invoiceData.invoice_amount * -1,
-      invoice_vat_base: invoiceData.invoice_vat_base * -1,
-      invoice_vat: invoiceData.invoice_vat * -1,
-      invoice_harbor_tax: invoiceData.invoice_harbor_tax * -1,
+      invoice_amount:+(Number(invoiceData.invoice_amount) * stornoFactor).toFixed(2) * -1,
+      invoice_vat_base: +(Number(invoiceData.invoice_vat_base) * stornoFactor).toFixed(2) * -1,
+      invoice_vat: +(Number(invoiceData.invoice_vat) * stornoFactor).toFixed(2) * -1,
+      invoice_harbor_tax: +(Number(invoiceData.invoice_harbor_tax) * stornoFactor).toFixed(2) * -1,
       invoice_items: itemsToAdd,
       payment_data: paymentData || {},
       invoice_canceled_pair:invoiceData.invoice_uuid
@@ -686,7 +692,7 @@ const getTicketsDataService = async()=>{
   }
 }
 
-const cancelTicketService = async ({ticket, user, payment, paymentData })=>{
+const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPct })=>{
   try {
     const basicData = await companyModel.findOne()
     const pairingDAta = await pairingDataModel.findOne();
@@ -732,17 +738,26 @@ const cancelTicketService = async ({ticket, user, payment, paymentData })=>{
     let itemsToAdd = []
     let ticketsGroupToAdd = []
 
+    // Postotak povrata bira blagajnik iz šifarnika (isto kao na mobilnoj). Ako
+    // ga nema — stariji poziv ili prazan šifarnik — vraća se puni iznos, kako je
+    // radilo i prije. Zaokružuje se na cent prije razrade PDV-a i lučke
+    // pristojbe, da zbroj stavki odgovara iznosu računa.
+    const stornoFactor = Number.isFinite(Number(stornoPct)) && Number(stornoPct) > 0
+        ? Math.min(100, Number(stornoPct)) / 100
+        : 1;
+    const refundPrice = +(Number(ticket.ticket_single_price) * stornoFactor).toFixed(2);
+
     const newGroup = {
         ticket_group_uuid: ticketsGroup.ticket_group_uuid,
         ticket_type_name: ticket.ticket_type_name,
         ticket_type_id: ticket.ticket_type_id,
         ticket_type_uuid: ticket.ticket_type_uuid,
         sales_route_uuid: ticket.sales_route_uuid,
-        single_price: ticket.ticket_single_price,
-        total_price: ticket.ticket_single_price,
-        total_vat_base: ((ticket.ticket_single_price * 0.94)/1.25).toFixed(2) ,
-        total_vat: (ticket.ticket_single_price*0.94).toFixed(2)- ((ticket.ticket_single_price * 0.94)/1.25).toFixed(2),
-        total_harbor_tax: (ticket.ticket_single_price).toFixed(2)- (ticket.ticket_single_price*0.94).toFixed(2),
+        single_price: refundPrice,
+        total_price: refundPrice,
+        total_vat_base: ((refundPrice * 0.94)/1.25).toFixed(2) ,
+        total_vat: (refundPrice*0.94).toFixed(2)- ((refundPrice * 0.94)/1.25).toFixed(2),
+        total_harbor_tax: (refundPrice).toFixed(2)- (refundPrice*0.94).toFixed(2),
         shift_uuid: shiftData.shift_uuid,
         order_number: orderUUID,
         item_uuid: itemUUID,
@@ -762,10 +777,10 @@ const cancelTicketService = async ({ticket, user, payment, paymentData })=>{
         arrival: ticket.ticket_arrival,
         arrival_harbor_id: ticket.ticket_arrival_harbor_id,
         arrival_harbor_name: ticket.ticket_arrival_harbor_name,
-        item_amount:ticket.ticket_single_price,
-        item_vat_base:((ticket.ticket_single_price * 0.94)/1.25).toFixed(2) ,
-        item_vat:(ticket.ticket_single_price*0.94).toFixed(2)- ((ticket.ticket_single_price * 0.94)/1.25).toFixed(2),
-        item_harbor_fee:(ticket.ticket_single_price).toFixed(2)- (ticket.ticket_single_price*0.94).toFixed(2),
+        item_amount:refundPrice,
+        item_vat_base:((refundPrice * 0.94)/1.25).toFixed(2) ,
+        item_vat:(refundPrice*0.94).toFixed(2)- ((refundPrice * 0.94)/1.25).toFixed(2),
+        item_harbor_fee:(refundPrice).toFixed(2)- (refundPrice*0.94).toFixed(2),
         shift_uuid: shiftData.shift_uuid,
         order_number: orderUUID,
         tickets_group: ticketsGroupToAdd,
@@ -823,10 +838,10 @@ const cancelTicketService = async ({ticket, user, payment, paymentData })=>{
         //shift_closed: false,
         invoice_status: 'canceled',
         invoice_canceled: true,
-        invoice_amount: ticket.ticket_single_price * -1,
-        invoice_vat_base: ((ticket.ticket_single_price * 0.94)/1.25).toFixed(2) * -1,
-        invoice_vat: (ticket.ticket_single_price*0.94).toFixed(2)- ((ticket.ticket_single_price * 0.94)/1.25).toFixed(2) * -1,
-        invoice_harbor_tax: (ticket.ticket_single_price).toFixed(2)- (ticket.ticket_single_price*0.94).toFixed(2) * -1,
+        invoice_amount: refundPrice * -1,
+        invoice_vat_base: ((refundPrice * 0.94)/1.25).toFixed(2) * -1,
+        invoice_vat: (refundPrice*0.94).toFixed(2)- ((refundPrice * 0.94)/1.25).toFixed(2) * -1,
+        invoice_harbor_tax: (refundPrice).toFixed(2)- (refundPrice*0.94).toFixed(2) * -1,
         invoice_items: itemsToAdd,
         payment_data: paymentData || {},
         invoice_canceled_pair:invoiceData.invoice_uuid

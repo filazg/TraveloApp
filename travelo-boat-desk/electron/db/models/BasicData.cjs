@@ -175,8 +175,38 @@ const paymentMethodsModel = sequelize.define('payment_methods',{
 })
 
 
+// Postotci storniranja — sifarnik iz portala, stize uz basic_data sync. Blagajnik
+// bira jedan od njih pri povratu karte umjesto da se uvijek vraca puni iznos.
+const stornoPercentagesModel = sequelize.define('storno_percentages',{
+    id:{
+        type:Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    uuid:{
+        type:Sequelize.STRING,
+        allowNull:false
+    },
+    percentage:{
+        type:Sequelize.DECIMAL,
+        allowNull:false
+    },
+    name:{
+        type:Sequelize.STRING,
+        allowNull:true
+    },
+    is_active:{
+        type:Sequelize.BOOLEAN,
+        allowNull:true
+    }
+},{
+    freezeTableName:true
+})
+
+
 module.exports={
     companyModel,
     usersModel,
-    paymentMethodsModel
+    paymentMethodsModel,
+    stornoPercentagesModel
 }
