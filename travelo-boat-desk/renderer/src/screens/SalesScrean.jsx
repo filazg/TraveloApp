@@ -7,8 +7,12 @@ import {
   Grid,
   Typography,
   IconButton,
+  ListItemIcon,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
+import KeyboardIcon from "@mui/icons-material/Keyboard";
 import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 
@@ -34,6 +38,7 @@ import LoadingScreen from "../components/common/LoadingScreen";
 
 export default function SalesScreen() {
   const dispatch = useDispatch();
+  const [menuAnchor, setMenuAnchor] = useState(null);
 
   const selectedDepartureData = true;
 
@@ -86,16 +91,32 @@ export default function SalesScreen() {
             <Stack direction="row" spacing={1} alignItems="center">
               <WifiIcon color="success"/>
               <ThemeToggleButton />
-              {/* Osobne postavke operatera (prečaci), ne postavke sustava — one
-                  su stvar instalacije i otvaraju se s ekrana prijave, iza koda.
-                  Prije je ovaj gumb postavljao lokalni settingsOpen koji nijedan
-                  modal nije gledao, pa nije radio ništa. */}
+              {/* Izbornik osobnih postavki operatera. Postavke sustava tu ne
+                  spadaju — one su stvar instalacije i otvaraju se s ekrana
+                  prijave, iza koda. */}
               <IconButton
-                onClick={() => dispatch(setStateData({ path: "modalsStates/showOperatorSettingsModal", value: true }))}
-                aria-label="postavke operatera"
+                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                aria-label="izbornik operatera"
               >
                 <SettingsIcon />
               </IconButton>
+              <Menu
+                anchorEl={menuAnchor}
+                open={!!menuAnchor}
+                onClose={() => setMenuAnchor(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+              >
+                <MenuItem
+                  onClick={() => {
+                    setMenuAnchor(null);
+                    dispatch(setStateData({ path: "modalsStates/showOperatorSettingsModal", value: true }));
+                  }}
+                >
+                  <ListItemIcon><KeyboardIcon fontSize="small" /></ListItemIcon>
+                  Funkcijske tipke
+                </MenuItem>
+              </Menu>
 
               {/* quick actions (po želji) */}
               {/* <Button variant="outlined" onClick={() => dispatch(logout())}>Logout</Button> */}

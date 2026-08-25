@@ -7,7 +7,6 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    Divider,
     MenuItem,
     Stack,
     TextField,
@@ -83,18 +82,16 @@ export default function OperatorSettingsModal() {
 
     return (
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+            {/* Naslov je ono što piše i u izborniku — svaka stavka izbornika
+                otvara svoj dijalog, pa unutarnji podnaslov više ne treba. */}
             <DialogTitle sx={{ fontWeight: 800 }}>
-                Postavke operatera
+                Funkcijske tipke
                 <Typography variant="body2" color="text.secondary">
                     {username || "—"}
                 </Typography>
             </DialogTitle>
 
             <DialogContent dividers>
-                <Divider sx={{ mb: 2 }}>
-                    <Typography variant="overline" color="text.secondary">Prečaci na tipkovnici</Typography>
-                </Divider>
-
                 <Alert severity="info" sx={{ mb: 2 }}>
                     Funkcijska tipka pokreće odabranu radnju na prodajnom ekranu. Prazno
                     znači da tipka nije dodijeljena. Ista radnja može stajati samo na
