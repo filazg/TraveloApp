@@ -212,6 +212,13 @@ export default function BillingDevicesPage (){
 
 
 
+    // Zbijeniji redak popisa: MUI-jevi razmaci su odmjereni za dodir prstom, a
+    // ovo je popis za miša — s njima je u okvir stalo upola manje stavki.
+    const stavkaSx = { py: 0, minHeight: 30 }
+    const kvacicaOkvirSx = { minWidth: 28 }
+    const kvacicaSx = { p: 0.25 }
+    const stavkaTekstSx = { fontSize: 13 }
+
     // Zajednički okvir za sve tri prijenosne liste (plaćanja, operateri, linije).
     // Naslov stoji u traci iznad popisa, s brojem stavki, da se na prvi pogled
     // vidi koja je strana koja — prije su bila dva gola okvira bez ijedne oznake.
@@ -340,7 +347,7 @@ export default function BillingDevicesPage (){
     };
 
      const customList = (items) => (
-        <List dense component="div" role="list">
+        <List dense disablePadding component="div" role="list">
             {items.map((value) => {
             const labelId = `transfer-list-item-${value}-label`;
 
@@ -349,9 +356,12 @@ export default function BillingDevicesPage (){
                 key={value.id}
                 role="listitem"
                 onClick={handleToggle(value)}
+                sx={stavkaSx}
                 >
-                <ListItemIcon>
+                <ListItemIcon sx={kvacicaOkvirSx}>
                     <Checkbox
+                    size="small"
+                    sx={kvacicaSx}
                     checked={checked.indexOf(value) !== -1}
                     tabIndex={-1}
                     disableRipple
@@ -360,7 +370,7 @@ export default function BillingDevicesPage (){
                     }}
                     />
                 </ListItemIcon>
-                <ListItemText id={labelId} primary={value.name} />
+                <ListItemText id={labelId} primary={value.name} primaryTypographyProps={{ sx: stavkaTekstSx }} />
                 </ListItemButton>
             );
             })}
@@ -429,7 +439,7 @@ export default function BillingDevicesPage (){
     };
 
      const customListOP = (items) => (
-        <List dense component="div" role="list">
+        <List dense disablePadding component="div" role="list">
             {items.map((value) => {
             const labelId = `transfer-list-item-${value}-label`;
 
@@ -438,9 +448,12 @@ export default function BillingDevicesPage (){
                 key={value.id}
                 role="listitem"
                 onClick={handleToggleOP(value)}
+                sx={stavkaSx}
                 >
-                <ListItemIcon>
+                <ListItemIcon sx={kvacicaOkvirSx}>
                     <Checkbox
+                    size="small"
+                    sx={kvacicaSx}
                     checked={checkedOP.indexOf(value) !== -1}
                     tabIndex={-1}
                     disableRipple
@@ -449,7 +462,7 @@ export default function BillingDevicesPage (){
                     }}
                     />
                 </ListItemIcon>
-                <ListItemText id={labelId} primary={value.name + ' ' + value.surname} />
+                <ListItemText id={labelId} primary={value.name + ' ' + value.surname} primaryTypographyProps={{ sx: stavkaTekstSx }} />
                 </ListItemButton>
             );
             })}
@@ -514,7 +527,7 @@ export default function BillingDevicesPage (){
     };
 
     const customListLN = (items) => (
-        <List dense component="div" role="list">
+        <List dense disablePadding component="div" role="list">
             {items.map((value) => {
             const labelId = `transfer-list-item-${value}-label`;
 
@@ -523,9 +536,12 @@ export default function BillingDevicesPage (){
                 key={value.id}
                 role="listitem"
                 onClick={handleToggleLN(value)}
+                sx={stavkaSx}
                 >
-                <ListItemIcon>
+                <ListItemIcon sx={kvacicaOkvirSx}>
                     <Checkbox
+                    size="small"
+                    sx={kvacicaSx}
                     checked={checkedLN.indexOf(value) !== -1}
                     tabIndex={-1}
                     disableRipple
@@ -534,7 +550,7 @@ export default function BillingDevicesPage (){
                     }}
                     />
                 </ListItemIcon>
-                <ListItemText id={labelId} primary={value.code ? `${value.code} · ${value.name}` : value.name} />
+                <ListItemText id={labelId} primary={value.code ? `${value.code} · ${value.name}` : value.name} primaryTypographyProps={{ sx: stavkaTekstSx }} />
                 </ListItemButton>
             );
             })}
@@ -1147,12 +1163,12 @@ export default function BillingDevicesPage (){
                     </TextField>
                     <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Sredstva plaćanja</Typography>
                     {transferRed(<>
-                        {transferOkvir('Nije na uređaju', left, customList(left))}
+                        {transferOkvir('Nije dopušteno', left, customList(left))}
                         {transferStrelice(
                             handleAllRight, handleCheckedRight, handleCheckedLeft, handleAllLeft,
                             left.length > 0, leftChecked.length > 0, rightChecked.length > 0, right.length > 0,
                         )}
-                        {transferOkvir('Na uređaju', right, customList(right))}
+                        {transferOkvir('Dopušteno', right, customList(right))}
                     </>)}
                     <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Operateri</Typography>
                     {transferRed(<>
@@ -1164,16 +1180,13 @@ export default function BillingDevicesPage (){
                         {transferOkvir('Ima pristup', rightOP, customListOP(rightOP))}
                     </>)}
                     <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Linije</Typography>
-                    <Typography textAlign='center' variant="caption" color="text.secondary" component="div">
-                        Zadano uređaj vidi sve linije — desno se stavljaju one koje mu nisu dozvoljene.
-                    </Typography>
                     {transferRed(<>
-                        {transferOkvir('Uređaj vidi', leftLN, customListLN(leftLN))}
+                        {transferOkvir('Omogućene', leftLN, customListLN(leftLN))}
                         {transferStrelice(
                             handleAllRightLN, handleCheckedRightLN, handleCheckedLeftLN, handleAllLeftLN,
                             leftLN.length > 0, leftCheckedLN.length > 0, rightCheckedLN.length > 0, rightLN.length > 0,
                         )}
-                        {transferOkvir('Nije dozvoljeno', rightLN, customListLN(rightLN))}
+                        {transferOkvir('Nisu omogućene', rightLN, customListLN(rightLN))}
                     </>)}
                     <Button
                         type="submit"
