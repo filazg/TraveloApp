@@ -11,7 +11,8 @@ import {
   Menu,
   MenuItem,
 } from "@mui/material";
-import SettingsIcon from "@mui/icons-material/Settings";
+import PersonIcon from "@mui/icons-material/AccountCircle";
+import SyncIcon from "@mui/icons-material/Sync";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
 import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
@@ -39,6 +40,35 @@ import LoadingScreen from "../components/common/LoadingScreen";
 export default function SalesScreen() {
   const dispatch = useDispatch();
   const [menuAnchor, setMenuAnchor] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
+  // Isto što radi i gumb SINKRONIZACIJA na prijavi: povuče vozne redove i
+  // osnovne podatke s backenda pa osvježi ono što je u memoriji. Ovdje treba
+  // jer se vozni red ili cjenik znaju promijeniti usred smjene, a blagajnik se
+  // dotad morao odjaviti da bi to povukao.
+  const handleSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    await dispatch(setStateData({ path: "status", value: "loading" }));
+    await dispatch(setStateData({ path: "loadingText", value: "Preuzimanje podataka sa servera..." }));
+    try {
+      await window.api.app.syncTransportBackend();
+      await window.api.app.syncBasicBackend();
+      const basicData = await window.api.app.getLocalBasicDataIpc();
+      await dispatch(setStateData({ path: "basicData", value: basicData.data }));
+      // Vozni redovi se drže odvojeno od osnovnih podataka i FilterBar ih čita
+      // iz transportData — bez ovoga bi nova pretraga i dalje nudila stari red.
+      const transportData = await window.api.app.getLocalTransportDataIpc();
+      await dispatch(setStateData({ path: "transportData", value: transportData.data }));
+      await dispatch(setStateData({ path: "alertData", value: { message: "Podaci su sinkronizirani.", severity: "success" } }));
+    } catch (error) {
+      console.error("Greška pri sinkronizaciji podataka:", error);
+      await dispatch(setStateData({ path: "alertData", value: { message: "Sinkronizacija nije uspjela.", severity: "error" } }));
+    } finally {
+      await dispatch(setStateData({ path: "status", value: "ready" }));
+      setSyncing(false);
+    }
+  };
 
   const selectedDepartureData = true;
 
@@ -94,11 +124,16 @@ export default function SalesScreen() {
               {/* Izbornik osobnih postavki operatera. Postavke sustava tu ne
                   spadaju — one su stvar instalacije i otvaraju se s ekrana
                   prijave, iza koda. */}
+              <IconButton onClick={handleSync} aria-label="sinkronizacija podataka" disabled={syncing}>
+                {/* Ikona se vrti dok sinkronizacija traje — inače nema nikakve
+                    naznake da se išta događa, a dohvat traje nekoliko sekundi. */}
+                <SyncIcon sx={syncing ? { animation: "vrti 1s linear infinite", "@keyframes vrti": { to: { transform: "rotate(360deg)" } } } : null} />
+              </IconButton>
               <IconButton
                 onClick={(e) => setMenuAnchor(e.currentTarget)}
                 aria-label="izbornik operatera"
               >
-                <SettingsIcon />
+                <PersonIcon />
               </IconButton>
               <Menu
                 anchorEl={menuAnchor}
