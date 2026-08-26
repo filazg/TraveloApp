@@ -224,7 +224,9 @@ const sepaOrderXmlController = async (req, res) => {
         const coreConfig = await getCoreServiceConfigData();
         const backofficeUrl = coreConfig?.services?.backoffice?.url;
         if (!backofficeUrl) throw new Error("backoffice URL missing in core config");
-        const companyResp = await axios.get(`${backofficeUrl}/company`, { timeout: 5000, validateStatus: () => true });
+        // Isti razlog kao kod storna: udaljena baza zna biti spora, a 5 sekundi
+        // je premalo pa generiranje padne na isteku veze.
+        const companyResp = await axios.get(`${backofficeUrl}/company`, { timeout: 20000, validateStatus: () => true });
         const company = companyResp.data?.data?.company || {};
 
         if (!company.iban) {

@@ -43,15 +43,31 @@ const nextInvoiceFiskalNo = async (InvoiceModel, year, billingDeviceUuid) => {
     return Number.isFinite(max) ? max + 1 : 1;
 };
 
+// Baza je na udaljenom clusteru, pa /company zna trajati i preko sekunde, a
+// pod opterećenjem i dulje. S 5 sekundi je storno padao na isteku veze nakon
+// što je operater sve unio — 20 je dovoljno da se to ne događa, a i dalje ne
+// ostavlja zahtjev da visi.
+const BACKOFFICE_TIMEOUT = 20000;
+
+const dohvati = async (url) => {
+    try {
+        return await axios.get(url, { timeout: BACKOFFICE_TIMEOUT, validateStatus: () => true });
+    } catch (error) {
+        // Sirova poruka ("timeout of 5000ms exceeded") operateru ne znači ništa,
+        // a važno je da zna da nije storniran ni jedan račun.
+        throw new Error("backoffice ne odgovara — storno nije izvršen, pokušaj ponovno");
+    }
+};
+
 const loadStornoContext = async (terminalUuid) => {
     const coreConfig = await getCoreServiceConfigData();
     const backofficeUrl = coreConfig?.services?.backoffice?.url;
     if (!backofficeUrl) throw new Error("backoffice URL missing in core config");
 
     const [companyResp, bpResp, bdResp] = await Promise.all([
-        axios.get(`${backofficeUrl}/company`, { timeout: 5000, validateStatus: () => true }),
-        axios.get(`${backofficeUrl}/business_premises`, { timeout: 5000, validateStatus: () => true }),
-        axios.get(`${backofficeUrl}/billing_devices`, { timeout: 5000, validateStatus: () => true }),
+        dohvati(`${backofficeUrl}/company`),
+        dohvati(`${backofficeUrl}/business_premises`),
+        dohvati(`${backofficeUrl}/billing_devices`),
     ]);
 
     const company = companyResp.data?.data?.company || {};
