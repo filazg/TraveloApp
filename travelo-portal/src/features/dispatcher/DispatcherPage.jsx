@@ -26,6 +26,7 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CancelIcon from "@mui/icons-material/Cancel";
 import UndoIcon from "@mui/icons-material/Undo";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import DirectionsBoatIcon from "@mui/icons-material/DirectionsBoat";
@@ -499,7 +500,9 @@ export default function DispatcherPage() {
                                     </Stack>
                                 )}
                             </Box>
-                            <Stack direction="row" spacing={1}>
+                            {/* useFlexGap + wrap: s četvrtim gumbom red više ne stane na
+                                uže ekrane, pa se lomi umjesto da bježi izvan kartice. */}
+                            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="flex-end">
                                 {/* Otkazani polazak ostaje u popisu, ali umjesto otkazivanja
                                     nudi vraćanje u prodaju — dispečer tako vidi što se dogodilo
                                     i može ispraviti pogrešku. */}
