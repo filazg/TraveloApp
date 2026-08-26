@@ -31,6 +31,7 @@ import TicketsOverviewPage from './features/finance/pages/tickets/TicketsOvervie
 import HarborTaxReportPage from './features/finance/pages/harbor_tax/HarborTaxReportPage';
 import ShiftsPage from './features/finance/pages/shifts/ShiftsPage';
 import AccountsPage from './features/finance/pages/accounts/AccountsPage';
+import SepaOrdersPage from './features/finance/pages/sepa/SepaOrdersPage';
 import WebSalesSettingsPage from './features/backoffice/pages/channel_settings/WebSalesSettingsPage';
 import PartnerSalesSettingsPage from './features/backoffice/pages/channel_settings/PartnerSalesSettingsPage';
 import ReportsPage from './features/finance/pages/reports/ReportsPage';
@@ -88,6 +89,7 @@ function App() {
                 <Route path='finance/harbor_tax_report' element={<HarborTaxReportPage/>}></Route>
                 <Route path='finance/shifts' element={<ShiftsPage/>}></Route>
                 <Route path='finance/accounts' element={<AccountsPage/>}></Route>
+                <Route path='finance/sepa_orders' element={<SepaOrdersPage/>}></Route>
                 <Route path='finance/reports' element={<ReportsPage/>}></Route>
                 <Route path='finance/reports/daily_realization' element={<DailyRealizationPage/>}></Route>
                 <Route path='finance/reports/daily_realization_demo' element={<DailyRealizationPage demo/>}></Route>

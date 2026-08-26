@@ -4,31 +4,41 @@ import {
     Alert,
     Box,
     Button,
+    Chip,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
     MenuItem,
+    Paper,
     Stack,
     TextField,
     Typography,
 } from "@mui/material";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import {
     cancelTicketsThunk,
     fetchBillingDevicesFullThunk,
     fetchBusinessPremisesListThunk,
     financeSliceData,
 } from "../../financeSlice";
+import { formatirajIban } from "../../../../helpers/iban";
+import SepaRefundDialog from "./SepaRefundDialog";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
 export default function CancelTicketsModal({ open, tickets, onClose, onCanceled }) {
     const dispatch = useDispatch();
     const { billingDevicesFull, businessPremisesList, cancelLoading, cancelError } = useSelector(financeSliceData);
+    const auth = useSelector((s) => s.auth);
     const [terminal, setTerminal] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("");
     const [percentage, setPercentage] = useState(100);
     const [localError, setLocalError] = useState(null);
+    // Povrat na račun: kad je postavljen, storno uz sebe nosi i stavku SEPA
+    // naloga. Bez toga povrat ide odabranim sredstvom plaćanja, kao i dosad.
+    const [sepa, setSepa] = useState(null);
+    const [sepaOpen, setSepaOpen] = useState(false);
 
     useEffect(() => {
         if (open && !billingDevicesFull.length) dispatch(fetchBillingDevicesFullThunk());
@@ -41,6 +51,8 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
             setPaymentMethod("");
             setPercentage(100);
             setLocalError(null);
+            setSepa(null);
+            setSepaOpen(false);
         }
     }, [open]);
 
@@ -90,6 +102,7 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                 terminal_uuid: terminal,
                 payment_method_uuid: paymentMethod,
                 percentage: Number(percentage),
+                ...(sepa ? { sepa: { ...sepa, created_by: auth?.loggedUserData?.username || "" } } : {}),
             })
         );
         if (res.meta.requestStatus === "fulfilled") {
@@ -164,6 +177,44 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                             ))}
                         </TextField>
 
+                        {/* Povrat na račun. Nije zamjena za sredstvo plaćanja —
+                            storno se i dalje evidentira na uređaju, a ovdje se
+                            bilježi kome i na koji IBAN novac stvarno ide. */}
+                        <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                            {sepa ? (
+                                <Stack spacing={1}>
+                                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+                                        <AccountBalanceIcon fontSize="small" color="primary" />
+                                        <Typography fontWeight={700}>Povrat na IBAN</Typography>
+                                        <Chip size="small" label={sepa.sepa_order_name || "SEPA nalog"} />
+                                        <Box sx={{ flex: 1 }} />
+                                        <Button size="small" onClick={() => setSepaOpen(true)}>Promijeni</Button>
+                                        <Button size="small" color="error" onClick={() => setSepa(null)}>Ukloni</Button>
+                                    </Stack>
+                                    <Typography variant="body2">
+                                        {sepa.recipient_name} · <span style={{ fontFamily: "monospace" }}>{formatirajIban(sepa.recipient_iban)}</span>
+                                    </Typography>
+                                </Stack>
+                            ) : (
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                                        <Typography fontWeight={700}>Povrat na IBAN</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Novac se vraća na račun putnika i upisuje u SEPA nalog
+                                        </Typography>
+                                    </Box>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<AccountBalanceIcon />}
+                                        onClick={() => setSepaOpen(true)}
+                                        disabled={refundAmount <= 0}
+                                    >
+                                        Vrati na IBAN
+                                    </Button>
+                                </Stack>
+                            )}
+                        </Paper>
+
                         {(localError || cancelError) && (
                             <Alert severity="error">{localError || cancelError}</Alert>
                         )}
@@ -181,6 +232,15 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                     Storniraj
                 </Button>
             </DialogActions>
+
+            <SepaRefundDialog
+                open={sepaOpen}
+                amount={refundAmount}
+                ticketsCount={tickets.length}
+                defaultValue={sepa}
+                onClose={() => setSepaOpen(false)}
+                onConfirm={setSepa}
+            />
         </Dialog>
     );
 }

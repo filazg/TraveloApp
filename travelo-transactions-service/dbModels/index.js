@@ -5,6 +5,7 @@ const bookingModelsFactory = require("./booking.models");
 const partnerInvoiceModelsFactory = require("./partnerInvoice.models");
 const shiftModelsFactory = require("./shift.models");
 const apiOrdersModelsFactory = require("./apiOrders.models");
+const sepaModelsFactory = require("./sepa.models");
 
 let models = null;
 
@@ -18,7 +19,8 @@ function initModels() {
       ...bookingModelsFactory(sequelize),
       ...partnerInvoiceModelsFactory(sequelize),
       ...shiftModelsFactory(sequelize),
-      ...apiOrdersModelsFactory(sequelize)
+      ...apiOrdersModelsFactory(sequelize),
+      ...sepaModelsFactory(sequelize)
     };
   }
 

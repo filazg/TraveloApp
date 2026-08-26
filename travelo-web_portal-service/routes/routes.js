@@ -28,6 +28,14 @@ const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGe
 const { handleCancelSailingFeature, handleRestoreSailingFeature, handleRescheduleSailingFeature, handleSendSailingMessageFeature } = require('../features/transactions/dispatcherHandler');
 const { handleGetShiftsFeature } = require('../features/transactions/shiftsHandlers');
 const {
+    handleGetSepaOrdersFeature,
+    handleGetSepaOrderFeature,
+    handleCreateSepaOrderFeature,
+    handleSetSepaOrderStatusFeature,
+    handleAddSepaOrderItemFeature,
+    handleDeleteSepaOrderItemFeature,
+} = require('../features/transactions/sepaHandlers');
+const {
     handleGetCapacityCategoriesFeature,
     handleAddCapacityCategoryFeature,
     handleUpdateCapacityCategoryFeature,
@@ -236,6 +244,28 @@ router
 router
     .route('/transactions/shifts')
     .get(handleGetShiftsFeature)
+
+// SEPA nalozi — povrati na račun
+router
+    .route('/transactions/sepa_orders')
+    .get(handleGetSepaOrdersFeature)
+    .post(handleCreateSepaOrderFeature)
+
+router
+    .route('/transactions/sepa_order/:sepa_order_uuid')
+    .get(handleGetSepaOrderFeature)
+
+router
+    .route('/transactions/sepa_order_status')
+    .post(handleSetSepaOrderStatusFeature)
+
+router
+    .route('/transactions/sepa_order_items')
+    .post(handleAddSepaOrderItemFeature)
+
+router
+    .route('/transactions/sepa_order_item_delete')
+    .post(handleDeleteSepaOrderItemFeature)
 
 router
     .route('/transactions/harbor_tax_report')

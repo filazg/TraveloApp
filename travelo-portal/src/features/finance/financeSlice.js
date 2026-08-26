@@ -378,6 +378,70 @@ export const emailInvoiceTicketsThunk = createAsyncThunk(
         }
     }
 );
+// ——— SEPA nalozi ———————————————————————————————————————————————————————
+// Nalog je zbirka povrata koji idu na račun; stavke se u njega dodaju kroz
+// storno ("Vrati na IBAN") ili ručno na pregledu naloga.
+
+export const fetchSepaOrdersThunk = createAsyncThunk(
+    "finance/fetchSepaOrders",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/sepa_orders", { params });
+            const payload = unwrapBff(resp);
+            return payload?.orders || [];
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
+export const fetchSepaOrderDetailsThunk = createAsyncThunk(
+    "finance/fetchSepaOrderDetails",
+    async (sepa_order_uuid, { rejectWithValue }) => {
+        try {
+            const resp = await api.get(`/portal/transactions/sepa_order/${sepa_order_uuid}`);
+            const payload = unwrapBff(resp);
+            return { order: payload?.order || null, items: payload?.items || [] };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
+// POST rukovatelji BFF-a vraćaju tijelo transactions-servisa doslovno, pa je
+// korisni sadržaj na `resp.data.data` — i poruka o grešci dolazi ista.
+const sepaPost = async (putanja, payload, rejectWithValue) => {
+    try {
+        const resp = await api.post(putanja, payload);
+        if (resp.data?.status && resp.data.status >= 400) {
+            return rejectWithValue(resp.data?.data || { message: "SEPA nalog nije spremljen" });
+        }
+        return resp.data?.data || {};
+    } catch (err) {
+        return rejectWithValue(err.response?.data?.data || { message: err.message });
+    }
+};
+
+export const createSepaOrderThunk = createAsyncThunk(
+    "finance/createSepaOrder",
+    (payload, { rejectWithValue }) => sepaPost("/portal/transactions/sepa_orders", payload, rejectWithValue)
+);
+
+export const setSepaOrderStatusThunk = createAsyncThunk(
+    "finance/setSepaOrderStatus",
+    (payload, { rejectWithValue }) => sepaPost("/portal/transactions/sepa_order_status", payload, rejectWithValue)
+);
+
+export const addSepaOrderItemThunk = createAsyncThunk(
+    "finance/addSepaOrderItem",
+    (payload, { rejectWithValue }) => sepaPost("/portal/transactions/sepa_order_items", payload, rejectWithValue)
+);
+
+export const deleteSepaOrderItemThunk = createAsyncThunk(
+    "finance/deleteSepaOrderItem",
+    (payload, { rejectWithValue }) => sepaPost("/portal/transactions/sepa_order_item_delete", payload, rejectWithValue)
+);
+
 const financeSlice = createSlice({
     name: "finance",
     initialState: {
@@ -421,6 +485,13 @@ const financeSlice = createSlice({
             year: new Date().getFullYear(),
             month: new Date().getMonth() + 1,
         },
+        sepaOrders: [],
+        sepaOrdersLoading: false,
+        sepaOrdersError: null,
+        sepaOrderDetails: { order: null, items: [] },
+        sepaOrderDetailsLoading: false,
+        sepaSaving: false,
+        sepaError: null,
         shifts: [],
         shiftsLoading: false,
         shiftsError: null,
@@ -642,6 +713,29 @@ const financeSlice = createSlice({
                 s.cancelLoading = false;
                 s.cancelError = a.payload?.message || "Storno nije uspio";
             })
+            .addCase(fetchSepaOrdersThunk.pending, (s) => {
+                s.sepaOrdersLoading = true;
+                s.sepaOrdersError = null;
+            })
+            .addCase(fetchSepaOrdersThunk.fulfilled, (s, a) => {
+                s.sepaOrdersLoading = false;
+                s.sepaOrders = a.payload || [];
+            })
+            .addCase(fetchSepaOrdersThunk.rejected, (s, a) => {
+                s.sepaOrdersLoading = false;
+                s.sepaOrdersError = a.payload?.message || "Dohvat SEPA naloga nije uspio";
+            })
+            .addCase(fetchSepaOrderDetailsThunk.pending, (s) => {
+                s.sepaOrderDetailsLoading = true;
+            })
+            .addCase(fetchSepaOrderDetailsThunk.fulfilled, (s, a) => {
+                s.sepaOrderDetailsLoading = false;
+                s.sepaOrderDetails = a.payload || { order: null, items: [] };
+            })
+            .addCase(fetchSepaOrderDetailsThunk.rejected, (s) => {
+                s.sepaOrderDetailsLoading = false;
+                s.sepaOrderDetails = { order: null, items: [] };
+            })
             .addCase(fetchManagementReportThunk.pending, (s) => {
                 s.managementReportLoading = true;
                 s.managementReportError = null;
@@ -759,7 +853,22 @@ const financeSlice = createSlice({
                     result: null,
                     error: a.payload?.error?.message || a.error?.message || "Slanje u ERP nije uspjelo",
                 };
-            });
+            })
+            // Sve izmjene SEPA naloga dijele isti par zastavica — u sučelju se
+            // u jednom trenutku radi samo jedna od njih. Matcheri idu na kraj
+            // lanca, jer RTK ne dopušta addCase nakon addMatcher.
+            .addMatcher(
+                (a) => /^finance\/(createSepaOrder|setSepaOrderStatus|addSepaOrderItem|deleteSepaOrderItem)\/pending$/.test(a.type),
+                (s) => { s.sepaSaving = true; s.sepaError = null; }
+            )
+            .addMatcher(
+                (a) => /^finance\/(createSepaOrder|setSepaOrderStatus|addSepaOrderItem|deleteSepaOrderItem)\/fulfilled$/.test(a.type),
+                (s) => { s.sepaSaving = false; }
+            )
+            .addMatcher(
+                (a) => /^finance\/(createSepaOrder|setSepaOrderStatus|addSepaOrderItem|deleteSepaOrderItem)\/rejected$/.test(a.type),
+                (s, a) => { s.sepaSaving = false; s.sepaError = a.payload?.message || "Spremanje nije uspjelo"; }
+            );
     },
 });
 

@@ -25,6 +25,7 @@ const { upsertTerminalShiftController, listShiftsController } = require('../cont
 const { apiCreateOrderController, apiGetOrderController, apiConfirmOrderController, apiCancelOrderController, apiTripDetailsController } = require('../controllers/dataControllers/apiOrderControllers');
 const { dailyRealizationReportController, sendDailyRealizationToErpController } = require('../controllers/dataControllers/dailyRealizationReportController');
 const { dailyRealizationDemoController, sendDailyRealizationDemoToErpController } = require('../controllers/dataControllers/dailyRealizationDemoController');
+const { listSepaOrdersController, getSepaOrderController, createSepaOrderController, setSepaOrderStatusController, addSepaOrderItemController, deleteSepaOrderItemController } = require('../controllers/dataControllers/sepaControllers');
 const router = express.Router();
 
 router
@@ -144,6 +145,28 @@ router
 router
     .route('/yescor_test_submit')
     .get(yescorTestSubmitController)
+
+// SEPA nalozi — povrati na račun. Nalog okuplja stavke iz više storna.
+router
+    .route('/sepa_orders')
+    .get(listSepaOrdersController)
+    .post(createSepaOrderController)
+
+router
+    .route('/sepa_order/:sepa_order_uuid')
+    .get(getSepaOrderController)
+
+router
+    .route('/sepa_order_status')
+    .post(setSepaOrderStatusController)
+
+router
+    .route('/sepa_order_items')
+    .post(addSepaOrderItemController)
+
+router
+    .route('/sepa_order_item_delete')
+    .post(deleteSepaOrderItemController)
 
 router
     .route('/terminal_shift')

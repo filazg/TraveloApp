@@ -3,6 +3,8 @@ const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { releaseBookings } = require("../../helpers/bookingClient");
+const { dodajStavku } = require("./sepaControllers");
+const { provjeriIban } = require("../../helpers/iban");
 
 // Match legacy split: port tax 6%, VAT 25% on the rest.
 const HARBOR_RATE = 0.06;
@@ -67,6 +69,9 @@ const cancelTicketsController = async (req, res) => {
             storno_invoice_fiskal_no: client_invoice_fiskal_no,
             storno_invoice_code: client_invoice_code,
             storno_is_f2: client_is_f2,
+            // Povrat na račun: { sepa_order_uuid, recipient_name, recipient_iban }.
+            // Bez toga je povrat po odabranom sredstvu plaćanja, kao i dosad.
+            sepa,
         } = req.body || {};
 
         if (!Array.isArray(ticket_uuids) || !ticket_uuids.length) {
@@ -81,6 +86,27 @@ const cancelTicketsController = async (req, res) => {
         const pct = Math.max(0, Math.min(100, parseFloat(percentage) || 0));
         if (pct <= 0) {
             return res.status(400).json({ status: 400, data: { message: "percentage must be > 0" } });
+        }
+
+        // SEPA se provjerava prije nego što se išta zapiše. Storno je izdavanje
+        // računa i ne poništava se, pa nalog i IBAN moraju biti ispravni prije
+        // nego krene — inače bi karta ostala stornirana bez traga povrata.
+        if (sepa) {
+            const { SepaOrderModel } = models;
+            const nalog = await SepaOrderModel.findOne({ where: { sepa_order_uuid: sepa.sepa_order_uuid } });
+            if (!nalog) {
+                return res.status(400).json({ status: 400, data: { message: "SEPA nalog ne postoji" } });
+            }
+            if (nalog.status !== "open") {
+                return res.status(400).json({ status: 400, data: { message: "SEPA nalog je zatvoren" } });
+            }
+            if (!String(sepa.recipient_name || "").trim()) {
+                return res.status(400).json({ status: 400, data: { message: "naziv primatelja je obavezan" } });
+            }
+            const provjera = provjeriIban(sepa.recipient_iban);
+            if (!provjera.ok) {
+                return res.status(400).json({ status: 400, data: { message: `IBAN nije ispravan — ${provjera.razlog}` } });
+            }
         }
 
         const tickets = await TicketsModel.findAll({ where: { ticket_uuid: { [Op.in]: ticket_uuids } } });
@@ -237,6 +263,31 @@ const cancelTicketsController = async (req, res) => {
             .map((t) => ({ route_uuid: t.route_uuid, ticket_type_uuid: t.ticket_type_uuid, qty: 1 }));
         if (releaseItems.length) await releaseBookings(releaseItems);
 
+        // Stavka SEPA naloga: jedan povrat po stornu, bez obzira na broj karata
+        // — primatelj je jedan i novac ide jednom uplatom. Karte se pamte da se
+        // s naloga vidi na što se odnosi.
+        let sepaItem = null;
+        if (sepa) {
+            const rezultat = await dodajStavku(models, {
+                sepa_order_uuid: sepa.sepa_order_uuid,
+                recipient_name: sepa.recipient_name,
+                recipient_iban: sepa.recipient_iban,
+                amount: total_amount, // negativan na računu, u nalogu ide kao iznos isplate
+                storno_invoice_uuid: invoice_uuid,
+                storno_invoice_code: finalInvoiceCode,
+                ticket_uuids: tickets.map((t) => t.ticket_uuid),
+                ticket_codes: tickets.map((t) => t.ticket_code).filter(Boolean),
+                description: `Povrat po stornu ${finalInvoiceCode} · ${tickets.length} karata`,
+                created_by: sepa.created_by || null,
+            });
+            if (rezultat.status !== 200) {
+                // Storno je već izdan; povrat se onda evidentira ručno u nalogu.
+                console.log("SEPA stavka nije zapisana:", rezultat.body?.message);
+            } else {
+                sepaItem = rezultat.body.item;
+            }
+        }
+
         res.status(200).json({
             status: 200,
             data: {
@@ -248,6 +299,7 @@ const cancelTicketsController = async (req, res) => {
                 is_f2: isF2,
                 total_amount,
                 canceled_ticket_uuids: tickets.map((t) => t.ticket_uuid),
+                sepa_item: sepaItem,
             },
         });
     } catch (error) {
