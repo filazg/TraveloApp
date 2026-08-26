@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const { getSequelize } = require("../../config/database");
+const { releaseBookings } = require("../../helpers/bookingClient");
 const sequelize = getSequelize();
 
 // Statusi karte u kojima je promjena polaska dopuštena.
@@ -89,12 +90,18 @@ const transferTicketsController = async (req, res) => {
         }
 
         let prebaceno = 0;
+        // Mjesta koja treba osloboditi na starom polasku. Skupljaju se prije
+        // izmjene, jer se poslije s karte više ne čita polazak s kojeg je otišla.
+        const zaOslobodit = [];
         await sequelize.transaction(async (t) => {
             for (const par of pairs) {
                 const stara = poUuidu.get(par.from_ticket_uuid);
                 if (stara.transferred_to_ticket_uuid === par.to_ticket_uuid) continue;
 
                 const priznato = +(Number(stara.single_price || 0) * percentage / 100).toFixed(2);
+                if (stara.route_uuid && stara.ticket_type_uuid) {
+                    zaOslobodit.push({ route_uuid: stara.route_uuid, ticket_type_uuid: stara.ticket_type_uuid, qty: 1 });
+                }
                 await stara.update({
                     is_active: false,
                     is_canceled: true,
@@ -113,10 +120,16 @@ const transferTicketsController = async (req, res) => {
             }
         });
 
+        // Mjesto na starom polasku mora se osloboditi, inače dispečer i dalje
+        // broji putnika na polasku s kojeg je otišao, a kapacitet ostaje zauzet.
+        // Novi polazak je mjesto već rezervirao kroz prodaju.
+        if (zaOslobodit.length) await releaseBookings(zaOslobodit);
+
         res.status(200).json({
             status: 200,
             data: {
                 transferred: prebaceno,
+                released: zaOslobodit.length,
                 already_done: pairs.length - prebaceno,
                 percentage,
                 invoice_uuid: data.invoice_uuid || null,
