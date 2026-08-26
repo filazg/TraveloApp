@@ -28,10 +28,18 @@ import { useLoading } from "../../../loading/useLoading";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
-// "DD/MM/YYYY" (kako polasci stoje u bazi) <-> "YYYY-MM-DD" (input type=date)
+// Polazak na karti nije zapisan jednako svugdje: blagajna piše "DD/MM/YYYY",
+// a web i mobilna "DD.MM.YYYY." — oba se ovdje svode na "YYYY-MM-DD" za polje
+// tipa date. Dok se hvatao samo kosi oblik, karta s weba je vraćala prazno pa
+// je prozor nudio današnje polaske umjesto onih s karte, i prijenos je tiho
+// odlazio na krivi dan.
 const uIso = (s) => {
-    const m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(String(s || ""));
-    return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+    const kosi = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(String(s || ""));
+    if (kosi) return `${kosi[3]}-${kosi[2]}-${kosi[1]}`;
+    const tockasti = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(String(s || ""));
+    if (tockasti) return `${tockasti[3]}-${tockasti[2]}-${tockasti[1]}`;
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ""));
+    return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : "";
 };
 const izIso = (s) => {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
@@ -317,6 +325,15 @@ export default function TransferTicketsModal({ open, tickets, onClose, onTransfe
                     </Alert>
                 ) : (
                     <Stack spacing={2}>
+                        {/* Polazak s kojeg se ide mora pisati: bez toga se ne vidi
+                            je li ponuđeni dan doista dan sa stare karte. */}
+                        <Stack direction="row" justifyContent="space-between">
+                            <Typography>Sa starog polaska</Typography>
+                            <Typography fontWeight={700}>
+                                {tickets[0]?.departure_planed || "—"}
+                                {tickets[0]?.line_code ? ` · linija ${tickets[0].line_code}` : ""}
+                            </Typography>
+                        </Stack>
                         <Stack direction="row" justifyContent="space-between">
                             <Typography>Karata u promjeni</Typography>
                             <Typography fontWeight={700}>{tickets.length}</Typography>
