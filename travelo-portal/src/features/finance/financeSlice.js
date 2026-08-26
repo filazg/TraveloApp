@@ -283,15 +283,12 @@ export const cancelTicketsThunk = createAsyncThunk(
 
 // Sifarnik postotaka priznavanja (Puni povrat, Promjena karte, Otkaz manje
 // od 24h). Isti se popis koristi i za storno i za promjenu karte.
-// Portal servis sifarnike i liste vraca u obliku { path1, path2, data },
-// a gateway usput odmota jedan sloj — zato tri razine.
-const odmotaj = (resp) => resp.data?.data?.data ?? resp.data?.data ?? resp.data;
 export const fetchStornoPercentagesThunk = createAsyncThunk(
     "finance/fetchStornoPercentages",
     async (_, { rejectWithValue }) => {
         try {
             const resp = await api.get("/portal/backoffice/storno_percentages");
-            const p = odmotaj(resp);
+            const p = unwrapBff(resp);
             return Array.isArray(p) ? p : (p?.storno_percentages || []);
         } catch (err) { return rejectWithValue({ message: err.message }); }
     }
@@ -303,7 +300,7 @@ export const fetchSalesRoutesThunk = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const resp = await api.get("/portal/sales/routes");
-            const p = odmotaj(resp);
+            const p = unwrapBff(resp);
             return Array.isArray(p) ? p : (p?.routes || []);
         } catch (err) { return rejectWithValue({ message: err.message }); }
     }
@@ -314,7 +311,7 @@ export const fetchSalesPricesThunk = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const resp = await api.get("/portal/sales/prices");
-            const p = odmotaj(resp);
+            const p = unwrapBff(resp);
             return Array.isArray(p) ? p : (p?.prices || []);
         } catch (err) { return rejectWithValue({ message: err.message }); }
     }
@@ -357,6 +354,27 @@ export const transferTicketsThunk = createAsyncThunk(
             return { invoice: prodajaData, transfer: veza.data?.data ?? {} };
         } catch (err) {
             return rejectWithValue(err.response?.data?.data || { message: err.message });
+        }
+    }
+);
+// Slanje racuna i karata putniku — isti endpoint kojim salje POS prodaja.
+export const emailInvoiceTicketsThunk = createAsyncThunk(
+    "finance/emailInvoiceTickets",
+    async (payload, { rejectWithValue }) => {
+        try {
+            const resp = await api.post("/portal/transactions/email_invoice_tickets", payload);
+            const body = resp.data || {};
+            const data = body.data ?? body;
+            if (body.status && body.status >= 400) {
+                return rejectWithValue({ message: data?.message || ("HTTP " + body.status) });
+            }
+            return data;
+        } catch (err) {
+            const r = err.response?.data;
+            let msg = err.message;
+            if (r && typeof r === "object") msg = r.data?.message || r.message || msg;
+            else if (typeof r === "string") msg = r.replace(/<[^>]+>/g, "").trim().slice(0, 200) || msg;
+            return rejectWithValue({ message: msg });
         }
     }
 );

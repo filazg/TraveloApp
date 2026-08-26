@@ -283,7 +283,12 @@ export default function TransferTicketsModal({ open, tickets, onClose, onTransfe
             percentage: postotak,
         }));
         if (res.meta.requestStatus === "fulfilled") {
-            if (onTransferred) onTransferred(res.payload);
+            // E-mail putnika stoji na karti — proslijedi ga da ga prozor
+            // rezultata odmah ponudi, isto kao POS koji uzima e-mail kupca.
+            if (onTransferred) onTransferred({
+                ...res.payload,
+                passenger_email: tickets.find((t) => t.passanger_email)?.passanger_email || "",
+            });
             onClose();
         } else {
             setGreska(res.payload?.message || "Promjena nije uspjela");
