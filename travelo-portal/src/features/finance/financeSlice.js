@@ -13,6 +13,13 @@ const api = axios.create({
 // BFF response shape: { status, data: { path1, path2, data: <actual payload> } }
 const unwrapBff = (resp) => resp.data?.data?.data ?? resp.data?.data ?? resp.data;
 
+// POST odgovori: gateway skida jednu razinu omota (`res.json(response.data.data)`),
+// pa je `resp.data` već sam sadržaj. Kad se ide izravno na BFF, ostaje još
+// jedna razina. Toleriraju se oba oblika — inače se dobije prazan objekt i
+// prozor rezultata ostane bez broja računa i bez `invoice_uuid`.
+const unwrapPost = (resp) => resp?.data?.data ?? resp?.data ?? {};
+const unwrapPostError = (err) => err.response?.data?.data ?? err.response?.data ?? null;
+
 export const fetchInvoicesThunk = createAsyncThunk(
     "finance/fetchInvoices",
     async (params = {}, { rejectWithValue }) => {
@@ -272,11 +279,12 @@ export const cancelTicketsThunk = createAsyncThunk(
         try {
             const resp = await api.post("/portal/transactions/cancel_tickets", payload);
             if (resp.data?.status && resp.data.status >= 400) {
-                return rejectWithValue(resp.data?.data || { message: "cancel failed" });
+                return rejectWithValue(unwrapPost(resp) || { message: "cancel failed" });
             }
-            return resp.data?.data || {};
+            return unwrapPost(resp);
         } catch (err) {
-            return rejectWithValue(err.response?.data?.data || { message: err.message });
+            const podaci = unwrapPostError(err);
+            return rejectWithValue({ message: podaci?.message || err.message });
         }
     }
 );
@@ -325,7 +333,7 @@ export const transferTicketsThunk = createAsyncThunk(
     async (payload, { rejectWithValue }) => {
         try {
             const prodaja = await api.post("/portal/transactions/finalize_terminal_sale", payload.sale);
-            const prodajaData = prodaja.data?.data ?? prodaja.data ?? {};
+            const prodajaData = unwrapPost(prodaja);
             if (prodaja.data?.status && prodaja.data.status >= 400) {
                 return rejectWithValue(prodajaData || { message: "racun razlike nije izdan" });
             }
@@ -347,13 +355,14 @@ export const transferTicketsThunk = createAsyncThunk(
             });
             if (veza.data?.status && veza.data.status >= 400) {
                 return rejectWithValue({
-                    message: (veza.data?.data?.message || "stara karta nije zatvorena") + " — racun razlike JE izdan",
+                    message: (unwrapPost(veza)?.message || "stara karta nije zatvorena") + " — racun razlike JE izdan",
                     invoice: prodajaData,
                 });
             }
-            return { invoice: prodajaData, transfer: veza.data?.data ?? {} };
+            return { invoice: prodajaData, transfer: unwrapPost(veza) };
         } catch (err) {
-            return rejectWithValue(err.response?.data?.data || { message: err.message });
+            const podaci = unwrapPostError(err);
+            return rejectWithValue({ message: podaci?.message || err.message, invoice: podaci?.invoice });
         }
     }
 );
@@ -414,11 +423,12 @@ const sepaPost = async (putanja, payload, rejectWithValue) => {
     try {
         const resp = await api.post(putanja, payload);
         if (resp.data?.status && resp.data.status >= 400) {
-            return rejectWithValue(resp.data?.data || { message: "SEPA nalog nije spremljen" });
+            return rejectWithValue(unwrapPost(resp) || { message: "SEPA nalog nije spremljen" });
         }
-        return resp.data?.data || {};
+        return unwrapPost(resp);
     } catch (err) {
-        return rejectWithValue(err.response?.data?.data || { message: err.message });
+        const podaci = unwrapPostError(err);
+        return rejectWithValue({ message: podaci?.message || err.message });
     }
 };
 
@@ -931,7 +941,11 @@ export const downloadSepaXml = async (sepa_order_uuid, { execution_date } = {}) 
     if (resp.status !== 200 || tip.includes("json")) {
         const tekst = await resp.data.text();
         let poruka = tekst;
-        try { poruka = JSON.parse(tekst)?.data?.message || tekst; } catch { /* ostaje sirovi tekst */ }
+        try {
+            const p = JSON.parse(tekst);
+            // Kroz gateway poruka dođe raspakirana, izravno s BFF-a je pod `data`.
+            poruka = p?.data?.message || p?.message || tekst;
+        } catch { /* ostaje sirovi tekst */ }
         throw new Error(poruka || "SEPA datoteka nije generirana");
     }
 
