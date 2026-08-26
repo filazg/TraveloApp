@@ -15,9 +15,11 @@ import {
     Typography,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import * as XLSX from "xlsx";
 import SearchIcon from "@mui/icons-material/Search";
 import CancelIcon from "@mui/icons-material/Cancel";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import {
     fetchTicketsThunk,
     fetchLinesThunk,
@@ -163,6 +165,42 @@ export default function TicketsOverviewPage() {
         }
     };
 
+    // Izvozi se ono sto je na ekranu — dakle odabrana kartica i filtri koji
+    // su primijenjeni. Stupci prate tablicu, uz hrvatska zaglavlja, da se
+    // datoteka moze proslijediti dalje bez dorade.
+    const izveziUExcel = () => {
+        const kartica = TAB_FILTERS[tab];
+        const redci = ticketsByStatus.map((t) => ({
+            "Šifra": t.ticket_code || "",
+            "Polazak": t.departure_planed || "",
+            "Linija": t.line_code || "",
+            "Od": t.departure_harbor_name || "",
+            "Do": t.arrival_harbor_name || "",
+            "Vrsta": t.ticket_type_name || "",
+            "Cijena": Number(t.single_price || 0),
+            "Kanal": t.partner_uuid
+                ? (partnersList.find((p) => p.uuid === t.partner_uuid)?.partner_name || "Partner")
+                : (t.business_premise_name || ""),
+            "NU": t.billing_device_mark || "",
+            "Plaćanje": t.payment_method_name || "",
+            "Račun": t.invoice_no || "",
+            "Putnik": t.passanger_name || "",
+            "Email": t.passanger_email || "",
+            "Status": (STATUS_DISPLAY[normStatus(t)] || {}).label || t.status || "",
+        }));
+        const list = XLSX.utils.json_to_sheet(redci);
+        // Sirine stupaca po duljini sadrzaja — inace je sve stisnuto na 8 znakova.
+        const zaglavlja = Object.keys(redci[0] || { "Šifra": "" });
+        list["!cols"] = zaglavlja.map((k) => ({
+            wch: Math.min(40, Math.max(k.length + 2, ...redci.map((r) => String(r[k] ?? "").length + 2), 10)),
+        }));
+        const knjiga = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(knjiga, list, kartica.label.slice(0, 31));
+        const oznaka = ticketsFilters.ticket_code
+            ? ticketsFilters.ticket_code
+            : `${ticketsFilters.date}_${kartica.key}`;
+        XLSX.writeFile(knjiga, `karte_${oznaka}.xlsx`);
+    };
     const handleSearch = async () => {
         const params = {};
         if (ticketsFilters.ticket_code) {
@@ -512,8 +550,9 @@ export default function TicketsOverviewPage() {
                 Gumb koji na toj kartici nije dopušten se ne prikazuje: posivljen
                 gumb izgleda kao da nešto nedostaje u odabiru, a zapravo ta
                 radnja nad tim kartama uopće ne postoji. */}
-            {(dopustene.storno || dopustene.prebacivanje) && (
-                <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center">
+            <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center" flexWrap="wrap" useFlexGap>
+                {(dopustene.storno || dopustene.prebacivanje) && (
+                    <>
                     {dopustene.storno && (
                         <Button
                             variant="contained"
@@ -536,8 +575,20 @@ export default function TicketsOverviewPage() {
                             Prebaci na drugi polazak ({selectedTickets.length})
                         </Button>
                     )}
-                </Stack>
-            )}
+                    </>
+                )}
+                {/* Izvoz stoji na svakoj kartici — i ondje gdje se nad kartama
+                    ne moze nista, popis se i dalje moze predati dalje. */}
+                <Box sx={{ flex: 1 }} />
+                <Button
+                    variant="outlined"
+                    startIcon={<FileDownloadIcon />}
+                    onClick={izveziUExcel}
+                    disabled={!ticketsByStatus.length}
+                >
+                    Izvoz u Excel ({ticketsByStatus.length})
+                </Button>
+            </Stack>
 
             <Box sx={{ height: "68vh", minWidth: 1400 }}>
                 <DataGrid
