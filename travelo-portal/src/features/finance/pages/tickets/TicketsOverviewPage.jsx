@@ -508,36 +508,36 @@ export default function TicketsOverviewPage() {
                 </Tabs>
             </Box>
 
-            {/* Radnje ovise o kartici na kojoj se stoji — vidi TAB_FILTERS. */}
-            <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center">
-                <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<CancelIcon />}
-                    disabled={!dopustene.storno || selectedTickets.length === 0}
-                    onClick={() => setCancelOpen(true)}
-                >
-                    Storniraj ({selectedTickets.length})
-                </Button>
-                {/* Promjena polaska ima smisla samo dok karta jos vrijedi —
-                    na validiranoj i storniranoj nema sto prebaciti. */}
-                <Button
-                    variant="contained"
-                    color="warning"
-                    startIcon={<SwapHorizIcon />}
-                    disabled={!dopustene.prebacivanje || !selectedTickets.length || selectedTickets.some((t) => t.partner_uuid)}
-                    onClick={() => setTransferOpen(true)}
-                >
-                    Prebaci na drugi polazak ({selectedTickets.length})
-                </Button>
-                {!dopustene.storno && !dopustene.prebacivanje && (
-                    <Typography variant="body2" color="text.secondary">
-                        {TAB_FILTERS[tab].key === "ALL"
-                            ? "Odaberi karticu statusa da bi se ponudile radnje."
-                            : "Nad ovim kartama nema radnji."}
-                    </Typography>
-                )}
-            </Stack>
+            {/* Radnje ovise o kartici na kojoj se stoji — vidi TAB_FILTERS.
+                Gumb koji na toj kartici nije dopušten se ne prikazuje: posivljen
+                gumb izgleda kao da nešto nedostaje u odabiru, a zapravo ta
+                radnja nad tim kartama uopće ne postoji. */}
+            {(dopustene.storno || dopustene.prebacivanje) && (
+                <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center">
+                    {dopustene.storno && (
+                        <Button
+                            variant="contained"
+                            color="error"
+                            startIcon={<CancelIcon />}
+                            disabled={selectedTickets.length === 0}
+                            onClick={() => setCancelOpen(true)}
+                        >
+                            Storniraj ({selectedTickets.length})
+                        </Button>
+                    )}
+                    {dopustene.prebacivanje && (
+                        <Button
+                            variant="contained"
+                            color="warning"
+                            startIcon={<SwapHorizIcon />}
+                            disabled={!selectedTickets.length || selectedTickets.some((t) => t.partner_uuid)}
+                            onClick={() => setTransferOpen(true)}
+                        >
+                            Prebaci na drugi polazak ({selectedTickets.length})
+                        </Button>
+                    )}
+                </Stack>
+            )}
 
             <Box sx={{ height: "68vh", minWidth: 1400 }}>
                 <DataGrid
