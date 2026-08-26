@@ -281,6 +281,82 @@ export const cancelTicketsThunk = createAsyncThunk(
     }
 );
 
+// Sifarnik postotaka priznavanja (Puni povrat, Promjena karte, Otkaz manje
+// od 24h). Isti se popis koristi i za storno i za promjenu karte.
+export const fetchStornoPercentagesThunk = createAsyncThunk(
+    "finance/fetchStornoPercentages",
+    async (_, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/backoffice/storno_percentages");
+            const d = resp.data?.data ?? resp.data ?? {};
+            return d.storno_percentages || [];
+        } catch (err) { return rejectWithValue({ message: err.message }); }
+    }
+);
+
+// Polasci i cjenik — trebaju za odabir novog polaska pri promjeni karte.
+export const fetchSalesRoutesThunk = createAsyncThunk(
+    "finance/fetchSalesRoutes",
+    async (_, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/sales/routes");
+            const d = resp.data?.data ?? resp.data ?? {};
+            return d.routes || [];
+        } catch (err) { return rejectWithValue({ message: err.message }); }
+    }
+);
+
+export const fetchSalesPricesThunk = createAsyncThunk(
+    "finance/fetchSalesPrices",
+    async (_, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/sales/prices");
+            const d = resp.data?.data ?? resp.data ?? {};
+            return d.prices || [];
+        } catch (err) { return rejectWithValue({ message: err.message }); }
+    }
+);
+
+// Promjena karte ide u dva koraka: prvo se izda racun razlike uobicajenim
+// putem prodaje (blagajne su autoritet za numeraciju), pa se tek onda stara
+// karta zatvori i veze na novu. Zato drugi poziv smije biti ponovljen.
+export const transferTicketsThunk = createAsyncThunk(
+    "finance/transferTickets",
+    async (payload, { rejectWithValue }) => {
+        try {
+            const prodaja = await api.post("/portal/transactions/finalize_terminal_sale", payload.sale);
+            const prodajaData = prodaja.data?.data ?? prodaja.data ?? {};
+            if (prodaja.data?.status && prodaja.data.status >= 400) {
+                return rejectWithValue(prodajaData || { message: "racun razlike nije izdan" });
+            }
+            const noveKarte = prodajaData.tickets || [];
+            if (noveKarte.length !== payload.source_ticket_uuids.length) {
+                return rejectWithValue({
+                    message: `racun je izdan, ali je vraceno ${noveKarte.length} novih karata za ${payload.source_ticket_uuids.length} starih`,
+                    invoice: prodajaData,
+                });
+            }
+            const pairs = payload.source_ticket_uuids.map((from, i) => ({
+                from_ticket_uuid: from,
+                to_ticket_uuid: noveKarte[i].ticket_uuid,
+            }));
+            const veza = await api.post("/portal/transactions/transfer_tickets", {
+                pairs,
+                percentage: payload.percentage,
+                invoice_uuid: prodajaData.invoice_uuid,
+            });
+            if (veza.data?.status && veza.data.status >= 400) {
+                return rejectWithValue({
+                    message: (veza.data?.data?.message || "stara karta nije zatvorena") + " — racun razlike JE izdan",
+                    invoice: prodajaData,
+                });
+            }
+            return { invoice: prodajaData, transfer: veza.data?.data ?? {} };
+        } catch (err) {
+            return rejectWithValue(err.response?.data?.data || { message: err.message });
+        }
+    }
+);
 const financeSlice = createSlice({
     name: "finance",
     initialState: {
@@ -309,6 +385,11 @@ const financeSlice = createSlice({
         harborsList: [],
         billingDevicesFull: [],
         businessPremisesList: [],
+        stornoPercentages: [],
+        salesRoutes: [],
+        salesPrices: [],
+        transferLoading: false,
+        transferError: null,
         cancelLoading: false,
         cancelError: null,
         cancelResult: null,
@@ -514,6 +595,12 @@ const financeSlice = createSlice({
             .addCase(fetchBusinessPremisesListThunk.fulfilled, (s, a) => {
                 s.businessPremisesList = a.payload || [];
             })
+            .addCase(fetchStornoPercentagesThunk.fulfilled, (s, a) => { s.stornoPercentages = a.payload || []; })
+            .addCase(fetchSalesRoutesThunk.fulfilled, (s, a) => { s.salesRoutes = a.payload || []; })
+            .addCase(fetchSalesPricesThunk.fulfilled, (s, a) => { s.salesPrices = a.payload || []; })
+            .addCase(transferTicketsThunk.pending, (s) => { s.transferLoading = true; s.transferError = null; })
+            .addCase(transferTicketsThunk.fulfilled, (s) => { s.transferLoading = false; })
+            .addCase(transferTicketsThunk.rejected, (s, a) => { s.transferLoading = false; s.transferError = a.payload?.message || "Promjena nije uspjela"; })
             .addCase(cancelTicketsThunk.pending, (s) => {
                 s.cancelLoading = true;
                 s.cancelError = null;

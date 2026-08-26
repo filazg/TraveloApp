@@ -22,7 +22,9 @@ import {
 } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
 import CancelTicketsModal from "./CancelTicketsModal";
+import TransferTicketsModal from "./TransferTicketsModal";
 import CancelIcon from "@mui/icons-material/Cancel";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
@@ -108,6 +110,7 @@ export default function TicketsOverviewPage() {
     const [tab, setTab] = useState(0);
     const [selectedIds, setSelectedIds] = useState([]);
     const [cancelOpen, setCancelOpen] = useState(false);
+    const [transferOpen, setTransferOpen] = useState(false);
 
     useEffect(() => {
         dispatch(setAuthData({ path: "loading", value: false }));
@@ -300,6 +303,17 @@ export default function TicketsOverviewPage() {
                 >
                     Storniraj ({selectedTickets.length})
                 </Button>
+                {/* Promjena polaska ima smisla samo dok karta jos vrijedi —
+                    na validiranoj i storniranoj nema sto prebaciti. */}
+                <Button
+                    variant="contained"
+                    color="warning"
+                    startIcon={<SwapHorizIcon />}
+                    disabled={!selectedTickets.length || !selectedTickets.every((t) => normStatus(t) === "issued")}
+                    onClick={() => setTransferOpen(true)}
+                >
+                    Prebaci na drugi polazak ({selectedTickets.length})
+                </Button>
             </Stack>
 
             <Box sx={{ height: "68vh", minWidth: 1400 }}>
@@ -327,6 +341,23 @@ export default function TicketsOverviewPage() {
                 tickets={selectedTickets}
                 onClose={() => setCancelOpen(false)}
                 onCanceled={() => { setSelectedIds([]); refreshSearch(); }}
+            />
+
+            <TransferTicketsModal
+                open={transferOpen}
+                tickets={selectedTickets}
+                onClose={() => setTransferOpen(false)}
+                onTransferred={(r) => {
+                    setSelectedIds([]);
+                    refreshSearch();
+                    const inv = r?.invoice;
+                    if (inv?.invoice_no) {
+                        window.alert(
+                            "Račun razlike " + inv.invoice_no + "/" + inv.invoice_year
+                            + " · " + Number(inv.total_amount || 0).toFixed(2) + " €"
+                        );
+                    }
+                }}
             />
         </Box>
     );
