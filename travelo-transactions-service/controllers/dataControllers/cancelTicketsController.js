@@ -90,13 +90,21 @@ const cancelTicketsController = async (req, res) => {
                 data: { message: `only ${tickets.length}/${ticket_uuids.length} tickets found` },
             });
         }
-        const alreadyCanceled = tickets.filter((t) => t.is_canceled === true || t.status === "canceled");
-        if (alreadyCanceled.length) {
+        // Karta otkazanog putovanja nosi `is_canceled`, ali NIJE stornirana —
+        // putnik nije dobio novac natrag. Njoj storno tek treba, pa se ovdje
+        // odbijaju samo one koje su stvarno već stornirane ili prebačene na
+        // drugi polazak.
+        const nemaSeStoScornirati = tickets.filter((t) => {
+            const s = String(t.status || "").toLowerCase();
+            if (s === "trip_canceled") return false;
+            return t.is_canceled === true || s === "canceled" || s === "transferred";
+        });
+        if (nemaSeStoScornirati.length) {
             return res.status(409).json({
                 status: 409,
                 data: {
                     message: "some tickets already canceled",
-                    canceled_ticket_codes: alreadyCanceled.map((t) => t.ticket_code),
+                    canceled_ticket_codes: nemaSeStoScornirati.map((t) => t.ticket_code),
                 },
             });
         }

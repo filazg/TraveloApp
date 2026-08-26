@@ -4,11 +4,17 @@ const sequelize = getSequelize();
 
 // Statusi karte u kojima je promjena polaska dopuštena.
 // "created" i "issued" su ista stvar pod dva imena — POS i web ih pišu različito.
-const STATUSI_ZA_PROMJENU = ["created", "issued", "CREATED", "ISSUED"];
+// "trip_canceled" je karta otkazanog putovanja: putniku se nudi drugi polazak
+// umjesto povrata novca, pa se i ona smije prebaciti.
+const STATUSI_ZA_PROMJENU = ["created", "issued", "CREATED", "ISSUED", "trip_canceled", "TRIP_CANCELED"];
+
+const jeOtkazanoPutovanje = (t) => String(t?.status || "").toLowerCase() === "trip_canceled";
 
 const jePrebaciva = (t) => {
     if (!t) return { ok: false, razlog: "karta ne postoji" };
-    if (t.is_canceled) return { ok: false, razlog: "karta je stornirana" };
+    // Karta otkazanog putovanja nosi `is_canceled`, ali nije stornirana — nju
+    // se smije prebaciti; provjeru statusa niže obavlja popis dopuštenih.
+    if (t.is_canceled && !jeOtkazanoPutovanje(t)) return { ok: false, razlog: "karta je stornirana" };
     // Partnerske karte se ne prebacuju. One se ne naplaćuju po prodaji nego
     // zbirnim računom partneru, pa promjena ovdje ne bi imala gdje proizvesti
     // razliku — rješava se kroz partnerski obračun.

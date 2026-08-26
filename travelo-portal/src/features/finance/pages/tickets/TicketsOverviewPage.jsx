@@ -16,6 +16,8 @@ import {
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
+import CancelIcon from "@mui/icons-material/Cancel";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import {
     fetchTicketsThunk,
     fetchLinesThunk,
@@ -43,8 +45,6 @@ const KANALI = [
     // partneru), pa se ne traže preko poslovnog prostora nego po partneru.
     { key: "PARTNER", label: "Partner" },
 ];
-import CancelIcon from "@mui/icons-material/Cancel";
-import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
@@ -92,10 +92,13 @@ const STATUS_DISPLAY = {
 };
 
 const TAB_FILTERS = [
-    { key: "ALL", label: "Sve", match: () => true },
-    { key: "issued", label: "Kreirane", match: (t) => normStatus(t) === "issued" },
+    // Na "Sve" se namjerno ne nudi ništa: u istom popisu stoje karte svih
+    // statusa, pa bi radnja nad odabirom bila nagađanje.
+    { key: "ALL", label: "Sve", match: () => true, akcije: {} },
+    { key: "issued", label: "Kreirane", match: (t) => normStatus(t) === "issued", akcije: { storno: true, prebacivanje: true } },
     {
         key: "valid",
+        akcije: { storno: true, prebacivanje: true },
         label: "Valjane",
         match: (t) => {
             if (normStatus(t) !== "issued") return false;
@@ -105,6 +108,7 @@ const TAB_FILTERS = [
     },
     {
         key: "expired",
+        akcije: { storno: true, prebacivanje: true },
         label: "Istekle",
         match: (t) => {
             if (normStatus(t) !== "issued") return false;
@@ -112,9 +116,11 @@ const TAB_FILTERS = [
             return d && d < new Date();
         },
     },
-    { key: "validated", label: "Validirane", match: (t) => normStatus(t) === "validated" },
-    { key: "trip_canceled", label: "Otkazane", match: (t) => normStatus(t) === "trip_canceled" },
-    { key: "canceled", label: "Stornirane", match: (t) => normStatus(t) === "canceled" },
+    // Validirana karta je iskorištena, stornirana je već razriješena.
+    { key: "validated", label: "Validirane", match: (t) => normStatus(t) === "validated", akcije: {} },
+    // Otkazano putovanje: putniku se nudi povrat ili drugi polazak.
+    { key: "trip_canceled", label: "Otkazane", match: (t) => normStatus(t) === "trip_canceled", akcije: { storno: true, prebacivanje: true } },
+    { key: "canceled", label: "Stornirane", match: (t) => normStatus(t) === "canceled", akcije: {} },
 ];
 
 export default function TicketsOverviewPage() {
@@ -238,6 +244,8 @@ export default function TicketsOverviewPage() {
     useEffect(() => {
         setSelectedIds([]);
     }, [tickets, tab]);
+
+    const dopustene = TAB_FILTERS[tab].akcije || {};
 
     const selectedTickets = useMemo(
         () => ticketsByStatus.filter((t) => selectedIds.includes(t.id) && t.is_canceled !== true),
@@ -500,12 +508,13 @@ export default function TicketsOverviewPage() {
                 </Tabs>
             </Box>
 
+            {/* Radnje ovise o kartici na kojoj se stoji — vidi TAB_FILTERS. */}
             <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center">
                 <Button
                     variant="contained"
                     color="error"
                     startIcon={<CancelIcon />}
-                    disabled={selectedTickets.length === 0}
+                    disabled={!dopustene.storno || selectedTickets.length === 0}
                     onClick={() => setCancelOpen(true)}
                 >
                     Storniraj ({selectedTickets.length})
@@ -516,11 +525,18 @@ export default function TicketsOverviewPage() {
                     variant="contained"
                     color="warning"
                     startIcon={<SwapHorizIcon />}
-                    disabled={!selectedTickets.length || !selectedTickets.every((t) => normStatus(t) === "issued" && !t.partner_uuid)}
+                    disabled={!dopustene.prebacivanje || !selectedTickets.length || selectedTickets.some((t) => t.partner_uuid)}
                     onClick={() => setTransferOpen(true)}
                 >
                     Prebaci na drugi polazak ({selectedTickets.length})
                 </Button>
+                {!dopustene.storno && !dopustene.prebacivanje && (
+                    <Typography variant="body2" color="text.secondary">
+                        {TAB_FILTERS[tab].key === "ALL"
+                            ? "Odaberi karticu statusa da bi se ponudile radnje."
+                            : "Nad ovim kartama nema radnji."}
+                    </Typography>
+                )}
             </Stack>
 
             <Box sx={{ height: "68vh", minWidth: 1400 }}>
