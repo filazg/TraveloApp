@@ -605,6 +605,10 @@ export default function TicketsOverviewPage() {
             </Stack>
 
             <Box sx={{ height: "68vh", minWidth: 1400 }}>
+                {/* Odabir je slobodan na svim karticama, uključivo stornirane i
+                    otkazane. Što se s odabranim kartama smije napraviti određuje
+                    kartica (TAB_FILTERS[...].akcije) i gumbi koji se po tome
+                    prikazuju — nema potrebe zaključavati i same kućice. */}
                 <DataGrid
                     rows={ticketsByStatus}
                     getRowId={(r) => r.id}
@@ -620,7 +624,6 @@ export default function TicketsOverviewPage() {
                         else if (model?.ids instanceof Set) setSelectedIds([...model.ids]);
                         else setSelectedIds([]);
                     }}
-                    isRowSelectable={(p) => p.row.is_canceled !== true}
                 />
             </Box>
 
