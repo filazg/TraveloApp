@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
     Alert,
@@ -158,6 +158,33 @@ export default function TicketsOverviewPage() {
         if (!harborsList.length) dispatch(fetchHarborsThunk());
     }, [dispatch, linesList.length, harborsList.length, businessPremisesList.length,
         billingDevicesFull.length, salesRoutes.length, partnersList.length]);
+
+    // Tablica uzima točno onoliko visine koliko je ostalo do dna prozora.
+    // Fiksni `vh` ovdje ne radi: tražilica mijenja visinu čim se polja prelome
+    // u novi red (uži prozor, dodatna polja za kanal), pa tablica ili strši
+    // ispod ekrana ili ostavlja prazninu.
+    const tablicaRef = useRef(null);
+    const traziliceRef = useRef(null);
+    const [visinaTablice, setVisinaTablice] = useState(420);
+    useLayoutEffect(() => {
+        const izracunaj = () => {
+            const el = tablicaRef.current;
+            if (!el) return;
+            const vrh = el.getBoundingClientRect().top;
+            // 24 px je dah do ruba prozora, 260 px donja granica da tablica
+            // ostane upotrebljiva i na niskom ekranu.
+            setVisinaTablice(Math.max(260, Math.round(window.innerHeight - vrh - 24)));
+        };
+        izracunaj();
+        window.addEventListener("resize", izracunaj);
+        // Prati se tražilica, ne sam okvir tablice — okvir bi se mijenjao od
+        // vlastitog izračuna i vrtio u krug.
+        const ro = new ResizeObserver(izracunaj);
+        if (traziliceRef.current) ro.observe(traziliceRef.current);
+        return () => { window.removeEventListener("resize", izracunaj); ro.disconnect(); };
+        // Kartica se vodi u ovisnostima jer se s njom pojavljuju i skrivaju
+        // gumbi radnji iznad tablice, pa se vrh tablice pomakne.
+    }, [tab]);
 
     // Datum se ne čisti — bez njega pretraga ne radi, pa se vraća na danas.
     const ocistiFiltre = () => {
@@ -393,7 +420,7 @@ export default function TicketsOverviewPage() {
             {/* Tražilica: polja su grupirana po tome što opisuju — kada i kamo
                 se putuje, pa tko je i čime prodao. Prije su svi filtri stajali u
                 jednom redu koji se lomio, pa se nije vidjelo što ide s čim. */}
-            <Paper variant="outlined" sx={{ p: 2, my: 2, borderRadius: 2 }}>
+            <Paper ref={traziliceRef} variant="outlined" sx={{ p: 2, my: 2, borderRadius: 2 }}>
                 <Typography variant="overline" color="text.secondary">Polazak i relacija</Typography>
                 <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 2, mt: 0.5 }}>
                     <TextField
@@ -604,7 +631,7 @@ export default function TicketsOverviewPage() {
                 </Button>
             </Stack>
 
-            <Box sx={{ height: "68vh", minWidth: 1400 }}>
+            <Box ref={tablicaRef} sx={{ height: visinaTablice, minWidth: 1400 }}>
                 {/* Odabir je slobodan na svim karticama, uključivo stornirane i
                     otkazane. Što se s odabranim kartama smije napraviti određuje
                     kartica (TAB_FILTERS[...].akcije) i gumbi koji se po tome
