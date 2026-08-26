@@ -13,6 +13,8 @@ import {
     Paper,
     Stack,
     TextField,
+    ToggleButton,
+    ToggleButtonGroup,
     Typography,
 } from "@mui/material";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
@@ -20,6 +22,7 @@ import {
     cancelTicketsThunk,
     fetchBillingDevicesFullThunk,
     fetchBusinessPremisesListThunk,
+    fetchStornoPercentagesThunk,
     financeSliceData,
 } from "../../financeSlice";
 import { formatirajIban } from "../../../../helpers/iban";
@@ -29,11 +32,14 @@ const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
 export default function CancelTicketsModal({ open, tickets, onClose, onCanceled }) {
     const dispatch = useDispatch();
-    const { billingDevicesFull, businessPremisesList, cancelLoading, cancelError } = useSelector(financeSliceData);
+    const { billingDevicesFull, businessPremisesList, stornoPercentages, cancelLoading, cancelError } = useSelector(financeSliceData);
     const auth = useSelector((s) => s.auth);
     const [terminal, setTerminal] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("");
-    const [percentage, setPercentage] = useState(100);
+    // Postotak se bira iz šifarnika, ne upisuje se slobodno — inače bi svaka
+    // blagajna vraćala koliko hoće. Isti popis vrijedi i na mobilnoj i kod
+    // promjene karte.
+    const [percentageUuid, setPercentageUuid] = useState("");
     const [localError, setLocalError] = useState(null);
     // Povrat na račun: kad je postavljen, storno uz sebe nosi i stavku SEPA
     // naloga. Bez toga povrat ide odabranim sredstvom plaćanja, kao i dosad.
@@ -43,13 +49,14 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
     useEffect(() => {
         if (open && !billingDevicesFull.length) dispatch(fetchBillingDevicesFullThunk());
         if (open && !businessPremisesList.length) dispatch(fetchBusinessPremisesListThunk());
-    }, [open, billingDevicesFull.length, businessPremisesList.length, dispatch]);
+        if (open && !stornoPercentages.length) dispatch(fetchStornoPercentagesThunk());
+    }, [open, billingDevicesFull.length, businessPremisesList.length, stornoPercentages.length, dispatch]);
 
     useEffect(() => {
         if (!open) {
             setTerminal("");
             setPaymentMethod("");
-            setPercentage(100);
+            setPercentageUuid("");
             setLocalError(null);
             setSepa(null);
             setSepaOpen(false);
@@ -82,6 +89,20 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
         () => tickets.reduce((s, t) => s + (parseFloat(t.single_price) || 0), 0),
         [tickets]
     );
+    // Ponuđeni postotci: samo aktivni iz šifarnika, od najvećeg prema manjem —
+    // puni povrat je najčešći slučaj pa stoji prvi.
+    const postoci = useMemo(
+        () => stornoPercentages
+            .filter((p) => p && p.is_active !== false && Number.isFinite(Number(p.percentage)))
+            .map((p) => ({ uuid: p.uuid, value: Number(p.percentage), name: p.name || "" }))
+            .sort((a, b) => b.value - a.value),
+        [stornoPercentages]
+    );
+    const percentage = useMemo(
+        () => postoci.find((p) => p.uuid === percentageUuid)?.value ?? 0,
+        [postoci, percentageUuid]
+    );
+
     const refundAmount = useMemo(
         () => +(ticketsAmount * (Number(percentage) || 0) / 100).toFixed(2),
         [ticketsAmount, percentage]
@@ -129,14 +150,38 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                             <Typography>Iznos karata</Typography>
                             <Typography fontWeight={700}>{fmtEUR(ticketsAmount)}</Typography>
                         </Stack>
-                        <TextField
-                            type="number"
-                            label="Postotak povrata (%)"
-                            value={percentage}
-                            onChange={(e) => setPercentage(e.target.value)}
-                            inputProps={{ min: 0, max: 100, step: 0.01 }}
-                            fullWidth
-                        />
+                        <Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                                Postotak povrata
+                            </Typography>
+                            {postoci.length ? (
+                                <ToggleButtonGroup
+                                    exclusive
+                                    value={percentageUuid}
+                                    onChange={(_e, v) => { if (v !== null) setPercentageUuid(v); }}
+                                    sx={{ display: "flex", flexWrap: "wrap", gap: 1, "& .MuiToggleButton-root": { flex: 1, minWidth: 120, borderRadius: 1.5, border: "1px solid", borderColor: "divider" } }}
+                                >
+                                    {postoci.map((p) => (
+                                        <ToggleButton key={p.uuid} value={p.uuid} sx={{ flexDirection: "column", py: 1 }}>
+                                            {/* 100.00 → "100 %", 12.50 → "12.5 %" */}
+                                            <Typography fontWeight={800} lineHeight={1.2}>
+                                                {`${String(p.value).replace(/\.0+$/, "")} %`}
+                                            </Typography>
+                                            {p.name && (
+                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: "none", lineHeight: 1.2 }}>
+                                                    {p.name}
+                                                </Typography>
+                                            )}
+                                        </ToggleButton>
+                                    ))}
+                                </ToggleButtonGroup>
+                            ) : (
+                                <Alert severity="warning">
+                                    Šifarnik postotaka storna je prazan — dopuštene vrijednosti dodaju se
+                                    u Backoffice → Postotci storniranja.
+                                </Alert>
+                            )}
+                        </Box>
                         <Stack direction="row" justifyContent="space-between">
                             <Typography>Iznos za povrat</Typography>
                             <Typography fontWeight={800} color="error">{fmtEUR(refundAmount)}</Typography>
