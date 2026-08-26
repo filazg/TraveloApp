@@ -78,6 +78,20 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
         setPaymentMethod("");
     }, [terminal]);
 
+    // Povrat na IBAN ima smisla samo uz transakcijski račun — fiskalna oznaka
+    // "T". Gotovinom i karticom se vraća na licu mjesta, pa se SEPA nalog ni ne
+    // nudi. Ako je unos već napravljen pa se sredstvo promijeni, briše se, da
+    // storno ne ode s povratom koji tom sredstvu ne pripada.
+    const odabranoSredstvo = paymentMethods.find((pm) => pm.uuid === paymentMethod);
+    const naTransakcijski = String(odabranoSredstvo?.payment_type_acr || "").toUpperCase() === "T";
+
+    useEffect(() => {
+        if (!naTransakcijski && sepa) {
+            setSepa(null);
+            setSepaOpen(false);
+        }
+    }, [naTransakcijski, sepa]);
+
     // auto-select single URED device once lists are loaded
     useEffect(() => {
         if (open && !terminal && officeDevices.length === 1) {
@@ -224,7 +238,9 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
 
                         {/* Povrat na račun. Nije zamjena za sredstvo plaćanja —
                             storno se i dalje evidentira na uređaju, a ovdje se
-                            bilježi kome i na koji IBAN novac stvarno ide. */}
+                            bilježi kome i na koji IBAN novac stvarno ide.
+                            Nudi se samo uz transakcijski račun (oznaka "T"). */}
+                        {naTransakcijski && (
                         <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
                             {sepa ? (
                                 <Stack spacing={1}>
@@ -259,6 +275,7 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                                 </Stack>
                             )}
                         </Paper>
+                        )}
 
                         {(localError || cancelError) && (
                             <Alert severity="error">{localError || cancelError}</Alert>

@@ -327,7 +327,14 @@ export default function TicketsOverviewPage() {
     const dopustene = TAB_FILTERS[tab].akcije || {};
 
     const selectedTickets = useMemo(
-        () => ticketsByStatus.filter((t) => selectedIds.includes(t.id) && t.is_canceled !== true),
+        () => ticketsByStatus.filter((t) => {
+            if (!selectedIds.includes(t.id)) return false;
+            // Karta otkazanog putovanja nosi `is_canceled`, ali nije razriješena:
+            // putnik nije dobio novac ni drugi polazak. Nad njom se još radi i
+            // storno i prebacivanje, pa ne smije ispasti iz odabira.
+            if (normStatus(t) === "trip_canceled") return true;
+            return t.is_canceled !== true;
+        }),
         [ticketsByStatus, selectedIds]
     );
 

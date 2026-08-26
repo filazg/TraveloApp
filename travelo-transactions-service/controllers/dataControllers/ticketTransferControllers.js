@@ -62,12 +62,25 @@ const transferTicketsController = async (req, res) => {
         const stare = await TicketsModel.findAll({ where: { ticket_uuid: { [Op.in]: stareUuids } } });
         const poUuidu = new Map(stare.map((t) => [t.ticket_uuid, t]));
 
+        // Nova karta mora stvarno postojati. Bez ove provjere stara bi se
+        // zatvorila i pokazivala na ništa, a putnik bi ostao bez obje.
+        const noveUuids = pairs.map((p) => p.to_ticket_uuid).filter(Boolean);
+        const nove = await TicketsModel.findAll({
+            where: { ticket_uuid: { [Op.in]: noveUuids } },
+            attributes: ["ticket_uuid"],
+        });
+        const postojece = new Set(nove.map((t) => t.ticket_uuid));
+
         // Prvo provjeri sve, pa tek onda mijenjaj — da djelomican prijenos ne
         // ostavi dio karata prebacen a dio ne.
         const problemi = [];
         for (const par of pairs) {
             const stara = poUuidu.get(par.from_ticket_uuid);
             if (stara?.transferred_to_ticket_uuid === par.to_ticket_uuid) continue; // vec obavljeno
+            if (!par.to_ticket_uuid || !postojece.has(par.to_ticket_uuid)) {
+                problemi.push({ ticket_uuid: par.from_ticket_uuid, razlog: "nova karta ne postoji" });
+                continue;
+            }
             const provjera = jePrebaciva(stara);
             if (!provjera.ok) problemi.push({ ticket_uuid: par.from_ticket_uuid, razlog: provjera.razlog });
         }

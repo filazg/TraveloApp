@@ -155,6 +155,15 @@ const cancelTicketsController = async (req, res) => {
                 data: { message: "payment method does not belong to selected terminal" },
             });
         }
+        // Povrat na IBAN ide samo uz transakcijski račun (fiskalna oznaka "T").
+        // Gotovina i kartica se vraćaju na licu mjesta, pa bi SEPA nalog uz njih
+        // značio da je isti novac vraćen dvaput.
+        if (sepa && String(pm.payment_type_acr || "").toUpperCase() !== "T") {
+            return res.status(400).json({
+                status: 400,
+                data: { message: "povrat na IBAN je moguć samo uz sredstvo plaćanja s fiskalnom oznakom T" },
+            });
+        }
 
         const invoiceDate = new Date();
         const invoice_uuid = client_invoice_uuid || crypto.randomUUID();
