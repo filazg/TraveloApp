@@ -5,11 +5,14 @@ import {
     Box,
     Button,
     Chip,
+    Divider,
     MenuItem,
+    Paper,
     Stack,
     Tab,
     Tabs,
     TextField,
+    Typography,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
@@ -144,6 +147,15 @@ export default function TicketsOverviewPage() {
         if (!harborsList.length) dispatch(fetchHarborsThunk());
     }, [dispatch, linesList.length, harborsList.length, businessPremisesList.length,
         billingDevicesFull.length, salesRoutes.length, partnersList.length]);
+
+    // Datum se ne čisti — bez njega pretraga ne radi, pa se vraća na danas.
+    const ocistiFiltre = () => {
+        dispatch(setTicketsFilter({ path: "date", value: new Date().toISOString().slice(0, 10) }));
+        for (const p of ["line_code", "departure_harbor_id", "arrival_harbor_id", "ticket_code",
+            "departure_key", "channel", "billing_device_uuid", "payment_method_uuid", "partner_uuid"]) {
+            dispatch(setTicketsFilter({ path: p, value: "" }));
+        }
+    };
 
     const handleSearch = async () => {
         const params = {};
@@ -318,152 +330,165 @@ export default function TicketsOverviewPage() {
 
     return (
         <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
-            <Stack direction="row" spacing={2} sx={{ my: 2, flexWrap: "wrap" }} alignItems="center">
-                <TextField
-                    type="date"
-                    label="Datum polaska"
-                    InputLabelProps={{ shrink: true }}
-                    value={ticketsFilters.date}
-                    onChange={(e) => dispatch(setTicketsFilter({ path: "date", value: e.target.value }))}
-                    sx={{ width: 180 }}
-                />
-                <TextField
-                    select
-                    label="Linija"
-                    value={ticketsFilters.line_code}
-                    onChange={(e) => dispatch(setTicketsFilter({ path: "line_code", value: e.target.value }))}
-                    sx={{ width: 220 }}
-                >
-                    <MenuItem value="">— sve —</MenuItem>
-                    {linesList.map((l) => (
-                        <MenuItem key={l.uuid || l.code} value={l.code}>
-                            {l.code} · {l.name}
-                        </MenuItem>
-                    ))}
-                </TextField>
-                <TextField
-                    select
-                    label="Od luke"
-                    value={ticketsFilters.departure_harbor_id}
-                    onChange={(e) => dispatch(setTicketsFilter({ path: "departure_harbor_id", value: e.target.value }))}
-                    sx={{ width: 200 }}
-                >
-                    <MenuItem value="">— sve —</MenuItem>
-                    {harborsList.map((h) => (
-                        <MenuItem key={h.uuid || h.code} value={h.code}>
-                            {h.name}
-                        </MenuItem>
-                    ))}
-                </TextField>
-                <TextField
-                    select
-                    label="Do luke"
-                    value={ticketsFilters.arrival_harbor_id}
-                    onChange={(e) => dispatch(setTicketsFilter({ path: "arrival_harbor_id", value: e.target.value }))}
-                    sx={{ width: 200 }}
-                >
-                    <MenuItem value="">— sve —</MenuItem>
-                    {harborsList.map((h) => (
-                        <MenuItem key={h.uuid || h.code} value={h.code}>
-                            {h.name}
-                        </MenuItem>
-                    ))}
-                </TextField>
-                <TextField
-                    select
-                    label="Polazak"
-                    value={ticketsFilters.departure_key || ""}
-                    onChange={(e) => dispatch(setTicketsFilter({ path: "departure_key", value: e.target.value }))}
-                    sx={{ width: 200 }}
-                    helperText={!polasci.length ? "nema polazaka za taj dan" : ""}
-                >
-                    <MenuItem value="">— svi —</MenuItem>
-                    {polasci.map((p) => (
-                        <MenuItem key={p.key} value={p.key}>
-                            {p.vrijeme} · {p.line_code}
-                        </MenuItem>
-                    ))}
-                </TextField>
-                <TextField
-                    select
-                    label="Kanal prodaje"
-                    value={ticketsFilters.channel || ""}
-                    onChange={(e) => {
-                        dispatch(setTicketsFilter({ path: "channel", value: e.target.value }));
-                        // Uređaj i sredstvo ovise o kanalu — zadržani izbor bi
-                        // nakon promjene kanala tražio nešto čega u njemu nema.
-                        dispatch(setTicketsFilter({ path: "billing_device_uuid", value: "" }));
-                        dispatch(setTicketsFilter({ path: "payment_method_uuid", value: "" }));
-                    }}
-                    sx={{ width: 180 }}
-                >
-                    <MenuItem value="">— svi —</MenuItem>
-                    {KANALI.map((k) => (
-                        <MenuItem key={k.key} value={k.key}>{k.label}</MenuItem>
-                    ))}
-                </TextField>
-                {ticketsFilters.channel === "PARTNER" && (
+            {/* Tražilica: polja su grupirana po tome što opisuju — kada i kamo
+                se putuje, pa tko je i čime prodao. Prije su svi filtri stajali u
+                jednom redu koji se lomio, pa se nije vidjelo što ide s čim. */}
+            <Paper variant="outlined" sx={{ p: 2, my: 2, borderRadius: 2 }}>
+                <Typography variant="overline" color="text.secondary">Polazak i relacija</Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 2, mt: 0.5 }}>
                     <TextField
+                        size="small"
+                        type="date"
+                        label="Datum polaska"
+                        InputLabelProps={{ shrink: true }}
+                        value={ticketsFilters.date}
+                        onChange={(e) => dispatch(setTicketsFilter({ path: "date", value: e.target.value }))}
+                    />
+                    <TextField
+                        size="small"
                         select
-                        label="Partner"
-                        value={ticketsFilters.partner_uuid || ""}
-                        onChange={(e) => dispatch(setTicketsFilter({ path: "partner_uuid", value: e.target.value }))}
-                        sx={{ width: 220 }}
+                        label="Linija"
+                        value={ticketsFilters.line_code}
+                        onChange={(e) => dispatch(setTicketsFilter({ path: "line_code", value: e.target.value }))}
                     >
-                        <MenuItem value="">— svi partneri —</MenuItem>
-                        {partnersList.filter((p) => p.is_active !== false).map((p) => (
-                            <MenuItem key={p.uuid} value={p.uuid}>{p.partner_name}</MenuItem>
+                        <MenuItem value="">— sve —</MenuItem>
+                        {linesList.map((l) => (
+                            <MenuItem key={l.uuid || l.code} value={l.code}>{l.code} · {l.name}</MenuItem>
                         ))}
                     </TextField>
-                )}
-                <TextField
-                    select
-                    label="Naplatni uređaj"
-                    value={ticketsFilters.billing_device_uuid || ""}
-                    disabled={ticketsFilters.channel === "PARTNER"}
-                    onChange={(e) => dispatch(setTicketsFilter({ path: "billing_device_uuid", value: e.target.value }))}
-                    sx={{ width: 200 }}
-                >
-                    <MenuItem value="">— svi —</MenuItem>
-                    {uredajiZaKanal.map((bd) => (
-                        <MenuItem key={bd.uuid} value={bd.uuid}>
-                            {bd.name}{bd.fiscal_mark ? ` · ${bd.fiscal_mark}` : ""}
-                        </MenuItem>
-                    ))}
-                </TextField>
-                <TextField
-                    select
-                    label="Sredstvo plaćanja"
-                    value={ticketsFilters.payment_method_uuid || ""}
-                    disabled={ticketsFilters.channel === "PARTNER"}
-                    onChange={(e) => dispatch(setTicketsFilter({ path: "payment_method_uuid", value: e.target.value }))}
-                    sx={{ width: 180 }}
-                >
-                    <MenuItem value="">— sva —</MenuItem>
-                    {sredstva.map((pm) => (
-                        <MenuItem key={pm.uuid} value={pm.uuid}>{pm.name}</MenuItem>
-                    ))}
-                </TextField>
-                <TextField
-                    label="Šifra karte"
-                    value={ticketsFilters.ticket_code}
-                    onChange={(e) => dispatch(setTicketsFilter({ path: "ticket_code", value: e.target.value.toUpperCase() }))}
-                    sx={{ width: 160 }}
-                    helperText="override filter"
-                />
-                <Button
-                    variant="contained"
-                    size="large"
-                    startIcon={<SearchIcon />}
-                    onClick={handleSearch}
-                    disabled={ticketsLoading}
-                    sx={{ height: 56, px: 3 }}
-                >
-                    Pretraži
-                </Button>
-                <Chip label={`${tickets.length} karata`} />
-            </Stack>
+                    <TextField
+                        size="small"
+                        select
+                        label="Polazak"
+                        value={ticketsFilters.departure_key || ""}
+                        onChange={(e) => dispatch(setTicketsFilter({ path: "departure_key", value: e.target.value }))}
+                        helperText={!polasci.length ? "nema polazaka za taj dan" : " "}
+                    >
+                        <MenuItem value="">— svi —</MenuItem>
+                        {polasci.map((p) => (
+                            <MenuItem key={p.key} value={p.key}>{p.vrijeme} · {p.line_code}</MenuItem>
+                        ))}
+                    </TextField>
+                    <TextField
+                        size="small"
+                        select
+                        label="Od luke"
+                        value={ticketsFilters.departure_harbor_id}
+                        onChange={(e) => dispatch(setTicketsFilter({ path: "departure_harbor_id", value: e.target.value }))}
+                    >
+                        <MenuItem value="">— sve —</MenuItem>
+                        {harborsList.map((h) => (
+                            <MenuItem key={h.uuid || h.code} value={h.code}>{h.name}</MenuItem>
+                        ))}
+                    </TextField>
+                    <TextField
+                        size="small"
+                        select
+                        label="Do luke"
+                        value={ticketsFilters.arrival_harbor_id}
+                        onChange={(e) => dispatch(setTicketsFilter({ path: "arrival_harbor_id", value: e.target.value }))}
+                    >
+                        <MenuItem value="">— sve —</MenuItem>
+                        {harborsList.map((h) => (
+                            <MenuItem key={h.uuid || h.code} value={h.code}>{h.name}</MenuItem>
+                        ))}
+                    </TextField>
+                </Box>
 
+                <Divider sx={{ my: 2 }} />
+
+                <Typography variant="overline" color="text.secondary">Prodaja</Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 2, mt: 0.5 }}>
+                    <TextField
+                        size="small"
+                        select
+                        label="Kanal prodaje"
+                        value={ticketsFilters.channel || ""}
+                        onChange={(e) => {
+                            dispatch(setTicketsFilter({ path: "channel", value: e.target.value }));
+                            // Uređaj, sredstvo i partner ovise o kanalu — zadržani izbor bi
+                            // nakon promjene tražio nešto čega u njemu nema.
+                            dispatch(setTicketsFilter({ path: "billing_device_uuid", value: "" }));
+                            dispatch(setTicketsFilter({ path: "payment_method_uuid", value: "" }));
+                            dispatch(setTicketsFilter({ path: "partner_uuid", value: "" }));
+                        }}
+                    >
+                        <MenuItem value="">— svi —</MenuItem>
+                        {KANALI.map((k) => (
+                            <MenuItem key={k.key} value={k.key}>{k.label}</MenuItem>
+                        ))}
+                    </TextField>
+                    {ticketsFilters.channel === "PARTNER" ? (
+                        <TextField
+                            size="small"
+                            select
+                            label="Partner"
+                            value={ticketsFilters.partner_uuid || ""}
+                            onChange={(e) => dispatch(setTicketsFilter({ path: "partner_uuid", value: e.target.value }))}
+                        >
+                            <MenuItem value="">— svi partneri —</MenuItem>
+                            {partnersList.filter((p) => p.is_active !== false).map((p) => (
+                                <MenuItem key={p.uuid} value={p.uuid}>{p.partner_name}</MenuItem>
+                            ))}
+                        </TextField>
+                    ) : (
+                        <>
+                            <TextField
+                                size="small"
+                                select
+                                label="Naplatni uređaj"
+                                value={ticketsFilters.billing_device_uuid || ""}
+                                onChange={(e) => dispatch(setTicketsFilter({ path: "billing_device_uuid", value: e.target.value }))}
+                            >
+                                <MenuItem value="">— svi —</MenuItem>
+                                {uredajiZaKanal.map((bd) => (
+                                    <MenuItem key={bd.uuid} value={bd.uuid}>
+                                        {bd.name}{bd.fiscal_mark ? ` · ${bd.fiscal_mark}` : ""}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                            <TextField
+                                size="small"
+                                select
+                                label="Sredstvo plaćanja"
+                                value={ticketsFilters.payment_method_uuid || ""}
+                                onChange={(e) => dispatch(setTicketsFilter({ path: "payment_method_uuid", value: e.target.value }))}
+                            >
+                                <MenuItem value="">— sva —</MenuItem>
+                                {sredstva.map((pm) => (
+                                    <MenuItem key={pm.uuid} value={pm.uuid}>{pm.name}</MenuItem>
+                                ))}
+                            </TextField>
+                        </>
+                    )}
+                </Box>
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* Šifra karte nadjačava sve ostalo — stoji odvojeno da se vidi da
+                    ostali filtri tada ne vrijede. */}
+                <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <TextField
+                        size="small"
+                        label="Šifra karte"
+                        value={ticketsFilters.ticket_code}
+                        onChange={(e) => dispatch(setTicketsFilter({ path: "ticket_code", value: e.target.value.toUpperCase() }))}
+                        sx={{ width: 200 }}
+                        helperText={ticketsFilters.ticket_code ? "traži se samo po šifri" : "nadjačava ostale filtre"}
+                    />
+                    <Box sx={{ flex: 1 }} />
+                    <Chip label={`${tickets.length} karata`} />
+                    <Button onClick={ocistiFiltre} disabled={ticketsLoading}>Očisti</Button>
+                    <Button
+                        variant="contained"
+                        startIcon={<SearchIcon />}
+                        onClick={handleSearch}
+                        disabled={ticketsLoading}
+                    >
+                        Pretraži
+                    </Button>
+                </Stack>
+            </Paper>
             {ticketsError && <Alert severity="error" sx={{ mb: 2 }}>{ticketsError}</Alert>}
 
             <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 1 }}>
