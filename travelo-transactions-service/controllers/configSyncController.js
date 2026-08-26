@@ -2,9 +2,24 @@ const axios = require('axios')
 const { controlServiceURL } = require('../config/config')
 
 let coreConfigData = {}
+let channelConfigData = {}
 let databaseConfigData = {}
 let integrationsConfigData = {}
 
+// Kanali (portal, terminali, web prodaja) drze se u zasebnom configu, a
+// dispatcher mora doci i do web prodaje kad se otkazuje polazak.
+const getChannelServiceConfigData = ()=>{
+    return channelConfigData
+}
+
+const syncChannelServiceConfigData = async ()=>{
+    try {
+        const configData = await axios.get(controlServiceURL + '/channel_services_config')
+        channelConfigData = await configData.data.data
+    } catch (error) {
+        console.log(error)
+    }
+}
 const getCoreServiceConfigData = ()=>{
     return coreConfigData
 }
@@ -45,6 +60,8 @@ const syncIntegrationsConfigData = async () => {
 
 module.exports = {
     getCoreServiceConfigData,
+    getChannelServiceConfigData,
+    syncChannelServiceConfigData,
     syncCoreServiceConfigData,
     getDatabaseConfigData,
     syncDatabaseConfigData,

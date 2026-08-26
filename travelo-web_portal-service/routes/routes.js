@@ -25,7 +25,7 @@ const { handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature }
 const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
 const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
-const { handleCancelSailingFeature, handleSendSailingMessageFeature } = require('../features/transactions/dispatcherHandler');
+const { handleCancelSailingFeature, handleRestoreSailingFeature, handleSendSailingMessageFeature } = require('../features/transactions/dispatcherHandler');
 const { handleGetShiftsFeature } = require('../features/transactions/shiftsHandlers');
 const {
     handleGetCapacityCategoriesFeature,
@@ -276,6 +276,10 @@ router
 router
     .route('/dispatcher/cancel_sailing')
     .post(handleCancelSailingFeature)
+
+router
+    .route('/dispatcher/restore_sailing')
+    .post(handleRestoreSailingFeature)
 
 router
     .route('/dispatcher/send_sailing_message')

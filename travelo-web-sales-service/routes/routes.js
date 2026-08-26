@@ -11,6 +11,7 @@ const { ticketsPdfProxyController } = require('../controllers/logicControllers.j
 const { monriWebhookController, simulatePaymentController, monriBrowserRedirectController } = require('../controllers/logicControllers.js/monriWebhookController');
 const { invoicePdfProxyController } = require('../controllers/logicControllers.js/invoicePdfProxyController');
 const { getCountriesController } = require('../controllers/dataControllers/countriesControllers');
+const { cancelRoutesBatchController } = require('../controllers/dataControllers/routesController');
 const { checkIslandCardController } = require('../controllers/logicControllers.js/checkIslandCardController');
 const router = express.Router();
 
@@ -109,6 +110,11 @@ function validateSearchPayload(req, res, next) {
   next();
 }
 
+// Otkaz polaska iz dispatchera — poziva ga transactions servis s istog
+// posluzitelja, nije dio javnog web API-ja.
+router
+    .route('/routes/cancel_batch')
+    .patch(cancelRoutesBatchController)
 router
     .route('/harbors')
     .get(webPublicLimiter, getHarborsDataController)

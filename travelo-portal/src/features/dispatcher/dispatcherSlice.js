@@ -35,6 +35,15 @@ export const fetchDispCategoriesThunk = createAsyncThunk(
 // Keep old name as alias so existing imports keep working during transition.
 export const fetchDispRoutesThunk = fetchDispSailingsThunk;
 
+// Vracanje pogresno otkazanog polaska u prodaju. Karte ostaju otkazane, pa
+// odgovor javlja koliko ih je — polazak se vraca prazan.
+export const restoreSailingThunk = createAsyncThunk("dispatcher/restoreSailing", async (payload, { rejectWithValue }) => {
+    try {
+        const resp = await api.post("/portal/dispatcher/restore_sailing", payload);
+        const body = resp.data?.data ?? resp.data ?? {};
+        return body;
+    } catch (err) { return rejectWithValue(err.response?.data?.data || { message: err.message }); }
+});
 export const cancelSailingThunk = createAsyncThunk("dispatcher/cancelSailing", async (payload, { rejectWithValue }) => {
     try {
         const resp = await api.post("/portal/dispatcher/cancel_sailing", payload);
@@ -101,6 +110,9 @@ const dispatcherSlice = createSlice({
             .addCase(cancelSailingThunk.pending, (s) => { s.actionLoading = true; })
             .addCase(cancelSailingThunk.fulfilled, (s, a) => { s.actionLoading = false; s.actionResult = a.payload; })
             .addCase(cancelSailingThunk.rejected, (s, a) => { s.actionLoading = false; s.error = a.payload?.message; })
+            .addCase(restoreSailingThunk.pending, (s) => { s.actionLoading = true; })
+            .addCase(restoreSailingThunk.fulfilled, (s, a) => { s.actionLoading = false; s.actionResult = a.payload; })
+            .addCase(restoreSailingThunk.rejected, (s, a) => { s.actionLoading = false; s.error = a.payload?.message; })
             .addCase(sendSailingMessageThunk.pending, (s) => { s.actionLoading = true; })
             .addCase(sendSailingMessageThunk.fulfilled, (s, a) => { s.actionLoading = false; s.actionResult = a.payload; })
             .addCase(sendSailingMessageThunk.rejected, (s, a) => { s.actionLoading = false; s.error = a.payload?.message; })

@@ -42,6 +42,11 @@ const searchTripsController = async(req,res)=>{
   
       const tripsForSearch = await RoutesModel.findAll({
         where: {
+          // Otkazani i neaktivni polasci ne smiju izaci u pretrazi. Otkaz
+          // dispatchera gasi is_active i postavlja sale_status na CANCELED;
+          // bez ovog filtra polazak se i dalje mogao kupiti online.
+          is_active: true,
+          sale_status: { [Op.or]: [{ [Op.ne]: "CANCELED" }, { [Op.is]: null }] },
           departure_harbor_id: data.travel_from.code,
           arrival_harbor_id: data.travel_to.code,
           actual_departure: {
@@ -201,6 +206,11 @@ const searchWebPageTripsController = async(req,res)=>{
   
       const tripsForSearch = await RoutesModel.findAll({
         where: {
+          // Otkazani i neaktivni polasci ne smiju izaci u pretrazi. Otkaz
+          // dispatchera gasi is_active i postavlja sale_status na CANCELED;
+          // bez ovog filtra polazak se i dalje mogao kupiti online.
+          is_active: true,
+          sale_status: { [Op.or]: [{ [Op.ne]: "CANCELED" }, { [Op.is]: null }] },
           departure_harbor_id: data.travel_from_code,
           arrival_harbor_id: data.travel_to_code,
           actual_departure: {

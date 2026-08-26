@@ -25,11 +25,13 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CancelIcon from "@mui/icons-material/Cancel";
+import UndoIcon from "@mui/icons-material/Undo";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import DirectionsBoatIcon from "@mui/icons-material/DirectionsBoat";
 import {
     cancelSailingThunk,
+    restoreSailingThunk,
     changeSailingBoatThunk,
     clearActionResult,
     fetchDispBoatsThunk,
@@ -179,7 +181,12 @@ export default function DispatcherPage() {
                 paxByCategory[code] = total;
             }
             const paxTotal = Object.values(paxByCategory).reduce((a, b) => a + b, 0);
-            const saleStatus = s.sailing_status === "CANCELED" ? "CANCELED" : "SCHEDULED";
+            // Otkaz polaska iz dispatchera upisuje `sale_status` na rutama;
+            // `sailing_status` prati plovidbu i mijenja ga kapetan. Dosad se
+            // gledao samo drugi, pa otkazani polazak nije bio označen.
+            const saleStatus = (s.sale_status === "CANCELED" || s.sailing_status === "CANCELED")
+                ? "CANCELED"
+                : "SCHEDULED";
             return {
                 key: s.uuid,
                 sailing_uuid: s.uuid,
@@ -246,6 +253,21 @@ export default function DispatcherPage() {
         }));
         await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
         setCancelOpen(false);
+    };
+
+    // Vracanje pogresno otkazanog polaska. Karte ostaju otkazane, pa se javlja
+    // koliko ih je — polazak se vraca u prodaju prazan.
+    const handleRestore = async (s) => {
+        const route_uuids = s.all_route_uuids || s.adjacent.map((l) => l.uuid);
+        const r = await dispatch(restoreSailingThunk({ route_uuids }));
+        await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
+        const ostalo = r?.payload?.tickets_still_canceled;
+        if (ostalo) {
+            window.alert(
+                "Polazak je vraćen u prodaju. " + ostalo + " karata ostaje otkazano — "
+                + "putnici su već obaviješteni o otkazu, pa se te karte po potrebi prodaju ponovno."
+            );
+        }
     };
     // Zamjena plovila vrijedi samo za ovaj polazak — plovidbeni red ostaje netaknut.
     const handleOpenChangeBoat = (sailing) => {
@@ -339,6 +361,16 @@ export default function DispatcherPage() {
                                         {s.departure_time} · {s.start_harbor}
                                     </Typography>
                                     {s.direction && <Chip label={`smjer ${s.direction}`} size="small" />}
+                                    {/* Otkaz je najvažnija informacija na kartici — ide ispunjenom
+                                        oznakom, ne samo rubom okvira, koji se lako previdi. */}
+                                    {s.sale_status === "CANCELED" && (
+                                        <Chip
+                                            label="OTKAZAN"
+                                            color="error"
+                                            size="small"
+                                            sx={{ fontWeight: 800, letterSpacing: 0.5 }}
+                                        />
+                                    )}
                                     {(() => {
                                         const cfg = SAILING_STATUS[s.sailing_status] || SAILING_STATUS.CREATED;
                                         return (
@@ -395,15 +427,29 @@ export default function DispatcherPage() {
                                 )}
                             </Box>
                             <Stack direction="row" spacing={1}>
-                                <Button
-                                    variant="outlined"
-                                    color="error"
-                                    startIcon={<CancelIcon />}
-                                    disabled={s.sale_status === "CANCELED"}
-                                    onClick={() => handleOpenCancel(s)}
-                                >
-                                    Otkaži polazak
-                                </Button>
+                                {/* Otkazani polazak ostaje u popisu, ali umjesto otkazivanja
+                                    nudi vraćanje u prodaju — dispečer tako vidi što se dogodilo
+                                    i može ispraviti pogrešku. */}
+                                {s.sale_status === "CANCELED" ? (
+                                    <Button
+                                        variant="outlined"
+                                        color="success"
+                                        startIcon={<UndoIcon />}
+                                        disabled={d.actionLoading}
+                                        onClick={() => handleRestore(s)}
+                                    >
+                                        Vrati u prodaju
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        startIcon={<CancelIcon />}
+                                        onClick={() => handleOpenCancel(s)}
+                                    >
+                                        Otkaži polazak
+                                    </Button>
+                                )}
                                 <Button
                                     variant="outlined"
                                     startIcon={<DirectionsBoatIcon />}

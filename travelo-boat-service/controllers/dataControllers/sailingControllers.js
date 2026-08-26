@@ -43,7 +43,14 @@ const getSailingsController = async (req, res) => {
         }
         const includeLegs = String(include || "").includes("legs");
         const dmy = normalizeDateToDmy(departure_date);
-        const where = { departure_date: dmy, is_active: true };
+        // Otkaz polaska gasi `is_active`, čime polazak prestaje ići u prodaju.
+        // Dispečer ga ipak mora vidjeti — treba znati što je otkazano, provjeriti
+        // karte i po potrebi vratiti polazak u prodaju. Zato ovdje uz aktivne
+        // ulaze i oni otkazani.
+        const where = {
+            departure_date: dmy,
+            [Op.or]: [{ is_active: true }, { sale_status: "CANCELED" }],
+        };
         if (line_uuid) where.line_uuid = line_uuid;
 
         const routes = await RoutesModel.findAll({
@@ -97,6 +104,14 @@ const getSailingsController = async (req, res) => {
                 ...originDep,
                 uuid: originDepUuid,
                 sailing_status: deriveSailingStatus(adjacent),
+                // Prodajni status polaska. Odvojen je od `sailing_status`, koji
+                // prati plovidbu (kreiran / isplovio / uplovio). Bez ovoga
+                // dispečer nije imao po čemu vidjeti da je polazak otkazan —
+                // otkaz upisuje sale_status, a prikaz je gledao sailing_status.
+                // Dovoljan je jedan otkazani leg: putovanje kao cjelina ne vozi.
+                sale_status: adjacent.some((l) => l.sale_status === "CANCELED") ? "CANCELED" : null,
+                // Rute otkazanog polaska trebaju za vraćanje u prodaju.
+                all_route_uuids: legsAll.map((l) => l.uuid),
                 legs_total: adjacent.length,
                 legs_canceled: legStatuses.filter((s) => s === "CANCELED").length,
                 first_departure_time: adjacent[0]?.departure_time || originDep.departure_planed || "",
@@ -196,7 +211,9 @@ const getSailingDetailsController = async (req, res) => {
                 timetable_uuid: first.timetable_uuid,
                 sequence: first.sequence,
                 departure_date: depDateRaw,
-                is_active: true,
+                // Kao i u popisu polazaka: otkazani ostaju vidljivi dispečeru,
+                // inače bi detalji otkazanog polaska došli bez ijedne etape.
+                [Op.or]: [{ is_active: true }, { sale_status: "CANCELED" }],
             },
             attributes: { exclude: ["createdAt", "updatedAt"] },
             order: [["departure_harbor_order", "ASC"]],

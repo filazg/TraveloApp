@@ -2,7 +2,7 @@ const express = require('express')
 const app = express()
 const bodyParser = require('body-parser');
 
-const { syncDatabaseConfigData, getDatabaseConfigData, syncCoreServiceConfigData, getCoreServiceConfigData, syncIntegrationsConfigData } = require('./controllers/configSyncController');
+const { syncDatabaseConfigData, getDatabaseConfigData, syncCoreServiceConfigData, getCoreServiceConfigData, syncChannelServiceConfigData, syncIntegrationsConfigData } = require('./controllers/configSyncController');
 const { initSequelize } = require('./config/database');
 const { syncModels, initModels } = require('./dbModels');
 const { travelo_subscriber } = require('./controllers/subscriberController');
@@ -15,6 +15,7 @@ app.use(bodyParser.json({ limit: "10mb" }))
 const startService = async ()=>{
     try {
         await syncCoreServiceConfigData()
+        await syncChannelServiceConfigData()
         await syncDatabaseConfigData()
         await syncIntegrationsConfigData()
         const config = await getCoreServiceConfigData()

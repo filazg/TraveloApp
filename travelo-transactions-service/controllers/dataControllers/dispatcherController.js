@@ -1,17 +1,50 @@
 const axios = require("axios");
 const { Op } = require("sequelize");
-const { getCoreServiceConfigData } = require("../configSyncController");
+const { getCoreServiceConfigData, getChannelServiceConfigData } = require("../configSyncController");
 const { sendDispatcherEmail } = require("../../helpers/dispatcherEmail");
 
-async function callSalesCancelRoutes(route_uuids) {
+// Otkaz polaska mora stići na tri mjesta:
+//   1. boat — matični vozni red. Bez njega otkaz nestane pri prvom idućem
+//      sinkroniziranju voznog reda, jer se kopije brišu i pune odavde.
+//   2. sales — kopija za blagajne (desk i mobilna).
+//   3. web_sales — kopija za internetsku prodaju, koja ima svoj popis polazaka.
+//
+// Matični upis ide prvi i njegov neuspjeh prekida sve; kopije se javljaju
+// pojedinačno, da se u odgovoru vidi ako jedna nije prošla. Prodaja se u tom
+// slučaju zaustavi tek nakon sinkronizacije, pa dispečer mora znati.
+async function propagirajOtkazRuta(route_uuids, otkazan) {
     const coreConfig = await getCoreServiceConfigData();
-    const salesUrl = coreConfig?.services?.sales?.url;
-    if (!salesUrl) throw new Error("sales service URL missing");
-    const resp = await axios.patch(`${salesUrl}/routes/cancel_batch`, { route_uuids }, {
-        timeout: 10000,
-        validateStatus: () => true,
-    });
-    return resp.data?.data?.affected ?? 0;
+    const tijelo = { route_uuids, canceled: otkazan };
+    const posalji = async (url, putanja) => {
+        if (!url) return { ok: false, error: "URL servisa nije postavljen" };
+        try {
+            const resp = await axios.patch(`${url}${putanja}`, tijelo, {
+                timeout: 10000,
+                validateStatus: () => true,
+            });
+            const affected = resp.data?.data?.affected;
+            if (resp.status !== 200 || affected === undefined) {
+                return { ok: false, error: resp.data?.data?.message || `HTTP ${resp.status}` };
+            }
+            return { ok: true, affected };
+        } catch (error) {
+            return { ok: false, error: error?.message || String(error) };
+        }
+    };
+
+    const boat = await posalji(coreConfig?.services?.boat?.url, "/sales_routes/cancel_batch");
+    if (!boat.ok) throw new Error(`vozni red nije azuriran: ${boat.error}`);
+
+    const sales = await posalji(coreConfig?.services?.sales?.url, "/routes/cancel_batch");
+
+    // Web prodaja je kanal, ne core servis, pa joj adresa dolazi iz drugog
+    // configa. Adresa se slaze iz porta, jer `url` u konfiguraciji pokazuje na
+    // 6040 (api servis), a servis slusa na `port`.
+    const channelConfig = getChannelServiceConfigData();
+    const webSalesPort = channelConfig?.services?.web_sales?.port;
+    const webSales = await posalji(webSalesPort ? `http://localhost:${webSalesPort}` : null, "/routes/cancel_batch");
+
+    return { boat, sales, web_sales: webSales };
 }
 
 async function collectPassengerEmails(TicketsModel, route_uuids) {
@@ -44,7 +77,7 @@ const cancelSailingController = async (req, res) => {
             return res.status(400).json({ status: 400, data: { message: "route_uuids required" } });
         }
 
-        const affected = await callSalesCancelRoutes(route_uuids);
+        const rute = await propagirajOtkazRuta(route_uuids, true);
 
         const [ticketsAffected] = await TicketsModel.update(
             { is_canceled: true, status: "trip_canceled" },
@@ -67,7 +100,8 @@ const cancelSailingController = async (req, res) => {
         res.status(200).json({
             status: 200,
             data: {
-                routes_canceled: affected,
+                routes_canceled: rute.boat.affected,
+                routes_targets: rute,
                 tickets_canceled: ticketsAffected || 0,
                 emails_sent: results.filter((r) => r.ok).length,
                 emails_total: results.length,
@@ -75,6 +109,45 @@ const cancelSailingController = async (req, res) => {
         });
     } catch (error) {
         console.log("cancelSailingController error:", error?.message || error);
+        res.status(500).json({ status: 500, data: { message: error.message } });
+    }
+};
+
+// POST /restore_sailing — body: { route_uuids: [] }
+//
+// Vraća polazak u prodaju nakon pogrešnog otkaza. Karte se NE vraćaju: putnici
+// su već dobili obavijest o otkazu, a dio ih je mogao dobiti i povrat novca, pa
+// bi oživljavanje karte značilo da putnik ima važeću kartu koju nije platio.
+// Njih se, ako treba, prodaje ponovno.
+const restoreSailingController = async (req, res) => {
+    const { TicketsModel } = req.app.locals.models;
+    try {
+        const data = (req.body && typeof req.body.body === "object" && req.body.body !== null)
+            ? req.body.body
+            : (req.body || {});
+        const { route_uuids } = data;
+        if (!Array.isArray(route_uuids) || !route_uuids.length) {
+            return res.status(400).json({ status: 400, data: { message: "route_uuids required" } });
+        }
+
+        const rute = await propagirajOtkazRuta(route_uuids, false);
+
+        // Koliko karata ostaje otkazano — dispečer to treba vidjeti, jer polazak
+        // se vraća u prodaju s praznim brojem putnika.
+        const ticketsStillCanceled = await TicketsModel.count({
+            where: { route_uuid: { [Op.in]: route_uuids }, status: "trip_canceled" },
+        });
+
+        res.status(200).json({
+            status: 200,
+            data: {
+                routes_restored: rute.boat.affected,
+                routes_targets: rute,
+                tickets_still_canceled: ticketsStillCanceled,
+            },
+        });
+    } catch (error) {
+        console.log("restoreSailingController error:", error?.message || error);
         res.status(500).json({ status: 500, data: { message: error.message } });
     }
 };
@@ -122,4 +195,4 @@ const sendSailingMessageController = async (req, res) => {
     }
 };
 
-module.exports = { cancelSailingController, sendSailingMessageController };
+module.exports = { cancelSailingController, restoreSailingController, sendSailingMessageController };

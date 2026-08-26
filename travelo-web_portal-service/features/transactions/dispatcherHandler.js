@@ -31,4 +31,14 @@ const handleSendSailingMessageFeature = async (req, res) => {
     }
 };
 
-module.exports = { handleCancelSailingFeature, handleSendSailingMessageFeature };
+// Vracanje pogresno otkazanog polaska u prodaju. Karte ostaju otkazane.
+const handleRestoreSailingFeature = async (req, res) => {
+    try {
+        const payload = req.body?.body || req.body || {};
+        const resp = await postToTransactions('/restore_sailing', payload);
+        res.status(resp.status).send(resp.data);
+    } catch (error) {
+        res.status(500).send({ status: 500, error: error.message });
+    }
+};
+module.exports = { handleCancelSailingFeature, handleRestoreSailingFeature, handleSendSailingMessageFeature };
