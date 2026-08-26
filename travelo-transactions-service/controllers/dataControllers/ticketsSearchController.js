@@ -122,11 +122,27 @@ const listTicketsController = async (req, res) => {
         if (Object.keys(racunFiltar).length) {
             const racuni = await InvoiceModel.findAll({
                 where: racunFiltar,
-                attributes: ["invoice_uuid"],
+                attributes: ["invoice_uuid", "order_uuid"],
             });
             const uuids = racuni.map((r) => r.invoice_uuid);
-            // Bez ijednog računa nema ni karata — vrati prazno umjesto svega.
-            where.invoice_uuid = { [Op.in]: uuids.length ? uuids : ["-"] };
+            // Karte web prodaje nemaju `invoice_uuid`, ali imaju `order_uuid`
+            // koji stoji i na računu — pa se hvataju i tim putem, inače bi
+            // filtar po kanalu "Web" uvijek vratio prazno.
+            const narudzbe = racuni
+                .flatMap((r) => String(r.order_uuid || "").split(","))
+                .map((x) => x.trim())
+                .filter(Boolean);
+            // Ide kroz Op.and jer Op.or na `where` već drži filtar po datumu —
+            // izravno pridruživanje bi ga preklopilo i vratilo karte svih dana.
+            where[Op.and] = [
+                ...(where[Op.and] || []),
+                {
+                    [Op.or]: [
+                        { invoice_uuid: { [Op.in]: uuids.length ? uuids : ["-"] } },
+                        ...(narudzbe.length ? [{ order_uuid: { [Op.in]: narudzbe } }] : []),
+                    ],
+                },
+            ];
         }
 
         const lim = Math.min(parseInt(limit, 10) || 1000, 5000);
@@ -154,8 +170,34 @@ const listTicketsController = async (req, res) => {
             })
             : [];
         const poRacunu = new Map(racuni.map((r) => [r.invoice_uuid, r]));
+
+        // Web prodaja karti ne upisuje uvijek `invoice_uuid` — račun tada nosi
+        // `order_uuid` (za više narudžbi odjednom, odvojene zarezom). Bez ovog
+        // drugog puta karta ostaje bez kanala prodaje, uređaja i sredstva
+        // plaćanja iako račun postoji.
+        const bezVeze = rows.filter((t) => !t.invoice_uuid && t.order_uuid);
+        const poNarudzbi = new Map();
+        if (bezVeze.length) {
+            const narudzbe = [...new Set(bezVeze.map((t) => t.order_uuid))];
+            const racuniNarudzbi = await InvoiceModel.findAll({
+                where: { [Op.or]: narudzbe.map((u) => ({ order_uuid: { [Op.like]: `%${u}%` } })) },
+                attributes: [
+                    "invoice_uuid", "invoice_no", "invoice_year", "invoice_date", "order_uuid",
+                    "invoice_business_premise_uuid", "invoice_business_premise_name",
+                    "invoice_billing_device_uuid", "invoice_billing_device_fiscal_mark",
+                    "invoice_payment_method_uuid", "invoice_payment_method_name",
+                ],
+            });
+            for (const r of racuniNarudzbi) {
+                for (const u of String(r.order_uuid || "").split(",")) {
+                    const kljuc = u.trim();
+                    if (kljuc && !poNarudzbi.has(kljuc)) poNarudzbi.set(kljuc, r);
+                }
+            }
+        }
+
         const tickets = rows.map((t) => {
-            const r = poRacunu.get(t.invoice_uuid);
+            const r = poRacunu.get(t.invoice_uuid) || poNarudzbi.get(t.order_uuid);
             return {
                 ...t.toJSON(),
                 invoice_no: r ? `${r.invoice_no}/${r.invoice_year}` : null,
