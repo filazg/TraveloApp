@@ -38,6 +38,7 @@ import { setAuthData } from "../../../auth/authSlice";
 import CancelTicketsModal from "./CancelTicketsModal";
 import TransferTicketsModal from "./TransferTicketsModal";
 import TransferResultDialog from "./TransferResultDialog";
+import StornoResultDialog from "./StornoResultDialog";
 
 // Kanali prodaje odgovaraju tipovima poslovnog prostora. Karta sama ne nosi
 // kanal — cita se s racuna s kojeg je prodana.
@@ -147,6 +148,7 @@ export default function TicketsOverviewPage() {
     const [cancelOpen, setCancelOpen] = useState(false);
     const [transferOpen, setTransferOpen] = useState(false);
     const [transferResult, setTransferResult] = useState(null);
+    const [stornoResult, setStornoResult] = useState(null);
 
     useEffect(() => {
         dispatch(setAuthData({ path: "loading", value: false }));
@@ -665,7 +667,18 @@ export default function TicketsOverviewPage() {
                 open={cancelOpen}
                 tickets={selectedTickets}
                 onClose={() => setCancelOpen(false)}
-                onCanceled={() => { setSelectedIds([]); refreshSearch(); }}
+                onCanceled={(payload) => {
+                    // Storno završava izdanim računom, pa se dokument nudi isto
+                    // kao nakon prodaje na POS-u. E-mail se uzima s prve karte —
+                    // storno ide s jednog računa, pa je putnik isti.
+                    setStornoResult({
+                        invoice: payload,
+                        passenger_email: selectedTickets[0]?.passanger_email || "",
+                        tickets_count: payload?.canceled_ticket_uuids?.length || selectedTickets.length,
+                    });
+                    setSelectedIds([]);
+                    refreshSearch();
+                }}
             />
 
             <TransferTicketsModal
@@ -680,6 +693,8 @@ export default function TicketsOverviewPage() {
             />
 
             <TransferResultDialog result={transferResult} onClose={() => setTransferResult(null)} />
+
+            <StornoResultDialog result={stornoResult} onClose={() => setStornoResult(null)} />
         </Box>
     );
 }
