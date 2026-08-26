@@ -13,7 +13,7 @@ const { cancelTicketsController } = require('../controllers/dataControllers/canc
 const { harborTaxReportController } = require('../controllers/dataControllers/harborTaxReportController');
 const { harborTaxPdfController } = require('../controllers/dataControllers/harborTaxPdfController');
 const { finalizeTerminalSaleController } = require('../controllers/dataControllers/finalizeTerminalSaleController');
-const { cancelSailingController, restoreSailingController, sendSailingMessageController } = require('../controllers/dataControllers/dispatcherController');
+const { cancelSailingController, restoreSailingController, rescheduleSailingController, sendSailingMessageController } = require('../controllers/dataControllers/dispatcherController');
 const { emailInvoiceTicketsController } = require('../controllers/dataControllers/emailInvoiceTicketsController');
 const { managementReportController } = require('../controllers/dataControllers/managementReportController');
 const { validateTicketController } = require('../controllers/dataControllers/validateTicketController');
@@ -107,6 +107,10 @@ router
 router
     .route('/restore_sailing')
     .post(restoreSailingController)
+
+router
+    .route('/reschedule_sailing')
+    .post(rescheduleSailingController)
 
 router
     .route('/send_sailing_message')

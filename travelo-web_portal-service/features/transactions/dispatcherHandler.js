@@ -41,4 +41,14 @@ const handleRestoreSailingFeature = async (req, res) => {
         res.status(500).send({ status: 500, error: error.message });
     }
 };
-module.exports = { handleCancelSailingFeature, handleRestoreSailingFeature, handleSendSailingMessageFeature };
+// Pomak polaska na novi datum i vrijeme, uz obavijest putnicima.
+const handleRescheduleSailingFeature = async (req, res) => {
+    try {
+        const payload = req.body?.body || req.body || {};
+        const resp = await postToTransactions('/reschedule_sailing', payload);
+        res.status(resp.status).send(resp.data);
+    } catch (error) {
+        res.status(500).send({ status: 500, error: error.message });
+    }
+};
+module.exports = { handleCancelSailingFeature, handleRestoreSailingFeature, handleRescheduleSailingFeature, handleSendSailingMessageFeature };

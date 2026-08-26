@@ -5,7 +5,7 @@ const { getLinesDataController, addLineDataController, updateLineDataController 
 const { getRegionsDataController, addRegionDataController, updateRegionDataController } = require('../controllers/dataControllers/regionsControllers');
 const { getTicketsTypesDataController, addTicketTypeDataController, updateTicketTypeDataController } = require('../controllers/dataControllers/ticketTypesControllers');
 const { getTimetableDataController, getTimetableDetailsController, addTimetableDataController } = require('../controllers/dataControllers/timetablesControllers');
-const { getSalesRoutesController, getAllSalesRoutesController, cancelSalesRoutesBatchController } = require('../controllers/dataControllers/salesRoutesController');
+const { getSalesRoutesController, getAllSalesRoutesController, cancelSalesRoutesBatchController, rescheduleSalesRoutesBatchController } = require('../controllers/dataControllers/salesRoutesController');
 const { getDeparturesController, getDepartureByUuidController, getRoutesByDepartureController, getRouteByUuidController } = require('../controllers/dataControllers/departuresControllers');
 const { getSailingsController, getSailingDetailsController, startSailingController, updateLegStatusController, cancelHarborArrivalController, changeBoatController } = require('../controllers/dataControllers/sailingControllers');
 const router = express.Router();
@@ -59,6 +59,10 @@ router
 router
     .route('/sales_routes/cancel_batch')
     .patch(cancelSalesRoutesBatchController)
+
+router
+    .route('/sales_routes/reschedule_batch')
+    .patch(rescheduleSalesRoutesBatchController)
 
 router
     .route('/departures')

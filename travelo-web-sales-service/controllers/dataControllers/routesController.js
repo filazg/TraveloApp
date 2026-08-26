@@ -1,4 +1,5 @@
 const { getSequelize } = require("../../config/database");
+const { pomakni } = require("../../helpers/voyageTime");
 
 const getRoutesDataController = async (req, res) => {
     const sequelize = getSequelize();
@@ -54,7 +55,38 @@ const cancelRoutesBatchController = async (req, res) => {
     }
 };
 
+
+// PATCH /routes/reschedule_batch — body: { route_uuids: [], delta_minutes }
+//
+// Pomak polaska. Planirano vrijeme ostaje netaknuto; aktualno se racuna kao
+// planirano + razlika, pa je operacija idempotentna, a delta_minutes = 0 vraca
+// polazak na vozni red. Razliku racuna boat-service (maticni podaci) i salje je
+// ovamo, da isti racun ne postoji na tri mjesta.
+const rescheduleRoutesBatchController = async (req, res) => {
+    const { RoutesModel } = req.app.locals.models;
+    try {
+        const data = req.body?.body || req.body || {};
+        const uuids = Array.isArray(data.route_uuids) ? data.route_uuids : [];
+        const delta = Number(data.delta_minutes) || 0;
+        if (!uuids.length) {
+            return res.send({ status: 400, data: { message: "route_uuids required" } });
+        }
+        const rute = await RoutesModel.findAll({ where: { uuid: uuids } });
+        for (const r of rute) {
+            await r.update({
+                actual_departure: pomakni(r.departure, delta),
+                actual_arrival: pomakni(r.arrival, delta),
+            });
+        }
+        res.send({ status: 200, data: { affected: rute.length, delta_minutes: delta } });
+    } catch (error) {
+        console.log("rescheduleRoutesBatchController error:", error?.message || error);
+        res.send({ status: 500, data: { error: error.message } });
+    }
+};
+
 module.exports = {
     getRoutesDataController,
-    cancelRoutesBatchController
+    cancelRoutesBatchController,
+    rescheduleRoutesBatchController
 }

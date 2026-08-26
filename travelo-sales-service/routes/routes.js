@@ -1,7 +1,7 @@
 const express = require('express');
 const { getHarborsDataController } = require('../controllers/dataControllers/harborsControllers');
 const { getLinesDataController } = require('../controllers/dataControllers/linesController');
-const { getRoutesDataController, cancelRoutesBatchController } = require('../controllers/dataControllers/routesController');
+const { getRoutesDataController, cancelRoutesBatchController, rescheduleRoutesBatchController } = require('../controllers/dataControllers/routesController');
 const { getPricesDataController } = require('../controllers/dataControllers/pricesController');
 const { createOrderController, listOrdersController } = require('../controllers/dataControllers/ordersController');
 const { updateOrdersStatusController } = require('../controllers/dataControllers/ordersStatusController');
@@ -22,6 +22,10 @@ router
 router
     .route('/routes/cancel_batch')
     .patch(cancelRoutesBatchController)
+
+router
+    .route('/routes/reschedule_batch')
+    .patch(rescheduleRoutesBatchController)
 
 router
     .route('/prices')

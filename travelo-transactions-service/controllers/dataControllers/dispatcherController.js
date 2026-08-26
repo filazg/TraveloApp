@@ -2,6 +2,7 @@ const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData, getChannelServiceConfigData } = require("../configSyncController");
 const { sendDispatcherEmail } = require("../../helpers/dispatcherEmail");
+const { pomakni } = require("../../helpers/voyageTime");
 
 // Otkaz polaska mora stići na tri mjesta:
 //   1. boat — matični vozni red. Bez njega otkaz nestane pri prvom idućem
@@ -43,6 +44,48 @@ async function propagirajOtkazRuta(route_uuids, otkazan) {
     const channelConfig = getChannelServiceConfigData();
     const webSalesPort = channelConfig?.services?.web_sales?.port;
     const webSales = await posalji(webSalesPort ? `http://localhost:${webSalesPort}` : null, "/routes/cancel_batch");
+
+    return { boat, sales, web_sales: webSales };
+}
+
+// Pomak polaska. Matični servis izračuna razliku prema voznom redu i pomakne
+// svoje rute i etape; kopijama se šalje gotova razlika, da isti račun ne
+// postoji na tri mjesta.
+async function propagirajPomakRuta(route_uuids, new_departure) {
+    const coreConfig = await getCoreServiceConfigData();
+    const posalji = async (url, putanja, tijelo) => {
+        if (!url) return { ok: false, error: "URL servisa nije postavljen" };
+        try {
+            const resp = await axios.patch(`${url}${putanja}`, tijelo, {
+                timeout: 15000,
+                validateStatus: () => true,
+            });
+            if (resp.status !== 200 || resp.data?.data?.affected === undefined) {
+                return { ok: false, error: resp.data?.data?.message || resp.data?.data?.error || `HTTP ${resp.status}` };
+            }
+            return { ok: true, ...resp.data.data };
+        } catch (error) {
+            return { ok: false, error: error?.message || String(error) };
+        }
+    };
+
+    const boat = await posalji(
+        coreConfig?.services?.boat?.url,
+        "/sales_routes/reschedule_batch",
+        { route_uuids, new_departure }
+    );
+    if (!boat.ok) throw new Error(`vozni red nije pomaknut: ${boat.error}`);
+
+    const tijeloKopije = { route_uuids, delta_minutes: boat.delta_minutes };
+    const sales = await posalji(coreConfig?.services?.sales?.url, "/routes/reschedule_batch", tijeloKopije);
+
+    const channelConfig = getChannelServiceConfigData();
+    const webSalesPort = channelConfig?.services?.web_sales?.port;
+    const webSales = await posalji(
+        webSalesPort ? `http://localhost:${webSalesPort}` : null,
+        "/routes/reschedule_batch",
+        tijeloKopije
+    );
 
     return { boat, sales, web_sales: webSales };
 }
@@ -152,6 +195,76 @@ const restoreSailingController = async (req, res) => {
     }
 };
 
+// POST /reschedule_sailing
+// body: { route_uuids: [], new_departure: "DD.MM.YYYY. HH:mm" | null, subject, body, sailing }
+//
+// Pomak polaska na novi datum i vrijeme. Planirano vrijeme (vozni red i ono
+// otisnuto na karti) ostaje netaknuto — mijenja se samo aktualno. Karte se
+// pomiču zajedno s polaskom da validacija na terminalu ne javlja nepodudaranje
+// vremena; putniku u ruci ostaje papir sa starim vremenom, zato i ide e-mail.
+//
+// `new_departure: null` vraća polazak na vozni red.
+const rescheduleSailingController = async (req, res) => {
+    const { TicketsModel } = req.app.locals.models;
+    try {
+        const data = (req.body && typeof req.body.body === "object" && req.body.body !== null)
+            ? req.body.body
+            : (req.body || {});
+        const { route_uuids, new_departure, subject, body, sailing } = data;
+        if (!Array.isArray(route_uuids) || !route_uuids.length) {
+            return res.status(400).json({ status: 400, data: { message: "route_uuids required" } });
+        }
+
+        const rute = await propagirajPomakRuta(route_uuids, new_departure || null);
+        const delta = rute.boat.delta_minutes || 0;
+
+        // Karte: planirano ostaje, aktualno se pomiče za istu razliku.
+        const karte = await TicketsModel.findAll({
+            where: {
+                route_uuid: { [Op.in]: route_uuids },
+                [Op.or]: [{ is_canceled: false }, { is_canceled: null }],
+            },
+        });
+        for (const k of karte) {
+            await k.update({
+                departure: pomakni(k.departure_planed, delta),
+                arrival: pomakni(k.arrival_planed, delta),
+            });
+        }
+
+        const { emails } = await collectPassengerEmails(TicketsModel, route_uuids);
+        const results = [];
+        for (const email of emails) {
+            const r = await sendDispatcherEmail({
+                to: email,
+                subject: subject || "Kapetan Luka — Promjena vremena polaska",
+                body: body || `Poštovani,\n\nObavještavamo Vas da je Vaš polazak pomaknut na ${rute.boat.new_departure}.\n\nKapetan Luka`,
+                signature: "Služba za putnike · Kapetan Luka",
+                sailing,
+            });
+            results.push({ email, ...r });
+        }
+
+        res.status(200).json({
+            status: 200,
+            data: {
+                delta_minutes: delta,
+                planned_departure: rute.boat.planned_departure,
+                new_departure: rute.boat.new_departure,
+                routes_moved: rute.boat.affected,
+                departures_moved: rute.boat.affected_departures,
+                routes_targets: rute,
+                tickets_moved: karte.length,
+                emails_sent: results.filter((r) => r.ok).length,
+                emails_total: results.length,
+            },
+        });
+    } catch (error) {
+        console.log("rescheduleSailingController error:", error?.message || error);
+        res.status(500).json({ status: 500, data: { message: error.message } });
+    }
+};
+
 const sendSailingMessageController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
@@ -195,4 +308,4 @@ const sendSailingMessageController = async (req, res) => {
     }
 };
 
-module.exports = { cancelSailingController, restoreSailingController, sendSailingMessageController };
+module.exports = { cancelSailingController, restoreSailingController, rescheduleSailingController, sendSailingMessageController };

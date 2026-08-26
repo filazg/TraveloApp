@@ -11,7 +11,7 @@ const { ticketsPdfProxyController } = require('../controllers/logicControllers.j
 const { monriWebhookController, simulatePaymentController, monriBrowserRedirectController } = require('../controllers/logicControllers.js/monriWebhookController');
 const { invoicePdfProxyController } = require('../controllers/logicControllers.js/invoicePdfProxyController');
 const { getCountriesController } = require('../controllers/dataControllers/countriesControllers');
-const { cancelRoutesBatchController } = require('../controllers/dataControllers/routesController');
+const { cancelRoutesBatchController, rescheduleRoutesBatchController } = require('../controllers/dataControllers/routesController');
 const { checkIslandCardController } = require('../controllers/logicControllers.js/checkIslandCardController');
 const router = express.Router();
 
@@ -118,6 +118,10 @@ router
 router
     .route('/harbors')
     .get(webPublicLimiter, getHarborsDataController)
+
+router
+    .route('/routes/reschedule_batch')
+    .patch(rescheduleRoutesBatchController)
 
 router
     .route('/countries')

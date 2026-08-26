@@ -32,6 +32,7 @@ import DirectionsBoatIcon from "@mui/icons-material/DirectionsBoat";
 import {
     cancelSailingThunk,
     restoreSailingThunk,
+    rescheduleSailingThunk,
     changeSailingBoatThunk,
     clearActionResult,
     fetchDispBoatsThunk,
@@ -67,6 +68,11 @@ export default function DispatcherPage() {
     const dispatch = useDispatch();
     const d = useSelector(dispatcherSliceData);
     const [cancelOpen, setCancelOpen] = useState(false);
+    const [moveOpen, setMoveOpen] = useState(false);
+    const [moveDate, setMoveDate] = useState("");
+    const [moveTime, setMoveTime] = useState("");
+    const [moveSubject, setMoveSubject] = useState("");
+    const [moveBody, setMoveBody] = useState("");
     const [messageOpen, setMessageOpen] = useState(false);
     const [boatOpen, setBoatOpen] = useState(false);
     const [newBoatUuid, setNewBoatUuid] = useState("");
@@ -200,6 +206,11 @@ export default function DispatcherPage() {
                 start_harbor: harbors[0]?.harbor_name || "",
                 end_harbor: harbors[harbors.length - 1]?.harbor_name || "",
                 sale_status: saleStatus,
+                // Planirano vrijeme je vozni red; aktualno se razlikuje kad je
+                // dispečer pomaknuo polazak. Oba dolaze s etape polaska.
+                planned_departure: s.departure_planed || "",
+                actual_departure: s.departure || "",
+                is_moved: !!(s.departure && s.departure_planed && s.departure !== s.departure_planed),
                 sailing_status: s.sailing_status,
                 boat_uuid: s.boat_uuid,
                 harbors,
@@ -268,6 +279,60 @@ export default function DispatcherPage() {
                 + "putnici su već obaviješteni o otkazu, pa se te karte po potrebi prodaju ponovno."
             );
         }
+    };
+
+    // Pomak polaska. Dispečer unosi novo vrijeme isplovljenja iz PRVE luke;
+    // ostale etape se pomaknu za istu razliku, pa trajanja plovidbe ostaju.
+    const handleOpenMove = (sailing) => {
+        setActiveSailing(sailing);
+        const izvor = sailing.actual_departure || sailing.planned_departure || "";
+        const m = /^(\d{2})\.(\d{2})\.(\d{4})\.?\s*(\d{2}):(\d{2})$/.exec(izvor);
+        setMoveDate(m ? `${m[3]}-${m[2]}-${m[1]}` : toIso(sailing.departure_date));
+        setMoveTime(m ? `${m[4]}:${m[5]}` : (sailing.departure_time || ""));
+        setMoveSubject("Kapetan Luka — Promjena vremena polaska");
+        setMoveBody("");
+        setMoveOpen(true);
+    };
+
+    // Datum i vrijeme iz obrasca u oblik kakav baza drži: "DD.MM.YYYY. HH:mm".
+    const sloziVrijeme = (iso, vrijeme) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+        if (!m || !/^\d{2}:\d{2}$/.test(vrijeme || "")) return null;
+        return `${m[3]}.${m[2]}.${m[1]}. ${vrijeme}`;
+    };
+
+    const posaljiPomak = async (novoVrijeme) => {
+        if (!activeSailing) return;
+        const route_uuids = activeSailing.all_route_uuids || activeSailing.adjacent.map((l) => l.uuid);
+        const r = await dispatch(rescheduleSailingThunk({
+            route_uuids,
+            new_departure: novoVrijeme,
+            subject: moveSubject,
+            body: moveBody || undefined,
+            sailing: {
+                line_code: activeSailing.line_code,
+                line_name: activeSailing.line_name,
+                departure_date: activeSailing.departure_date,
+                departure_time: activeSailing.departure_time,
+                start_harbor: activeSailing.start_harbor,
+                end_harbor: activeSailing.end_harbor,
+            },
+        }));
+        await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
+        setMoveOpen(false);
+        const p = r?.payload;
+        if (p?.new_departure) {
+            window.alert(
+                "Polazak: " + p.new_departure + ". Pomaknuto karata: " + (p.tickets_moved || 0)
+                + ", obaviješteno putnika: " + (p.emails_sent || 0) + "/" + (p.emails_total || 0) + "."
+            );
+        }
+    };
+
+    const handleConfirmMove = () => {
+        const novo = sloziVrijeme(moveDate, moveTime);
+        if (!novo) { window.alert("Unesi ispravan datum i vrijeme."); return; }
+        posaljiPomak(novo);
     };
     // Zamjena plovila vrijedi samo za ovaj polazak — plovidbeni red ostaje netaknut.
     const handleOpenChangeBoat = (sailing) => {
@@ -371,6 +436,14 @@ export default function DispatcherPage() {
                                             sx={{ fontWeight: 800, letterSpacing: 0.5 }}
                                         />
                                     )}
+                                    {s.is_moved && s.sale_status !== "CANCELED" && (
+                                        <Chip
+                                            label={`POMAKNUT NA ${s.actual_departure}`}
+                                            color="warning"
+                                            size="small"
+                                            sx={{ fontWeight: 800 }}
+                                        />
+                                    )}
                                     {(() => {
                                         const cfg = SAILING_STATUS[s.sailing_status] || SAILING_STATUS.CREATED;
                                         return (
@@ -450,6 +523,15 @@ export default function DispatcherPage() {
                                         Otkaži polazak
                                     </Button>
                                 )}
+                                <Button
+                                    variant="outlined"
+                                    color="warning"
+                                    startIcon={<ScheduleIcon />}
+                                    disabled={s.sale_status === "CANCELED"}
+                                    onClick={() => handleOpenMove(s)}
+                                >
+                                    Pomakni polazak
+                                </Button>
                                 <Button
                                     variant="outlined"
                                     startIcon={<DirectionsBoatIcon />}
@@ -626,6 +708,75 @@ export default function DispatcherPage() {
                 </DialogActions>
             </Dialog>
 
+            {/* MOVE SAILING */}
+            <Dialog open={moveOpen} onClose={() => setMoveOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Pomak polaska</DialogTitle>
+                <DialogContent dividers>
+                    {activeSailing && (
+                        <>
+                            <Typography>
+                                <b>{activeSailing.departure_time}</b> · {activeSailing.line_code} {activeSailing.line_name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                {activeSailing.start_harbor} → {activeSailing.end_harbor} · po voznom redu {activeSailing.planned_departure || "—"}
+                            </Typography>
+                            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                                <TextField
+                                    type="date"
+                                    label="Novi datum"
+                                    value={moveDate}
+                                    onChange={(e) => setMoveDate(e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                    fullWidth
+                                />
+                                <TextField
+                                    type="time"
+                                    label="Novo vrijeme isplovljenja"
+                                    value={moveTime}
+                                    onChange={(e) => setMoveTime(e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                    fullWidth
+                                />
+                            </Stack>
+                            <TextField
+                                fullWidth
+                                label="Naslov poruke"
+                                value={moveSubject}
+                                onChange={(e) => setMoveSubject(e.target.value)}
+                                sx={{ mb: 2 }}
+                            />
+                            <TextField
+                                fullWidth
+                                multiline
+                                minRows={4}
+                                label="Tekst poruke putnicima (prazno = zadani tekst s novim vremenom)"
+                                value={moveBody}
+                                onChange={(e) => setMoveBody(e.target.value)}
+                            />
+                            <Alert severity="info" sx={{ mt: 2 }}>
+                                Vozni red se ne mijenja — planirano vrijeme ostaje isto, a novo se upisuje kao
+                                stvarno vrijeme polaska. Unosi se vrijeme isplovljenja iz prve luke; ostale luke
+                                se pomiču za istu razliku. Karte tog polaska prate novo vrijeme, a putnicima ide e-mail.
+                            </Alert>
+                        </>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setMoveOpen(false)} disabled={d.actionLoading}>Odustani</Button>
+                    {activeSailing?.is_moved && (
+                        <Button
+                            color="inherit"
+                            onClick={() => posaljiPomak(null)}
+                            disabled={d.actionLoading}
+                        >
+                            Vrati na vozni red
+                        </Button>
+                    )}
+                    <Button variant="contained" color="warning" onClick={handleConfirmMove} disabled={d.actionLoading}>
+                        Pomakni i obavijesti
+                    </Button>
+                </DialogActions>
+            </Dialog>
             {/* CHANGE BOAT */}
             <Dialog open={boatOpen} onClose={() => setBoatOpen(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Zamjena plovila na polasku</DialogTitle>
