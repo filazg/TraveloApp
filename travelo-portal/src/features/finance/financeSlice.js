@@ -741,6 +741,8 @@ const financeSlice = createSlice({
 export const financeSliceData = (state) => state.finance;
 export const { setFilter, resetFilters, setPartnerInvoiceFilter, setTicketsFilter, setHarborTaxReportFilter, setManagementReportMonth, setPurchaseReportMonth, setShiftsFilter, setDailyRealizationFilter, clearDailyRealizationSendResult, setDailyRealizationDemoFilter, clearDailyRealizationDemoSendResult } = financeSlice.actions;
 export const invoicePdfUrl = (invoice_uuid) => `${backendURL}/portal/transactions/invoice_pdf/${invoice_uuid}`;
+// Karte se u PDF vade po narudžbi, ne po računu — isto kao u POS prodaji.
+export const ticketsPdfUrl = (order_uuid) => `${backendURL}/portal/transactions/tickets_pdf/${order_uuid}`;
 
 // Download the invoice PDF forcing it to save (not open in a tab). Fetches as
 // blob via the authenticated axios instance, creates a client-side object URL

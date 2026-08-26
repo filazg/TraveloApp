@@ -23,6 +23,7 @@ import {
 import { setAuthData } from "../../../auth/authSlice";
 import CancelTicketsModal from "./CancelTicketsModal";
 import TransferTicketsModal from "./TransferTicketsModal";
+import TransferResultDialog from "./TransferResultDialog";
 import CancelIcon from "@mui/icons-material/Cancel";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 
@@ -111,6 +112,7 @@ export default function TicketsOverviewPage() {
     const [selectedIds, setSelectedIds] = useState([]);
     const [cancelOpen, setCancelOpen] = useState(false);
     const [transferOpen, setTransferOpen] = useState(false);
+    const [transferResult, setTransferResult] = useState(null);
 
     useEffect(() => {
         dispatch(setAuthData({ path: "loading", value: false }));
@@ -350,15 +352,11 @@ export default function TicketsOverviewPage() {
                 onTransferred={(r) => {
                     setSelectedIds([]);
                     refreshSearch();
-                    const inv = r?.invoice;
-                    if (inv?.invoice_no) {
-                        window.alert(
-                            "Račun razlike " + inv.invoice_no + "/" + inv.invoice_year
-                            + " · " + Number(inv.total_amount || 0).toFixed(2) + " €"
-                        );
-                    }
+                    setTransferResult(r);
                 }}
             />
+
+            <TransferResultDialog result={transferResult} onClose={() => setTransferResult(null)} />
         </Box>
     );
 }
