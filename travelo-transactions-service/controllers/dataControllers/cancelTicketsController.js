@@ -6,6 +6,17 @@ const { releaseBookings } = require("../../helpers/bookingClient");
 const { dodajStavku } = require("./sepaControllers");
 const { provjeriIban } = require("../../helpers/iban");
 
+// Opis povrata završi u SEPA nalogu i vidi ga primatelj na izvatku, pa je
+// ispravan padež mjesto gdje se ne štedi.
+const rijecKarte = (n) => {
+    const zadnjeDvije = n % 100;
+    const zadnja = n % 10;
+    if (zadnjeDvije >= 11 && zadnjeDvije <= 14) return "karata";
+    if (zadnja === 1) return "karta";
+    if (zadnja >= 2 && zadnja <= 4) return "karte";
+    return "karata";
+};
+
 // Match legacy split: port tax 6%, VAT 25% on the rest.
 const HARBOR_RATE = 0.06;
 const VAT_RATE = 0.25;
@@ -277,7 +288,7 @@ const cancelTicketsController = async (req, res) => {
                 storno_invoice_code: finalInvoiceCode,
                 ticket_uuids: tickets.map((t) => t.ticket_uuid),
                 ticket_codes: tickets.map((t) => t.ticket_code).filter(Boolean),
-                description: `Povrat po stornu ${finalInvoiceCode} · ${tickets.length} karata`,
+                description: `Povrat po stornu ${finalInvoiceCode} - ${tickets.length} ${rijecKarte(tickets.length)}`,
                 created_by: sepa.created_by || null,
             });
             if (rezultat.status !== 200) {

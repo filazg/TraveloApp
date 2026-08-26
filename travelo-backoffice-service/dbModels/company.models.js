@@ -45,6 +45,21 @@ module.exports =  (sequelize) =>{
               type:DataTypes.BOOLEAN,
               allowNull:true
           },
+          // Račun tvrtke — u SEPA nalogu je to IBAN platitelja, s njega odlaze
+          // povrati. SWIFT nije obavezan (za domaća plaćanja banke ga ne traže),
+          // ali ga neke aplikacije e-bankarstva žele vidjeti.
+          iban:{
+              type:DataTypes.STRING,
+              allowNull:true
+          },
+          swift:{
+              type:DataTypes.STRING,
+              allowNull:true
+          },
+          bank_name:{
+              type:DataTypes.STRING,
+              allowNull:true
+          },
           saop_organization_id:{
               type:DataTypes.STRING,
               allowNull:true

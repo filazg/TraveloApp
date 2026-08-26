@@ -1,6 +1,9 @@
 const crypto = require("crypto");
+const axios = require("axios");
 const { Op, fn, col } = require("sequelize");
 const { provjeriIban, normalizirajIban } = require("../../helpers/iban");
+const { gradiPain001, imeDatoteke } = require("../../helpers/sepaXml");
+const { getCoreServiceConfigData } = require("../configSyncController");
 
 // SEPA nalozi — evidencija povrata koji idu na račun umjesto u gotovinu.
 // Vidi dbModels/sepa.models.js za odnos nalog → stavke.
@@ -200,7 +203,64 @@ const deleteSepaOrderItemController = async (req, res) => {
     }
 };
 
+// GET /sepa_order_xml/:sepa_order_uuid?execution_date=YYYY-MM-DD
+// Datoteka za uvoz u e-bankarstvo (pain.001.001.03). Platitelj je tvrtka, pa
+// bez IBAN-a na tvrtki nema naloga — to se javlja jasno, jer se ispravlja u
+// šifarniku tvrtke, a ne ovdje.
+const sepaOrderXmlController = async (req, res) => {
+    const { SepaOrderModel, SepaOrderItemModel } = req.app.locals.models;
+    try {
+        const nalog = await SepaOrderModel.findOne({ where: { sepa_order_uuid: req.params.sepa_order_uuid } });
+        if (!nalog) return res.status(404).json({ status: 404, data: { message: "nalog ne postoji" } });
+
+        const stavke = await SepaOrderItemModel.findAll({
+            where: { sepa_order_uuid: nalog.sepa_order_uuid },
+            order: [["createdAt", "ASC"]],
+        });
+        if (!stavke.length) {
+            return res.status(400).json({ status: 400, data: { message: "nalog nema stavki" } });
+        }
+
+        const coreConfig = await getCoreServiceConfigData();
+        const backofficeUrl = coreConfig?.services?.backoffice?.url;
+        if (!backofficeUrl) throw new Error("backoffice URL missing in core config");
+        const companyResp = await axios.get(`${backofficeUrl}/company`, { timeout: 5000, validateStatus: () => true });
+        const company = companyResp.data?.data?.company || {};
+
+        if (!company.iban) {
+            return res.status(400).json({
+                status: 400,
+                data: { message: "na tvrtki nije upisan IBAN — upiši ga u Backoffice → Tvrtka" },
+            });
+        }
+        const provjera = provjeriIban(company.iban);
+        if (!provjera.ok) {
+            return res.status(400).json({
+                status: 400,
+                data: { message: `IBAN tvrtke nije ispravan — ${provjera.razlog}` },
+            });
+        }
+
+        const now = new Date();
+        const xml = gradiPain001({
+            company,
+            order: nalog.toJSON(),
+            items: stavke.map((s) => s.toJSON()),
+            now,
+            executionDate: req.query.execution_date || null,
+        });
+
+        res.setHeader("Content-Type", "application/xml; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="${imeDatoteke(nalog, now)}"`);
+        res.status(200).send(xml);
+    } catch (error) {
+        console.log("sepaOrderXmlController error:", error?.message || error);
+        res.status(500).json({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
+    sepaOrderXmlController,
     listSepaOrdersController,
     getSepaOrderController,
     createSepaOrderController,

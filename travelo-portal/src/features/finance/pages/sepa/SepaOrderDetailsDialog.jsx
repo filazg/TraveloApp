@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
     Alert,
@@ -22,8 +22,10 @@ import {
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
+import DownloadIcon from "@mui/icons-material/Download";
 import {
     deleteSepaOrderItemThunk,
+    downloadSepaXml,
     fetchSepaOrderDetailsThunk,
     financeSliceData,
     setSepaOrderStatusThunk,
@@ -49,6 +51,22 @@ export default function SepaOrderDetailsDialog({ sepaOrderUuid, onClose, onChang
     }, [dispatch, sepaOrderUuid]);
 
     const otvoren = order?.status === "open";
+    const [preuzimanje, setPreuzimanje] = useState(false);
+    const [greskaDatoteke, setGreskaDatoteke] = useState(null);
+
+    // Datum izvršenja se ne pita — banka nalog obrađuje danom uvoza, a ako
+    // treba drugi datum, mijenja se u aplikaciji e-bankarstva.
+    const preuzmiDatoteku = async () => {
+        setGreskaDatoteke(null);
+        setPreuzimanje(true);
+        try {
+            await downloadSepaXml(sepaOrderUuid);
+        } catch (e) {
+            setGreskaDatoteke(e.message);
+        } finally {
+            setPreuzimanje(false);
+        }
+    };
 
     const promijeniStatus = async () => {
         const res = await dispatch(setSepaOrderStatusThunk({
@@ -90,6 +108,7 @@ export default function SepaOrderDetailsDialog({ sepaOrderUuid, onClose, onChang
             </DialogTitle>
             <DialogContent dividers>
                 {sepaError && <Alert severity="error" sx={{ mb: 1 }}>{sepaError}</Alert>}
+                {greskaDatoteke && <Alert severity="error" sx={{ mb: 1 }}>{greskaDatoteke}</Alert>}
                 {!sepaOrderDetailsLoading && !items?.length && (
                     <Alert severity="info">
                         Nalog je prazan. Stavke ulaze kroz storno karata, odabirom povrata na IBAN.
@@ -148,6 +167,16 @@ export default function SepaOrderDetailsDialog({ sepaOrderUuid, onClose, onChang
                     disabled={sepaSaving}
                 >
                     {otvoren ? "Zatvori nalog" : "Vrati u otvoreno"}
+                </Button>
+                {/* Datoteka se smije preuzeti i dok je nalog otvoren — nekad se
+                    provjerava sadržaj prije zatvaranja. */}
+                <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={preuzmiDatoteku}
+                    disabled={!items?.length || preuzimanje}
+                >
+                    {preuzimanje ? "Priprema…" : "Preuzmi SEPA datoteku"}
                 </Button>
                 <Box sx={{ flex: 1 }} />
                 <Button onClick={onClose}>Zatvori prozor</Button>

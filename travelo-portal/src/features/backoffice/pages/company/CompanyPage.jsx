@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Box, Button, Divider, TextField, Typography, useMediaQuery } from "@mui/material"
 import { useT } from "../../../../i18n/useT"
 import { setAuthData } from "../../../auth/authSlice"
+import { provjeriIban } from "../../../../helpers/iban"
 
 
 export default function CompanyPage (){
@@ -29,6 +30,9 @@ export default function CompanyPage (){
             contact_tel: c.contact_tel || "",
             contact_email: c.contact_email || "",
             contact_person: c.contact_person || "",
+            iban: c.iban || "",
+            swift: c.swift || "",
+            bank_name: c.bank_name || "",
             saop_organization_id: c.saop_organization_id || "",
             saop_link_to_book: c.saop_link_to_book || "",
             saop_default_customer: c.saop_default_customer || "",
@@ -196,6 +200,69 @@ export default function CompanyPage (){
                                 onChange={handleChange}
                                 name="contact_person"
                                 sx={{ gridColumn: "span 2" }}
+                            />
+                        </Box>
+
+                        <Divider sx={{ mt: 4, mb: 2 }} />
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>
+                            Bankovni podaci
+                        </Typography>
+                        {/* IBAN tvrtke je u SEPA nalogu račun platitelja — bez njega
+                            se datoteka za e-bankarstvo ne može složiti. */}
+                        <Typography variant="caption" color="text.secondary">
+                            IBAN je platitelj u SEPA nalozima za povrat
+                        </Typography>
+                        <Box
+                           display="grid"
+                           gap="30px"
+                           gridTemplateColumns="repeat(8, minmax(0, 1fr))"
+                           sx={{
+                               mt: 2,
+                               width: 'auto',
+                               "& > div": { gridColumn: isNonMobile ? undefined : "span 8" },
+                           }}
+                        >
+                            <TextField
+                                type="text"
+                                variant="outlined"
+                                fullWidth
+                                label="IBAN"
+                                placeholder="HR12 1001 0051 8630 0016 0"
+                                value={form.iban || ""}
+                                onChange={handleChange}
+                                name="iban"
+                                error={!!form.iban && !provjeriIban(form.iban).ok}
+                                helperText={
+                                    !form.iban
+                                        ? "Račun s kojeg odlaze povrati"
+                                        : provjeriIban(form.iban).ok
+                                        ? "IBAN je ispravan"
+                                        : provjeriIban(form.iban).razlog
+                                }
+                                sx={{ gridColumn: "span 3" }}
+                            />
+                            <TextField
+                                type="text"
+                                variant="outlined"
+                                fullWidth
+                                label="SWIFT / BIC"
+                                placeholder="npr. ZABAHR2X"
+                                value={form.swift || ""}
+                                onChange={handleChange}
+                                name="swift"
+                                helperText="nije obavezan"
+                                sx={{ gridColumn: "span 2" }}
+                            />
+                            <TextField
+                                type="text"
+                                variant="outlined"
+                                fullWidth
+                                label="Banka"
+                                placeholder="npr. Zagrebačka banka d.d."
+                                value={form.bank_name || ""}
+                                onChange={handleChange}
+                                name="bank_name"
+                                sx={{ gridColumn: "span 3" }}
                             />
                         </Box>
 

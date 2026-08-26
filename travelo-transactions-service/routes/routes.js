@@ -25,7 +25,7 @@ const { upsertTerminalShiftController, listShiftsController } = require('../cont
 const { apiCreateOrderController, apiGetOrderController, apiConfirmOrderController, apiCancelOrderController, apiTripDetailsController } = require('../controllers/dataControllers/apiOrderControllers');
 const { dailyRealizationReportController, sendDailyRealizationToErpController } = require('../controllers/dataControllers/dailyRealizationReportController');
 const { dailyRealizationDemoController, sendDailyRealizationDemoToErpController } = require('../controllers/dataControllers/dailyRealizationDemoController');
-const { listSepaOrdersController, getSepaOrderController, createSepaOrderController, setSepaOrderStatusController, addSepaOrderItemController, deleteSepaOrderItemController } = require('../controllers/dataControllers/sepaControllers');
+const { listSepaOrdersController, getSepaOrderController, createSepaOrderController, setSepaOrderStatusController, addSepaOrderItemController, deleteSepaOrderItemController, sepaOrderXmlController } = require('../controllers/dataControllers/sepaControllers');
 const router = express.Router();
 
 router
@@ -155,6 +155,10 @@ router
 router
     .route('/sepa_order/:sepa_order_uuid')
     .get(getSepaOrderController)
+
+router
+    .route('/sepa_order_xml/:sepa_order_uuid')
+    .get(sepaOrderXmlController)
 
 router
     .route('/sepa_order_status')

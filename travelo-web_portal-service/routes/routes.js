@@ -30,6 +30,7 @@ const { handleGetShiftsFeature } = require('../features/transactions/shiftsHandl
 const {
     handleGetSepaOrdersFeature,
     handleGetSepaOrderFeature,
+    handleGetSepaOrderXmlFeature,
     handleCreateSepaOrderFeature,
     handleSetSepaOrderStatusFeature,
     handleAddSepaOrderItemFeature,
@@ -254,6 +255,10 @@ router
 router
     .route('/transactions/sepa_order/:sepa_order_uuid')
     .get(handleGetSepaOrderFeature)
+
+router
+    .route('/transactions/sepa_order_xml/:sepa_order_uuid')
+    .get(handleGetSepaOrderXmlFeature)
 
 router
     .route('/transactions/sepa_order_status')

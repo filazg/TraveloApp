@@ -29,6 +29,16 @@ const getSepaOrderController = async (sepa_order_uuid) => {
     }
 };
 
+// Datoteka za e-bankarstvo — vraća se kao sirovi odgovor, da se zaglavlja
+// (tip sadržaja i ime datoteke) proslijede nepromijenjena.
+const getSepaOrderXmlController = async (sepa_order_uuid, params = {}) => {
+    return axios.get((await osnovica()) + '/sepa_order_xml/' + sepa_order_uuid, {
+        params,
+        responseType: 'arraybuffer',
+        validateStatus: () => true,
+    });
+};
+
 // Zajednički POST prolaz — status i tijelo se vraćaju doslovno, da poruke o
 // gresci (zatvoren nalog, neispravan IBAN) dođu do portala nepromijenjene.
 const postSepa = async (putanja, data) => {
@@ -49,6 +59,7 @@ const deleteSepaOrderItemController = (data) => postSepa('/sepa_order_item_delet
 module.exports = {
     listSepaOrdersController,
     getSepaOrderController,
+    getSepaOrderXmlController,
     createSepaOrderController,
     setSepaOrderStatusController,
     addSepaOrderItemController,

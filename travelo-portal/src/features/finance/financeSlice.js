@@ -917,4 +917,35 @@ export const downloadHarborTaxPdf = async ({ year, month, region } = {}) => {
     setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
 };
 
+// SEPA datoteka za e-bankarstvo (pain.001). Ime datoteke slaže backend, pa se
+// čita iz content-disposition. Greška dolazi kao JSON — pročita se iz blob-a i
+// vrati kao poruka, da se korisniku ne spremi datoteka s greškom.
+export const downloadSepaXml = async (sepa_order_uuid, { execution_date } = {}) => {
+    const resp = await api.get(`/portal/transactions/sepa_order_xml/${sepa_order_uuid}`, {
+        params: { execution_date: execution_date || undefined },
+        responseType: "blob",
+        validateStatus: () => true,
+    });
+
+    const tip = resp.data?.type || "";
+    if (resp.status !== 200 || tip.includes("json")) {
+        const tekst = await resp.data.text();
+        let poruka = tekst;
+        try { poruka = JSON.parse(tekst)?.data?.message || tekst; } catch { /* ostaje sirovi tekst */ }
+        throw new Error(poruka || "SEPA datoteka nije generirana");
+    }
+
+    const disposition = resp.headers?.["content-disposition"] || "";
+    const match = /filename="?([^"]+)"?/.exec(disposition);
+    const blob = new Blob([resp.data], { type: "application/xml" });
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = match?.[1] || `sepa-${sepa_order_uuid.slice(0, 8)}.xml`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+};
+
 export default financeSlice.reducer;
