@@ -1,14 +1,27 @@
 import { use, useEffect, useState } from "react";
-import { Box, Button, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import Autocomplete from "@mui/material/Autocomplete";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
 import ShortcutHint from "../common/ShortcutHint";
+
+// Pomaknut polazak: vozni red ostaje u `departure`, stvarno vrijeme je u
+// `actual_departure`. Blagajna prodaje po stvarnom vremenu, pa se ono i
+// prikazuje, a planirano stoji uz oznaku da se zna zašto se razlikuje.
+const samoVrijeme = (v) => {
+    const m = /(\d{1,2}):(\d{2})/.exec(String(v || ""));
+    return m ? String(m[1]).padStart(2, "0") + ":" + m[2] : "";
+};
+
+const jePomaknut = (r) => !!(r?.departure && r?.actual_departure && r.departure !== r.actual_departure);
+
+const vrijemePolaska = (r) => (jePomaknut(r) ? samoVrijeme(r.actual_departure) : (r?.departure_time || ""));
 
 export default function FilterBar() {
     const dispatch = useDispatch();
@@ -139,7 +152,7 @@ export default function FilterBar() {
             const [h, m] = String(time || '').split(':');
             return (Number(h) || 0) * 60 + (Number(m) || 0);
         };
-        uniqueDepartures.sort((a, b) => minutes(a.departure_time) - minutes(b.departure_time));
+        uniqueDepartures.sort((a, b) => minutes(vrijemePolaska(a)) - minutes(vrijemePolaska(b)));
         await dispatch(setStateData({path:'searchData/availableDepartures', value: uniqueDepartures}));
     }
 
@@ -307,7 +320,15 @@ export default function FilterBar() {
             >
                 {appData.searchData?.availableDepartures?.map((departure) => (
                 <MenuItem key={departure.id} value={departure}>
-                    {departure.departure_time + " -> smjer " + departure.direction}
+                    {vrijemePolaska(departure) + " -> smjer " + departure.direction}
+                    {jePomaknut(departure) && (
+                        <Chip
+                            label={"pomaknut, po redu " + samoVrijeme(departure.departure)}
+                            color="warning"
+                            size="small"
+                            sx={{ ml: 1, fontWeight: 700, height: 20, fontSize: 11 }}
+                        />
+                    )}
                 </MenuItem>
             ))}
           </TextField>

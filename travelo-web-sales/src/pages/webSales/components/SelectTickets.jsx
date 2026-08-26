@@ -98,6 +98,8 @@ export default function SelectTicketsComponent (){
           line_code: selectedData.selectedTrip.line_code,
           line_name: selectedData.selectedTrip.line_name,
           departure: selectedData.selectedTrip.departure,
+          actual_departure: selectedData.selectedTrip.actual_departure,
+          actual_arrival: selectedData.selectedTrip.actual_arrival,
           departure_harbor_id: selectedData.selectedTrip.departure_harbor_id,
           departure_harbor_name: selectedData.selectedTrip.departure_harbor_name,
           arrival: selectedData.selectedTrip.arrival,

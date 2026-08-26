@@ -324,8 +324,11 @@ export default function SaleScreen() {
     // Scheduled times at the selected harbors.
     const fromLeg = v?.legs?.find((l) => l.departure_harbor_id === fromHarbor?.id);
     const toLeg = v?.legs?.find((l) => l.arrival_harbor_id === toHarbor?.id);
-    const fromTime = timeOnly(fromLeg?.departure_time || fromLeg?.departure);
-    const toTime = timeOnly(toLeg?.arrival || toLeg?.actual_arrival);
+    // Stvarno vrijeme ima prednost: kad dispečer pomakne polazak, vozni red
+    // ostaje u `departure`/`arrival`, a novo vrijeme je u `actual_*`. Blagajna
+    // mora prodavati po onome kad brod stvarno kreće.
+    const fromTime = timeOnly(fromLeg?.actual_departure || fromLeg?.departure_time || fromLeg?.departure);
+    const toTime = timeOnly(toLeg?.actual_arrival || toLeg?.arrival);
 
     // Prices for this voyage + selected (from → to) pair.
     // Otočne cijene (is_island=true) izvlačimo zasebno — ne pojavljuju se u

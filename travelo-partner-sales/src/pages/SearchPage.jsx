@@ -24,6 +24,16 @@ import { fetchHarbors, fetchRoutes } from '../features/sales/salesSlice'
 import ReservationDialog from '../features/sales/ReservationDialog'
 import { isSaleOpen, SALE_CUTOFF_MINUTES } from '../features/sales/departureCutoff'
 
+// Pomaknut polazak: vozni red ostaje u departure, stvarno vrijeme je u
+// actual_departure. Partner prodaje po stvarnom vremenu, pa se ono prikazuje.
+const samoVrijeme = (v) => {
+  const m = /(\d{1,2}):(\d{2})/.exec(String(v || ''))
+  return m ? String(m[1]).padStart(2, '0') + ':' + m[2] : ''
+}
+const jePomaknut = (r) => !!(r?.departure && r?.actual_departure && r.departure !== r.actual_departure)
+const vrijemePolaska = (r) => (jePomaknut(r) ? samoVrijeme(r.actual_departure) : (r?.departure_time || ''))
+
+
 export default function SearchPage() {
   const dispatch = useDispatch()
   const { harbors, routes, loading, error } = useSelector((s) => s.sales)
@@ -49,7 +59,7 @@ export default function SearchPage() {
       // Polasci koji su krenuli (ili im je do polaska manje od cutoffa) ne idu u
       // prodaju — vidi features/sales/departureCutoff.js.
       .filter((r) => isSaleOpen(r))
-      .sort((a, b) => (a.departure_time > b.departure_time ? 1 : -1))
+      .sort((a, b) => (vrijemePolaska(a) > vrijemePolaska(b) ? 1 : -1))
   }, [routes, fromCode, toCode, date, submitted])
 
   const onSearch = (e) => {
@@ -146,7 +156,13 @@ export default function SearchPage() {
                 {results.map((r) => (
                   <TableRow key={r.uuid} hover>
                     <TableCell>{r.departure_date}</TableCell>
-                    <TableCell><strong>{r.departure_time}</strong></TableCell>
+                    <TableCell>
+                      <strong>{vrijemePolaska(r)}</strong>
+                      {jePomaknut(r) && (
+                        <Chip size="small" color="warning" sx={{ ml: 1, height: 18, fontSize: 10, fontWeight: 700 }}
+                              label={'pomaknut, po redu ' + r.departure_time} />
+                      )}
+                    </TableCell>
                     <TableCell>{r.actual_arrival?.split(' ')[1] || ''}</TableCell>
                     <TableCell>{r.departure_harbor_name}</TableCell>
                     <TableCell>{r.arrival_harbor_name}</TableCell>

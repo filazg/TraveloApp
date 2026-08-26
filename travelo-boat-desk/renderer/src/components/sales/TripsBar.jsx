@@ -119,8 +119,10 @@ export default function TripsBar() {
                 <Typography sx={{ fontWeight: 700 }}>
                   {departure.arrival_harbor_name}
                 </Typography>
+                {/* Kad je polazak pomaknut, vrijedi stvarno vrijeme dolaska
+                    (actual_arrival); planirano ostaje u `arrival`. */}
                 <Typography sx={{ fontWeight: 700 }}>
-                  {departure.arrival}
+                  {departure.actual_arrival || departure.arrival}
                 </Typography>
               </Box>
               <Grid alignItems="flex-end" mt={1}>

@@ -305,7 +305,7 @@ export default function SelectedTicketsSummaryComponent() {
                 {row.departure_harbor_name?.toUpperCase()} – {row.arrival_harbor_name?.toUpperCase()}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                {t('summary.departure')}: {row.departure}
+                {t('summary.departure')}: {row.actual_departure || row.departure}
               </Typography>
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">

@@ -104,6 +104,8 @@ export default function WebSalesPage() {
             line_code: trip.line_code,
             line_name: trip.line_name,
             departure: trip.departure,
+            actual_departure: trip.actual_departure,
+            actual_arrival: trip.actual_arrival,
             departure_harbor_id: trip.departure_harbor_id,
             departure_harbor_name: trip.departure_harbor_name,
             arrival: trip.arrival,

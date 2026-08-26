@@ -16,6 +16,18 @@ import { setVoyage, clearLine, voyageData } from '../store/slices/voyageSlice';
 import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
 
+// "DD.MM.YYYY. HH:mm" → "HH:mm". Vremena su tekst i new Date() ih ne parsira.
+const timeOnly = (s) => {
+    const m = /(\d{1,2}):(\d{2})/.exec(String(s || ''));
+    return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
+};
+
+// "DD.MM.YYYY. HH:mm" → "DD.MM." (za slučaj kad je polazak pomaknut na drugi dan)
+const dateOnly = (s) => {
+    const m = /^(\d{2})\.(\d{2})\./.exec(String(s || ''));
+    return m ? `${m[1]}.${m[2]}.` : '';
+};
+
 // Group sales_routes by (timetable_uuid, sequence, departure_date) → one voyage per group.
 const groupVoyages = (routes) => {
     const groups = new Map();
@@ -41,6 +53,16 @@ const groupVoyages = (routes) => {
         g.first_departure_time = g.legs[0]?.departure_time || '';
         g.start_harbor = g.legs[0]?.departure_harbor_name || '';
         g.end_harbor = g.legs[g.legs.length - 1]?.arrival_harbor_name || '';
+        // Pomaknut polazak: vozni red ostaje u `departure`, stvarno vrijeme je u
+        // `actual_departure`. Blagajna mora prodavati po stvarnom vremenu, pa se
+        // ono prikazuje, a planirano ostaje vidljivo uz oznaku.
+        const prvi = g.legs[0] || {};
+        const planirano = prvi.departure || '';
+        const stvarno = prvi.actual_departure || '';
+        g.is_moved = !!(planirano && stvarno && planirano !== stvarno);
+        g.actual_departure = stvarno;
+        g.planned_departure = planirano;
+        if (g.is_moved) g.first_departure_time = timeOnly(stvarno) || g.first_departure_time;
         return g;
     }).sort((a, b) => (a.first_departure_time || '').localeCompare(b.first_departure_time || ''));
 };
@@ -107,6 +129,14 @@ export default function VoyageSelectScreen() {
                         <TouchableOpacity style={styles.card} onPress={() => onSelect(item)}>
                             <View style={styles.cardRow}>
                                 <Text style={styles.cardTime}>{item.first_departure_time}</Text>
+                                {item.is_moved && (
+                                    <Text style={styles.cardMoved}>
+                                        POMAKNUT · po redu {timeOnly(item.planned_departure)}
+                                        {dateOnly(item.actual_departure) !== dateOnly(item.planned_departure)
+                                            ? ` ${dateOnly(item.planned_departure)}`
+                                            : ''}
+                                    </Text>
+                                )}
                                 {item.direction && (
                                     <Text style={styles.cardDir}>smjer {item.direction}</Text>
                                 )}
@@ -151,6 +181,12 @@ const styles = StyleSheet.create({
     cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     cardTime: { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
     cardDir: { fontSize: 11, color: colors.textSecondary },
+    // Pomaknut polazak — veliko vrijeme je stvarno, ovdje stoji ono iz voznog reda.
+    cardMoved: {
+        fontSize: 10, fontWeight: '800', color: colors.textOnPrimary,
+        backgroundColor: colors.warning, borderRadius: 4,
+        paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8, flexShrink: 1,
+    },
     cardRoute: { fontSize: 16, color: colors.textPrimary, marginTop: 6 },
     cardMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
 });
