@@ -283,13 +283,16 @@ export const cancelTicketsThunk = createAsyncThunk(
 
 // Sifarnik postotaka priznavanja (Puni povrat, Promjena karte, Otkaz manje
 // od 24h). Isti se popis koristi i za storno i za promjenu karte.
+// Portal servis sifarnike i liste vraca u obliku { path1, path2, data },
+// a gateway usput odmota jedan sloj — zato tri razine.
+const odmotaj = (resp) => resp.data?.data?.data ?? resp.data?.data ?? resp.data;
 export const fetchStornoPercentagesThunk = createAsyncThunk(
     "finance/fetchStornoPercentages",
     async (_, { rejectWithValue }) => {
         try {
             const resp = await api.get("/portal/backoffice/storno_percentages");
-            const d = resp.data?.data ?? resp.data ?? {};
-            return d.storno_percentages || [];
+            const p = odmotaj(resp);
+            return Array.isArray(p) ? p : (p?.storno_percentages || []);
         } catch (err) { return rejectWithValue({ message: err.message }); }
     }
 );
@@ -300,8 +303,8 @@ export const fetchSalesRoutesThunk = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const resp = await api.get("/portal/sales/routes");
-            const d = resp.data?.data ?? resp.data ?? {};
-            return d.routes || [];
+            const p = odmotaj(resp);
+            return Array.isArray(p) ? p : (p?.routes || []);
         } catch (err) { return rejectWithValue({ message: err.message }); }
     }
 );
@@ -311,8 +314,8 @@ export const fetchSalesPricesThunk = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             const resp = await api.get("/portal/sales/prices");
-            const d = resp.data?.data ?? resp.data ?? {};
-            return d.prices || [];
+            const p = odmotaj(resp);
+            return Array.isArray(p) ? p : (p?.prices || []);
         } catch (err) { return rejectWithValue({ message: err.message }); }
     }
 );
