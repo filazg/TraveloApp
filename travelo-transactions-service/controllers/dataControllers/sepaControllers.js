@@ -213,6 +213,15 @@ const sepaOrderXmlController = async (req, res) => {
         const nalog = await SepaOrderModel.findOne({ where: { sepa_order_uuid: req.params.sepa_order_uuid } });
         if (!nalog) return res.status(404).json({ status: 404, data: { message: "nalog ne postoji" } });
 
+        // Samo iz zatvorenog naloga: dok je otvoren u njega još ulaze stavke,
+        // pa bi se banci predala datoteka koja ne odgovara nalogu.
+        if (nalog.status !== "closed") {
+            return res.status(400).json({
+                status: 400,
+                data: { message: "nalog mora biti zatvoren da bi se datoteka mogla preuzeti" },
+            });
+        }
+
         const stavke = await SepaOrderItemModel.findAll({
             where: { sepa_order_uuid: nalog.sepa_order_uuid },
             order: [["createdAt", "ASC"]],

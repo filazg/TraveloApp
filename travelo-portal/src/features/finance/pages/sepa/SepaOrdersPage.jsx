@@ -24,6 +24,7 @@ import {
     financeSliceData,
 } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
+import { useLoading } from "../../../loading/useLoading";
 import SepaOrderDetailsDialog from "./SepaOrderDetailsDialog";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
@@ -44,6 +45,7 @@ export default function SepaOrdersPage() {
     const auth = useSelector((s) => s.auth);
     const { sepaOrders, sepaOrdersLoading, sepaOrdersError, sepaSaving, sepaError } = useSelector(financeSliceData);
 
+    const { tijekom } = useLoading();
     const [status, setStatus] = useState("all");
     const [noviOpen, setNoviOpen] = useState(false);
     const [noviNaziv, setNoviNaziv] = useState("");
@@ -62,10 +64,10 @@ export default function SepaOrdersPage() {
     const kreiraj = async () => {
         const naziv = noviNaziv.trim();
         if (!naziv) return;
-        const res = await dispatch(createSepaOrderThunk({
+        const res = await tijekom("Kreiranje SEPA naloga", () => dispatch(createSepaOrderThunk({
             name: naziv,
             created_by: auth?.loggedUserData?.username || "",
-        }));
+        })));
         if (res.meta.requestStatus === "fulfilled") {
             setNoviOpen(false);
             setNoviNaziv("");

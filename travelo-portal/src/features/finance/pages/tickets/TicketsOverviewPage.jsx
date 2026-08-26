@@ -35,6 +35,7 @@ import {
     setTicketsFilter,
 } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
+import { useLoading } from "../../../loading/useLoading";
 import CancelTicketsModal from "./CancelTicketsModal";
 import TransferTicketsModal from "./TransferTicketsModal";
 import TransferResultDialog from "./TransferResultDialog";
@@ -143,6 +144,7 @@ export default function TicketsOverviewPage() {
         salesRoutes,
         partnersList,
     } = useSelector(financeSliceData);
+    const { tijekom } = useLoading();
     const [tab, setTab] = useState(0);
     const [selectedIds, setSelectedIds] = useState([]);
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -200,7 +202,10 @@ export default function TicketsOverviewPage() {
     // Izvozi se ono sto je na ekranu — dakle odabrana kartica i filtri koji
     // su primijenjeni. Stupci prate tablicu, uz hrvatska zaglavlja, da se
     // datoteka moze proslijediti dalje bez dorade.
-    const izveziUExcel = () => {
+    const izveziUExcel = () => tijekom("Priprema Excel datoteke", async () => {
+        // Slaganje knjige je sinkrono i drži dretvu, pa se prekrivač mora
+        // stići iscrtati prije nego krene — inače se pojavi tek na kraju.
+        await new Promise((r) => setTimeout(r, 50));
         const kartica = TAB_FILTERS[tab];
         const redci = ticketsByStatus.map((t) => ({
             sifra: t.ticket_code || "",
@@ -243,7 +248,7 @@ export default function TicketsOverviewPage() {
             datum: ticketsFilters.date,
             karticaKey: kartica.key,
         }));
-    };
+    });
     const handleSearch = async () => {
         const params = {};
         if (ticketsFilters.ticket_code) {

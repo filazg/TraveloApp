@@ -24,6 +24,7 @@ import {
     transferTicketsThunk,
 } from "../../financeSlice";
 import { authSliceData } from "../../../auth/authSlice";
+import { useLoading } from "../../../loading/useLoading";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
@@ -56,6 +57,7 @@ export default function TransferTicketsModal({ open, tickets, onClose, onTransfe
         transferLoading,
     } = useSelector(financeSliceData);
     const auth = useSelector(authSliceData);
+    const { tijekom } = useLoading();
 
     const [terminal, setTerminal] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("");
@@ -252,7 +254,9 @@ export default function TransferTicketsModal({ open, tickets, onClose, onTransfe
             departure_planned: `${odabranaRelacija.departure_date} ${odabranaRelacija.departure_time || ""}`.trim(),
             arrival_planned: odabranaRelacija.actual_arrival || odabranaRelacija.arrival || "",
         };
-        const res = await dispatch(transferTicketsThunk({
+        // Dva koraka na backendu (račun pa zatvaranje starih karata), pa traje
+        // — prekrivač drži operatera da ne klikne dvaput i ne izda dva računa.
+        const res = await tijekom("Izdavanje računa i prebacivanje karata", () => dispatch(transferTicketsThunk({
             sale: {
                 items: noveStavke.map((s) => ({
                     ticket_type_uuid: s.ticket_type_uuid,
@@ -281,7 +285,7 @@ export default function TransferTicketsModal({ open, tickets, onClose, onTransfe
             // karte uparuju po redu kojim ih backend stvori.
             source_ticket_uuids: poTipu.flatMap((g) => g.karte.map((t) => t.ticket_uuid)),
             percentage: postotak,
-        }));
+        })));
         if (res.meta.requestStatus === "fulfilled") {
             // E-mail putnika stoji na karti — proslijedi ga da ga prozor
             // rezultata odmah ponudi, isto kao POS koji uzima e-mail kupca.

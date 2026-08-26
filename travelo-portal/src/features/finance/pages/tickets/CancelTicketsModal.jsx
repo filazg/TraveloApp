@@ -26,6 +26,7 @@ import {
     financeSliceData,
 } from "../../financeSlice";
 import { formatirajIban } from "../../../../helpers/iban";
+import { useLoading } from "../../../loading/useLoading";
 import SepaRefundDialog from "./SepaRefundDialog";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
@@ -34,6 +35,7 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
     const dispatch = useDispatch();
     const { billingDevicesFull, businessPremisesList, stornoPercentages, cancelLoading, cancelError } = useSelector(financeSliceData);
     const auth = useSelector((s) => s.auth);
+    const { tijekom } = useLoading();
     const [terminal, setTerminal] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("");
     // Postotak se bira iz šifarnika, ne upisuje se slobodno — inače bi svaka
@@ -131,7 +133,9 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
 
     const handleSubmit = async () => {
         setLocalError(null);
-        const res = await dispatch(
+        // Storno prije upisa povlači podatke iz backofficea, pa zna potrajati
+        // nekoliko sekundi — bez prekrivača operater ne zna radi li se išta.
+        const res = await tijekom("Storniranje karata", () => dispatch(
             cancelTicketsThunk({
                 ticket_uuids: tickets.map((t) => t.ticket_uuid),
                 terminal_uuid: terminal,
@@ -139,7 +143,7 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                 percentage: Number(percentage),
                 ...(sepa ? { sepa: { ...sepa, created_by: auth?.loggedUserData?.username || "" } } : {}),
             })
-        );
+        ));
         if (res.meta.requestStatus === "fulfilled") {
             if (onCanceled) onCanceled(res.payload);
             onClose();

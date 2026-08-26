@@ -5,6 +5,7 @@ import {
     Box,
     Button,
     Chip,
+    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -30,6 +31,7 @@ import {
     financeSliceData,
     setSepaOrderStatusThunk,
 } from "../../financeSlice";
+import { useLoading } from "../../../loading/useLoading";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 const fmtDateTime = (v) => {
@@ -44,6 +46,7 @@ export default function SepaOrderDetailsDialog({ sepaOrderUuid, onClose, onChang
     const dispatch = useDispatch();
     const auth = useSelector((s) => s.auth);
     const { sepaOrderDetails, sepaOrderDetailsLoading, sepaSaving, sepaError } = useSelector(financeSliceData);
+    const { tijekom } = useLoading();
     const { order, items } = sepaOrderDetails || {};
 
     useEffect(() => {
@@ -51,29 +54,25 @@ export default function SepaOrderDetailsDialog({ sepaOrderUuid, onClose, onChang
     }, [dispatch, sepaOrderUuid]);
 
     const otvoren = order?.status === "open";
-    const [preuzimanje, setPreuzimanje] = useState(false);
     const [greskaDatoteke, setGreskaDatoteke] = useState(null);
 
     // Datum izvršenja se ne pita — banka nalog obrađuje danom uvoza, a ako
     // treba drugi datum, mijenja se u aplikaciji e-bankarstva.
-    const preuzmiDatoteku = async () => {
+    const preuzmiDatoteku = () => tijekom("Priprema SEPA datoteke", async () => {
         setGreskaDatoteke(null);
-        setPreuzimanje(true);
         try {
             await downloadSepaXml(sepaOrderUuid);
         } catch (e) {
             setGreskaDatoteke(e.message);
-        } finally {
-            setPreuzimanje(false);
         }
-    };
+    });
 
     const promijeniStatus = async () => {
-        const res = await dispatch(setSepaOrderStatusThunk({
+        const res = await tijekom(otvoren ? "Zatvaranje naloga" : "Otvaranje naloga", () => dispatch(setSepaOrderStatusThunk({
             sepa_order_uuid: sepaOrderUuid,
             status: otvoren ? "closed" : "open",
             by: auth?.loggedUserData?.username || "",
-        }));
+        })));
         if (res.meta.requestStatus === "fulfilled") {
             dispatch(fetchSepaOrderDetailsThunk(sepaOrderUuid));
             if (onChanged) onChanged();
@@ -81,7 +80,7 @@ export default function SepaOrderDetailsDialog({ sepaOrderUuid, onClose, onChang
     };
 
     const obrisiStavku = async (sepa_item_uuid) => {
-        const res = await dispatch(deleteSepaOrderItemThunk({ sepa_item_uuid }));
+        const res = await tijekom("Brisanje stavke", () => dispatch(deleteSepaOrderItemThunk({ sepa_item_uuid })));
         if (res.meta.requestStatus === "fulfilled") {
             dispatch(fetchSepaOrderDetailsThunk(sepaOrderUuid));
             if (onChanged) onChanged();
@@ -109,6 +108,13 @@ export default function SepaOrderDetailsDialog({ sepaOrderUuid, onClose, onChang
             <DialogContent dividers>
                 {sepaError && <Alert severity="error" sx={{ mb: 1 }}>{sepaError}</Alert>}
                 {greskaDatoteke && <Alert severity="error" sx={{ mb: 1 }}>{greskaDatoteke}</Alert>}
+                {/* Stavke se dohvaćaju pri otvaranju — dok stižu, prazan prozor bi
+                    izgledao kao da nalog nema ništa u sebi. */}
+                {sepaOrderDetailsLoading && (
+                    <Stack alignItems="center" sx={{ py: 4 }}>
+                        <CircularProgress />
+                    </Stack>
+                )}
                 {!sepaOrderDetailsLoading && !items?.length && (
                     <Alert severity="info">
                         Nalog je prazan. Stavke ulaze kroz storno karata, odabirom povrata na IBAN.
@@ -168,16 +174,21 @@ export default function SepaOrderDetailsDialog({ sepaOrderUuid, onClose, onChang
                 >
                     {otvoren ? "Zatvori nalog" : "Vrati u otvoreno"}
                 </Button>
-                {/* Datoteka se smije preuzeti i dok je nalog otvoren — nekad se
-                    provjerava sadržaj prije zatvaranja. */}
-                <Button
-                    variant="contained"
-                    startIcon={<DownloadIcon />}
-                    onClick={preuzmiDatoteku}
-                    disabled={!items?.length || preuzimanje}
-                >
-                    {preuzimanje ? "Priprema…" : "Preuzmi SEPA datoteku"}
-                </Button>
+                {/* Datoteka se preuzima samo iz zatvorenog naloga: dok je otvoren
+                    u njega još ulaze stavke, pa bi se predala banci datoteka koja
+                    ne odgovara nalogu. */}
+                <Tooltip title={otvoren ? "Zatvori nalog da bi se datoteka mogla preuzeti" : ""}>
+                    <span>
+                        <Button
+                            variant="contained"
+                            startIcon={<DownloadIcon />}
+                            onClick={preuzmiDatoteku}
+                            disabled={otvoren || !items?.length}
+                        >
+                            Preuzmi SEPA datoteku
+                        </Button>
+                    </span>
+                </Tooltip>
                 <Box sx={{ flex: 1 }} />
                 <Button onClick={onClose}>Zatvori prozor</Button>
             </DialogActions>
