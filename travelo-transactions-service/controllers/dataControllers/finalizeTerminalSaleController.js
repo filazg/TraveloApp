@@ -291,6 +291,60 @@ const finalizeTerminalSaleController = async (req, res) => {
             }
         }
 
+        // --- Promjena karte: priznati iznos sa stare karte ---
+        //
+        // Račun pokazuje novu kartu punom cijenom i zasebnu stavku umanjenja, pa
+        // je ukupno točno ono što putnik doplaćuje (ili dobiva natrag). Da je
+        // umjesto toga snižena cijena karte, na računu se ne bi vidjelo da je
+        // riječ o promjeni, ni koliko je priznato.
+        //
+        // Umanjenje se dijeli na osnovicu, PDV i lučku pristojbu istim ključem
+        // kao i prodaja — inače se te tri stavke ne bi zbrajale u ukupno.
+        const credit = req.body?.transfer_credit;
+        const creditAmount = +(Number(credit?.amount) || 0).toFixed(2);
+        if (creditAmount > 0) {
+            const { port, base, vat } = splitAmount(creditAmount);
+            total_amount -= creditAmount;
+            total_vat_base -= base;
+            total_vat -= vat;
+            total_harbor_tax -= port;
+
+            const creditItemUuid = crypto.randomUUID();
+            const oznaka = credit?.percentage != null ? ` (${credit.percentage}%)` : "";
+            const izvor = Array.isArray(credit?.source_ticket_codes) && credit.source_ticket_codes.length
+                ? ` — karta ${credit.source_ticket_codes.join(", ")}`
+                : "";
+            invoiceItemsToAdd.push({
+                item_uuid: creditItemUuid,
+                invoice_uuid,
+                route_uuid: "",
+                line_code: "",
+                line_name: "",
+                departure: "",
+                departure_harbor_id: "",
+                departure_harbor_name: "",
+                arrival: "",
+                arrival_harbor_id: "",
+                arrival_harbor_name: "",
+                item_amount: -creditAmount,
+                item_vat_base: -base,
+                item_vat: -vat,
+                item_harbor_fee: -port,
+            });
+            invoiceItemDetailsToAdd.push({
+                item_details_uuid: crypto.randomUUID(),
+                item_uuid: creditItemUuid,
+                ticket_type_name: `Priznato s prethodne karte${oznaka}${izvor}`,
+                ticket_type_uuid: "",
+                quantity: 1,
+                single_price: -creditAmount,
+                item_amount: -creditAmount,
+                item_vat_base: -base,
+                item_vat: -vat,
+                item_harbor_fee: -port,
+            });
+        }
+
         total_amount = +total_amount.toFixed(2);
         total_vat_base = +total_vat_base.toFixed(2);
         total_vat = +total_vat.toFixed(2);
