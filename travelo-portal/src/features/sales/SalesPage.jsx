@@ -433,6 +433,14 @@ export default function SalesPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400, p: 2 }}>
+            {/* Pad dohvata voznog reda inače izgleda kao da linija nema polazaka
+                — luke ostanu prazne i nigdje ne piše zašto. */}
+            {sales.routesError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    Vozni red nije dohvaćen — polasci i luke se ne mogu ponuditi. {sales.routesError}
+                </Alert>
+            )}
+
             {/* FILTER BAR */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
                 <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">

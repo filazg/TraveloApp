@@ -26,7 +26,11 @@ export const fetchPosHarborsThunk = createAsyncThunk("sales/fetchHarbors", async
 
 export const fetchPosRoutesThunk = createAsyncThunk("sales/fetchRoutes", async (_, { rejectWithValue }) => {
     try {
-        const resp = await api.get("/portal/sales/routes");
+        // Prošli polasci se ne prodaju, a vozni red je velik — bez tog reza se
+        // vuku i rute davno odrađenih dana. Tjedan unatrag ostaje zbog naknadnih
+        // provjera i ispravaka.
+        const od = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+        const resp = await api.get("/portal/sales/routes", { params: { from_date: od } });
         const payload = unwrapBff(resp);
         return Array.isArray(payload) ? payload : [];
     } catch (err) { return rejectWithValue(err.response?.data || { message: err.message }); }
@@ -209,6 +213,7 @@ const salesSlice = createSlice({
         lines: [],
         harbors: [],
         routes: [],
+        routesError: null,
         prices: [],
         billingDevices: [],
         businessPremises: [],
@@ -270,7 +275,14 @@ const salesSlice = createSlice({
         builder
             .addCase(fetchPosLinesThunk.fulfilled, (s, a) => { s.lines = a.payload || []; })
             .addCase(fetchPosHarborsThunk.fulfilled, (s, a) => { s.harbors = a.payload || []; })
-            .addCase(fetchPosRoutesThunk.fulfilled, (s, a) => { s.routes = a.payload || []; })
+            .addCase(fetchPosRoutesThunk.pending, (s) => { s.routesError = null; })
+            .addCase(fetchPosRoutesThunk.fulfilled, (s, a) => { s.routes = a.payload || []; s.routesError = null; })
+            // Bez ovoga je pad dohvata izgledao kao da linija nema polazaka:
+            // luke ostanu prazne, a nigdje ne piše zašto.
+            .addCase(fetchPosRoutesThunk.rejected, (s, a) => {
+                s.routes = [];
+                s.routesError = a.payload?.message || a.error?.message || "Vozni red nije dohvaćen";
+            })
             .addCase(fetchPosPricesThunk.fulfilled, (s, a) => { s.prices = a.payload || []; })
             .addCase(fetchPosBillingDevicesThunk.fulfilled, (s, a) => { s.billingDevices = a.payload || []; })
             .addCase(fetchPosBusinessPremisesThunk.fulfilled, (s, a) => { s.businessPremises = a.payload || []; })

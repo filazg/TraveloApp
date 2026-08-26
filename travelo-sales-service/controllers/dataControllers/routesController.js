@@ -11,6 +11,15 @@ const getRoutesDataController = async (req, res) => {
             // transport_data). Ni jedna ni druga ne filtriraju rute same, pa se
             // otkazani polazak filtrira ovdje — inače ostaje u prodaji na
             // blagajni iako je dispečer otkazao putovanje.
+            // Neobavezni `from_date` (YYYY-MM-DD) odbacuje prošle polaske.
+            // Bez njega se vraća sve, jer desk i mobilna kroz transport_data
+            // očekuju cijeli vozni red — filtrira samo onaj tko to traži.
+            // `departure_date` je tekst "DD/MM/YYYY", pa se uspoređuje preko
+            // to_date, ne po abecedi.
+            const odDatuma = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query?.from_date || ""))
+                ? req.query.from_date
+                : null;
+
             const routesData = await RoutesModel.findAll({
                 where: {
                     is_active: true,
@@ -18,6 +27,11 @@ const getRoutesDataController = async (req, res) => {
                         { sale_status: { [Op.ne]: "CANCELED" } },
                         { sale_status: { [Op.is]: null } },
                     ],
+                    ...(odDatuma ? {
+                        [Op.and]: sequelize.literal(
+                            `to_date(departure_date, 'DD/MM/YYYY') >= '${odDatuma}'::date`
+                        ),
+                    } : {}),
                 },
                 attributes: { exclude: ["createdAt", "updatedAt"] },
                 order: [["id", "ASC"]],

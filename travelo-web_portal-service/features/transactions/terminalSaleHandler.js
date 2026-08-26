@@ -20,7 +20,10 @@ const handleGetSalesRoutesFeature = async (req, res) => {
     try {
         const coreConfig = await getCoreServiceConfigData();
         const salesUrl = coreConfig?.services?.sales?.url;
-        const resp = await axios.get(`${salesUrl}/routes`, { params: req.query, timeout: 10000 });
+        // Vozni red je velik (nekoliko tisuća ruta), a veza prema bazi zna biti
+        // spora — s 10 sekundi je POS ostajao bez polazaka i luka. Bolje je da
+        // se čeka nego da prodaja ostane prazna bez objašnjenja.
+        const resp = await axios.get(`${salesUrl}/routes`, { params: req.query, timeout: 60000 });
         const payload = resp.data?.data || { routes: [] };
         res.send({
             status: 200,
@@ -35,7 +38,7 @@ const handleGetSalesPricesFeature = async (req, res) => {
     try {
         const coreConfig = await getCoreServiceConfigData();
         const salesUrl = coreConfig?.services?.sales?.url;
-        const resp = await axios.get(`${salesUrl}/prices`, { params: req.query, timeout: 10000 });
+        const resp = await axios.get(`${salesUrl}/prices`, { params: req.query, timeout: 60000 });
         const payload = resp.data?.data || { prices: [] };
         res.send({
             status: 200,
