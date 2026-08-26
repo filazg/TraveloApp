@@ -2,6 +2,18 @@ const { Op } = require("sequelize");
 const { getSequelize } = require("../../config/database");
 const { pomakni } = require("../../helpers/voyageTime");
 
+// Stupci koje treba portalska POS prodaja. Ostalo (šifre voznog reda, oznake,
+// smjer, zastavice) ondje se ne koristi, a vozni red je nekoliko tisuća redaka
+// pa svaki stupac košta. Popis je fiksan namjerno — klijent ne bira stupce.
+const POS_STUPCI = [
+    "id", "uuid", "timetable_uuid", "departure_uuid", "sequence",
+    "departure", "departure_date", "departure_time", "actual_departure",
+    "arrival", "actual_arrival",
+    "departure_harbor_order", "departure_harbor_id", "departure_harbor_name",
+    "arrival_harbor_order", "arrival_harbor_id", "arrival_harbor_name",
+    "line_code", "line_name", "sale_status",
+];
+
 const getRoutesDataController = async (req, res) => {
     const sequelize = getSequelize();
     const { RoutesModel } = req.app.locals.models;
@@ -33,7 +45,12 @@ const getRoutesDataController = async (req, res) => {
                         ),
                     } : {}),
                 },
-                attributes: { exclude: ["createdAt", "updatedAt"] },
+                // `fields=pos` vraća samo ono što portalska prodaja koristi;
+                // bez njega ide cijeli redak, jer desk i mobilna kroz
+                // transport_data očekuju sve.
+                attributes: req.query?.fields === "pos"
+                    ? POS_STUPCI
+                    : { exclude: ["createdAt", "updatedAt"] },
                 order: [["id", "ASC"]],
             });
             res.send({ status: 200, data: { routes: routesData } });

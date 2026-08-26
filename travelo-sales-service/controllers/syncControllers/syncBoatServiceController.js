@@ -36,19 +36,27 @@ const syncRoutesDataController = async(data)=>{
         const { RoutesModel, TimetablePricesModel } = getModels();
         const coreConfigData = await getCoreServiceConfigData() 
         const response = await axios.post(coreConfigData.services.boat.url + '/sales_routes', data={data:data})
-        await RoutesModel.destroy({
-            where: {
-                timetable_uuid: response.data.data.timetable_uuid
-            }
+        // Brisanje i punjenje moraju biti jedan zahvat. Bez transakcije je
+        // vozni red tog reda prazan sve dok punjenje traje, pa blagajna u tom
+        // trenutku ne vidi nijedan polazak — a to nitko ne prijavi kao grešku
+        // nego kao "nema polazaka".
+        await getSequelize().transaction(async (t) => {
+            await RoutesModel.destroy({
+                where: {
+                    timetable_uuid: response.data.data.timetable_uuid
+                },
+                transaction: t
+            });
+            await TimetablePricesModel.destroy({
+                where: {
+                    timetable_uuid: response.data.data.timetable_uuid
+                },
+                transaction: t
+            });
+            await RoutesModel.bulkCreate(response.data.data.routes, { transaction: t })
+            await TimetablePricesModel.bulkCreate(response.data.data.prices, { transaction: t })
         });
-        await TimetablePricesModel.destroy({
-            where: {
-                timetable_uuid: response.data.data.timetable_uuid
-            }
-        });
-        await RoutesModel.bulkCreate(response.data.data.routes)
-        await TimetablePricesModel.bulkCreate(response.data.data.prices)
-        return         
+        return
     } catch (error) {
         console.log(error)
     }
@@ -58,10 +66,16 @@ const syncAllRoutesDataController = async()=>{
     const { RoutesModel, TimetablePricesModel } = getModels();
     const coreConfigData = await getCoreServiceConfigData() 
     const response = await axios.get(coreConfigData.services.boat.url + '/sales_routes')
-    await RoutesModel.truncate()
-    await TimetablePricesModel.truncate()
-    await RoutesModel.bulkCreate(response.data.data.routes)
-    await TimetablePricesModel.bulkCreate(response.data.data.prices)
+    // Namjerno `destroy` umjesto `truncate`: truncate u transakciji zaključa
+    // tablicu i čitatelji čekaju, a ovako stari vozni red ostaje vidljiv sve
+    // dok se novi ne potvrdi. Punjenje 4000+ ruta traje, pa je razlika između
+    // "starih podataka na trenutak" i "nema polazaka" bitna.
+    await getSequelize().transaction(async (t) => {
+        await RoutesModel.destroy({ where: {}, transaction: t })
+        await TimetablePricesModel.destroy({ where: {}, transaction: t })
+        await RoutesModel.bulkCreate(response.data.data.routes, { transaction: t })
+        await TimetablePricesModel.bulkCreate(response.data.data.prices, { transaction: t })
+    });
 }
 
 module.exports = {

@@ -34,6 +34,8 @@ const sTotal = { font: { bold: true, sz: 11 }, border: { ...allBorders, top: { s
 // Redoslijed stupaca. Brojčani su namjerno na kraju, da se desno poravnati
 // blok drži zajedno.
 const COLS = [
+    // Isti redoslijed kao u tablici: vrijeme izdavanja prvo.
+    { key: "izdano", label: "Izdano", w: 17 },
     { key: "sifra", label: "Šifra karte", w: 16 },
     { key: "linija", label: "Linija", w: 9 },
     { key: "polazak", label: "Polazak", w: 17 },
@@ -44,7 +46,6 @@ const COLS = [
     { key: "nu", label: "NU", w: 8 },
     { key: "placanje", label: "Plaćanje", w: 14 },
     { key: "racun", label: "Račun", w: 10 },
-    { key: "izdano", label: "Izdano", w: 17 },
     { key: "putnik", label: "Putnik", w: 22 },
     { key: "email", label: "E-mail", w: 26 },
     { key: "status", label: "Status", w: 16 },

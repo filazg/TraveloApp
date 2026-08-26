@@ -217,7 +217,10 @@ export default function TicketsOverviewPage() {
         // stići iscrtati prije nego krene — inače se pojavi tek na kraju.
         await new Promise((r) => setTimeout(r, 50));
         const kartica = TAB_FILTERS[tab];
-        const redci = ticketsByStatus.map((t) => ({
+        // Izvoz prati ono što je na ekranu, dakle i redoslijed — najnovije prvo.
+        const redci = [...ticketsByStatus]
+            .sort((a, b) => String(b.issued_at || "").localeCompare(String(a.issued_at || "")))
+            .map((t) => ({
             sifra: t.ticket_code || "",
             linija: t.line_code || "",
             polazak: t.departure_planed || "",
@@ -380,6 +383,17 @@ export default function TicketsOverviewPage() {
 
     const columns = useMemo(
         () => [
+            // Vrijeme izdavanja je prvo i po njemu se popis slaže — najnovije
+            // gore. Vrijednost ostaje Date, ne tekst, jer bi se "26.08.2026."
+            // inače sortirao po abecedi.
+            {
+                field: "issued_at",
+                headerName: "Izdano",
+                width: 150,
+                type: "dateTime",
+                valueGetter: (v) => (v ? new Date(v) : null),
+                valueFormatter: (v) => fmtIzdano(v),
+            },
             { field: "ticket_code", headerName: "Šifra", width: 110 },
             { field: "departure_planed", headerName: "Polazak", width: 140 },
             { field: "line_code", headerName: "Linija", width: 90 },
@@ -409,12 +423,6 @@ export default function TicketsOverviewPage() {
             { field: "billing_device_mark", headerName: "NU", width: 70 },
             { field: "payment_method_name", headerName: "Plaćanje", width: 120 },
             { field: "invoice_no", headerName: "Račun", width: 100 },
-            {
-                field: "issued_at",
-                headerName: "Izdano",
-                width: 150,
-                valueGetter: (v) => fmtIzdano(v),
-            },
             { field: "passanger_name", headerName: "Putnik", flex: 1, minWidth: 150 },
             { field: "passanger_email", headerName: "Email", flex: 1, minWidth: 180 },
             {
@@ -672,7 +680,10 @@ export default function TicketsOverviewPage() {
                     getRowId={(r) => r.id}
                     columns={columns}
                     loading={ticketsLoading}
-                    initialState={{ pagination: { paginationModel: { pageSize: 50, page: 0 } } }}
+                    initialState={{
+                        pagination: { paginationModel: { pageSize: 50, page: 0 } },
+                        sorting: { sortModel: [{ field: "issued_at", sort: "desc" }] },
+                    }}
                     pageSizeOptions={[25, 50, 100, 250]}
                     disableRowSelectionOnClick
                     checkboxSelection

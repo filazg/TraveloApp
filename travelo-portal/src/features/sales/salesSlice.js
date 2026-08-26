@@ -30,7 +30,9 @@ export const fetchPosRoutesThunk = createAsyncThunk("sales/fetchRoutes", async (
         // vuku i rute davno odrađenih dana. Tjedan unatrag ostaje zbog naknadnih
         // provjera i ispravaka.
         const od = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-        const resp = await api.get("/portal/sales/routes", { params: { from_date: od } });
+        // `fields=pos` reže redak na stupce koje prodaja stvarno koristi —
+        // vozni red je nekoliko tisuća redaka, pa je razlika osjetna.
+        const resp = await api.get("/portal/sales/routes", { params: { from_date: od, fields: "pos" } });
         const payload = unwrapBff(resp);
         return Array.isArray(payload) ? payload : [];
     } catch (err) { return rejectWithValue(err.response?.data || { message: err.message }); }
