@@ -472,6 +472,7 @@ const financeSlice = createSlice({
             channel: "",
             billing_device_uuid: "",
             payment_method_uuid: "",
+            partner_uuid: "",
         },
         filters: {
             billing_device_uuid: "",

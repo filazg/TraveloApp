@@ -63,6 +63,10 @@ const listTicketsController = async (req, res) => {
             business_premise_uuids, // CSV — kanal prodaje (blagajna, mobilna, ured, web)
             billing_device_uuid,    // konkretan naplatni uređaj
             payment_method_uuid,
+            // Partnerske karte nemaju račun u trenutku prodaje — naplaćuju se
+            // zbirno partneru — pa se kao kanal prepoznaju po partneru, a ne
+            // preko računa.
+            partner_only,
             limit,
             offset,
         } = req.query || {};
@@ -97,6 +101,9 @@ const listTicketsController = async (req, res) => {
             if (arrival_harbor_id) where.arrival_harbor_id = arrival_harbor_id;
             if (status && status !== "ALL") where.status = { [Op.in]: statusValues(status) };
             if (partner_uuid) where.partner_uuid = partner_uuid;
+            else if (partner_only === "1" || partner_only === "true") {
+                where.partner_uuid = { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }] };
+            }
         }
 
         // Kanal prodaje i sredstvo plaćanja stoje na RAČUNU, ne na karti. Zato
