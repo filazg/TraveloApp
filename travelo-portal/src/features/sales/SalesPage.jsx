@@ -68,6 +68,18 @@ import { authSliceData, setAuthData } from "../auth/authSlice";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
+// Pomaknut polazak: vozni red ostaje u `departure`, stvarno vrijeme je u
+// `actual_departure`. Prodaja ide po stvarnom vremenu, a planirano se prikazuje
+// uz oznaku da se zna zašto se razlikuje.
+const samoVrijeme = (v) => {
+    const m = /(\d{1,2}):(\d{2})/.exec(String(v || ""));
+    return m ? `${String(m[1]).padStart(2, "0")}:${m[2]}` : "";
+};
+
+const jePomaknut = (r) => !!(r?.departure && r?.actual_departure && r.departure !== r.actual_departure);
+
+const vrijemePolaska = (r) => (jePomaknut(r) ? samoVrijeme(r.actual_departure) : (r?.departure_time || ""));
+
 // Normalize date strings ("DD/MM/YYYY" legacy and "YYYY-MM-DD" ISO) to ISO for comparison.
 const toIso = (s) => {
     if (!s) return "";
@@ -182,7 +194,9 @@ export default function SalesPage() {
             seen.add(key);
             uniqueBySeq.push(r);
         }
-        return uniqueBySeq.sort((a, b) => (a.departure_time || "").localeCompare(b.departure_time || ""));
+        // Sortira se po stvarnom vremenu — inače bi polazak pomaknut s jutra na
+        // popodne i dalje stajao na vrhu popisa.
+        return uniqueBySeq.sort((a, b) => vrijemePolaska(a).localeCompare(vrijemePolaska(b)));
     }, [sales.routes, sales.filters]);
 
     // Arrival harbors downstream from selected departure (same timetable/seq, higher order)
@@ -478,7 +492,15 @@ export default function SalesPage() {
                         <MenuItem value="">—</MenuItem>
                         {departures.map((d) => (
                             <MenuItem key={`${d.timetable_uuid}-${d.sequence}`} value={`${d.timetable_uuid}-${d.sequence}`}>
-                                {d.departure_time} · smjer {d.direction}
+                                {vrijemePolaska(d)} · smjer {d.direction}
+                                {jePomaknut(d) && (
+                                    <Chip
+                                        size="small"
+                                        color="warning"
+                                        label={`pomaknut, po redu ${d.departure_time}`}
+                                        sx={{ ml: 1, height: 18, fontSize: 10, fontWeight: 700 }}
+                                    />
+                                )}
                             </MenuItem>
                         ))}
                     </TextField>
