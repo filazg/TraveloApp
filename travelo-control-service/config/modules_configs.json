@@ -250,6 +250,19 @@
                             },
                             "path": "/finance/tickets",
                             "icon": "ConfirmationNumber"
+                        },
+                        {
+                            "key": "SEPA_ORDERS",
+                            "label": {
+                                "hr": "SEPA nalozi",
+                                "en": "SEPA orders"
+                            },
+                            "subtitle": {
+                                "hr": "Povrati na račun",
+                                "en": "Refunds to bank account"
+                            },
+                            "path": "/finance/sepa_orders",
+                            "icon": "AccountBalance"
                         }
                     ]
                 },
