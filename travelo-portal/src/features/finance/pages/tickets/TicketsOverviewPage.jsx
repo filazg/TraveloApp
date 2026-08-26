@@ -459,9 +459,9 @@ export default function TicketsOverviewPage() {
             {/* Tražilica: polja su grupirana po tome što opisuju — kada i kamo
                 se putuje, pa tko je i čime prodao. Prije su svi filtri stajali u
                 jednom redu koji se lomio, pa se nije vidjelo što ide s čim. */}
-            <Paper ref={traziliceRef} variant="outlined" sx={{ p: 2, my: 2, borderRadius: 2 }}>
+            <Paper ref={traziliceRef} variant="outlined" sx={{ p: 1.5, my: 1.5, borderRadius: 2 }}>
                 <Typography variant="overline" color="text.secondary">Polazak i relacija</Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 2, mt: 0.5 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 1.5, mt: 0.5 }}>
                     <TextField
                         size="small"
                         type="date"
@@ -521,10 +521,10 @@ export default function TicketsOverviewPage() {
                     </TextField>
                 </Box>
 
-                <Divider sx={{ my: 2 }} />
-
-                <Typography variant="overline" color="text.secondary">Prodaja</Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 2, mt: 0.5 }}>
+                {/* Bez crte i s manjim razmakom — naslovi skupina dovoljno
+                    razdvajaju "kada i kamo" od "tko i čime je prodao". */}
+                <Typography variant="overline" color="text.secondary" sx={{ display: "block", mt: 1 }}>Prodaja</Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 1.5, mt: 0.5 }}>
                     <TextField
                         size="small"
                         select
@@ -589,11 +589,12 @@ export default function TicketsOverviewPage() {
                     )}
                 </Box>
 
-                <Divider sx={{ my: 2 }} />
+                {/* Ova crta ostaje: odvaja filtre od same pretrage. */}
+                <Divider sx={{ my: 1.5 }} />
 
                 {/* Šifra karte nadjačava sve ostalo — stoji odvojeno da se vidi da
                     ostali filtri tada ne vrijede. */}
-                <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                     <TextField
                         size="small"
                         label="Šifra karte"
