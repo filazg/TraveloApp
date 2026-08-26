@@ -466,6 +466,12 @@ const financeSlice = createSlice({
             arrival_harbor_id: "",
             status: "",
             ticket_code: "",
+            // Kanal, uređaj i sredstvo plaćanja čitaju se s računa karte;
+            // polazak se traži po svim rutama tog putovanja.
+            departure_key: "",
+            channel: "",
+            billing_device_uuid: "",
+            payment_method_uuid: "",
         },
         filters: {
             billing_device_uuid: "",

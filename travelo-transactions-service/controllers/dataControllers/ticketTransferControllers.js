@@ -9,6 +9,10 @@ const STATUSI_ZA_PROMJENU = ["created", "issued", "CREATED", "ISSUED"];
 const jePrebaciva = (t) => {
     if (!t) return { ok: false, razlog: "karta ne postoji" };
     if (t.is_canceled) return { ok: false, razlog: "karta je stornirana" };
+    // Partnerske karte se ne prebacuju. One se ne naplaćuju po prodaji nego
+    // zbirnim računom partneru, pa promjena ovdje ne bi imala gdje proizvesti
+    // razliku — rješava se kroz partnerski obračun.
+    if (t.partner_uuid) return { ok: false, razlog: "partnerska karta — promjena ide preko partnera" };
     if (t.transferred_to_ticket_uuid) return { ok: false, razlog: "karta je već prebačena na drugi polazak" };
     const status = String(t.status || "").trim();
     if (status && !STATUSI_ZA_PROMJENU.includes(status)) {

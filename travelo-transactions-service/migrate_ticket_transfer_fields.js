@@ -1,4 +1,4 @@
-// Dodaje stupce za prebacivanje karte na drugi polazak.
+// Dodaje stupce za prebacivanje karte na drugi polazak i vezu karte na racun.
 //
 // Transactions servis se diže sa `sync({ alter: false })`, pa novi stupci iz
 // modela NE nastaju sami — dok migracija ne prođe, Sequelize ih traži u svakom
@@ -20,6 +20,7 @@ const cfg = require("../travelo-control-service/config/databases_configs.json").
         await sequelize.authenticate();
         await sequelize.query(`
             ALTER TABLE tickets
+                ADD COLUMN IF NOT EXISTS invoice_uuid                 VARCHAR(255),
                 ADD COLUMN IF NOT EXISTS transferred_to_ticket_uuid   VARCHAR(255),
                 ADD COLUMN IF NOT EXISTS transferred_from_ticket_uuid VARCHAR(255),
                 ADD COLUMN IF NOT EXISTS transfer_percentage          DOUBLE PRECISION,
@@ -27,7 +28,7 @@ const cfg = require("../travelo-control-service/config/databases_configs.json").
         `);
         const [stupci] = await sequelize.query(`
             SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'tickets' AND column_name LIKE 'transfer%'
+            WHERE table_name = 'tickets' AND (column_name LIKE 'transfer%' OR column_name = 'invoice_uuid')
             ORDER BY column_name
         `);
         console.log("tickets — stupci za promjenu karte:", stupci.map((c) => c.column_name).join(", "));

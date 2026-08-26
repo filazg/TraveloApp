@@ -168,6 +168,15 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Račun s kojeg je karta prodana. Kanal prodaje i sredstvo plaćanja
+            // stoje na računu, a ne na karti — bez ove veze se po njima ne može
+            // ni filtrirati ni izvještavati. `order_uuid` za to ne služi: POS
+            // računi ga ostavljaju prazan, a karte ondje nose lokalni broj
+            // narudžbe koji ne odgovara nijednom računu.
+            invoice_uuid:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             // --- Prebacivanje karte na drugi polazak ---
             // Stara karta prestaje vrijediti i pokazuje na novu; nova pokazuje
             // natrag. Bez te veze promjena se u izvještajima ne razlikuje od

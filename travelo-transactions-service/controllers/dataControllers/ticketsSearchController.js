@@ -59,6 +59,10 @@ const listTicketsController = async (req, res) => {
             order_uuid,
             partner_uuid,
             route_uuids, // CSV — koristi mobile validacija za sve karte odabranog polaska
+            // Filtri koji se čitaju s računa, ne s karte:
+            business_premise_uuids, // CSV — kanal prodaje (blagajna, mobilna, ured, web)
+            billing_device_uuid,    // konkretan naplatni uređaj
+            payment_method_uuid,
             limit,
             offset,
         } = req.query || {};
@@ -95,6 +99,29 @@ const listTicketsController = async (req, res) => {
             if (partner_uuid) where.partner_uuid = partner_uuid;
         }
 
+        // Kanal prodaje i sredstvo plaćanja stoje na RAČUNU, ne na karti. Zato
+        // se filtriranje po njima radi u dva koraka: prvo se nađu računi koji
+        // odgovaraju, pa se karte ograniče na njih. Filtar u pamćenju ne bi
+        // valjao jer bi se primijenio tek nakon `limit`-a.
+        const { InvoiceModel } = req.app.locals.models;
+        const racunFiltar = {};
+        if (business_premise_uuids) {
+            const list = String(business_premise_uuids).split(",").map((x) => x.trim()).filter(Boolean);
+            if (list.length) racunFiltar.invoice_business_premise_uuid = { [Op.in]: list };
+        }
+        if (billing_device_uuid) racunFiltar.invoice_billing_device_uuid = billing_device_uuid;
+        if (payment_method_uuid) racunFiltar.invoice_payment_method_uuid = payment_method_uuid;
+
+        if (Object.keys(racunFiltar).length) {
+            const racuni = await InvoiceModel.findAll({
+                where: racunFiltar,
+                attributes: ["invoice_uuid"],
+            });
+            const uuids = racuni.map((r) => r.invoice_uuid);
+            // Bez ijednog računa nema ni karata — vrati prazno umjesto svega.
+            where.invoice_uuid = { [Op.in]: uuids.length ? uuids : ["-"] };
+        }
+
         const lim = Math.min(parseInt(limit, 10) || 1000, 5000);
         const off = parseInt(offset, 10) || 0;
 
@@ -105,9 +132,38 @@ const listTicketsController = async (req, res) => {
             offset: off,
         });
 
+        // Uz svaku kartu ide i podatak s njezina računa, da pregled može
+        // prikazati kanal, uređaj i sredstvo plaćanja bez dodatnog dohvata.
+        const invUuids = [...new Set(rows.map((t) => t.invoice_uuid).filter(Boolean))];
+        const racuni = invUuids.length
+            ? await InvoiceModel.findAll({
+                where: { invoice_uuid: { [Op.in]: invUuids } },
+                attributes: [
+                    "invoice_uuid", "invoice_no", "invoice_year",
+                    "invoice_business_premise_uuid", "invoice_business_premise_name",
+                    "invoice_billing_device_uuid", "invoice_billing_device_fiscal_mark",
+                    "invoice_payment_method_uuid", "invoice_payment_method_name",
+                ],
+            })
+            : [];
+        const poRacunu = new Map(racuni.map((r) => [r.invoice_uuid, r]));
+        const tickets = rows.map((t) => {
+            const r = poRacunu.get(t.invoice_uuid);
+            return {
+                ...t.toJSON(),
+                invoice_no: r ? `${r.invoice_no}/${r.invoice_year}` : null,
+                business_premise_uuid: r?.invoice_business_premise_uuid || null,
+                business_premise_name: r?.invoice_business_premise_name || null,
+                billing_device_uuid: r?.invoice_billing_device_uuid || null,
+                billing_device_mark: r?.invoice_billing_device_fiscal_mark || null,
+                payment_method_uuid: r?.invoice_payment_method_uuid || null,
+                payment_method_name: r?.invoice_payment_method_name || null,
+            };
+        });
+
         res.status(200).json({
             status: 200,
-            data: { tickets: rows, total: count, limit: lim, offset: off },
+            data: { tickets, total: count, limit: lim, offset: off },
         });
     } catch (error) {
         console.log("listTicketsController error:", error?.message || error);

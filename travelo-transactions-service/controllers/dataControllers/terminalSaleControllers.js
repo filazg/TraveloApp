@@ -132,7 +132,12 @@ const addTerminalSaleController = async(req,res)=>{
                     ticket.arrival_harbor_id = ticket.ticket_arrival_harbor_id,
                     ticket.arrival_harbor_name = ticket.ticket_arrival_harbor_name,
                     ticket.deactivate = ticket.ticket_deactivate,
-                    ticket.status = ticket.ticket_status
+                    ticket.status = ticket.ticket_status,
+                    // Veza na račun. Blagajne je ne šalju — one karte vežu
+                    // lokalnim brojem narudžbe, koji na poslužitelju ne
+                    // odgovara nijednom računu — pa se postavlja ovdje, iz
+                    // računa koji je stigao u istom paketu.
+                    ticket.invoice_uuid = data.invoice.invoice_uuid
                     ticketsToAdd = [...ticketsToAdd, stripLocalKeys(ticket)]
                  }
                 console.log(itemsToAdd)

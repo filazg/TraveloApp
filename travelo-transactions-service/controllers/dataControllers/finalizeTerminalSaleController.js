@@ -256,6 +256,9 @@ const finalizeTerminalSaleController = async (req, res) => {
                 const ticket_qr = ct?.ticket_qr || fallback_qr;
                 ticketsToAdd.push({
                     ticket_uuid,
+                    // Veza na račun — kanal prodaje i sredstvo plaćanja stoje
+                    // ondje, pa se bez nje po njima ne može filtrirati.
+                    invoice_uuid,
                     ticket_code: ct?.ticket_code || randomCode(),
                     order_uuid,
                     order_number: `POS-${invoice_no}`,

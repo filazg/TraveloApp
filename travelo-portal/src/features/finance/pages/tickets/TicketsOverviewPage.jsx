@@ -17,6 +17,9 @@ import {
     fetchTicketsThunk,
     fetchLinesThunk,
     fetchHarborsThunk,
+    fetchBusinessPremisesListThunk,
+    fetchBillingDevicesFullThunk,
+    fetchSalesRoutesThunk,
     financeSliceData,
     setTicketsFilter,
 } from "../../financeSlice";
@@ -24,6 +27,15 @@ import { setAuthData } from "../../../auth/authSlice";
 import CancelTicketsModal from "./CancelTicketsModal";
 import TransferTicketsModal from "./TransferTicketsModal";
 import TransferResultDialog from "./TransferResultDialog";
+
+// Kanali prodaje odgovaraju tipovima poslovnog prostora. Karta sama ne nosi
+// kanal — cita se s racuna s kojeg je prodana.
+const KANALI = [
+    { key: "POSL", label: "Blagajna" },
+    { key: "MOBIL", label: "Mobilna" },
+    { key: "URED", label: "Ured" },
+    { key: "WEB_OFFICE", label: "Web" },
+];
 import CancelIcon from "@mui/icons-material/Cancel";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 
@@ -107,6 +119,9 @@ export default function TicketsOverviewPage() {
         ticketsFilters,
         linesList,
         harborsList,
+        businessPremisesList,
+        billingDevicesFull,
+        salesRoutes,
     } = useSelector(financeSliceData);
     const [tab, setTab] = useState(0);
     const [selectedIds, setSelectedIds] = useState([]);
@@ -117,8 +132,12 @@ export default function TicketsOverviewPage() {
     useEffect(() => {
         dispatch(setAuthData({ path: "loading", value: false }));
         if (!linesList.length) dispatch(fetchLinesThunk());
+        if (!businessPremisesList.length) dispatch(fetchBusinessPremisesListThunk());
+        if (!billingDevicesFull.length) dispatch(fetchBillingDevicesFullThunk());
+        if (!salesRoutes.length) dispatch(fetchSalesRoutesThunk());
         if (!harborsList.length) dispatch(fetchHarborsThunk());
-    }, [dispatch, linesList.length, harborsList.length]);
+    }, [dispatch, linesList.length, harborsList.length, businessPremisesList.length,
+        billingDevicesFull.length, salesRoutes.length]);
 
     const handleSearch = async () => {
         const params = {};
@@ -129,6 +148,11 @@ export default function TicketsOverviewPage() {
             if (ticketsFilters.line_code) params.line_code = ticketsFilters.line_code;
             if (ticketsFilters.departure_harbor_id) params.departure_harbor_id = ticketsFilters.departure_harbor_id;
             if (ticketsFilters.arrival_harbor_id) params.arrival_harbor_id = ticketsFilters.arrival_harbor_id;
+            if (prostoriKanala.length) params.business_premise_uuids = prostoriKanala.join(",");
+            if (ticketsFilters.billing_device_uuid) params.billing_device_uuid = ticketsFilters.billing_device_uuid;
+            if (ticketsFilters.payment_method_uuid) params.payment_method_uuid = ticketsFilters.payment_method_uuid;
+            const polazak = polasci.find((p) => p.key === ticketsFilters.departure_key);
+            if (polazak) params.route_uuids = polazak.rute.join(",");
         }
         dispatch(setAuthData({ path: "loadingMessage", value: "Dohvat karata…" }));
         dispatch(setAuthData({ path: "loading", value: true }));
@@ -136,6 +160,53 @@ export default function TicketsOverviewPage() {
         dispatch(setAuthData({ path: "loading", value: false }));
     };
 
+    // Poslovni prostori odabranog kanala — pretraga ih trazi po uuid-u.
+    const prostoriKanala = useMemo(() => {
+        if (!ticketsFilters.channel) return [];
+        return businessPremisesList
+            .filter((bp) => String(bp.type || "").toUpperCase() === ticketsFilters.channel)
+            .map((bp) => bp.uuid);
+    }, [businessPremisesList, ticketsFilters.channel]);
+
+    // Uredaji: unutar odabranog kanala, inace svi aktivni.
+    const uredajiZaKanal = useMemo(() => {
+        const skup = new Set(prostoriKanala);
+        return billingDevicesFull.filter((bd) => bd.is_active
+            && (!skup.size || skup.has(bd.business_premise_uuid)));
+    }, [billingDevicesFull, prostoriKanala]);
+
+    // Sredstva placanja se skupljaju s ponudenih uredaja — sifarnik ionako
+    // vrijedi po uredaju, pa nema smisla nuditi ono cime se ne moze platiti.
+    const sredstva = useMemo(() => {
+        const m = new Map();
+        for (const bd of uredajiZaKanal) {
+            for (const pm of (bd.payment || bd.payment_methods || [])) {
+                if (pm?.uuid && pm.is_active !== false) m.set(pm.uuid, pm.name);
+            }
+        }
+        return [...m.entries()].map(([uuid, name]) => ({ uuid, name }));
+    }, [uredajiZaKanal]);
+
+    // Polasci odabranog dana (i linije, ako je odabrana). Jedan polazak je
+    // vise ruta — trazi se po svima, jer karta nosi svoju relaciju.
+    const polasci = useMemo(() => {
+        const d = ticketsFilters.date;
+        if (!d) return [];
+        const dmy = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+        if (!dmy) return [];
+        const trazeni = `${dmy[3]}/${dmy[2]}/${dmy[1]}`;
+        const m = new Map();
+        for (const r of salesRoutes) {
+            if (r.departure_date !== trazeni) continue;
+            if (ticketsFilters.line_code && r.line_code !== ticketsFilters.line_code) continue;
+            const key = `${r.timetable_uuid}-${r.sequence}`;
+            if (!m.has(key)) m.set(key, { key, line_code: r.line_code, vrijeme: r.departure_time, rute: [] });
+            const g = m.get(key);
+            g.rute.push(r.uuid);
+            if ((r.departure_time || "") < (g.vrijeme || "")) g.vrijeme = r.departure_time;
+        }
+        return [...m.values()].sort((a, b) => String(a.vrijeme).localeCompare(String(b.vrijeme)));
+    }, [salesRoutes, ticketsFilters.date, ticketsFilters.line_code]);
     const ticketsByStatus = useMemo(
         () => tickets.filter(TAB_FILTERS[tab].match),
         [tickets, tab]
@@ -160,6 +231,11 @@ export default function TicketsOverviewPage() {
             if (ticketsFilters.line_code) params.line_code = ticketsFilters.line_code;
             if (ticketsFilters.departure_harbor_id) params.departure_harbor_id = ticketsFilters.departure_harbor_id;
             if (ticketsFilters.arrival_harbor_id) params.arrival_harbor_id = ticketsFilters.arrival_harbor_id;
+            if (prostoriKanala.length) params.business_premise_uuids = prostoriKanala.join(",");
+            if (ticketsFilters.billing_device_uuid) params.billing_device_uuid = ticketsFilters.billing_device_uuid;
+            if (ticketsFilters.payment_method_uuid) params.payment_method_uuid = ticketsFilters.payment_method_uuid;
+            const polazak = polasci.find((p) => p.key === ticketsFilters.departure_key);
+            if (polazak) params.route_uuids = polazak.rute.join(",");
         }
         await dispatch(fetchTicketsThunk(params));
     };
@@ -180,6 +256,12 @@ export default function TicketsOverviewPage() {
                 headerAlign: "right",
                 valueFormatter: (v) => fmtEUR(v),
             },
+            // Kanal, uređaj i plaćanje dolaze s računa karte. Starije karte
+            // nemaju vezu na račun pa ostaju prazne — vidi migraciju.
+            { field: "business_premise_name", headerName: "Kanal", width: 120 },
+            { field: "billing_device_mark", headerName: "NU", width: 70 },
+            { field: "payment_method_name", headerName: "Plaćanje", width: 120 },
+            { field: "invoice_no", headerName: "Račun", width: 100 },
             { field: "passanger_name", headerName: "Putnik", flex: 1, minWidth: 150 },
             { field: "passanger_email", headerName: "Email", flex: 1, minWidth: 180 },
             {
@@ -265,6 +347,65 @@ export default function TicketsOverviewPage() {
                     ))}
                 </TextField>
                 <TextField
+                    select
+                    label="Polazak"
+                    value={ticketsFilters.departure_key || ""}
+                    onChange={(e) => dispatch(setTicketsFilter({ path: "departure_key", value: e.target.value }))}
+                    sx={{ width: 200 }}
+                    helperText={!polasci.length ? "nema polazaka za taj dan" : ""}
+                >
+                    <MenuItem value="">— svi —</MenuItem>
+                    {polasci.map((p) => (
+                        <MenuItem key={p.key} value={p.key}>
+                            {p.vrijeme} · {p.line_code}
+                        </MenuItem>
+                    ))}
+                </TextField>
+                <TextField
+                    select
+                    label="Kanal prodaje"
+                    value={ticketsFilters.channel || ""}
+                    onChange={(e) => {
+                        dispatch(setTicketsFilter({ path: "channel", value: e.target.value }));
+                        // Uređaj i sredstvo ovise o kanalu — zadržani izbor bi
+                        // nakon promjene kanala tražio nešto čega u njemu nema.
+                        dispatch(setTicketsFilter({ path: "billing_device_uuid", value: "" }));
+                        dispatch(setTicketsFilter({ path: "payment_method_uuid", value: "" }));
+                    }}
+                    sx={{ width: 180 }}
+                >
+                    <MenuItem value="">— svi —</MenuItem>
+                    {KANALI.map((k) => (
+                        <MenuItem key={k.key} value={k.key}>{k.label}</MenuItem>
+                    ))}
+                </TextField>
+                <TextField
+                    select
+                    label="Naplatni uređaj"
+                    value={ticketsFilters.billing_device_uuid || ""}
+                    onChange={(e) => dispatch(setTicketsFilter({ path: "billing_device_uuid", value: e.target.value }))}
+                    sx={{ width: 200 }}
+                >
+                    <MenuItem value="">— svi —</MenuItem>
+                    {uredajiZaKanal.map((bd) => (
+                        <MenuItem key={bd.uuid} value={bd.uuid}>
+                            {bd.name}{bd.fiscal_mark ? ` · ${bd.fiscal_mark}` : ""}
+                        </MenuItem>
+                    ))}
+                </TextField>
+                <TextField
+                    select
+                    label="Sredstvo plaćanja"
+                    value={ticketsFilters.payment_method_uuid || ""}
+                    onChange={(e) => dispatch(setTicketsFilter({ path: "payment_method_uuid", value: e.target.value }))}
+                    sx={{ width: 180 }}
+                >
+                    <MenuItem value="">— sva —</MenuItem>
+                    {sredstva.map((pm) => (
+                        <MenuItem key={pm.uuid} value={pm.uuid}>{pm.name}</MenuItem>
+                    ))}
+                </TextField>
+                <TextField
                     label="Šifra karte"
                     value={ticketsFilters.ticket_code}
                     onChange={(e) => dispatch(setTicketsFilter({ path: "ticket_code", value: e.target.value.toUpperCase() }))}
@@ -311,7 +452,7 @@ export default function TicketsOverviewPage() {
                     variant="contained"
                     color="warning"
                     startIcon={<SwapHorizIcon />}
-                    disabled={!selectedTickets.length || !selectedTickets.every((t) => normStatus(t) === "issued")}
+                    disabled={!selectedTickets.length || !selectedTickets.every((t) => normStatus(t) === "issued" && !t.partner_uuid)}
                     onClick={() => setTransferOpen(true)}
                 >
                     Prebaci na drugi polazak ({selectedTickets.length})

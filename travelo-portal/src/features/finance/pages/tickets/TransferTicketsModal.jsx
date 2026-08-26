@@ -301,6 +301,11 @@ export default function TransferTicketsModal({ open, tickets, onClose, onTransfe
             <DialogContent dividers>
                 {tickets.length === 0 ? (
                     <Alert severity="info">Nema odabranih karata.</Alert>
+                ) : tickets.some((t) => t.partner_uuid) ? (
+                    <Alert severity="error">
+                        Među odabranima ima partnerskih karata. One se ne naplaćuju po prodaji nego
+                        zbirnim računom partneru, pa se promjena rješava kroz partnerski obračun.
+                    </Alert>
                 ) : !istiRacun ? (
                     <Alert severity="error">
                         Odabrane karte nisu s istog računa. Promjena se radi po računu, jer se razlika

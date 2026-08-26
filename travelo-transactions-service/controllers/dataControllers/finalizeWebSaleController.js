@@ -207,6 +207,9 @@ const finalizeWebSaleController = async (req, res) => {
                     const ticket_uuid = crypto.randomUUID();
                     ticketsToAdd.push({
                         ticket_uuid,
+                        // Veza na račun — po njemu se čita kanal prodaje i
+                        // sredstvo plaćanja u pregledu karata.
+                        invoice_uuid,
                         ticket_code: randomCode(),
                         order_uuid: order.order_uuid,
                         order_number: `WS-${payment_reference.slice(0, 8)}`,
