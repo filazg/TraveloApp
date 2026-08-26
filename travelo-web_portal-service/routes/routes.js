@@ -22,7 +22,7 @@ const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
 const { handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
-const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
+const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleTransferTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
 const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
 const { handleCancelSailingFeature, handleRestoreSailingFeature, handleRescheduleSailingFeature, handleSendSailingMessageFeature } = require('../features/transactions/dispatcherHandler');
@@ -228,6 +228,10 @@ router
 router
     .route('/transactions/cancel_tickets')
     .post(handleCancelTicketsFeature)
+
+router
+    .route('/transactions/transfer_tickets')
+    .post(handleTransferTicketsFeature)
 
 router
     .route('/transactions/shifts')

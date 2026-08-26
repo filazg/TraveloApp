@@ -168,6 +168,29 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // --- Prebacivanje karte na drugi polazak ---
+            // Stara karta prestaje vrijediti i pokazuje na novu; nova pokazuje
+            // natrag. Bez te veze promjena se u izvještajima ne razlikuje od
+            // običnog storna, a upravo se po tome i naplaćuje drukčije.
+            transferred_to_ticket_uuid:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+            transferred_from_ticket_uuid:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+            // Postotak izvorne cijene koji je priznat pri promjeni, i iznos koji
+            // iz njega proizlazi. Čuva se na staroj karti jer je to podatak o
+            // toj prodaji, a treba i kad se cjenik u međuvremenu promijeni.
+            transfer_percentage:{
+                type: DataTypes.FLOAT,
+                allowNull: true
+            },
+            transfer_credit:{
+                type: DataTypes.FLOAT,
+                allowNull: true
+            },
         },{
             freezeTableName:true, tableName: "tickets", timestamps: true
         },

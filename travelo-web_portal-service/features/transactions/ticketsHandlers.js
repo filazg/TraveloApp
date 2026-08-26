@@ -1,4 +1,4 @@
-const { searchTicketsController, cancelTicketsBackendController, getTicketsPdfController } = require('../../controllers/coreServiceControllers/transactionsServiceControllers.js/ticketsServiceControllers');
+const { searchTicketsController, cancelTicketsBackendController, transferTicketsBackendController, getTicketsPdfController } = require('../../controllers/coreServiceControllers/transactionsServiceControllers.js/ticketsServiceControllers');
 
 const handleSearchTicketsFeature = async (req, res) => {
     try {
@@ -40,4 +40,9 @@ const handleGetTicketsPdfFeature = async (req, res) => {
     }
 };
 
-module.exports = { handleSearchTicketsFeature, handleCancelTicketsFeature, handleGetTicketsPdfFeature };
+const handleTransferTicketsFeature = async (req, res) => {
+    const payload = req.body?.body || req.body || {};
+    const { status, body } = await transferTicketsBackendController(payload);
+    res.status(status).send(body);
+};
+module.exports = { handleSearchTicketsFeature, handleCancelTicketsFeature, handleTransferTicketsFeature, handleGetTicketsPdfFeature };
