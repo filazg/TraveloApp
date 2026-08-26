@@ -44,6 +44,7 @@ const COLS = [
     { key: "nu", label: "NU", w: 8 },
     { key: "placanje", label: "Plaćanje", w: 14 },
     { key: "racun", label: "Račun", w: 10 },
+    { key: "izdano", label: "Izdano", w: 17 },
     { key: "putnik", label: "Putnik", w: 22 },
     { key: "email", label: "E-mail", w: 26 },
     { key: "status", label: "Status", w: 16 },
@@ -112,6 +113,7 @@ export function buildKarteWorkbook(karte = [], opts = {}) {
             rk[IDX.nu] = k.nu || "";
             rk[IDX.placanje] = k.placanje || "";
             rk[IDX.racun] = k.racun || "";
+            rk[IDX.izdano] = k.izdano || "";
             rk[IDX.putnik] = k.putnik || "";
             rk[IDX.email] = k.email || "";
             rk[IDX.status] = k.status?.label || "";

@@ -146,7 +146,7 @@ const listTicketsController = async (req, res) => {
             ? await InvoiceModel.findAll({
                 where: { invoice_uuid: { [Op.in]: invUuids } },
                 attributes: [
-                    "invoice_uuid", "invoice_no", "invoice_year",
+                    "invoice_uuid", "invoice_no", "invoice_year", "invoice_date",
                     "invoice_business_premise_uuid", "invoice_business_premise_name",
                     "invoice_billing_device_uuid", "invoice_billing_device_fiscal_mark",
                     "invoice_payment_method_uuid", "invoice_payment_method_name",
@@ -159,6 +159,10 @@ const listTicketsController = async (req, res) => {
             return {
                 ...t.toJSON(),
                 invoice_no: r ? `${r.invoice_no}/${r.invoice_year}` : null,
+                // Vrijeme izdavanja: s računa ako ga karta ima, inače trenutak
+                // kad je karta nastala — partnerske karte nemaju račun u
+                // trenutku prodaje, pa bi im stupac inače uvijek bio prazan.
+                issued_at: r?.invoice_date || t.createdAt || null,
                 business_premise_uuid: r?.invoice_business_premise_uuid || null,
                 business_premise_name: r?.invoice_business_premise_name || null,
                 billing_device_uuid: r?.invoice_billing_device_uuid || null,

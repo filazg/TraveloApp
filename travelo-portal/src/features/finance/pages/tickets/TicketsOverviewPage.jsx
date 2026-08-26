@@ -55,6 +55,16 @@ const KANALI = [
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
+// Vrijeme izdavanja stiže kao ISO iz baze; prikazuje se lokalno, s minutama i
+// bez sekundi — po tome se karta traži u dnevniku i na smjeni.
+const fmtIzdano = (v) => {
+    if (!v) return "";
+    const d = new Date(v);
+    return Number.isNaN(d.getTime())
+        ? ""
+        : d.toLocaleString("hr-HR", { dateStyle: "short", timeStyle: "short" });
+};
+
 const parseDeparture = (s) => {
     if (!s) return null;
     const dmy = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/.exec(String(s));
@@ -220,6 +230,7 @@ export default function TicketsOverviewPage() {
             nu: t.billing_device_mark || "",
             placanje: t.payment_method_name || "",
             racun: t.invoice_no || "",
+            izdano: fmtIzdano(t.issued_at),
             putnik: t.passanger_name || "",
             email: t.passanger_email || "",
             status: STATUS_DISPLAY[normStatus(t)] || { label: t.status || "" },
@@ -398,6 +409,12 @@ export default function TicketsOverviewPage() {
             { field: "billing_device_mark", headerName: "NU", width: 70 },
             { field: "payment_method_name", headerName: "Plaćanje", width: 120 },
             { field: "invoice_no", headerName: "Račun", width: 100 },
+            {
+                field: "issued_at",
+                headerName: "Izdano",
+                width: 150,
+                valueGetter: (v) => fmtIzdano(v),
+            },
             { field: "passanger_name", headerName: "Putnik", flex: 1, minWidth: 150 },
             { field: "passanger_email", headerName: "Email", flex: 1, minWidth: 180 },
             {
