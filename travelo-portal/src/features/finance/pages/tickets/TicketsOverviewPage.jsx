@@ -15,7 +15,10 @@ import {
     Typography,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import * as XLSX from "xlsx";
+// Stilizirani SheetJS — obicni `xlsx` zapisuje vrijednosti, ali stilove tiho
+// odbaci, pa i zapis mora ici kroz ovu varijantu.
+import XLSX from "xlsx-js-style";
+import { buildKarteWorkbook, karteFileName } from "./karteExcel";
 import SearchIcon from "@mui/icons-material/Search";
 import CancelIcon from "@mui/icons-material/Cancel";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -171,35 +174,46 @@ export default function TicketsOverviewPage() {
     const izveziUExcel = () => {
         const kartica = TAB_FILTERS[tab];
         const redci = ticketsByStatus.map((t) => ({
-            "Šifra": t.ticket_code || "",
-            "Polazak": t.departure_planed || "",
-            "Linija": t.line_code || "",
-            "Od": t.departure_harbor_name || "",
-            "Do": t.arrival_harbor_name || "",
-            "Vrsta": t.ticket_type_name || "",
-            "Cijena": Number(t.single_price || 0),
-            "Kanal": t.partner_uuid
+            sifra: t.ticket_code || "",
+            linija: t.line_code || "",
+            polazak: t.departure_planed || "",
+            od: t.departure_harbor_name || "",
+            do: t.arrival_harbor_name || "",
+            vrsta: t.ticket_type_name || "",
+            kanal: t.partner_uuid
                 ? (partnersList.find((p) => p.uuid === t.partner_uuid)?.partner_name || "Partner")
                 : (t.business_premise_name || ""),
-            "NU": t.billing_device_mark || "",
-            "Plaćanje": t.payment_method_name || "",
-            "Račun": t.invoice_no || "",
-            "Putnik": t.passanger_name || "",
-            "Email": t.passanger_email || "",
-            "Status": (STATUS_DISPLAY[normStatus(t)] || {}).label || t.status || "",
+            nu: t.billing_device_mark || "",
+            placanje: t.payment_method_name || "",
+            racun: t.invoice_no || "",
+            putnik: t.passanger_name || "",
+            email: t.passanger_email || "",
+            status: STATUS_DISPLAY[normStatus(t)] || { label: t.status || "" },
+            cijena: Number(t.single_price || 0),
         }));
-        const list = XLSX.utils.json_to_sheet(redci);
-        // Sirine stupaca po duljini sadrzaja — inace je sve stisnuto na 8 znakova.
-        const zaglavlja = Object.keys(redci[0] || { "Šifra": "" });
-        list["!cols"] = zaglavlja.map((k) => ({
-            wch: Math.min(40, Math.max(k.length + 2, ...redci.map((r) => String(r[k] ?? "").length + 2), 10)),
+        // Filtri se upisuju u zaglavlje datoteke — bez toga se iz izvoza ne vidi
+        // po čemu je popis sužen.
+        const luka = (id) => harborsList.find((h) => String(h.harbor_id) === String(id))?.name || id;
+        const polazak = polasci.find((p) => p.key === ticketsFilters.departure_key);
+        const filtri = [
+            ticketsFilters.ticket_code
+                ? `Šifra karte: ${ticketsFilters.ticket_code}`
+                : `Datum: ${ticketsFilters.date}`,
+            ticketsFilters.line_code && `Linija: ${ticketsFilters.line_code}`,
+            polazak && `Polazak: ${polazak.vrijeme}`,
+            ticketsFilters.departure_harbor_id && `Od: ${luka(ticketsFilters.departure_harbor_id)}`,
+            ticketsFilters.arrival_harbor_id && `Do: ${luka(ticketsFilters.arrival_harbor_id)}`,
+            ticketsFilters.channel && `Kanal: ${KANALI.find((k) => k.key === ticketsFilters.channel)?.label || ticketsFilters.channel}`,
+            ticketsFilters.partner_uuid && `Partner: ${partnersList.find((p) => p.uuid === ticketsFilters.partner_uuid)?.partner_name || ""}`,
+            ticketsFilters.billing_device_uuid && `NU: ${uredajiZaKanal.find((bd) => bd.uuid === ticketsFilters.billing_device_uuid)?.name || ""}`,
+            ticketsFilters.payment_method_uuid && `Plaćanje: ${sredstva.find((pm) => pm.uuid === ticketsFilters.payment_method_uuid)?.name || ""}`,
+        ];
+        const knjiga = buildKarteWorkbook(redci, { kartica: kartica.label, filtri });
+        XLSX.writeFile(knjiga, karteFileName({
+            sifra: ticketsFilters.ticket_code,
+            datum: ticketsFilters.date,
+            karticaKey: kartica.key,
         }));
-        const knjiga = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(knjiga, list, kartica.label.slice(0, 31));
-        const oznaka = ticketsFilters.ticket_code
-            ? ticketsFilters.ticket_code
-            : `${ticketsFilters.date}_${kartica.key}`;
-        XLSX.writeFile(knjiga, `karte_${oznaka}.xlsx`);
     };
     const handleSearch = async () => {
         const params = {};
