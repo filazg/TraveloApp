@@ -266,58 +266,6 @@ export default function TicketsOverviewPage() {
             karticaKey: kartica.key,
         }));
     });
-    // ——— izvještaj o otkazanim kartama za partnere —————————————————————————
-    // Partnerske karte se ne naplaćuju po prodaji nego zbirnim računom, pa otkaz
-    // polaska za partnera nije samo obavijest nego stavka koja se s tog računa
-    // skida. Izvještaj zato ide odvojeno od običnog izvoza.
-    const otkazanePartnerske = useMemo(
-        () => tickets.filter((t) => normStatus(t) === "trip_canceled" && t.partner_uuid),
-        [tickets]
-    );
-    const odabraniPolazak = useMemo(
-        () => polasci.find((p) => p.key === ticketsFilters.departure_key),
-        [polasci, ticketsFilters.departure_key]
-    );
-    // Izvještaj vrijedi za jedan konkretan polazak — bez linije i polaska u
-    // zaglavlju partner ne zna na što se popis odnosi, pa se bez njih ne radi.
-    const partnerRazlog = !ticketsFilters.date || ticketsFilters.ticket_code
-        ? "Odaberi datum (pretraga po šifri karte ne daje polazak)"
-        : !ticketsFilters.line_code
-        ? "Odaberi liniju"
-        : !odabraniPolazak
-        ? "Odaberi konkretan polazak"
-        : !otkazanePartnerske.length
-        ? "Nema otkazanih partnerskih karata na ovom polasku"
-        : "";
-
-    const izveziZaPartnere = () => tijekom("Priprema izvještaja za partnere", async () => {
-        await new Promise((r) => setTimeout(r, 50));
-        const prva = otkazanePartnerske[0];
-        const polazakOpis = {
-            linija: ticketsFilters.line_code,
-            datum: (ticketsFilters.date || "").split("-").reverse().join("."),
-            vrijeme: odabraniPolazak?.vrijeme || "",
-            relacija: prva ? `${prva.departure_harbor_name || ""} → ${prva.arrival_harbor_name || ""}` : "",
-        };
-
-        // Ako je partner odabran u tražilici, radi se samo njegov izvještaj;
-        // inače svaki partner dobiva svoj, jer se izvještaj i predaje pojedinom
-        // partneru.
-        const uuidi = ticketsFilters.partner_uuid
-            ? [ticketsFilters.partner_uuid]
-            : [...new Set(otkazanePartnerske.map((t) => t.partner_uuid))];
-
-        for (const uuid of uuidi) {
-            const partner = partnersList.find((p) => p.uuid === uuid) || { partner_name: "Partner" };
-            const njegove = otkazanePartnerske.filter((t) => t.partner_uuid === uuid);
-            if (!njegove.length) continue;
-            const knjiga = buildPartnerWorkbook(partner, njegove, polazakOpis);
-            XLSX.writeFile(knjiga, partnerFileName(partner, polazakOpis));
-            // Preglednik zna progutati datoteke koje stignu u istom trenutku.
-            await new Promise((r) => setTimeout(r, 300));
-        }
-    });
-
     const handleSearch = async () => {
         const params = {};
         if (ticketsFilters.ticket_code) {
@@ -390,6 +338,59 @@ export default function TicketsOverviewPage() {
         }
         return [...m.values()].sort((a, b) => String(a.vrijeme).localeCompare(String(b.vrijeme)));
     }, [salesRoutes, ticketsFilters.date, ticketsFilters.line_code]);
+
+    // ——— izvještaj o otkazanim kartama za partnere —————————————————————————
+    // Partnerske karte se ne naplaćuju po prodaji nego zbirnim računom, pa otkaz
+    // polaska za partnera nije samo obavijest nego stavka koja se s tog računa
+    // skida. Izvještaj zato ide odvojeno od običnog izvoza.
+    const otkazanePartnerske = useMemo(
+        () => tickets.filter((t) => normStatus(t) === "trip_canceled" && t.partner_uuid),
+        [tickets]
+    );
+    const odabraniPolazak = useMemo(
+        () => polasci.find((p) => p.key === ticketsFilters.departure_key),
+        [polasci, ticketsFilters.departure_key]
+    );
+    // Izvještaj vrijedi za jedan konkretan polazak — bez linije i polaska u
+    // zaglavlju partner ne zna na što se popis odnosi, pa se bez njih ne radi.
+    const partnerRazlog = !ticketsFilters.date || ticketsFilters.ticket_code
+        ? "Odaberi datum (pretraga po šifri karte ne daje polazak)"
+        : !ticketsFilters.line_code
+        ? "Odaberi liniju"
+        : !odabraniPolazak
+        ? "Odaberi konkretan polazak"
+        : !otkazanePartnerske.length
+        ? "Nema otkazanih partnerskih karata na ovom polasku"
+        : "";
+
+    const izveziZaPartnere = () => tijekom("Priprema izvještaja za partnere", async () => {
+        await new Promise((r) => setTimeout(r, 50));
+        const prva = otkazanePartnerske[0];
+        const polazakOpis = {
+            linija: ticketsFilters.line_code,
+            datum: (ticketsFilters.date || "").split("-").reverse().join("."),
+            vrijeme: odabraniPolazak?.vrijeme || "",
+            relacija: prva ? `${prva.departure_harbor_name || ""} → ${prva.arrival_harbor_name || ""}` : "",
+        };
+
+        // Ako je partner odabran u tražilici, radi se samo njegov izvještaj;
+        // inače svaki partner dobiva svoj, jer se izvještaj i predaje pojedinom
+        // partneru.
+        const uuidi = ticketsFilters.partner_uuid
+            ? [ticketsFilters.partner_uuid]
+            : [...new Set(otkazanePartnerske.map((t) => t.partner_uuid))];
+
+        for (const uuid of uuidi) {
+            const partner = partnersList.find((p) => p.uuid === uuid) || { partner_name: "Partner" };
+            const njegove = otkazanePartnerske.filter((t) => t.partner_uuid === uuid);
+            if (!njegove.length) continue;
+            const knjiga = buildPartnerWorkbook(partner, njegove, polazakOpis);
+            XLSX.writeFile(knjiga, partnerFileName(partner, polazakOpis));
+            // Preglednik zna progutati datoteke koje stignu u istom trenutku.
+            await new Promise((r) => setTimeout(r, 300));
+        }
+    });
+
     const ticketsByStatus = useMemo(
         () => tickets.filter(TAB_FILTERS[tab].match),
         [tickets, tab]
