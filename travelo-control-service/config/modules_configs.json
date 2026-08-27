@@ -252,16 +252,16 @@
                             "icon": "ConfirmationNumber"
                         },
                         {
-                            "key": "SEPA_ORDERS",
+                            "key": "PAYMENT_ORDERS",
                             "label": {
-                                "hr": "SEPA nalozi",
-                                "en": "SEPA orders"
+                                "hr": "Platni nalozi",
+                                "en": "Payment orders"
                             },
                             "subtitle": {
-                                "hr": "Povrati na račun",
-                                "en": "Refunds to bank account"
+                                "hr": "Povrati na račun i karticu",
+                                "en": "Refunds to account and card"
                             },
-                            "path": "/finance/sepa_orders",
+                            "path": "/finance/payment_orders",
                             "icon": "AccountBalance"
                         }
                     ]

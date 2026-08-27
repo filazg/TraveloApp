@@ -28,14 +28,14 @@ const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGe
 const { handleCancelSailingFeature, handleRestoreSailingFeature, handleRescheduleSailingFeature, handleSendSailingMessageFeature } = require('../features/transactions/dispatcherHandler');
 const { handleGetShiftsFeature } = require('../features/transactions/shiftsHandlers');
 const {
-    handleGetSepaOrdersFeature,
-    handleGetSepaOrderFeature,
-    handleGetSepaOrderXmlFeature,
-    handleCreateSepaOrderFeature,
-    handleSetSepaOrderStatusFeature,
-    handleAddSepaOrderItemFeature,
-    handleDeleteSepaOrderItemFeature,
-} = require('../features/transactions/sepaHandlers');
+    handleGetPaymentOrdersFeature,
+    handleGetPaymentOrderFeature,
+    handleGetPaymentOrderXmlFeature,
+    handleCreatePaymentOrderFeature,
+    handleSetPaymentOrderStatusFeature,
+    handleAddPaymentOrderItemFeature,
+    handleDeletePaymentOrderItemFeature,
+} = require('../features/transactions/paymentOrderHandlers');
 const {
     handleGetCapacityCategoriesFeature,
     handleAddCapacityCategoryFeature,
@@ -246,31 +246,31 @@ router
     .route('/transactions/shifts')
     .get(handleGetShiftsFeature)
 
-// SEPA nalozi — povrati na račun
+// Platni nalozi — povrati kupcu (SEPA i kartičarske kuće)
 router
-    .route('/transactions/sepa_orders')
-    .get(handleGetSepaOrdersFeature)
-    .post(handleCreateSepaOrderFeature)
+    .route('/transactions/payment_orders')
+    .get(handleGetPaymentOrdersFeature)
+    .post(handleCreatePaymentOrderFeature)
 
 router
-    .route('/transactions/sepa_order/:sepa_order_uuid')
-    .get(handleGetSepaOrderFeature)
+    .route('/transactions/payment_order/:payment_order_uuid')
+    .get(handleGetPaymentOrderFeature)
 
 router
-    .route('/transactions/sepa_order_xml/:sepa_order_uuid')
-    .get(handleGetSepaOrderXmlFeature)
+    .route('/transactions/payment_order_xml/:payment_order_uuid')
+    .get(handleGetPaymentOrderXmlFeature)
 
 router
-    .route('/transactions/sepa_order_status')
-    .post(handleSetSepaOrderStatusFeature)
+    .route('/transactions/payment_order_status')
+    .post(handleSetPaymentOrderStatusFeature)
 
 router
-    .route('/transactions/sepa_order_items')
-    .post(handleAddSepaOrderItemFeature)
+    .route('/transactions/payment_order_items')
+    .post(handleAddPaymentOrderItemFeature)
 
 router
-    .route('/transactions/sepa_order_item_delete')
-    .post(handleDeleteSepaOrderItemFeature)
+    .route('/transactions/payment_order_item_delete')
+    .post(handleDeletePaymentOrderItemFeature)
 
 router
     .route('/transactions/harbor_tax_report')

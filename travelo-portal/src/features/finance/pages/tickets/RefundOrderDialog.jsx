@@ -16,24 +16,32 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import {
-    createSepaOrderThunk,
-    fetchSepaOrdersThunk,
+    createPaymentOrderThunk,
+    fetchPaymentOrdersThunk,
     financeSliceData,
 } from "../../financeSlice";
 import { provjeriIban } from "../../../../helpers/iban";
 import { useLoading } from "../../../loading/useLoading";
+import { providerPoKljucu, jeSepa } from "../payment_orders/providers";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 const NOVI = "__novi__";
 
-// Unos povrata na račun. Ne piše ništa u bazu osim (po potrebi) novog naloga —
-// stavka nastaje tek kad se storno stvarno izvrši, jer prije toga nema iznosa
-// ni računa na koji bi se vezala.
-export default function SepaRefundDialog({ open, amount, ticketsCount, defaultValue, onClose, onConfirm }) {
+// Unos povrata u platni nalog. Ne piše ništa u bazu osim (po potrebi) novog
+// naloga — stavka nastaje tek kad se storno stvarno izvrši, jer prije toga
+// nema iznosa ni računa na koji bi se vezala.
+//
+// Što se traži ovisi o nalogu: SEPA traži primatelja i IBAN jer novac ide na
+// račun koji upisuje operater, a kartični ne traži ništa — vraća se na karticu
+// kojom je plaćeno, pa se podaci o transakciji čitaju s izvornog računa.
+export default function RefundOrderDialog({ open, provider, amount, ticketsCount, defaultValue, onClose, onConfirm }) {
     const dispatch = useDispatch();
     const auth = useSelector((s) => s.auth);
-    const { sepaOrders, sepaOrdersLoading, sepaSaving, sepaError } = useSelector(financeSliceData);
+    const { paymentOrders, paymentOrdersLoading, nalogSaving, nalogError } = useSelector(financeSliceData);
     const { tijekom } = useLoading();
+
+    const opis = providerPoKljucu(provider);
+    const naRacun = jeSepa(provider);
 
     const [nalog, setNalog] = useState("");
     const [noviNaziv, setNoviNaziv] = useState("");
@@ -41,14 +49,15 @@ export default function SepaRefundDialog({ open, amount, ticketsCount, defaultVa
     const [iban, setIban] = useState("");
     const [greska, setGreska] = useState(null);
 
-    // Nude se samo otvoreni nalozi — u zatvoreni se ne smije dodavati.
+    // Nude se samo otvoreni nalozi tog providera — u zatvoreni se ne smije
+    // dodavati, a nalog druge kuće ide drugom primatelju.
     useEffect(() => {
-        if (open) dispatch(fetchSepaOrdersThunk({ status: "open" }));
-    }, [open, dispatch]);
+        if (open) dispatch(fetchPaymentOrdersThunk({ status: "open", provider }));
+    }, [open, provider, dispatch]);
 
     useEffect(() => {
         if (!open) return;
-        setNalog(defaultValue?.sepa_order_uuid || "");
+        setNalog(defaultValue?.payment_order_uuid || "");
         setPrimatelj(defaultValue?.recipient_name || "");
         setIban(defaultValue?.recipient_iban || "");
         setNoviNaziv("");
@@ -58,23 +67,21 @@ export default function SepaRefundDialog({ open, amount, ticketsCount, defaultVa
     const provjeraIbana = useMemo(() => (iban ? provjeriIban(iban) : null), [iban]);
     const kreiraSe = nalog === NOVI;
 
-    const mozeSpremiti =
-        !kreiraSe &&
-        !!nalog &&
-        !!primatelj.trim() &&
-        !!provjeraIbana?.ok;
+    const mozeSpremiti = !kreiraSe && !!nalog
+        && (!naRacun || (!!primatelj.trim() && !!provjeraIbana?.ok));
 
     const kreirajNalog = async () => {
         const naziv = noviNaziv.trim();
         if (!naziv) return;
-        const res = await tijekom("Kreiranje SEPA naloga", () => dispatch(createSepaOrderThunk({
+        const res = await tijekom("Kreiranje naloga", () => dispatch(createPaymentOrderThunk({
             name: naziv,
+            provider,
             created_by: auth?.loggedUserData?.username || "",
         })));
         if (res.meta.requestStatus === "fulfilled") {
             const novi = res.payload?.order;
-            await dispatch(fetchSepaOrdersThunk({ status: "open" }));
-            setNalog(novi?.sepa_order_uuid || "");
+            await dispatch(fetchPaymentOrdersThunk({ status: "open", provider }));
+            setNalog(novi?.payment_order_uuid || "");
             setNoviNaziv("");
         } else {
             setGreska(res.payload?.message || "Nalog nije kreiran");
@@ -82,19 +89,22 @@ export default function SepaRefundDialog({ open, amount, ticketsCount, defaultVa
     };
 
     const potvrdi = () => {
-        const odabrani = sepaOrders.find((o) => o.sepa_order_uuid === nalog);
+        const odabrani = paymentOrders.find((o) => o.payment_order_uuid === nalog);
         onConfirm({
-            sepa_order_uuid: nalog,
-            sepa_order_name: odabrani?.name || "",
-            recipient_name: primatelj.trim(),
-            recipient_iban: provjeraIbana.iban,
+            payment_order_uuid: nalog,
+            payment_order_name: odabrani?.name || "",
+            provider,
+            ...(naRacun ? {
+                recipient_name: primatelj.trim(),
+                recipient_iban: provjeraIbana.iban,
+            } : {}),
         });
         onClose();
     };
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>Povrat na IBAN</DialogTitle>
+            <DialogTitle>{naRacun ? "Povrat na IBAN" : `Povrat na karticu — ${opis.label}`}</DialogTitle>
             <DialogContent dividers>
                 <Stack spacing={2}>
                     <Stack direction="row" justifyContent="space-between">
@@ -107,22 +117,22 @@ export default function SepaRefundDialog({ open, amount, ticketsCount, defaultVa
 
                     <TextField
                         select
-                        label="SEPA nalog"
+                        label={`Nalog — ${opis.label}`}
                         value={nalog}
                         onChange={(e) => setNalog(e.target.value)}
                         required
                         fullWidth
                         helperText={
-                            sepaOrdersLoading
+                            paymentOrdersLoading
                                 ? "Učitavanje naloga…"
-                                : !sepaOrders.length
+                                : !paymentOrders.length
                                 ? "Nema otvorenih naloga — kreiraj novi"
                                 : "Nude se samo otvoreni nalozi"
                         }
                     >
-                        {sepaOrders.map((o) => (
-                            <MenuItem key={o.sepa_order_uuid} value={o.sepa_order_uuid}>
-                                {o.name} · {o.items_count} stavki · {fmtEUR(o.total_amount)}
+                        {paymentOrders.map((o) => (
+                            <MenuItem key={o.payment_order_uuid} value={o.payment_order_uuid}>
+                                {o.name} · {o.items_count} povrata · {fmtEUR(o.total_amount)}
                             </MenuItem>
                         ))}
                         <MenuItem value={NOVI}>
@@ -144,7 +154,7 @@ export default function SepaRefundDialog({ open, amount, ticketsCount, defaultVa
                             <Button
                                 variant="contained"
                                 onClick={kreirajNalog}
-                                disabled={!noviNaziv.trim() || sepaSaving}
+                                disabled={!noviNaziv.trim() || nalogSaving}
                                 sx={{ mt: 1 }}
                             >
                                 Kreiraj
@@ -152,34 +162,44 @@ export default function SepaRefundDialog({ open, amount, ticketsCount, defaultVa
                         </Stack>
                     )}
 
-                    <TextField
-                        label="Naziv primatelja"
-                        value={primatelj}
-                        onChange={(e) => setPrimatelj(e.target.value)}
-                        required
-                        fullWidth
-                    />
-                    <TextField
-                        label="IBAN"
-                        value={iban}
-                        onChange={(e) => setIban(e.target.value)}
-                        required
-                        fullWidth
-                        error={!!iban && !provjeraIbana?.ok}
-                        helperText={
-                            !iban
-                                ? "npr. HR12 1001 0051 8630 0016 0"
-                                : provjeraIbana?.ok
-                                ? "IBAN je ispravan"
-                                : provjeraIbana?.razlog
-                        }
-                        inputProps={{ style: { fontFamily: "monospace" } }}
-                    />
+                    {naRacun ? (
+                        <>
+                            <TextField
+                                label="Naziv primatelja"
+                                value={primatelj}
+                                onChange={(e) => setPrimatelj(e.target.value)}
+                                required
+                                fullWidth
+                            />
+                            <TextField
+                                label="IBAN"
+                                value={iban}
+                                onChange={(e) => setIban(e.target.value)}
+                                required
+                                fullWidth
+                                error={!!iban && !provjeraIbana?.ok}
+                                helperText={
+                                    !iban
+                                        ? "npr. HR12 1001 0051 8630 0016 0"
+                                        : provjeraIbana?.ok
+                                        ? "IBAN je ispravan"
+                                        : provjeraIbana?.razlog
+                                }
+                                inputProps={{ style: { fontFamily: "monospace" } }}
+                            />
+                        </>
+                    ) : (
+                        <Alert severity="info">
+                            Novac se vraća na karticu kojom je plaćeno. Podaci o izvornoj transakciji
+                            (terminal, autorizacijski kod, maskirani broj kartice) čitaju se s računa —
+                            ne upisuje se ništa.
+                        </Alert>
+                    )}
 
-                    {(greska || sepaError) && <Alert severity="error">{greska || sepaError}</Alert>}
+                    {(greska || nalogError) && <Alert severity="error">{greska || nalogError}</Alert>}
                     <Alert severity="info">
                         Povrat se u nalog upisuje tek kad storno prođe. Više storna može ići
-                        u isti nalog, pa se banci predaju odjednom.
+                        u isti nalog, pa se {naRacun ? "banci" : `kući ${opis.label}`} predaju odjednom.
                     </Alert>
                 </Stack>
             </DialogContent>

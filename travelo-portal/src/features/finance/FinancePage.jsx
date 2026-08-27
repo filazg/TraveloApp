@@ -84,7 +84,7 @@ const CARDS = [
     { label: "Lučke uprave", subtitle: "Izvještaj naplata luka", icon: AnchorIcon, path: "/finance/harbor_tax_report", enabled: true },
     { label: "Smjene", subtitle: "Zaključci smjena", icon: AccessTimeIcon, path: "/finance/shifts", enabled: true },
     { label: "Konta", subtitle: "Šifarnik i mapiranja", icon: AccountTreeIcon, path: "/finance/accounts", enabled: true },
-    { label: "SEPA nalozi", subtitle: "Povrati na račun", icon: AccountBalanceIcon, path: "/finance/sepa_orders", enabled: true },
+    { label: "Platni nalozi", subtitle: "Povrati na račun i karticu", icon: AccountBalanceIcon, path: "/finance/payment_orders", enabled: true },
     { label: "Izvještaji", subtitle: "Dnevna realizacija i ostalo", icon: AssessmentIcon, path: "/finance/reports", enabled: true },
 ];
 

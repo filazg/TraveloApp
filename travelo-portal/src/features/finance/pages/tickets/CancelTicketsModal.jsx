@@ -23,17 +23,19 @@ import {
     fetchBillingDevicesFullThunk,
     fetchBusinessPremisesListThunk,
     fetchStornoPercentagesThunk,
+    fetchPaymentMethodsListThunk,
     financeSliceData,
 } from "../../financeSlice";
 import { formatirajIban } from "../../../../helpers/iban";
 import { useLoading } from "../../../loading/useLoading";
-import SepaRefundDialog from "./SepaRefundDialog";
+import RefundOrderDialog from "./RefundOrderDialog";
+import { providerPoKljucu, jeSepa } from "../payment_orders/providers";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
 export default function CancelTicketsModal({ open, tickets, onClose, onCanceled }) {
     const dispatch = useDispatch();
-    const { billingDevicesFull, businessPremisesList, stornoPercentages, cancelLoading, cancelError } = useSelector(financeSliceData);
+    const { billingDevicesFull, businessPremisesList, stornoPercentages, paymentMethodsList, cancelLoading, cancelError } = useSelector(financeSliceData);
     const auth = useSelector((s) => s.auth);
     const { tijekom } = useLoading();
     const [terminal, setTerminal] = useState("");
@@ -43,16 +45,17 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
     // promjene karte.
     const [percentageUuid, setPercentageUuid] = useState("");
     const [localError, setLocalError] = useState(null);
-    // Povrat na račun: kad je postavljen, storno uz sebe nosi i stavku SEPA
-    // naloga. Bez toga povrat ide odabranim sredstvom plaćanja, kao i dosad.
-    const [sepa, setSepa] = useState(null);
-    const [sepaOpen, setSepaOpen] = useState(false);
+    // Povrat u platni nalog: kad je postavljen, storno uz sebe nosi i stavku.
+    // Bez toga povrat ide odabranim sredstvom plaćanja, kao i dosad.
+    const [refund, setRefund] = useState(null);
+    const [refundOpen, setRefundOpen] = useState(false);
 
     useEffect(() => {
         if (open && !billingDevicesFull.length) dispatch(fetchBillingDevicesFullThunk());
         if (open && !businessPremisesList.length) dispatch(fetchBusinessPremisesListThunk());
         if (open && !stornoPercentages.length) dispatch(fetchStornoPercentagesThunk());
-    }, [open, billingDevicesFull.length, businessPremisesList.length, stornoPercentages.length, dispatch]);
+        if (open && !paymentMethodsList.length) dispatch(fetchPaymentMethodsListThunk());
+    }, [open, billingDevicesFull.length, businessPremisesList.length, stornoPercentages.length, paymentMethodsList.length, dispatch]);
 
     useEffect(() => {
         if (!open) {
@@ -60,8 +63,8 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
             setPaymentMethod("");
             setPercentageUuid("");
             setLocalError(null);
-            setSepa(null);
-            setSepaOpen(false);
+            setRefund(null);
+            setRefundOpen(false);
         }
     }, [open]);
 
@@ -80,19 +83,31 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
         setPaymentMethod("");
     }, [terminal]);
 
-    // Povrat na IBAN ima smisla samo uz transakcijski račun — fiskalna oznaka
-    // "T". Gotovinom i karticom se vraća na licu mjesta, pa se SEPA nalog ni ne
-    // nudi. Ako je unos već napravljen pa se sredstvo promijeni, briše se, da
-    // storno ne ode s povratom koji tom sredstvu ne pripada.
+    // Kamo povrat ide određuje odabrano sredstvo plaćanja:
+    //   T (transakcijski račun) → SEPA nalog, novac na IBAN
+    //   K (kartica)             → nalog kartičarske kuće koja je naplatila
+    //   G (gotovina)            → ništa, novac se vraća na licu mjesta
+    // Sredstvo na uređaju ne nosi `card_provider` — nosi ga samo šifarnik, pa
+    // se provider traži ondje, po nazivu sredstva.
     const odabranoSredstvo = paymentMethods.find((pm) => pm.uuid === paymentMethod);
-    const naTransakcijski = String(odabranoSredstvo?.payment_type_acr || "").toUpperCase() === "T";
+    const oznakaSredstva = String(odabranoSredstvo?.payment_type_acr || "").toUpperCase();
+    const izSifarnika = paymentMethodsList.find((x) => x.name === odabranoSredstvo?.name);
+    const providerPovrata = oznakaSredstva === "T"
+        ? "SEPA"
+        : (oznakaSredstva === "K"
+            ? String(odabranoSredstvo?.card_provider || izSifarnika?.card_provider || "").toUpperCase()
+            : "");
+    const nudiPovrat = !!providerPovrata;
+    const opisPovrata = providerPoKljucu(providerPovrata);
 
+    // Ako je unos već napravljen pa se sredstvo promijeni, briše se — inače bi
+    // storno otišao s povratom koji tom sredstvu ne pripada.
     useEffect(() => {
-        if (!naTransakcijski && sepa) {
-            setSepa(null);
-            setSepaOpen(false);
+        if (refund && refund.provider !== providerPovrata) {
+            setRefund(null);
+            setRefundOpen(false);
         }
-    }, [naTransakcijski, sepa]);
+    }, [providerPovrata, refund]);
 
     // auto-select single URED device once lists are loaded
     useEffect(() => {
@@ -141,7 +156,7 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                 terminal_uuid: terminal,
                 payment_method_uuid: paymentMethod,
                 percentage: Number(percentage),
-                ...(sepa ? { sepa: { ...sepa, created_by: auth?.loggedUserData?.username || "" } } : {}),
+                ...(refund ? { refund: { ...refund, created_by: auth?.loggedUserData?.username || "" } } : {}),
             })
         ));
         if (res.meta.requestStatus === "fulfilled") {
@@ -240,41 +255,50 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                             ))}
                         </TextField>
 
-                        {/* Povrat na račun. Nije zamjena za sredstvo plaćanja —
+                        {/* Povrat u platni nalog. Nije zamjena za sredstvo plaćanja —
                             storno se i dalje evidentira na uređaju, a ovdje se
-                            bilježi kome i na koji IBAN novac stvarno ide.
-                            Nudi se samo uz transakcijski račun (oznaka "T"). */}
-                        {naTransakcijski && (
+                            bilježi kome novac stvarno ide: na IBAN (SEPA) ili
+                            natrag na karticu, kroz nalog kartičarske kuće.
+                            Uz gotovinu se ne nudi — ondje se vraća na licu mjesta. */}
+                        {nudiPovrat && (
                         <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                            {sepa ? (
+                            {refund ? (
                                 <Stack spacing={1}>
                                     <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
                                         <AccountBalanceIcon fontSize="small" color="primary" />
-                                        <Typography fontWeight={700}>Povrat na IBAN</Typography>
-                                        <Chip size="small" label={sepa.sepa_order_name || "SEPA nalog"} />
+                                        <Typography fontWeight={700}>
+                                            {jeSepa(refund.provider) ? "Povrat na IBAN" : `Povrat na karticu — ${opisPovrata.label}`}
+                                        </Typography>
+                                        <Chip size="small" label={refund.payment_order_name || "nalog"} />
                                         <Box sx={{ flex: 1 }} />
-                                        <Button size="small" onClick={() => setSepaOpen(true)}>Promijeni</Button>
-                                        <Button size="small" color="error" onClick={() => setSepa(null)}>Ukloni</Button>
+                                        <Button size="small" onClick={() => setRefundOpen(true)}>Promijeni</Button>
+                                        <Button size="small" color="error" onClick={() => setRefund(null)}>Ukloni</Button>
                                     </Stack>
                                     <Typography variant="body2">
-                                        {sepa.recipient_name} · <span style={{ fontFamily: "monospace" }}>{formatirajIban(sepa.recipient_iban)}</span>
+                                        {jeSepa(refund.provider)
+                                            ? <>{refund.recipient_name} · <span style={{ fontFamily: "monospace" }}>{formatirajIban(refund.recipient_iban)}</span></>
+                                            : "Podaci o kartici čitaju se s izvornog računa"}
                                     </Typography>
                                 </Stack>
                             ) : (
                                 <Stack direction="row" alignItems="center" spacing={1}>
                                     <Box sx={{ minWidth: 0, flex: 1 }}>
-                                        <Typography fontWeight={700}>Povrat na IBAN</Typography>
+                                        <Typography fontWeight={700}>
+                                            {jeSepa(providerPovrata) ? "Povrat na IBAN" : `Povrat na karticu — ${opisPovrata.label}`}
+                                        </Typography>
                                         <Typography variant="caption" color="text.secondary">
-                                            Novac se vraća na račun putnika i upisuje u SEPA nalog
+                                            {jeSepa(providerPovrata)
+                                                ? "Novac se vraća na račun putnika i upisuje u SEPA nalog"
+                                                : `Novac se vraća na karticu kojom je plaćeno, kroz nalog za ${opisPovrata.label}`}
                                         </Typography>
                                     </Box>
                                     <Button
                                         variant="outlined"
                                         startIcon={<AccountBalanceIcon />}
-                                        onClick={() => setSepaOpen(true)}
+                                        onClick={() => setRefundOpen(true)}
                                         disabled={refundAmount <= 0}
                                     >
-                                        Vrati na IBAN
+                                        {jeSepa(providerPovrata) ? "Vrati na IBAN" : "Vrati na karticu"}
                                     </Button>
                                 </Stack>
                             )}
@@ -299,13 +323,14 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                 </Button>
             </DialogActions>
 
-            <SepaRefundDialog
-                open={sepaOpen}
+            <RefundOrderDialog
+                open={refundOpen}
+                provider={providerPovrata}
                 amount={refundAmount}
                 ticketsCount={tickets.length}
-                defaultValue={sepa}
-                onClose={() => setSepaOpen(false)}
-                onConfirm={setSepa}
+                defaultValue={refund}
+                onClose={() => setRefundOpen(false)}
+                onConfirm={setRefund}
             />
         </Dialog>
     );

@@ -3,10 +3,10 @@ const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { releaseBookings } = require("../../helpers/bookingClient");
-const { dodajStavku } = require("./sepaControllers");
+const { dodajStavku } = require("./paymentOrderControllers");
 const { provjeriIban } = require("../../helpers/iban");
 
-// Opis povrata završi u SEPA nalogu i vidi ga primatelj na izvatku, pa je
+// Opis povrata završi u platnom nalogu i vidi ga primatelj na izvatku, pa je
 // ispravan padež mjesto gdje se ne štedi.
 const rijecKarte = (n) => {
     const zadnjeDvije = n % 100;
@@ -64,19 +64,24 @@ const loadStornoContext = async (terminalUuid) => {
     const backofficeUrl = coreConfig?.services?.backoffice?.url;
     if (!backofficeUrl) throw new Error("backoffice URL missing in core config");
 
-    const [companyResp, bpResp, bdResp] = await Promise.all([
+    const [companyResp, bpResp, bdResp, pmResp] = await Promise.all([
         dohvati(`${backofficeUrl}/company`),
         dohvati(`${backofficeUrl}/business_premises`),
         dohvati(`${backofficeUrl}/billing_devices`),
+        dohvati(`${backofficeUrl}/payment_methods`),
     ]);
 
     const company = companyResp.data?.data?.company || {};
     const bps = bpResp.data?.data?.business_premises || [];
     const bds = bdResp.data?.data?.billing_devices || [];
+    // Sredstvo plaćanja na uređaju ne nosi `card_provider` — nosi ga samo
+    // šifarnik, pa se provider čita odande, po nazivu sredstva.
+    const pmList = pmResp.data?.data?.payment_methods
+        || (Array.isArray(pmResp.data?.data) ? pmResp.data.data : []);
     const bd = bds.find((x) => x.uuid === terminalUuid);
     if (!bd) throw new Error(`billing device ${terminalUuid} not found`);
     const bp = bps.find((x) => x.uuid === bd.business_premise_uuid) || {};
-    return { company, businessPremise: bp, billingDevice: bd };
+    return { company, businessPremise: bp, billingDevice: bd, paymentMethods: pmList };
 };
 
 const cancelTicketsController = async (req, res) => {
@@ -96,9 +101,11 @@ const cancelTicketsController = async (req, res) => {
             storno_invoice_fiskal_no: client_invoice_fiskal_no,
             storno_invoice_code: client_invoice_code,
             storno_is_f2: client_is_f2,
-            // Povrat na račun: { sepa_order_uuid, recipient_name, recipient_iban }.
-            // Bez toga je povrat po odabranom sredstvu plaćanja, kao i dosad.
-            sepa,
+            // Povrat u platni nalog: { payment_order_uuid } uz, za SEPA nalog,
+            // primatelja i IBAN. Kartični povrat ne traži ništa — podaci o
+            // izvornoj transakciji čitaju se s računa kojim je karta plaćena.
+            // Bez ovog bloka je povrat samo po odabranom sredstvu, kao i dosad.
+            refund,
         } = req.body || {};
 
         if (!Array.isArray(ticket_uuids) || !ticket_uuids.length) {
@@ -115,24 +122,29 @@ const cancelTicketsController = async (req, res) => {
             return res.status(400).json({ status: 400, data: { message: "percentage must be > 0" } });
         }
 
-        // SEPA se provjerava prije nego što se išta zapiše. Storno je izdavanje
-        // računa i ne poništava se, pa nalog i IBAN moraju biti ispravni prije
-        // nego krene — inače bi karta ostala stornirana bez traga povrata.
-        if (sepa) {
-            const { SepaOrderModel } = models;
-            const nalog = await SepaOrderModel.findOne({ where: { sepa_order_uuid: sepa.sepa_order_uuid } });
-            if (!nalog) {
-                return res.status(400).json({ status: 400, data: { message: "SEPA nalog ne postoji" } });
+        // Nalog se provjerava prije nego što se išta zapiše. Storno je izdavanje
+        // računa i ne poništava se, pa nalog mora biti ispravan prije nego krene —
+        // inače bi karta ostala stornirana bez traga povrata.
+        let nalogPovrata = null;
+        if (refund) {
+            const { PaymentOrderModel } = models;
+            nalogPovrata = await PaymentOrderModel.findOne({
+                where: { payment_order_uuid: refund.payment_order_uuid },
+            });
+            if (!nalogPovrata) {
+                return res.status(400).json({ status: 400, data: { message: "platni nalog ne postoji" } });
             }
-            if (nalog.status !== "open") {
-                return res.status(400).json({ status: 400, data: { message: "SEPA nalog je zatvoren" } });
+            if (nalogPovrata.status !== "open") {
+                return res.status(400).json({ status: 400, data: { message: "platni nalog je zatvoren" } });
             }
-            if (!String(sepa.recipient_name || "").trim()) {
-                return res.status(400).json({ status: 400, data: { message: "naziv primatelja je obavezan" } });
-            }
-            const provjera = provjeriIban(sepa.recipient_iban);
-            if (!provjera.ok) {
-                return res.status(400).json({ status: 400, data: { message: `IBAN nije ispravan — ${provjera.razlog}` } });
+            if (String(nalogPovrata.provider).toUpperCase() === "SEPA") {
+                if (!String(refund.recipient_name || "").trim()) {
+                    return res.status(400).json({ status: 400, data: { message: "naziv primatelja je obavezan" } });
+                }
+                const provjera = provjeriIban(refund.recipient_iban);
+                if (!provjera.ok) {
+                    return res.status(400).json({ status: 400, data: { message: `IBAN nije ispravan — ${provjera.razlog}` } });
+                }
             }
         }
 
@@ -162,7 +174,7 @@ const cancelTicketsController = async (req, res) => {
             });
         }
 
-        const { company, businessPremise: bp, billingDevice: bd } = await loadStornoContext(terminal_uuid);
+        const { company, businessPremise: bp, billingDevice: bd, paymentMethods } = await loadStornoContext(terminal_uuid);
         const pmList = bd.payment || bd.payment_methods || [];
         const pm = pmList.find((x) => x.uuid === payment_method_uuid);
         if (!pm) {
@@ -171,14 +183,36 @@ const cancelTicketsController = async (req, res) => {
                 data: { message: "payment method does not belong to selected terminal" },
             });
         }
-        // Povrat na IBAN ide samo uz transakcijski račun (fiskalna oznaka "T").
-        // Gotovina i kartica se vraćaju na licu mjesta, pa bi SEPA nalog uz njih
-        // značio da je isti novac vraćen dvaput.
-        if (sepa && String(pm.payment_type_acr || "").toUpperCase() !== "T") {
-            return res.status(400).json({
-                status: 400,
-                data: { message: "povrat na IBAN je moguć samo uz sredstvo plaćanja s fiskalnom oznakom T" },
-            });
+        // Nalog mora odgovarati sredstvu kojim se povrat provodi:
+        //   SEPA        → transakcijski račun (fiskalna oznaka "T")
+        //   kartični    → kartično sredstvo istog providera kao nalog
+        // Inače bi povrat završio u nalogu koji ide krivom primatelju, ili bi
+        // se gotovinski povrat (već isplaćen na blagajni) vodio i kao nalog.
+        if (nalogPovrata) {
+            const provider = String(nalogPovrata.provider).toUpperCase();
+            const oznaka = String(pm.payment_type_acr || "").toUpperCase();
+            if (provider === "SEPA" && oznaka !== "T") {
+                return res.status(400).json({
+                    status: 400,
+                    data: { message: "povrat na IBAN je moguć samo uz sredstvo plaćanja s fiskalnom oznakom T" },
+                });
+            }
+            if (provider !== "SEPA") {
+                const izSifarnika = (paymentMethods || []).find((x) => x.name === pm.name);
+                const pmProvider = String(pm.card_provider || izSifarnika?.card_provider || "").toUpperCase();
+                if (oznaka !== "K") {
+                    return res.status(400).json({
+                        status: 400,
+                        data: { message: "povrat na karticu je moguć samo uz kartično sredstvo plaćanja" },
+                    });
+                }
+                if (pmProvider && pmProvider !== provider) {
+                    return res.status(400).json({
+                        status: 400,
+                        data: { message: `nalog je za ${provider}, a sredstvo plaćanja je ${pmProvider}` },
+                    });
+                }
+            }
         }
 
         const invoiceDate = new Date();
@@ -299,28 +333,57 @@ const cancelTicketsController = async (req, res) => {
             .map((t) => ({ route_uuid: t.route_uuid, ticket_type_uuid: t.ticket_type_uuid, qty: 1 }));
         if (releaseItems.length) await releaseBookings(releaseItems);
 
-        // Stavka SEPA naloga: jedan povrat po stornu, bez obzira na broj karata
-        // — primatelj je jedan i novac ide jednom uplatom. Karte se pamte da se
-        // s naloga vidi na što se odnosi.
-        let sepaItem = null;
-        if (sepa) {
-            const rezultat = await dodajStavku(models, {
-                sepa_order_uuid: sepa.sepa_order_uuid,
-                recipient_name: sepa.recipient_name,
-                recipient_iban: sepa.recipient_iban,
+        // Stavka platnog naloga: jedan povrat po stornu, bez obzira na broj
+        // karata — primatelj je jedan i novac ide jednom stavkom. Karte se
+        // pamte da se s naloga vidi na što se odnosi.
+        let refundItem = null;
+        if (nalogPovrata) {
+            const provider = String(nalogPovrata.provider).toUpperCase();
+            const stavka = {
+                payment_order_uuid: nalogPovrata.payment_order_uuid,
                 amount: total_amount, // negativan na računu, u nalogu ide kao iznos isplate
                 storno_invoice_uuid: invoice_uuid,
                 storno_invoice_code: finalInvoiceCode,
                 ticket_uuids: tickets.map((t) => t.ticket_uuid),
                 ticket_codes: tickets.map((t) => t.ticket_code).filter(Boolean),
                 description: `Povrat po stornu ${finalInvoiceCode} - ${tickets.length} ${rijecKarte(tickets.length)}`,
-                created_by: sepa.created_by || null,
-            });
+                created_by: refund.created_by || null,
+            };
+
+            if (provider === "SEPA") {
+                stavka.recipient_name = refund.recipient_name;
+                stavka.recipient_iban = refund.recipient_iban;
+            } else {
+                // Kartičarska kuća povrat provodi po izvornoj transakciji, pa se
+                // podaci čitaju s računa kojim je karta plaćena — operater ih ne
+                // upisuje. Račun se traži po vezi s karte, a kod web prodaje po
+                // narudžbi, jer ondje veza na račun zna nedostajati.
+                const izvorniUuid = tickets.find((t) => t.invoice_uuid)?.invoice_uuid || null;
+                const orderUuid = tickets.find((t) => t.order_uuid)?.order_uuid || null;
+                const izvorni = izvorniUuid
+                    ? await InvoiceModel.findOne({ where: { invoice_uuid: izvorniUuid } })
+                    : (orderUuid
+                        ? await InvoiceModel.findOne({ where: { order_uuid: { [Op.like]: `%${orderUuid}%` } } })
+                        : null);
+                const pd = izvorni?.invoice_payment_data || {};
+                stavka.original_invoice_uuid = izvorni?.invoice_uuid || null;
+                stavka.original_invoice_no = izvorni ? `${izvorni.invoice_no}/${izvorni.invoice_year}` : null;
+                // Nazivi polja se razlikuju po provideru: terminal vraća
+                // authCode/tid, Monri approval_code uz vlastitu referencu.
+                stavka.card_mask = pd.cardNumber || pd.masked_pan || null;
+                stavka.card_type = pd.cardType || pd.card_type || null;
+                stavka.auth_code = pd.authCode || pd.approval_code || null;
+                stavka.terminal_id = pd.tid || pd.terminal_id || null;
+                stavka.transaction_reference = pd.transactionIdentifier || pd.transaction_id || pd.order_number || null;
+                stavka.transaction_date = pd.transactionDate || pd.received_at || null;
+            }
+
+            const rezultat = await dodajStavku(models, stavka);
             if (rezultat.status !== 200) {
                 // Storno je već izdan; povrat se onda evidentira ručno u nalogu.
-                console.log("SEPA stavka nije zapisana:", rezultat.body?.message);
+                console.log("stavka platnog naloga nije zapisana:", rezultat.body?.message);
             } else {
-                sepaItem = rezultat.body.item;
+                refundItem = rezultat.body.item;
             }
         }
 
@@ -335,7 +398,7 @@ const cancelTicketsController = async (req, res) => {
                 is_f2: isF2,
                 total_amount,
                 canceled_ticket_uuids: tickets.map((t) => t.ticket_uuid),
-                sepa_item: sepaItem,
+                refund_item: refundItem,
             },
         });
     } catch (error) {

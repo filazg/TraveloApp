@@ -25,7 +25,7 @@ const { upsertTerminalShiftController, listShiftsController } = require('../cont
 const { apiCreateOrderController, apiGetOrderController, apiConfirmOrderController, apiCancelOrderController, apiTripDetailsController } = require('../controllers/dataControllers/apiOrderControllers');
 const { dailyRealizationReportController, sendDailyRealizationToErpController } = require('../controllers/dataControllers/dailyRealizationReportController');
 const { dailyRealizationDemoController, sendDailyRealizationDemoToErpController } = require('../controllers/dataControllers/dailyRealizationDemoController');
-const { listSepaOrdersController, getSepaOrderController, createSepaOrderController, setSepaOrderStatusController, addSepaOrderItemController, deleteSepaOrderItemController, sepaOrderXmlController } = require('../controllers/dataControllers/sepaControllers');
+const { listPaymentOrdersController, getPaymentOrderController, createPaymentOrderController, setPaymentOrderStatusController, addPaymentOrderItemController, deletePaymentOrderItemController, paymentOrderXmlController } = require('../controllers/dataControllers/paymentOrderControllers');
 const router = express.Router();
 
 router
@@ -146,31 +146,31 @@ router
     .route('/yescor_test_submit')
     .get(yescorTestSubmitController)
 
-// SEPA nalozi — povrati na račun. Nalog okuplja stavke iz više storna.
+// Platni nalozi — povrati kupcu, po provideru (SEPA, MONRI, OTP_POS, SEVENPAY).
 router
-    .route('/sepa_orders')
-    .get(listSepaOrdersController)
-    .post(createSepaOrderController)
+    .route('/payment_orders')
+    .get(listPaymentOrdersController)
+    .post(createPaymentOrderController)
 
 router
-    .route('/sepa_order/:sepa_order_uuid')
-    .get(getSepaOrderController)
+    .route('/payment_order/:payment_order_uuid')
+    .get(getPaymentOrderController)
 
 router
-    .route('/sepa_order_xml/:sepa_order_uuid')
-    .get(sepaOrderXmlController)
+    .route('/payment_order_xml/:payment_order_uuid')
+    .get(paymentOrderXmlController)
 
 router
-    .route('/sepa_order_status')
-    .post(setSepaOrderStatusController)
+    .route('/payment_order_status')
+    .post(setPaymentOrderStatusController)
 
 router
-    .route('/sepa_order_items')
-    .post(addSepaOrderItemController)
+    .route('/payment_order_items')
+    .post(addPaymentOrderItemController)
 
 router
-    .route('/sepa_order_item_delete')
-    .post(deleteSepaOrderItemController)
+    .route('/payment_order_item_delete')
+    .post(deletePaymentOrderItemController)
 
 router
     .route('/terminal_shift')

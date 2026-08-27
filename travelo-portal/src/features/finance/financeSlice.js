@@ -162,6 +162,21 @@ export const fetchBillingDevicesFullThunk = createAsyncThunk(
     }
 );
 
+export const fetchPaymentMethodsListThunk = createAsyncThunk(
+    "finance/fetchPaymentMethodsList",
+    async (_, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/backoffice/payment_methods");
+            const payload = unwrapBff(resp);
+            // Šifarnik nosi `card_provider`, kojeg sredstvo na naplatnom uređaju
+            // nema — a po njemu se zna u čiji nalog ide povrat na karticu.
+            return Array.isArray(payload) ? payload : payload?.payment_methods || [];
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
 export const fetchBusinessPremisesListThunk = createAsyncThunk(
     "finance/fetchBusinessPremisesList",
     async (_, { rejectWithValue }) => {
@@ -387,15 +402,16 @@ export const emailInvoiceTicketsThunk = createAsyncThunk(
         }
     }
 );
-// ——— SEPA nalozi ———————————————————————————————————————————————————————
-// Nalog je zbirka povrata koji idu na račun; stavke se u njega dodaju kroz
-// storno ("Vrati na IBAN") ili ručno na pregledu naloga.
+// ——— Platni nalozi ——————————————————————————————————————————————————————
+// Nalog je zbirka povrata kupcu, grupirana po tome kome se predaje: banci
+// (SEPA) ili kartičarskoj kući (MONRI, OTP_POS, SEVENPAY). Stavke u nalog
+// ulaze kroz storno karata.
 
-export const fetchSepaOrdersThunk = createAsyncThunk(
-    "finance/fetchSepaOrders",
+export const fetchPaymentOrdersThunk = createAsyncThunk(
+    "finance/fetchPaymentOrders",
     async (params = {}, { rejectWithValue }) => {
         try {
-            const resp = await api.get("/portal/transactions/sepa_orders", { params });
+            const resp = await api.get("/portal/transactions/payment_orders", { params });
             const payload = unwrapBff(resp);
             return payload?.orders || [];
         } catch (err) {
@@ -404,11 +420,11 @@ export const fetchSepaOrdersThunk = createAsyncThunk(
     }
 );
 
-export const fetchSepaOrderDetailsThunk = createAsyncThunk(
-    "finance/fetchSepaOrderDetails",
-    async (sepa_order_uuid, { rejectWithValue }) => {
+export const fetchPaymentOrderDetailsThunk = createAsyncThunk(
+    "finance/fetchPaymentOrderDetails",
+    async (payment_order_uuid, { rejectWithValue }) => {
         try {
-            const resp = await api.get(`/portal/transactions/sepa_order/${sepa_order_uuid}`);
+            const resp = await api.get(`/portal/transactions/payment_order/${payment_order_uuid}`);
             const payload = unwrapBff(resp);
             return { order: payload?.order || null, items: payload?.items || [] };
         } catch (err) {
@@ -419,11 +435,11 @@ export const fetchSepaOrderDetailsThunk = createAsyncThunk(
 
 // POST rukovatelji BFF-a vraćaju tijelo transactions-servisa doslovno, pa je
 // korisni sadržaj na `resp.data.data` — i poruka o grešci dolazi ista.
-const sepaPost = async (putanja, payload, rejectWithValue) => {
+const nalogPost = async (putanja, payload, rejectWithValue) => {
     try {
         const resp = await api.post(putanja, payload);
         if (resp.data?.status && resp.data.status >= 400) {
-            return rejectWithValue(unwrapPost(resp) || { message: "SEPA nalog nije spremljen" });
+            return rejectWithValue(unwrapPost(resp) || { message: "platni nalog nije spremljen" });
         }
         return unwrapPost(resp);
     } catch (err) {
@@ -432,24 +448,24 @@ const sepaPost = async (putanja, payload, rejectWithValue) => {
     }
 };
 
-export const createSepaOrderThunk = createAsyncThunk(
-    "finance/createSepaOrder",
-    (payload, { rejectWithValue }) => sepaPost("/portal/transactions/sepa_orders", payload, rejectWithValue)
+export const createPaymentOrderThunk = createAsyncThunk(
+    "finance/createPaymentOrder",
+    (payload, { rejectWithValue }) => nalogPost("/portal/transactions/payment_orders", payload, rejectWithValue)
 );
 
-export const setSepaOrderStatusThunk = createAsyncThunk(
-    "finance/setSepaOrderStatus",
-    (payload, { rejectWithValue }) => sepaPost("/portal/transactions/sepa_order_status", payload, rejectWithValue)
+export const setPaymentOrderStatusThunk = createAsyncThunk(
+    "finance/setPaymentOrderStatus",
+    (payload, { rejectWithValue }) => nalogPost("/portal/transactions/payment_order_status", payload, rejectWithValue)
 );
 
-export const addSepaOrderItemThunk = createAsyncThunk(
-    "finance/addSepaOrderItem",
-    (payload, { rejectWithValue }) => sepaPost("/portal/transactions/sepa_order_items", payload, rejectWithValue)
+export const addPaymentOrderItemThunk = createAsyncThunk(
+    "finance/addPaymentOrderItem",
+    (payload, { rejectWithValue }) => nalogPost("/portal/transactions/payment_order_items", payload, rejectWithValue)
 );
 
-export const deleteSepaOrderItemThunk = createAsyncThunk(
-    "finance/deleteSepaOrderItem",
-    (payload, { rejectWithValue }) => sepaPost("/portal/transactions/sepa_order_item_delete", payload, rejectWithValue)
+export const deletePaymentOrderItemThunk = createAsyncThunk(
+    "finance/deletePaymentOrderItem",
+    (payload, { rejectWithValue }) => nalogPost("/portal/transactions/payment_order_item_delete", payload, rejectWithValue)
 );
 
 const financeSlice = createSlice({
@@ -480,6 +496,7 @@ const financeSlice = createSlice({
         harborsList: [],
         billingDevicesFull: [],
         businessPremisesList: [],
+        paymentMethodsList: [],
         stornoPercentages: [],
         salesRoutes: [],
         salesPrices: [],
@@ -495,13 +512,13 @@ const financeSlice = createSlice({
             year: new Date().getFullYear(),
             month: new Date().getMonth() + 1,
         },
-        sepaOrders: [],
-        sepaOrdersLoading: false,
-        sepaOrdersError: null,
-        sepaOrderDetails: { order: null, items: [] },
-        sepaOrderDetailsLoading: false,
-        sepaSaving: false,
-        sepaError: null,
+        paymentOrders: [],
+        paymentOrdersLoading: false,
+        paymentOrdersError: null,
+        paymentOrderDetails: { order: null, items: [] },
+        paymentOrderDetailsLoading: false,
+        nalogSaving: false,
+        nalogError: null,
         shifts: [],
         shiftsLoading: false,
         shiftsError: null,
@@ -705,6 +722,7 @@ const financeSlice = createSlice({
                 s.businessPremisesList = a.payload || [];
             })
             .addCase(fetchStornoPercentagesThunk.fulfilled, (s, a) => { s.stornoPercentages = a.payload || []; })
+            .addCase(fetchPaymentMethodsListThunk.fulfilled, (s, a) => { s.paymentMethodsList = a.payload || []; })
             .addCase(fetchSalesRoutesThunk.fulfilled, (s, a) => { s.salesRoutes = a.payload || []; })
             .addCase(fetchSalesPricesThunk.fulfilled, (s, a) => { s.salesPrices = a.payload || []; })
             .addCase(transferTicketsThunk.pending, (s) => { s.transferLoading = true; s.transferError = null; })
@@ -723,28 +741,28 @@ const financeSlice = createSlice({
                 s.cancelLoading = false;
                 s.cancelError = a.payload?.message || "Storno nije uspio";
             })
-            .addCase(fetchSepaOrdersThunk.pending, (s) => {
-                s.sepaOrdersLoading = true;
-                s.sepaOrdersError = null;
+            .addCase(fetchPaymentOrdersThunk.pending, (s) => {
+                s.paymentOrdersLoading = true;
+                s.paymentOrdersError = null;
             })
-            .addCase(fetchSepaOrdersThunk.fulfilled, (s, a) => {
-                s.sepaOrdersLoading = false;
-                s.sepaOrders = a.payload || [];
+            .addCase(fetchPaymentOrdersThunk.fulfilled, (s, a) => {
+                s.paymentOrdersLoading = false;
+                s.paymentOrders = a.payload || [];
             })
-            .addCase(fetchSepaOrdersThunk.rejected, (s, a) => {
-                s.sepaOrdersLoading = false;
-                s.sepaOrdersError = a.payload?.message || "Dohvat SEPA naloga nije uspio";
+            .addCase(fetchPaymentOrdersThunk.rejected, (s, a) => {
+                s.paymentOrdersLoading = false;
+                s.paymentOrdersError = a.payload?.message || "Dohvat platnih naloga nije uspio";
             })
-            .addCase(fetchSepaOrderDetailsThunk.pending, (s) => {
-                s.sepaOrderDetailsLoading = true;
+            .addCase(fetchPaymentOrderDetailsThunk.pending, (s) => {
+                s.paymentOrderDetailsLoading = true;
             })
-            .addCase(fetchSepaOrderDetailsThunk.fulfilled, (s, a) => {
-                s.sepaOrderDetailsLoading = false;
-                s.sepaOrderDetails = a.payload || { order: null, items: [] };
+            .addCase(fetchPaymentOrderDetailsThunk.fulfilled, (s, a) => {
+                s.paymentOrderDetailsLoading = false;
+                s.paymentOrderDetails = a.payload || { order: null, items: [] };
             })
-            .addCase(fetchSepaOrderDetailsThunk.rejected, (s) => {
-                s.sepaOrderDetailsLoading = false;
-                s.sepaOrderDetails = { order: null, items: [] };
+            .addCase(fetchPaymentOrderDetailsThunk.rejected, (s) => {
+                s.paymentOrderDetailsLoading = false;
+                s.paymentOrderDetails = { order: null, items: [] };
             })
             .addCase(fetchManagementReportThunk.pending, (s) => {
                 s.managementReportLoading = true;
@@ -864,20 +882,20 @@ const financeSlice = createSlice({
                     error: a.payload?.error?.message || a.error?.message || "Slanje u ERP nije uspjelo",
                 };
             })
-            // Sve izmjene SEPA naloga dijele isti par zastavica — u sučelju se
+            // Sve izmjene platnog naloga dijele isti par zastavica — u sučelju se
             // u jednom trenutku radi samo jedna od njih. Matcheri idu na kraj
             // lanca, jer RTK ne dopušta addCase nakon addMatcher.
             .addMatcher(
-                (a) => /^finance\/(createSepaOrder|setSepaOrderStatus|addSepaOrderItem|deleteSepaOrderItem)\/pending$/.test(a.type),
-                (s) => { s.sepaSaving = true; s.sepaError = null; }
+                (a) => /^finance\/(createPaymentOrder|setPaymentOrderStatus|addPaymentOrderItem|deletePaymentOrderItem)\/pending$/.test(a.type),
+                (s) => { s.nalogSaving = true; s.nalogError = null; }
             )
             .addMatcher(
-                (a) => /^finance\/(createSepaOrder|setSepaOrderStatus|addSepaOrderItem|deleteSepaOrderItem)\/fulfilled$/.test(a.type),
-                (s) => { s.sepaSaving = false; }
+                (a) => /^finance\/(createPaymentOrder|setPaymentOrderStatus|addPaymentOrderItem|deletePaymentOrderItem)\/fulfilled$/.test(a.type),
+                (s) => { s.nalogSaving = false; }
             )
             .addMatcher(
-                (a) => /^finance\/(createSepaOrder|setSepaOrderStatus|addSepaOrderItem|deleteSepaOrderItem)\/rejected$/.test(a.type),
-                (s, a) => { s.sepaSaving = false; s.sepaError = a.payload?.message || "Spremanje nije uspjelo"; }
+                (a) => /^finance\/(createPaymentOrder|setPaymentOrderStatus|addPaymentOrderItem|deletePaymentOrderItem)\/rejected$/.test(a.type),
+                (s, a) => { s.nalogSaving = false; s.nalogError = a.payload?.message || "Spremanje nije uspjelo"; }
             );
     },
 });
@@ -930,8 +948,8 @@ export const downloadHarborTaxPdf = async ({ year, month, region } = {}) => {
 // SEPA datoteka za e-bankarstvo (pain.001). Ime datoteke slaže backend, pa se
 // čita iz content-disposition. Greška dolazi kao JSON — pročita se iz blob-a i
 // vrati kao poruka, da se korisniku ne spremi datoteka s greškom.
-export const downloadSepaXml = async (sepa_order_uuid, { execution_date } = {}) => {
-    const resp = await api.get(`/portal/transactions/sepa_order_xml/${sepa_order_uuid}`, {
+export const downloadSepaXml = async (payment_order_uuid, { execution_date } = {}) => {
+    const resp = await api.get(`/portal/transactions/payment_order_xml/${payment_order_uuid}`, {
         params: { execution_date: execution_date || undefined },
         responseType: "blob",
         validateStatus: () => true,
@@ -955,7 +973,7 @@ export const downloadSepaXml = async (sepa_order_uuid, { execution_date } = {}) 
     const objUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = objUrl;
-    a.download = match?.[1] || `sepa-${sepa_order_uuid.slice(0, 8)}.xml`;
+    a.download = match?.[1] || `sepa-${payment_order_uuid.slice(0, 8)}.xml`;
     document.body.appendChild(a);
     a.click();
     a.remove();
