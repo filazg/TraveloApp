@@ -97,7 +97,19 @@ export const fetchPartnersListThunk = createAsyncThunk(
             const resp = await api.get("/portal/backoffice/partners");
             const payload = unwrapBff(resp);
             const list = payload?.partners || (Array.isArray(payload) ? payload : []);
-            return list.map((p) => ({ uuid: p.uuid, partner_name: p.partner_name, is_active: p.is_active }));
+            // Uz naziv se zadržavaju i podaci koje traži izvještaj o otkazanim
+            // kartama: OIB i kontakt idu u zaglavlje, provizija u obračun onoga
+            // što se partneru skida sa zbirnog računa.
+            return list.map((p) => ({
+                uuid: p.uuid,
+                partner_name: p.partner_name,
+                partner_acr: p.partner_acr,
+                partner_legal_id: p.partner_legal_id,
+                partner_email: p.partner_email,
+                partner_contact_person: p.partner_contact_person,
+                commission_pct: p.commission_pct,
+                is_active: p.is_active,
+            }));
         } catch (err) {
             return rejectWithValue(err.response?.data || { message: err.message });
         }
