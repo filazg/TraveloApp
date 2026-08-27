@@ -5,10 +5,32 @@
 // upitu i pregled karata puca s "column ... does not exist".
 //
 // Pokretanje:  node migrate_ticket_transfer_fields.js
+//              APP_ENV=test_do DB_PASS='...' node migrate_ticket_transfer_fields.js
+//
+// Profil se bira po APP_ENV, isto pravilo kao u control-serviceu — inače bi se
+// na poslužitelju gađala lokalna baza. Lozinka u repou namjerno nije zapisana,
+// pa se uzima iz okoline; bez toga migracija padne na "password authentication
+// failed for user doadmin".
 const { Sequelize } = require("sequelize");
-const cfg = require("../travelo-control-service/config/databases_configs.json").transactions_service;
+const { syncCoreServiceConfigData, syncDatabaseConfigData, getDatabaseConfigData } = require("./controllers/configSyncController");
+
+// Postavke se traže od control-servisa, kao i kod ostalih migracija: on zna
+// koji je profil aktivan (APP_ENV) i on ubacuje lozinku iz svoje okoline.
+// Prije se čitao lokalni JSON iz repoa, u kojem je lozinka prazna — pa je
+// migracija na poslužitelju padala s "password authentication failed".
+const dohvatiPostavke = async () => {
+    await syncCoreServiceConfigData();
+    await syncDatabaseConfigData();
+    const cfg = await getDatabaseConfigData();
+    if (!cfg?.db_pass) {
+        throw new Error("control-service nije vratio lozinku baze — provjeri DB_PASS u njegovoj okolini");
+    }
+    return cfg;
+};
 
 (async () => {
+    const cfg = await dohvatiPostavke();
+    console.log(`baza: ${cfg.db_name} @ ${cfg.db_host}`);
     const sequelize = new Sequelize(cfg.db_name, cfg.db_username, cfg.db_pass, {
         host: cfg.db_host,
         port: cfg.db_port,
