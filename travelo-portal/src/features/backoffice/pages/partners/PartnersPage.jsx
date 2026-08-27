@@ -277,9 +277,17 @@ export default function PartnersPage (){
                             setRowsToActivate(params.row)
                         }}
                     />
-                </Box>                
+                </Box>
+                {/* Ladica za novog partnera je postojala, ali je nitko nije
+                    otvarao — gumba nije bilo. Stoji ispod tablice, kao i na
+                    ostalim šifarnicima. */}
+                <Stack sx={{ mt: 1 }} alignItems="flex-start">
+                    <Button onClick={() => setOpenAdd(true)}>
+                        {t('backoffice.partners.add_partner')}
+                    </Button>
+                </Stack>
             </>
-        </Box>    
+        </Box>
             <Drawer
                 anchor="right"
                 open={openAdd}
