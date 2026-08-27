@@ -59,7 +59,10 @@ export  function LoadingOverlay({ text = "Loading..." }) {
     <Backdrop
       open={authData.loading}
       sx={{
-        zIndex: (theme) => theme.zIndex.drawer + 1,
+        // Iznad modala (1300), ne iznad ladice (1200): storno, prebacivanje i
+        // slanje e-maila pokreću se iz otvorenog prozora, pa se prekrivač na
+        // nižem sloju crtao ispod njega i izgledalo je kao da ga nema.
+        zIndex: (theme) => theme.zIndex.modal + 500,
         backdropFilter: "blur(3px)",
         backgroundColor: "rgba(150, 209, 242, 0.35)", // tvoja brand boja
       }}
