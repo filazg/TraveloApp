@@ -79,9 +79,11 @@ export default function TransferTicketsModal({ open, tickets, onClose, onTransfe
 
     useEffect(() => {
         if (!open) return;
-        if (!billingDevicesFull.length) dispatch(fetchBillingDevicesFullThunk());
+        // Isto kao kod storna: uređaji i postotci se mijenjaju drugdje, pa se
+        // uzimaju iznova, a ne samo kad ih još nema.
+        dispatch(fetchBillingDevicesFullThunk());
+        dispatch(fetchStornoPercentagesThunk());
         if (!businessPremisesList.length) dispatch(fetchBusinessPremisesListThunk());
-        if (!stornoPercentages.length) dispatch(fetchStornoPercentagesThunk());
         if (!salesRoutes.length) dispatch(fetchSalesRoutesThunk());
         if (!salesPrices.length) dispatch(fetchSalesPricesThunk());
     }, [open, dispatch, billingDevicesFull.length, businessPremisesList.length,

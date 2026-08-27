@@ -50,12 +50,17 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
     const [refund, setRefund] = useState(null);
     const [refundOpen, setRefundOpen] = useState(false);
 
+    // Uređaji, sredstva plaćanja i postotci se mijenjaju u Administraciji, pa se
+    // dohvaćaju pri svakom otvaranju. Dok se učitavalo samo kad je popis prazan,
+    // izmjena u šifarniku nije stizala do storna sve do osvježavanja stranice —
+    // novo kartično sredstvo na uređaju se jednostavno nije nudilo.
     useEffect(() => {
-        if (open && !billingDevicesFull.length) dispatch(fetchBillingDevicesFullThunk());
-        if (open && !businessPremisesList.length) dispatch(fetchBusinessPremisesListThunk());
-        if (open && !stornoPercentages.length) dispatch(fetchStornoPercentagesThunk());
-        if (open && !paymentMethodsList.length) dispatch(fetchPaymentMethodsListThunk());
-    }, [open, billingDevicesFull.length, businessPremisesList.length, stornoPercentages.length, paymentMethodsList.length, dispatch]);
+        if (!open) return;
+        dispatch(fetchBillingDevicesFullThunk());
+        dispatch(fetchPaymentMethodsListThunk());
+        dispatch(fetchStornoPercentagesThunk());
+        if (!businessPremisesList.length) dispatch(fetchBusinessPremisesListThunk());
+    }, [open, businessPremisesList.length, dispatch]);
 
     useEffect(() => {
         if (!open) {
