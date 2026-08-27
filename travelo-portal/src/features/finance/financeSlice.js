@@ -334,7 +334,12 @@ export const fetchSalesRoutesThunk = createAsyncThunk(
     "finance/fetchSalesRoutes",
     async (_, { rejectWithValue }) => {
         try {
-            const resp = await api.get("/portal/sales/routes");
+            // Isti rez kao u POS prodaji: samo stupci koji se koriste i bez
+            // prošlih polazaka. Vozni red je nekoliko tisuća redaka, a pregled
+            // karata i promjena polaska od njega trebaju samo linije, vremena i
+            // luke — bez toga se pri svakom ulasku vukla puna tablica.
+            const od = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+            const resp = await api.get("/portal/sales/routes", { params: { from_date: od, fields: "pos" } });
             const p = unwrapBff(resp);
             return Array.isArray(p) ? p : (p?.routes || []);
         } catch (err) { return rejectWithValue({ message: err.message }); }

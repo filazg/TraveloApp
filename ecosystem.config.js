@@ -56,17 +56,26 @@ const PORTAL_PORT = Number(process.env.PORTAL_PORT) || 5174;
 const PARTNER_SALES_PORT = Number(process.env.PARTNER_SALES_PORT) || 5175;
 const WEB_SALES_PORT = Number(process.env.WEB_SALES_PORT) || 5176;
 
+// SPA_MODE=preview poslužuje gotov build (`npm run build`), dev server ostaje
+// zadano. Razlika je velika na poslužitelju: u dev modu preglednik povuče
+// stotine modula, svaki kao zaseban zahtjev — nakon `git pull` i restarta Vite
+// baci međuspremnik pa se sve dohvaća ispočetka i stranica se otvara minutama.
+// Build je jedan paket.
+const SPA_MODE = process.env.SPA_MODE === 'preview' ? 'preview' : 'dev';
+
 const vite = (name, port, basePath, extraEnv = {}) => ({
   name,
   cwd: `./${name}`,
   script: './node_modules/vite/bin/vite.js',
-  args: `--host 127.0.0.1 --port ${port} --base ${basePath}`,
+  args: SPA_MODE === 'preview'
+    ? `preview --host 127.0.0.1 --port ${port} --base ${basePath}`
+    : `--host 127.0.0.1 --port ${port} --base ${basePath}`,
   instances: 1,
   autorestart: true,
   restart_delay: 3000,
   max_restarts: 20,
   watch: false,
-  env: { NODE_ENV: 'development', ...extraEnv },
+  env: { NODE_ENV: SPA_MODE === 'preview' ? 'production' : 'development', ...extraEnv },
 });
 
 module.exports = {

@@ -64,6 +64,37 @@ Ili minimalno (kad se mijenja samo kod, bez deps):
 git pull && pm2 reload ecosystem.config.js --update-env
 ```
 
+## SPA-ovi: dev server ili posluženi build
+
+Po zadanom SPA-ovi rade kao **Vite dev server**. Na poslužitelju to znači da
+preglednik povuče stotine modula, svaki kao zaseban zahtjev — izmjereno na
+testnom VM-u: `react-dom` 982 kB / 4.0 s, `@mui/material` 586 kB / 1.8 s,
+prosjek ~1 s po modulu. Nakon `git pull` i restarta Vite baci međuspremnik pa
+se sve dohvaća ispočetka i portal se otvara minutama.
+
+Zato na poslužitelju treba **posluženi build**: jedan paket (~2.6 MB) u jednom
+zahtjevu. Nginx se ne dira — `vite preview` sluša na istom portu i istom
+base putu.
+
+```bash
+bash deploy/spa_build.sh          # npm run build za sva tri SPA-a
+
+# prvi put: procesi se moraju podići s novim argumentima
+pm2 delete travelo-portal travelo-partner-sales travelo-web-sales
+SPA_MODE=preview pm2 start ecosystem.config.js   --only travelo-portal,travelo-partner-sales,travelo-web-sales --update-env
+pm2 save
+```
+
+Ubuduće je nakon `git pull` dovoljan **samo build** — `vite preview` čita
+`dist/` pri svakom zahtjevu, pa restart procesa nije potreban:
+
+```bash
+git pull && bash deploy/spa_build.sh
+```
+
+Za povratak na dev server: `pm2 delete` pa `pm2 start ecosystem.config.js`
+bez `SPA_MODE`.
+
 ## Troubleshooting
 
 ```bash
