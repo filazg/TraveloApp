@@ -278,14 +278,6 @@ export default function PartnersPage (){
                         }}
                     />
                 </Box>
-                {/* Ladica za novog partnera je postojala, ali je nitko nije
-                    otvarao — gumba nije bilo. Stoji ispod tablice, kao i na
-                    ostalim šifarnicima. */}
-                <Stack sx={{ mt: 1 }} alignItems="flex-start">
-                    <Button onClick={() => setOpenAdd(true)}>
-                        {t('backoffice.partners.add_partner')}
-                    </Button>
-                </Stack>
             </>
         </Box>
             <Drawer
@@ -679,8 +671,11 @@ export default function PartnersPage (){
                     </Button>
                 </Box>   
             </Drawer>
+            {/* Otvara ladicu s obrascem. Prije je bio spojen na `handleSubmit`,
+                pa je klik pokušavao spremiti praznog partnera i činilo se da se
+                forma ne otvara — obrazac se nikad nije ni prikazao. */}
             <Stack sx={{width:'96%', ml:1}} alignItems='flex-start'>
-                <Button onClick={handleSubmit}>
+                <Button onClick={() => setOpenAdd(true)}>
                     {t('backoffice.partners.add_partner')}
                 </Button>
             </Stack>
