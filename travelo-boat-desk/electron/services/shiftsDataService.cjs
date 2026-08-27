@@ -331,8 +331,12 @@ const closeShiftService = async(data) =>{
             // prvog F2 računa u smjeni razilazila s onim što piše na računu.
             // Sada se uzima invoice_code sa samog računa.
             const totals = buildShiftTotals(shiftInvoices);
+            // Kod automatskog zatvaranja smjena završava u trenutku granice
+            // (01:00), a ne kad je aplikacija to primijetila — inače bi smjena
+            // ispala duža nego što je stvarno trajala.
             await shiftModel.update({
-               shift_end:new Date(),
+               shift_end: data.shift_end || new Date(),
+               ...(data.remark ? { remark: data.remark } : {}),
                shift_open: false,
                shift_first_invoice: totals.shift_first_invoice,
                shift_last_invoice: totals.shift_last_invoice,
@@ -380,9 +384,12 @@ const closeShiftService = async(data) =>{
             console.log('SHIFT DATA TO PRINT', dataToSend)
             // Smjena je zatvorena i kad printer zakaže, ali operater to mora
             // saznati — za izvještaj smjene nema naknadnog ispisa kopije.
-            let shiftPrinted = false
+            // Automatsko zatvaranje ne ispisuje: nitko nije za blagajnom u 01:00,
+            // a izvještaj bi ostao na printeru do jutra. Operater ga poslije
+            // izvuče kroz ponovni ispis smjene.
+            let shiftPrinted = data.automatski ? true : false
             try {
-                shiftPrinted = await shiftPrintHelper(dataToSend)
+                if (!data.automatski) shiftPrinted = await shiftPrintHelper(dataToSend)
             } catch (printErr) {
                 console.log('shiftPrintHelper failed (printer issue?):', printErr?.message || printErr)
             }
@@ -470,8 +477,52 @@ async function syncPendingShiftsService() {
     }
 }
 
+
+// Smjena se ne smije prenijeti u sljedeći dan: sve što u 01:00 još stoji
+// otvoreno zatvara se samo. Granica je zadnji prošli 01:00 — ako je sada
+// 00:30, to je jučerašnji, a ako je 07:00, današnji. Time se pokriva i slučaj
+// kad je blagajna preko noći bila ugašena: smjena se zatvori pri prvom
+// pokretanju, ali s vremenom završetka u 01:00, ne u trenutku pokretanja.
+const GRANICA_SAT = 1;
+
+// Prvi 01:00 nakon početka smjene. Granica se veže uz smjenu, ne uz današnji
+// dan: blagajna zna biti ugašena danima, a smjena otvorena u ponedjeljak mora
+// završiti u utorak u 01:00 — ne u 01:00 onog dana kad se aplikacija upali.
+const granicaZatvaranja = (pocetak) => {
+    const granica = new Date(pocetak);
+    granica.setHours(GRANICA_SAT, 0, 0, 0);
+    if (granica <= new Date(pocetak)) granica.setDate(granica.getDate() + 1);
+    return granica;
+};
+
+const autoCloseShiftsService = async (sada = new Date()) => {
+    try {
+        const otvorene = await shiftModel.findAll({ where: { shift_open: true } });
+        const zaostale = otvorene
+            .map((s) => ({ smjena: s, granica: granicaZatvaranja(s.shift_start) }))
+            .filter((x) => x.granica <= sada);
+        if (!zaostale.length) return { closed: 0 };
+
+        for (const { smjena, granica } of zaostale) {
+            console.log(`[shift-auto] zatvaram ${smjena.shift_uuid} (otvorena ${smjena.shift_start}) na ${granica.toISOString()}`);
+            await closeShiftService({
+                shift_uuid: smjena.shift_uuid,
+                shift_end: granica,
+                automatski: true,
+                remark: 'Automatski zatvorena u 01:00',
+            });
+        }
+        return { closed: zaostale.length };
+    } catch (error) {
+        console.log('autoCloseShiftsService error:', error?.message || error);
+        return { closed: 0, error: error?.message || 'error' };
+    }
+};
+
 module.exports = {
     getShiftsDataService,
+    autoCloseShiftsService,
+    granicaZatvaranja,
     openNewShiftService,
     closeShiftService,
     shiftSummaryService,

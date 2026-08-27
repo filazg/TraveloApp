@@ -7,7 +7,7 @@ const { registerIpcHandlers } = require("./ipc/index.cjs");
 const { pairingDataModel } = require("./db/models/Pairing.cjs");
 const { systemSettingsDataModel } = require("./db/models/Settings.cjs");
 const { syncPendingInvoicesService } = require("./services/invoiceDataService.cjs");
-const { syncPendingShiftsService } = require("./services/shiftsDataService.cjs");
+const { syncPendingShiftsService, autoCloseShiftsService } = require("./services/shiftsDataService.cjs");
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5182";
 const DEBUG_PROD = process.env.DEBUG_PROD === "1";
@@ -225,6 +225,12 @@ app.whenReady().then(async () => {
   setTimeout(() => { syncPendingShiftsService().catch(() => {}) }, 6000)
   setInterval(() => { syncPendingInvoicesService().catch(() => {}) }, 60000)
   setInterval(() => { syncPendingShiftsService().catch(() => {}) }, 60000)
+
+  // Smjena se ne prenosi u sljedeći dan — ono što u 01:00 još stoji otvoreno
+  // zatvara se samo. Provjera ide i pri pokretanju, jer je blagajna preko noći
+  // najčešće ugašena, pa se granica prijeđe dok aplikacija ne radi.
+  setTimeout(() => { autoCloseShiftsService().catch(() => {}) }, 7000)
+  setInterval(() => { autoCloseShiftsService().catch(() => {}) }, 5 * 60 * 1000)
 });
 
 const pairing = systemSettingsDataModel.findOne();

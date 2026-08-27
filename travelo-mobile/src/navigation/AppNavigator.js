@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
 import { authData, autoPairThunk, restoreTokenThunk } from '../store/slices/authSlice';
 import { syncBasicDataThunk, syncTransportDataThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
-import { loadCurrentOpenThunk, loadRecentShiftsThunk, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
+import { autoCloseStaleShiftThunk, loadCurrentOpenThunk, loadRecentShiftsThunk, shiftsData, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
 import { syncPendingSalesThunk } from '../store/slices/salesSlice';
 import { openDb } from '../db/db';
 import { voyageData } from '../store/slices/voyageSlice';
@@ -27,6 +27,7 @@ export default function AppNavigator() {
     const sync = useSelector(syncData);
     const voyage = useSelector(voyageData);
     const nav = useSelector(navData);
+    const shifts = useSelector(shiftsData);
 
     // Cold-boot: open SQLite, hydrate redux, then attempt token restore.
     useEffect(() => {
@@ -85,6 +86,23 @@ export default function AppNavigator() {
         dispatch(loadRecentShiftsThunk());
         dispatch(syncPendingShiftsThunk());
     }, [sync.hydrated, auth.operator, sync.basicData, dispatch]);
+
+    // Smjena se ne prenosi u sljedeći dan — ono što u 01:00 još stoji otvoreno
+    // zatvara se samo. Provjerava se pri pokretanju i povratku u prvi plan, jer
+    // je uređaj preko noći najčešće ugašen ili uspavan, pa granica prođe dok
+    // aplikacija ne radi. Uz to periodično, za slučaj da ostane upaljen.
+    useEffect(() => {
+        if (!sync.hydrated || !auth.operator || !sync.basicData) return;
+        const provjeri = () => dispatch(autoCloseStaleShiftThunk());
+        provjeri();
+        const timer = setInterval(provjeri, 5 * 60 * 1000);
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') provjeri();
+        });
+        return () => { clearInterval(timer); sub.remove(); };
+        // Otvorena smjena stiže asinkrono, pa se provjera ponavlja čim je učitana —
+        // inače bi jutarnje pokretanje čekalo prvi tik od pet minuta.
+    }, [sync.hydrated, auth.operator, sync.basicData, shifts.currentOpen?.shift_uuid, dispatch]);
 
     // Zaostale prodaje (synced=0) guraju se same, u pozadini. Terminal radi
     // offline-first — račun se uvijek izda i spremi lokalno, a slanje je

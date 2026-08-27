@@ -185,7 +185,7 @@ export const previewCloseShiftThunk = createAsyncThunk(
 // brojanog/uplaćenog po vrsti plaćanja (manjak/višak ide u remark).
 export const closeShiftThunk = createAsyncThunk(
     'shifts/close',
-    async ({ remark, actuals } = {}, { getState, rejectWithValue }) => {
+    async ({ remark, actuals, shift_end } = {}, { getState, rejectWithValue }) => {
         const { shifts } = getState();
         const open = shifts.currentOpen;
         if (!open) return rejectWithValue({ message: 'Nema otvorene smjene' });
@@ -208,7 +208,10 @@ export const closeShiftThunk = createAsyncThunk(
 
         const closed = {
             ...open,
-            shift_end: nowIso(),
+            // Kod automatskog zatvaranja smjena završava u trenutku granice
+            // (01:00), a ne kad je uređaj to primijetio — inače bi ispala dulja
+            // nego što je stvarno trajala.
+            shift_end: shift_end || nowIso(),
             shift_open: false,
             shift_amount: breakdown.shift_amount,
             shift_vat_base: breakdown.shift_vat_base,
@@ -234,6 +237,39 @@ export const closeShiftThunk = createAsyncThunk(
             synced: ok,
         });
         return { ...closed, _synced: ok };
+    }
+);
+
+
+// Smjena se ne prenosi u sljedeći dan: ono što u 01:00 još stoji otvoreno
+// zatvara se samo. Granica se veže uz smjenu — prvi 01:00 nakon njezina
+// početka — pa smjena otvorena u ponedjeljak završava u utorak u 01:00, i kad
+// uređaj danima nije bio upaljen. Time se pokriva i noćni prekid: smjena se
+// zatvori pri prvom pokretanju, ali s vremenom završetka u 01:00.
+const GRANICA_SAT = 1;
+
+export const granicaZatvaranja = (pocetak) => {
+    const granica = new Date(pocetak);
+    granica.setHours(GRANICA_SAT, 0, 0, 0);
+    if (granica <= new Date(pocetak)) granica.setDate(granica.getDate() + 1);
+    return granica;
+};
+
+export const autoCloseStaleShiftThunk = createAsyncThunk(
+    'shifts/autoCloseStale',
+    async (_, { getState, dispatch }) => {
+        const { shifts } = getState();
+        const open = shifts.currentOpen;
+        if (!open) return { closed: false };
+
+        const granica = granicaZatvaranja(open.shift_start);
+        if (granica > new Date()) return { closed: false };
+
+        await dispatch(closeShiftThunk({
+            remark: 'Automatski zatvorena u 01:00',
+            shift_end: granica.toISOString(),
+        }));
+        return { closed: true, shift_uuid: open.shift_uuid };
     }
 );
 
