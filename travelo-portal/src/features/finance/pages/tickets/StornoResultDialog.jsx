@@ -20,7 +20,7 @@ import EmailIcon from "@mui/icons-material/Email";
 import SendIcon from "@mui/icons-material/Send";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { emailInvoiceTicketsThunk, invoicePdfUrl } from "../../financeSlice";
-import { setAuthData } from "../../../auth/authSlice";
+import { useLoading } from "../../../loading/useLoading";
 import { formatirajIban } from "../../../../helpers/iban";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
@@ -36,6 +36,7 @@ const ZADANI_TEKST = "Poštovani,\n\n"
 // da je gotovo, a putnik ostaje bez potvrde o povratu.
 export default function StornoResultDialog({ result, onClose }) {
     const dispatch = useDispatch();
+    const { pokazi, sakrij } = useLoading();
     const inv = result?.invoice;
     const sepa = inv?.sepa_item;
     const povrat = Math.abs(Number(inv?.total_amount || 0));
@@ -60,8 +61,7 @@ export default function StornoResultDialog({ result, onClose }) {
         if (!inv || !primatelj) return;
         setSalje(true);
         setStanje(null);
-        dispatch(setAuthData({ path: "loadingMessage", value: "Slanje emaila" }));
-        dispatch(setAuthData({ path: "loading", value: true }));
+        pokazi("Priprema računa i slanje e-maila");
         // Bez `order_uuid` se šalje samo račun — kod storna karte se i ne
         // prilažu, jer više ne vrijede.
         const res = await dispatch(emailInvoiceTicketsThunk({
@@ -70,7 +70,7 @@ export default function StornoResultDialog({ result, onClose }) {
             subject: naslov || ZADANI_NASLOV,
             body: tekst || ZADANI_TEKST,
         }));
-        dispatch(setAuthData({ path: "loading", value: false }));
+        sakrij();
         setSalje(false);
         if (res.meta.requestStatus === "fulfilled") {
             setStanje({ severity: "success", message: `Email poslan na ${primatelj}` });

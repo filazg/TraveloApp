@@ -18,7 +18,7 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import EmailIcon from "@mui/icons-material/Email";
 import SendIcon from "@mui/icons-material/Send";
 import { emailInvoiceTicketsThunk, invoicePdfUrl, ticketsPdfUrl } from "../../financeSlice";
-import { setAuthData } from "../../../auth/authSlice";
+import { useLoading } from "../../../loading/useLoading";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
@@ -36,6 +36,7 @@ const ZADANI_TEKST = "Poštovani,\n\n"
 // dokument — bez toga operater vidi samo poruku da je gotovo.
 export default function TransferResultDialog({ result, onClose }) {
     const dispatch = useDispatch();
+    const { pokazi, sakrij } = useLoading();
     const inv = result?.invoice;
     const razlika = Number(inv?.total_amount || 0);
 
@@ -59,8 +60,7 @@ export default function TransferResultDialog({ result, onClose }) {
         if (!inv || !primatelj) return;
         setSalje(true);
         setStanje(null);
-        dispatch(setAuthData({ path: "loadingMessage", value: "Slanje emaila" }));
-        dispatch(setAuthData({ path: "loading", value: true }));
+        pokazi("Priprema karata i računa, slanje e-maila");
         const res = await dispatch(emailInvoiceTicketsThunk({
             invoice_uuid: inv.invoice_uuid,
             order_uuid: inv.order_uuid,
@@ -68,7 +68,7 @@ export default function TransferResultDialog({ result, onClose }) {
             subject: naslov || ZADANI_NASLOV,
             body: tekst || ZADANI_TEKST,
         }));
-        dispatch(setAuthData({ path: "loading", value: false }));
+        sakrij();
         setSalje(false);
         if (res.meta.requestStatus === "fulfilled") {
             setStanje({ severity: "success", message: `Email poslan na ${primatelj}` });

@@ -44,6 +44,7 @@ import {
     setDispatcherFilter,
 } from "./dispatcherSlice";
 import { setAuthData } from "../auth/authSlice";
+import { useLoading } from "../loading/useLoading";
 
 // DD/MM/YYYY or YYYY-MM-DD -> YYYY-MM-DD
 const toIso = (s) => {
@@ -68,6 +69,9 @@ const SAILING_STATUS = {
 export default function DispatcherPage() {
     const dispatch = useDispatch();
     const d = useSelector(dispatcherSliceData);
+    // Radnje dispečera šalju e-mailove putnicima i mijenjaju vozni red u više
+    // servisa — traju, pa moraju pokazati da se nešto radi.
+    const { pokazi, sakrij, tijekom } = useLoading();
     const [cancelOpen, setCancelOpen] = useState(false);
     const [moveOpen, setMoveOpen] = useState(false);
     const [moveDate, setMoveDate] = useState("");
@@ -248,6 +252,8 @@ export default function DispatcherPage() {
 
     const handleConfirmCancel = async () => {
         if (!activeSailing) return;
+        pokazi("Otkazivanje polaska i slanje obavijesti");
+        try {
         // Use all route uuids (including compound routes) so tickets for any origin/destination combo get canceled.
         const route_uuids = activeSailing.all_route_uuids || activeSailing.adjacent.map((l) => l.uuid);
         await dispatch(cancelSailingThunk({
@@ -265,14 +271,18 @@ export default function DispatcherPage() {
         }));
         await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
         setCancelOpen(false);
+        } finally { sakrij(); }
     };
 
     // Vracanje pogresno otkazanog polaska. Karte ostaju otkazane, pa se javlja
     // koliko ih je — polazak se vraca u prodaju prazan.
     const handleRestore = async (s) => {
         const route_uuids = s.all_route_uuids || s.adjacent.map((l) => l.uuid);
-        const r = await dispatch(restoreSailingThunk({ route_uuids }));
-        await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
+        const r = await tijekom("Vraćanje polaska u prodaju", async () => {
+            const odgovor = await dispatch(restoreSailingThunk({ route_uuids }));
+            await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
+            return odgovor;
+        });
         const ostalo = r?.payload?.tickets_still_canceled;
         if (ostalo) {
             window.alert(
@@ -304,6 +314,8 @@ export default function DispatcherPage() {
 
     const posaljiPomak = async (novoVrijeme) => {
         if (!activeSailing) return;
+        pokazi("Pomak polaska i slanje obavijesti");
+        try {
         const route_uuids = activeSailing.all_route_uuids || activeSailing.adjacent.map((l) => l.uuid);
         const r = await dispatch(rescheduleSailingThunk({
             route_uuids,
@@ -321,6 +333,7 @@ export default function DispatcherPage() {
         }));
         await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
         setMoveOpen(false);
+        } finally { sakrij(); }
         const p = r?.payload;
         if (p?.new_departure) {
             window.alert(
@@ -345,6 +358,8 @@ export default function DispatcherPage() {
 
     const handleConfirmChangeBoat = async () => {
         if (!activeSailing || !newBoatUuid) return;
+        pokazi("Promjena broda i preračun kapaciteta");
+        try {
         const res = await dispatch(changeSailingBoatThunk({
             departure_uuid: activeSailing.sailing_uuid,
             boat_uuid: newBoatUuid,
@@ -354,10 +369,13 @@ export default function DispatcherPage() {
         await dispatch(fetchDispSailingsThunk(d.filter.travel_date));
         // Dijalog ostaje otvoren ako ima upozorenja o prekoračenom kapacitetu.
         if (!payload?.recalc?.overbooked?.length) setBoatOpen(false);
+        } finally { sakrij(); }
     };
 
     const handleConfirmMessage = async () => {
         if (!activeSailing) return;
+        pokazi("Slanje poruke putnicima");
+        try {
         const route_uuids = activeSailing.all_route_uuids || activeSailing.adjacent.map((l) => l.uuid);
         await dispatch(sendSailingMessageThunk({
             route_uuids,
@@ -373,6 +391,7 @@ export default function DispatcherPage() {
             },
         }));
         setMessageOpen(false);
+        } finally { sakrij(); }
     };
 
     return (
