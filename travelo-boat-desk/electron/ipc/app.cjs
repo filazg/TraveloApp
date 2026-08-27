@@ -4,7 +4,7 @@ const { getPairingDataService } = require("../services/pairingDataService.cjs");
 const { pairingWithBackendService, syncBasicDataService, syncTransportDataService } = require("../services/backendDataService.cjs");
 const { getLocalBasicDataService, getLocalTransportDataService } = require("../services/localDataService.cjs");
 const { getBookingDataService } = require("../services/bookingDataService.cjs");
-const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService, reprintShiftService } = require("../services/shiftsDataService.cjs");
+const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService, reprintShiftService, syncPendingShiftsService } = require("../services/shiftsDataService.cjs");
 const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService } = require("../services/invoiceDataService.cjs");
 const { getBuyersDataService } = require("../services/buyersDataService.cjs");
 const { otpPaymentHandler } = require("../helpers/paymentHelpers/otpPaymentHelper.cjs");
@@ -265,6 +265,14 @@ function registerAppIpc() {
       return ok(data);
     } catch (e) {
       return fail("Failed to refresh pending F2 statuses", e?.stack || String(e));
+    }
+  });
+  ipcMain.handle("app:syncPendingShiftsIPC", async () => {
+    try {
+      const data = await syncPendingShiftsService();
+      return ok(data);
+    } catch (e) {
+      return fail("Failed to sync pending shifts", e?.stack || String(e));
     }
   });
   ipcMain.handle("app:syncPendingInvoicesIPC", async () => {

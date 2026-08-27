@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Save } from '@mui/icons-material';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import PrintIcon from '@mui/icons-material/Print';
-import { allAppData, setStateData } from "../../store/appSlice";
+import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
 
 export default function ShiftActions({params, rowId, setRowId}) {
     const dispatch = useDispatch()
@@ -45,6 +45,28 @@ export default function ShiftActions({params, rowId, setRowId}) {
         // blagajnik nakon zatvaranja u listi vidio i tuđe smjene.
         const getshiftsData = await window.api.app.getShiftsDataIpc(appData.logedUser?.user_username);
         dispatch(setStateData({ path: "shiftsData/shifts", value: getshiftsData.data.shifts || [] }));
+
+        // Zatvaranje smjene je kraj rada za blagajnom: prvo ode sve što je
+        // ostalo lokalno (blagajna radi offline-first), pa se povuku svježi
+        // podaci za sljedeću smjenu. Redoslijed je bitan — odjava vraća na
+        // prijavni ekran, a slanje zaostalog mora proći prije toga.
+        await dispatch(setStateData({path:'loadingText', value:'Slanje podataka...'}))
+        try {
+            await window.api.app.syncPendingInvoicesIPC()
+            await window.api.app.syncPendingShiftsIPC()
+            await dispatch(setStateData({path:'loadingText', value:'Osvježavanje podataka...'}))
+            await window.api.app.syncBasicBackend()
+            await window.api.app.syncTransportBackend()
+        } catch (e) {
+            // Mreža zna pasti — zaostalo ostaje lokalno i ode pri sljedećoj
+            // prilici; odjava se zbog toga ne zaustavlja.
+            console.log('sync nakon zatvaranja smjene nije prošao:', e?.message || e)
+        }
+
+        // Odjava operatera — isto što radi i ručna odjava.
+        await dispatch(resetStateData({path:'logedUser'}))
+        await dispatch(resetStateData({path:'searchData'}))
+        await dispatch(resetStateData({path:'saleData'}))
         await dispatch(setStateData({path:'status', value:'ready'}))
     };
 

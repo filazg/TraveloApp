@@ -16,6 +16,7 @@ import {
     shiftsData,
     openShiftThunk,
     closeShiftThunk,
+    syncPendingShiftsThunk,
     previewCloseShiftThunk,
     loadCurrentOpenThunk,
     loadRecentShiftsThunk,
@@ -23,7 +24,9 @@ import {
     computeShiftBreakdown,
 } from '../store/slices/shiftsSlice';
 import { loadInvoicesForShift } from '../db/repo';
-import { syncData } from '../store/slices/syncSlice';
+import { syncAllThunk, syncData } from '../store/slices/syncSlice';
+import { syncPendingSalesThunk } from '../store/slices/salesSlice';
+import { logoutOperator } from '../store/slices/authSlice';
 import { printShiftReport } from '../device/printSale';
 import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
@@ -124,6 +127,23 @@ export default function ShiftsScreen() {
                             } catch (e) {
                                 Alert.alert('Ispis', 'Smjena je zatvorena, ali ispis nije uspio.');
                             }
+                            // Zatvaranje smjene je kraj rada na uređaju: prvo se
+                            // gura sve što je ostalo lokalno, pa se povlače svježi
+                            // podaci za sljedeću smjenu, i tek onda odjava.
+                            // Redoslijed je bitan — odjava prekida ekran, a slanje
+                            // zaostalog mora proći prije toga.
+                            setBusy(true);
+                            try {
+                                await dispatch(syncPendingSalesThunk());
+                                await dispatch(syncPendingShiftsThunk());
+                                await dispatch(syncAllThunk());
+                            } catch (e) {
+                                // Mreža zna pasti — zaostalo ostaje lokalno i ode
+                                // pri sljedećoj prilici, odjava se zbog toga ne
+                                // zaustavlja.
+                            }
+                            setBusy(false);
+                            dispatch(logoutOperator());
                         } else {
                             Alert.alert('Greška', res.payload?.message || 'Zatvaranje nije uspjelo');
                         }

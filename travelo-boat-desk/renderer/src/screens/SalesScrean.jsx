@@ -17,14 +17,14 @@ import KeyboardIcon from "@mui/icons-material/Keyboard";
 import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 
-import { logout, setStateData, unpair } from "../store/appSlice";
+import { logout, resetStateData, setStateData, unpair } from "../store/appSlice";
 import BrandMark from "../components/common/BrandMark";
 import ThemeToggleButton from "../components/common/ThemeToggleButton";
 import SystemSettingsModal from "../components/common/SystemSettingsModal";
 import OperatorSettingsModal from "../components/common/OperatorSettingsModal";
 import KeyboardShortcuts from "../components/common/KeyboardShortcuts";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import FilterBar from "../components/sales/FilterBar";
 import BottomBar from "../components/sales/BottomBar";
 import ColumnPanel from "../components/sales/ColumnPanel";
@@ -46,6 +46,22 @@ export default function SalesScreen() {
   // osnovne podatke s backenda pa osvježi ono što je u memoriji. Ovdje treba
   // jer se vozni red ili cjenik znaju promijeniti usred smjene, a blagajnik se
   // dotad morao odjaviti da bi to povukao.
+  // Smjenu u 01:00 zatvara glavni proces. Kad se to dogodi, na ekranu bi inače
+  // ostao prijavljen operater čija smjena više ne postoji — pa bi sljedeća
+  // prodaja pala jer nema otvorene smjene. Zato se odjavljuje ovdje.
+  useEffect(() => {
+    const odjavi = window.api?.app?.onShiftAutoClosed?.(() => {
+      dispatch(resetStateData({ path: "logedUser" }));
+      dispatch(resetStateData({ path: "searchData" }));
+      dispatch(resetStateData({ path: "saleData" }));
+      dispatch(setStateData({
+        path: "alertData",
+        value: { message: "Smjena je automatski zatvorena u 01:00.", severity: "info" },
+      }));
+    });
+    return () => { if (typeof odjavi === "function") odjavi(); };
+  }, [dispatch]);
+
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);

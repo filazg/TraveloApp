@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, AppState, StatusBar, StyleSheet, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
-import { authData, autoPairThunk, restoreTokenThunk } from '../store/slices/authSlice';
-import { syncBasicDataThunk, syncTransportDataThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
+import { authData, autoPairThunk, logoutOperator, restoreTokenThunk } from '../store/slices/authSlice';
+import { syncBasicDataThunk, syncTransportDataThunk, syncAllThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
 import { autoCloseStaleShiftThunk, loadCurrentOpenThunk, loadRecentShiftsThunk, shiftsData, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
 import { syncPendingSalesThunk } from '../store/slices/salesSlice';
 import { openDb } from '../db/db';
@@ -93,7 +93,22 @@ export default function AppNavigator() {
     // aplikacija ne radi. Uz to periodično, za slučaj da ostane upaljen.
     useEffect(() => {
         if (!sync.hydrated || !auth.operator || !sync.basicData) return;
-        const provjeri = () => dispatch(autoCloseStaleShiftThunk());
+        // Nakon automatskog zatvaranja vrijedi isto kao kod ručnog: zaostalo
+        // ode u sustav, podaci se osvježe za sljedeću smjenu, a operater se
+        // odjavljuje — uređaj ujutro dočeka prijavni ekran, ne tuđu smjenu.
+        const provjeri = async () => {
+            const res = await dispatch(autoCloseStaleShiftThunk());
+            if (!res?.payload?.closed) return;
+            try {
+                await dispatch(syncPendingSalesThunk());
+                await dispatch(syncPendingShiftsThunk());
+                await dispatch(syncAllThunk());
+            } catch (e) {
+                // Mreža zna biti nedostupna — zaostalo ostaje lokalno i ode
+                // pri sljedećoj prilici; odjava se zbog toga ne zaustavlja.
+            }
+            dispatch(logoutOperator());
+        };
         provjeri();
         const timer = setInterval(provjeri, 5 * 60 * 1000);
         const sub = AppState.addEventListener('change', (state) => {

@@ -35,5 +35,14 @@ contextBridge.exposeInMainWorld("api", {
     getOperatorSettingsIPC: (username) => ipcRenderer.invoke("app:getOperatorSettingsIPC", username),
     setOperatorSettingsIPC: (data) => ipcRenderer.invoke("app:setOperatorSettingsIPC", data),
     syncPendingInvoicesIPC: () => ipcRenderer.invoke("app:syncPendingInvoicesIPC"),
+    syncPendingShiftsIPC: () => ipcRenderer.invoke("app:syncPendingShiftsIPC"),
+    // Smjenu u 01:00 zatvara glavni proces, pa renderer o tome mora biti
+    // obaviješten — inače bi ekran ostao na prijavljenom operateru čija smjena
+    // više ne postoji.
+    onShiftAutoClosed: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on("app:shiftAutoClosed", handler);
+      return () => ipcRenderer.removeListener("app:shiftAutoClosed", handler);
+    },
   },
 });
