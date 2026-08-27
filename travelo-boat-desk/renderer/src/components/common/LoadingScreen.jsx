@@ -8,7 +8,10 @@ export default function LoadingScreen() {
     <Backdrop open={appData.status !=='ready'}
         sx={{
         color: "#fff",
-        zIndex: (theme) => theme.zIndex.modal + 1, // iznad MUI Modala
+        // Iznad SVIH prozora, ne samo osnovnog modala: storno, pregled računa,
+        // popis karata i zaključak smjene stoje na modal+10, pa se prekrivač s
+        // modal+1 crtao ispod njih — radnja bi trajala, a ekran izgledao mrtav.
+        zIndex: (theme) => theme.zIndex.modal + 500,
     }}
     >
       <Typography>{appData.loadingText}</Typography>
