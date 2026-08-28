@@ -165,6 +165,7 @@ const getBillingDevicesController = async(req,res)=>{
                     type_name:billingDevice.type_name,
                     header:billingDevice.header,
                     footer:billingDevice.footer,
+                    ticket_footer:billingDevice.ticket_footer,
                     is_active:billingDevice.is_active,
                     permissions:permissionsForBillingDevice,
                     payment:paymentMethodsForBillingDevice,
@@ -275,6 +276,7 @@ const addBillingDeviceController = async(req,res)=>{
                         type_name:data.type,
                         header:data.header,
                         footer:data.footer,
+                        ticket_footer:data.ticket_footer ?? null,
                         // Stupac ne dopušta NULL, a forma zna poslati prazno ako
                         // korisnik ne dirne izbornik — tada bi create pukao, a
                         // korisnik bi vidio samo zatvorenu formu bez uređaja.
@@ -407,6 +409,7 @@ const updateBillingDeviceController = async(req,res)=>{
                         description:data.description,
                         header:data.header,
                         footer:data.footer,
+                        ticket_footer:data.ticket_footer ?? null,
                         is_active:data.is_active,
                         ...(data.type ? { type_uuid: data.type, type_name: data.type } : {}),
                 },{where:{

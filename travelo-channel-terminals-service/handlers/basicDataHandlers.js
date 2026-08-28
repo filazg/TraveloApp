@@ -57,7 +57,10 @@ const getTerminalBasicDataHandler = async(data)=>{
                 billing_device_name:terminaData.name || '',
                 billing_device_description:terminaData.description || '',
                 billing_device_header:terminaData.header || '',
+                // Napomene s naplatnog uređaja — ispisuju se na dnu računa
+                // odnosno karte na blagajni i mobilnoj.
                 billing_device_footer:terminaData.footer || '',
+                billing_device_ticket_footer:terminaData.ticket_footer || '',
                 billing_device_auto_validate:terminaData.auto_validate || ''
             }
             // 7pay (kartično placanje na mobilnom terminalu) — kredencijali dolaze

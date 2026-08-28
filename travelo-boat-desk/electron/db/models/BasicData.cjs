@@ -90,6 +90,16 @@ const companyModel = sequelize.define('company',{
     billing_device_auto_validate:{
         type: Sequelize.BOOLEAN,
         allowNull:true
+    },
+    // Napomene s naplatnog uređaja — ispisuju se na dnu računa odnosno karte.
+    // Stižu kroz basic_data sync, definiraju se u administraciji po uređaju.
+    billing_device_footer:{
+        type: Sequelize.TEXT,
+        allowNull:true
+    },
+    billing_device_ticket_footer:{
+        type: Sequelize.TEXT,
+        allowNull:true
     }
 },{
     freezeTableName: true

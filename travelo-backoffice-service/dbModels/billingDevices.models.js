@@ -79,8 +79,16 @@ module.exports =  (sequelize) =>{
             type:DataTypes.STRING,
             allowNull:true
         },
+        // Napomena koja se ispisuje na dnu RAČUNA. TEXT jer zna biti u više
+        // redaka, a STRING (varchar 255) bi to odrezao.
         footer:{
-            type:DataTypes.STRING,
+            type:DataTypes.TEXT,
+            allowNull:true
+        },
+        // Ista stvar za KARTU — ispisuje se na dnu karte, odvojeno od računa,
+        // jer karta ide putniku a račun kupcu.
+        ticket_footer:{
+            type:DataTypes.TEXT,
             allowNull:true
         },
         is_active:{

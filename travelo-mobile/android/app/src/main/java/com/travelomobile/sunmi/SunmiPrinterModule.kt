@@ -405,6 +405,21 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
     // Sve linije se pre-formatiraju u Kotlinu (padR/padL/center/lrLine) pa printer
     // samo renderira fiksne stringove uz alignment LEFT — ne oslanja se na
     // printColumnsString ni heavy-ink ESC sekvence koje znaju glitch-ati alignment.
+    // Napomena s naplatnog uređaja na dnu ispisa. Tekst zna biti u više
+    // redaka, pa se lomi po prijelomima i po širini papira.
+    private fun printNapomena(p: IWoyouService, tekst: String, W: Int) {
+        val napomena = tekst.trim()
+        if (napomena.isEmpty()) return
+        dline(p)
+        p.setAlignment(1, null)
+        for (redak in napomena.split(Char(10))) {
+            val t = redak.trim()
+            if (t.isEmpty()) continue
+            for (line in wrapLines(t, W)) p.printText("$line" + Char(10), null)
+        }
+        p.setAlignment(0, null)
+    }
+
     @ReactMethod
     fun printReceipt(data: ReadableMap, promise: Promise) {
         val p = requirePrinter() ?: return promise.reject("NO_PRINTER", "not bound")
@@ -620,6 +635,11 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             for (line in wrapLines("The price includes 6% of the port tax fee.", W)) p.printText("$line\n", null)
             for (line in wrapLines("Lučke takse u cijeni su prolazne stavke. Oslobođeno PDV-a prema čl. 33 st.3 zakona i PDV-u.", W)) p.printText("$line\n", null)
             for (line in wrapLines("Port taxes in the price are a passing item. Exempt from VAT according to Art. 33 paragraf 3 of the Law on VAT.", W)) p.printText("$line\n", null)
+
+            // Napomena s naplatnog uređaja. Definira se u administraciji, po
+            // uređaju i odvojeno za račun i za kartu — račun ide kupcu, karta
+            // putniku. Prazno polje ne ostavlja ni crtu ni prazan redak.
+            printNapomena(p, safeString(bd, "billing_device_footer"), W)
 
             p.lineWrap(3, null)
             try { p.cutPaper(null) } catch (_: Exception) {}
@@ -1069,6 +1089,8 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     p.setFontSize(20f, null)
                     for (line in wrapLines("Dozvoljena osobna prtljaga do 23kg / Maximum luggage weight up to 23kg", W)) p.printText("$line\n", null)
                     for (line in wrapLines("Dužni ste predočiti kartu s kodom prilikom ukrcaja / You are obligated to present the code printed on the ticket while boarding", W)) p.printText("$line\n", null)
+
+                    printNapomena(p, safeString(bd, "billing_device_ticket_footer"), W)
 
                     p.lineWrap(1, null)
                     try { p.cutPaper(null) } catch (_: Exception) {}

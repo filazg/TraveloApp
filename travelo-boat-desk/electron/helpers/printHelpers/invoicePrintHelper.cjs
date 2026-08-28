@@ -1,5 +1,6 @@
 const { ThermalPrinter, PrinterTypes, CharacterSet, BreakLine } = require('node-thermal-printer');
 const { systemSettingsDataModel } = require('../../db/models/Settings.cjs');
+const { companyModel } = require('../../db/models/BasicData.cjs');
 
 const { runPrintJob, cutOrFeed } = require('./printJob.cjs');
 
@@ -34,10 +35,26 @@ const centriranPunRedak = (tekst, sirina) => {
     return ' '.repeat(lijevo) + t + ' '.repeat(sirina - t.length - lijevo);
 };
 
+
+// Napomena s naplatnog uređaja na dnu ispisa. Definira se u administraciji, po
+// uređaju, odvojeno za račun i za kartu — račun ide kupcu, karta putniku, pa
+// tekst nije isti. Prazno polje ne ostavlja ni crtu ni prazan redak.
+const printNapomena = (printer, tekst) => {
+    const napomena = String(tekst ?? '').trim();
+    if (!napomena) return;
+    printer.drawLine();
+    printer.alignCenter();
+    for (const redak of napomena.split(String.fromCharCode(10))) {
+        if (redak.trim()) printer.println(redak.trim());
+    }
+    printer.alignLeft();
+};
+
 const printInvoice = async ({ invoice, items, copy }) => {
     console.log('PRINT INVOICE')
     //console.log(items)
     const settingsData = await systemSettingsDataModel.findOne()
+    const osnovniPodaci = await companyModel.findOne()
     const sirinaIspisa = Number(settingsData.printer_width) || 42;
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     try {
@@ -252,6 +269,7 @@ const printInvoice = async ({ invoice, items, copy }) => {
                 printer.setTextNormal();
             }
         }
+        printNapomena(printer, osnovniPodaci?.billing_device_footer);
         cutOrFeed(printer, settingsData.printer_cut);
         printer.beep();
 
@@ -265,6 +283,7 @@ const printInvoice = async ({ invoice, items, copy }) => {
 const printTickets = async ({ tickets,copy }) => {
     console.log('PRINT TICKETS')
     const settingsData = await systemSettingsDataModel.findOne()
+    const osnovniPodaci = await companyModel.findOne()
     try {
         let printer = new ThermalPrinter({
             type: PrinterTypes.EPSON,
@@ -375,6 +394,7 @@ const printTickets = async ({ tickets,copy }) => {
             printer.drawLine();
             printer.println('Dozvoljena osobna prtljaga do 23kg / Maximum luggage weight up to 23kg')
             printer.println('Dužni ste predočiti kartu s kodom prilikom ukrcaja / You are obligated to present the code printed on the ticket while boarding')
+            printNapomena(printer, osnovniPodaci?.billing_device_ticket_footer);
             cutOrFeed(printer, settingsData.printer_cut);
         }
         printer.beep();

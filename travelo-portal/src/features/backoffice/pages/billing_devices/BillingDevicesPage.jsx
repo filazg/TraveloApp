@@ -698,6 +698,33 @@ export default function BillingDevicesPage (){
                         name="description"
                         sx={{ mt: 1 }}
                     />
+                    {/* Napomene se ispisuju na dnu ispisa, svaka na svom
+                        dokumentu — račun ide kupcu, karta putniku. Definiraju se
+                        po uređaju, jer se razlikuju od blagajne do blagajne. */}
+                    <TextField
+                        multiline
+                        minRows={2}
+                        variant="outlined"
+                        fullWidth
+                        label="Napomena na dnu računa"
+                        placeholder="npr. Hvala na povjerenju!"
+                        value={newData?.footer || ""}
+                        onChange={handleChange}
+                        name="footer"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        multiline
+                        minRows={2}
+                        variant="outlined"
+                        fullWidth
+                        label="Napomena na dnu karte"
+                        placeholder="npr. Ukrcaj počinje 15 minuta prije polaska."
+                        value={newData?.ticket_footer || ""}
+                        onChange={handleChange}
+                        name="ticket_footer"
+                        sx={{ mt: 1 }}
+                    />
                     <TextField
                         type="text"
                         variant="outlined"
@@ -923,6 +950,33 @@ export default function BillingDevicesPage (){
                         sx={{
                             mt:1
                         }}
+                    />
+                    {/* Napomene se ispisuju na dnu ispisa, svaka na svom
+                        dokumentu — račun ide kupcu, karta putniku. Definiraju se
+                        po uređaju, jer se razlikuju od blagajne do blagajne. */}
+                    <TextField
+                        multiline
+                        minRows={2}
+                        variant="outlined"
+                        fullWidth
+                        label="Napomena na dnu računa"
+                        placeholder="npr. Hvala na povjerenju!"
+                        value={editedData?.footer || ""}
+                        onChange={handleChangeEdit}
+                        name="footer"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        multiline
+                        minRows={2}
+                        variant="outlined"
+                        fullWidth
+                        label="Napomena na dnu karte"
+                        placeholder="npr. Ukrcaj počinje 15 minuta prije polaska."
+                        value={editedData?.ticket_footer || ""}
+                        onChange={handleChangeEdit}
+                        name="ticket_footer"
+                        sx={{ mt: 1 }}
                     />
                     <TextField
                         type="text"
