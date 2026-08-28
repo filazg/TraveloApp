@@ -56,6 +56,9 @@ export default function PartnersPage (){
         await dispatch(setAuthData({path:'loadingMessage', value:'Preuzimanje podataka o partnerima'}))
         await dispatch(getBackofficeThunk({path:'partners'}))
         await dispatch(getBackofficeThunk({path:'countries'}))
+        // Djelatnici partnera su obicni operateri s vezom na partnera, pa se
+        // citaju iz istog sifarnika kao i nasi ljudi.
+        await dispatch(getBackofficeThunk({path:'users'}))
         await dispatch(setAuthData({path:'loading', value:false}))
     }
 
@@ -163,22 +166,26 @@ export default function PartnersPage (){
             },
     ];
 
+    // Djelatnici partnera — isti podaci kao kod operatera, jer to i jesu
+    // operateri; razlika je samo u tome cija su posada.
     const columns_web = [
-        { field: 'username', headerName: t('backoffice.partners.web_user_username'), flex: 2, editable: true },
-        { field: 'password', type: 'password', headerName: t('backoffice.partners.web_user_password'), flex: 2, editable: true },
+        { field: 'name', headerName: 'Ime', flex: 1.5 },
+        { field: 'surname', headerName: 'Prezime', flex: 1.5 },
+        { field: 'username', headerName: t('backoffice.partners.web_user_username'), flex: 1.5 },
+        { field: 'mark', headerName: 'Oznaka', width: 100 },
+        { field: 'code', headerName: 'Šifra', width: 100 },
         {
-            field: 'actions',
-            type: 'actions',
-            headerName: '',
-            width: 60,
-            getActions: (params) => [
-                <GridActionsCellItem
-                    icon={<DeleteOutlineIcon />}
-                    label="Delete"
-                    onClick={() => remoweSelectedWebUser(params.row)}
-                />,
-            ],
+            field: 'web_access',
+            headerName: 'Web prodaja',
+            width: 130,
+            renderCell: (params) => (
+                <Checkbox
+                    checked={imaWebPristup(params.row.username)}
+                    onChange={() => prebaciWebPristup(params.row)}
+                />
+            ),
         },
+        { field: 'is_active', type: 'boolean', headerName: 'Aktivan', width: 100 },
     ]
 
     const columns_api = [
@@ -216,22 +223,57 @@ export default function PartnersPage (){
         })
     }
 
+    // Djelatnici odabranog partnera. Web pristup se cita iz web_permissions
+    // partnera — ista osoba moze raditi na blagajni, a ne imati web prodaju.
+    const djelatniciPartnera = (backofficeData.backofficeData.users || [])
+        .filter((u) => u.partner_uuid && u.partner_uuid === selectedRow?.uuid)
+    const imaWebPristup = (username) => (newWebUser || []).some((w) => w.username === username)
+
+    // Djelatnik partnera se zapisuje kao operater vezan na partnera — isti put
+    // kojim se kreiraju i nasi ljudi, pa vrijede ista pravila (jedinstvena
+    // oznaka i sifra, hashirana lozinka). Web pristup je zasebna kvacica i
+    // sprema se s partnerom, jer partnerska prodaja ima vlastitu prijavu.
     const handleAddWebUser = async ()=>{
-        console.log(webUser)
-        console.log(newWebUser)
-        const newId = newWebUser.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1;
-        webUser.id= newId
-        const newData = [...newWebUser, webUser]
-        setNewWebUser(newData)
+        if (!selectedRow?.uuid) return
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value:'Dodavanje djelatnika partnera'}))
+        await dispatch(postBackofficeThunk({path:'users', data:{
+            name: webUser.name,
+            surname: webUser.surname,
+            legal_id: webUser.legal_id,
+            username: webUser.username,
+            password: webUser.password,
+            mark: webUser.mark,
+            code: webUser.code,
+            is_company_employee: false,
+            partner_uuid: selectedRow.uuid,
+            partner_name: selectedRow.partner_name,
+        }}))
+        if (webUser.web_access) {
+            const newId = newWebUser.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1;
+            setNewWebUser([...newWebUser, {
+                id: newId,
+                username: webUser.username,
+                password: webUser.password,
+            }])
+        }
+        await dispatch(getBackofficeThunk({path:'users'}))
         setWebUser({})
         setAddWebModal(false)
+        await dispatch(setAuthData({path:'loading', value:false}))
     }
 
-    const remoweSelectedWebUser = async(data)=>{
-        const filteredData = newWebUser.filter((web)=>web.id !== data.id)
-        setNewWebUser(filteredData)
-        console.log(data)
+    // Web pristup se pali i gasi bez diranja operatera — osoba ostaje na
+    // blagajni i kad joj se web prodaja ukine.
+    const prebaciWebPristup = (djelatnik) => {
+        if (imaWebPristup(djelatnik.username)) {
+            setNewWebUser((newWebUser || []).filter((w) => w.username !== djelatnik.username))
+            return
+        }
+        const newId = (newWebUser || []).reduce((max, item) => Math.max(max, item.id || 0), 0) + 1;
+        setNewWebUser([...(newWebUser || []), { id: newId, username: djelatnik.username, password: '' }])
     }
+
     const handleChangeNewApiUser = async(e)=>{
         setApiUser({
             ...apiUser, [e.target.name]: e.target.value
@@ -699,7 +741,7 @@ export default function PartnersPage (){
                         }}
                     >
                         <DataGrid
-                            rows={newWebUser || ''}
+                            rows={djelatniciPartnera || []}
                             columns={columns_web}
                             getRowId={(row) => row.id}
                             processRowUpdate={handleProcessWebRowUpdate}
@@ -748,38 +790,65 @@ export default function PartnersPage (){
                 open={addWebModal} onClose={() => setAddWebModal(false)}
             >
                 <Box sx={{ ...style, width: 300, overflowY: "auto" }}>
-                    <Typography>{t('backoffice.partners.add_new_web_user_title')}</Typography>
+                    <Typography sx={{ fontWeight: 700 }}>Novi djelatnik partnera</Typography>
                     <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        label={t('backoffice.partners.web_user_username')}
-                        placeholder={t('backoffice.partners.web_user_username')}
-                        required
-                        value={webUser.username || ""}
-                        onChange={handleChangeNewWebUser}
-                        name="username"
-                        sx={{
-                            mt:1
-                        }}
+                        type="text" variant="outlined" fullWidth required
+                        label="Ime" value={webUser.name || ""}
+                        onChange={handleChangeNewWebUser} name="name" sx={{ mt:1 }}
                     />
                     <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
+                        type="text" variant="outlined" fullWidth required
+                        label="Prezime" value={webUser.surname || ""}
+                        onChange={handleChangeNewWebUser} name="surname" sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth required
+                        label="OIB" value={webUser.legal_id || ""}
+                        onChange={handleChangeNewWebUser} name="legal_id" sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth required
+                        label={t('backoffice.partners.web_user_username')}
+                        value={webUser.username || ""}
+                        onChange={handleChangeNewWebUser} name="username" sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth required
                         label={t('backoffice.partners.web_user_password')}
-                        placeholder={t('backoffice.partners.web_user_password')}
-                        required
                         value={webUser.password || ""}
-                        onChange={handleChangeNewWebUser}
-                        name="password"
-                        sx={{
-                            mt:1
-                        }}
+                        onChange={handleChangeNewWebUser} name="password" sx={{ mt:1 }}
+                    />
+                    {/* Oznaka ide na račun i mora biti jedinstvena; šifra je
+                        brza prijava na blagajni. Ista pravila kao kod naših
+                        operatera — jezgra odbija duplikat. */}
+                    <TextField
+                        type="text" variant="outlined" fullWidth required
+                        label="Oznaka" placeholder="npr. mn" value={webUser.mark || ""}
+                        onChange={handleChangeNewWebUser} name="mark" sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth
+                        label="Šifra" placeholder="npr. 1234" value={webUser.code || ""}
+                        onChange={handleChangeNewWebUser} name="code" sx={{ mt:1 }}
+                    />
+                    <FormControlLabel
+                        sx={{ mt:1 }}
+                        control={
+                            <Checkbox
+                                checked={!!webUser.web_access}
+                                onChange={(e) => setWebUser({ ...webUser, web_access: e.target.checked })}
+                                name="web_access"
+                            />
+                        }
+                        label="Ima i pristup partnerskoj web prodaji"
                     />
                     <Button
                         type="submit"
                         onClick={handleAddWebUser}
+                        disabled={
+                            !webUser.name || !webUser.surname || !webUser.legal_id
+                            || !webUser.username || !webUser.password || !webUser.mark
+                        }
                         sx={{ height: 60, mt: 4, width: "100%" }}
                         variant="contained"
                         >
