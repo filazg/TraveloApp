@@ -65,7 +65,12 @@ export default function ShiftsScreen() {
         setBusy(false);
         if (res.meta.requestStatus !== 'fulfilled') {
             Alert.alert('Greška', res.payload?.message || 'Otvaranje smjene nije uspjelo');
+            return;
         }
+        // Smjena se otvara da bi se krenulo prodavati, pa se odmah ide na
+        // izbornik — inače operater ostaje na ekranu smjene i mora se sam
+        // vraćati natrag.
+        dispatch(resetSection());
     };
 
     const handlePreviewClose = async () => {
