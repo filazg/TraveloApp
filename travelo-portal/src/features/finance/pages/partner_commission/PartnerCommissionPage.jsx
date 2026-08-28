@@ -20,6 +20,7 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
 import { fetchPartnerCommissionThunk, fetchPartnersListThunk, financeSliceData } from "../../financeSlice";
+import { setAuthData } from "../../../auth/authSlice";
 import { izveziObracunProvizije } from "./provizijaExcel";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
@@ -43,18 +44,25 @@ export default function PartnerCommissionPage() {
     const partneri = obracun.partners || [];
     const totals = obracun.totals || { tickets: 0, gross: 0, base: 0, commission: 0 };
 
+    // Kartica u Financijama pali zaslon učitavanja prije nego preda stranicu, pa
+    // ga stranica mora ugasiti — inače prekrivač ostane preko svega i izgleda
+    // kao da se ništa nije otvorilo.
     useEffect(() => {
+        dispatch(setAuthData({ path: "loading", value: false }));
         dispatch(fetchPartnersListThunk());
         dispatch(fetchPartnerCommissionThunk({ from, to }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const trazi = () => {
-        dispatch(fetchPartnerCommissionThunk({
+    const trazi = async () => {
+        dispatch(setAuthData({ path: "loadingMessage", value: "Obračun provizije…" }));
+        dispatch(setAuthData({ path: "loading", value: true }));
+        await dispatch(fetchPartnerCommissionThunk({
             from,
             to,
             ...(partnerUuid ? { partner_uuid: partnerUuid } : {}),
         }));
+        dispatch(setAuthData({ path: "loading", value: false }));
     };
 
     const partnerZaIzvoz = useMemo(
