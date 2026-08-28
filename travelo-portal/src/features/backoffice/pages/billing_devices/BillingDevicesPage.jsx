@@ -458,7 +458,7 @@ export default function BillingDevicesPage (){
         { field: 'device_model', headerName:t('backoffice.billing_devices.device_model'), flex: 2,
             valueGetter: (_v, row) => modelNameByCode(row.device_model) },
         { field: 'serial_number', headerName:t('backoffice.billing_devices.serial_number'), flex: 2 },
-        { field: 'auto_validate', type: 'boolean', headerName:t('backoffice.billing_devices.auto_validate'), flex: 2},
+        { field: 'auto_validate', type: 'boolean', headerName: 'Automatska validacija', flex: 2},
         { field: 'future_sale', type: 'boolean', headerName: 'Budući datumi', flex: 2},
         { field: 'can_validate', type: 'boolean', headerName: 'Validacija', flex: 2},
         { field: 'auto_pair', type: 'boolean', headerName: 'Auto uparivanje', flex: 2},
@@ -666,25 +666,6 @@ export default function BillingDevicesPage (){
                             </Stack>
                         </>
                     )}
-                    {newData.type === 'mobile' && (
-                        <TextField
-                            variant="outlined"
-                            fullWidth
-                            label="Auto-validacija"
-                            select
-                            required
-                            value={
-                                newData.auto_validate === true || newData.auto_validate === 'true'
-                                    ? 'true' : 'false'
-                            }
-                            onChange={handleChange}
-                            name="auto_validate"
-                            sx={{ mt: 1 }}
-                        >
-                            <MenuItem value="false">Ne (karta se ručno validira na ulazu)</MenuItem>
-                            <MenuItem value="true">Da (karta se automatski validira pri prodaji)</MenuItem>
-                        </TextField>
-                    )}
                     {/* Prodaja za buduće datume je iznimka koja se svjesno pali:
                         pokretna blagajna radi na brodu i redovno prodaje za
                         polazak koji upravo kreće. */}
@@ -728,6 +709,28 @@ export default function BillingDevicesPage (){
                             <MenuItem value="false">Ne (samo prodaja)</MenuItem>
                         </TextField>
                     )}
+                    {/* Automatska validacija ovisi o tome validira li uređaj
+                        uopće — nudi se tek kad je validacija uključena. */}
+                    {newData.type === 'mobile'
+                        && newData.can_validate !== false && newData.can_validate !== 'false' ? (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Automatska validacija"
+                            select
+                            required
+                            value={
+                                newData.auto_validate === true || newData.auto_validate === 'true'
+                                    ? 'true' : 'false'
+                            }
+                            onChange={handleChange}
+                            name="auto_validate"
+                            sx={{ mt: 1 }}
+                        >
+                            <MenuItem value="false">Ne (karta se ručno validira na ulazu)</MenuItem>
+                            <MenuItem value="true">Da (karta se automatski validira pri prodaji)</MenuItem>
+                        </TextField>
+                    ) : null}
                     {(newData.type === 'pc' || newData.type === 'mobile') && (
                         <TextField
                             variant="outlined"
@@ -1049,27 +1052,6 @@ export default function BillingDevicesPage (){
                             mt:1
                         }}
                     />
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        label={t('backoffice.billing_devices.auto_validate')}
-                        placeholder={t('backoffice.billing_devices.auto_validate')}
-                        select
-                        required
-                        value={
-                            editedData?.auto_validate === true || editedData?.auto_validate === 'true'
-                                ? 'true' : 'false'
-                        }
-                        onChange={handleChangeEdit}
-                        name="auto_validate"
-                        sx={{
-                            mt:1
-                        }}
-                        >
-                        <MenuItem value='true'>{t('backoffice.billing_devices.auto_validate_yes')}</MenuItem>
-                        <MenuItem value='false'>{t('backoffice.billing_devices.auto_validate_no')}</MenuItem>
-                    </TextField>
                     {editedData?.type_name === 'mobile' || editedData?.type === 'mobile' ? (
                         <TextField
                             variant="outlined"
@@ -1106,6 +1088,29 @@ export default function BillingDevicesPage (){
                         >
                             <MenuItem value="true">Da (uređaj validira karte)</MenuItem>
                             <MenuItem value="false">Ne (samo prodaja)</MenuItem>
+                        </TextField>
+                    ) : null}
+                    {/* Automatska validacija ima smisla samo ako uređaj uopće
+                        validira, pa stoji ispod te postavke i nestaje s njom —
+                        inače bi se nudilo podešavanje koje nigdje ne djeluje. */}
+                    {editedData?.can_validate !== false && editedData?.can_validate !== 'false' ? (
+                        <TextField
+                            type="text"
+                            variant="outlined"
+                            fullWidth
+                            label="Automatska validacija"
+                            select
+                            required
+                            value={
+                                editedData?.auto_validate === true || editedData?.auto_validate === 'true'
+                                    ? 'true' : 'false'
+                            }
+                            onChange={handleChangeEdit}
+                            name="auto_validate"
+                            sx={{ mt: 1 }}
+                        >
+                            <MenuItem value='true'>{t('backoffice.billing_devices.auto_validate_yes')}</MenuItem>
+                            <MenuItem value='false'>{t('backoffice.billing_devices.auto_validate_no')}</MenuItem>
                         </TextField>
                     ) : null}
                     <TextField
