@@ -43,6 +43,8 @@ const getPartnersDataController = async(req,res)=>{
                     commission_pct:partner.commission_pct,
                     vat_rate:partner.vat_rate,
                     f2_required:partner.f2_required,
+                    billing_cycle:partner.billing_cycle,
+                    billing_weekday:partner.billing_weekday,
                     is_active:partner.is_active,
                     web_permissions:partnerWebPermissions,
                     api_permissions:partnerAPIPermissions
@@ -98,6 +100,11 @@ const addPartnerDataController = async(req,res)=>{
                     commission_pct:data.commission_pct ?? 0,
                     vat_rate:data.vat_rate ?? 25,
                     f2_required:data.f2_required ?? false,
+                    // Dinamika naplate je podloga za obracun provizije. Dan u
+                    // tjednu ima smisla samo uz tjednu dinamiku, pa se inace ne
+                    // pamti — da zaostali odabir ne odredjuje razdoblje.
+                    billing_cycle:data.billing_cycle || 'MONTHLY',
+                    billing_weekday:(data.billing_cycle === 'WEEKLY') ? (Number(data.billing_weekday) || null) : null,
                     is_active:true,
                 })
                 publishBackofficeEvent('update_partners')
@@ -144,6 +151,11 @@ const updatePartnerDataController = async(req,res)=>{
                     commission_pct:data.commission_pct ?? 0,
                     vat_rate:data.vat_rate ?? 25,
                     f2_required:data.f2_required ?? false,
+                    // Dinamika naplate je podloga za obracun provizije. Dan u
+                    // tjednu ima smisla samo uz tjednu dinamiku, pa se inace ne
+                    // pamti — da zaostali odabir ne odredjuje razdoblje.
+                    billing_cycle:data.billing_cycle || 'MONTHLY',
+                    billing_weekday:(data.billing_cycle === 'WEEKLY') ? (Number(data.billing_weekday) || null) : null,
                     is_active:data.is_active,
                 },{
                     where:{

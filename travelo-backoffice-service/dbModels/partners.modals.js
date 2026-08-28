@@ -71,6 +71,21 @@ module.exports =  (sequelize) =>{
             type:DataTypes.BOOLEAN,
             allowNull:false,
             defaultValue:false
+        },
+        // Dinamika naplate — kada se partneru radi obračun provizije.
+        // MONTHLY: 1. u mjesecu, za prethodni mjesec.
+        // SEMI_MONTHLY: 1. i 16. u mjesecu, za prethodnu polovicu.
+        // WEEKLY: odabrani dan u tjednu, za prethodnih sedam dana.
+        billing_cycle:{
+            type:DataTypes.STRING,
+            allowNull:true,
+            defaultValue:'MONTHLY'
+        },
+        // Dan u tjednu za WEEKLY (1 = ponedjeljak … 7 = nedjelja). Kod ostalih
+        // dinamika je prazan — dan je određen samom dinamikom.
+        billing_weekday:{
+            type:DataTypes.INTEGER,
+            allowNull:true
         }
     },
     { freezeTableName:true, tableName: "partners", timestamps: true }

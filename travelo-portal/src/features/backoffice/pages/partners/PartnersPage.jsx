@@ -11,6 +11,28 @@ import GridHint from "../../../../helpers/GridHint";
 import { inactiveRowClass } from "../../../../helpers/gridRowActions";
 
 
+// Dan obračuna za tjednu dinamiku. 1 = ponedjeljak, kao u ISO tjednu, da se
+// isti broj može izravno usporediti s danom u kodu koji generira obračun.
+const DANI_U_TJEDNU = [
+    { value: 1, label: 'Ponedjeljak' },
+    { value: 2, label: 'Utorak' },
+    { value: 3, label: 'Srijeda' },
+    { value: 4, label: 'Četvrtak' },
+    { value: 5, label: 'Petak' },
+    { value: 6, label: 'Subota' },
+    { value: 7, label: 'Nedjelja' },
+];
+
+// Kratak opis dinamike za popis partnera.
+const opisDinamike = (cycle, weekday) => {
+    if (cycle === 'SEMI_MONTHLY') return 'Dvomjesečno — 1. i 16.';
+    if (cycle === 'WEEKLY') {
+        const dan = DANI_U_TJEDNU.find((d) => d.value === Number(weekday));
+        return dan ? `Tjedno — ${dan.label.toLowerCase()}` : 'Tjedno — dan nije odabran';
+    }
+    return 'Mjesečno — 1. u mjesecu';
+};
+
 export default function PartnersPage (){
     const dispatch = useDispatch()
     const backofficeData = useSelector(backofficeSliceData)
@@ -110,6 +132,12 @@ export default function PartnersPage (){
         { field: 'partner_postal_code', headerName:t('backoffice.partners.partner_postal_code'), flex: 2},
         { field: 'partner_country', headerName:t('backoffice.partners.partner_country'), flex: 2},
         { field: 'partner_email', headerName: t('backoffice.partners.partner_email'), flex: 2},
+        // Provizija i dinamika naplate su podloga za obračun, pa se vide iz
+        // popisa — bez otvaranja svakog partnera.
+        { field: 'commission_pct', headerName: 'Provizija', width: 110, align: 'right', headerAlign: 'right',
+            valueGetter: (value) => (value == null ? '' : `${Number(value)} %`) },
+        { field: 'billing_cycle', headerName: 'Dinamika naplate', flex: 2,
+            valueGetter: (value, row) => opisDinamike(value, row?.billing_weekday) },
         {
               field: "is_active",
               headerName: t("backoffice.partners.partner_is_active"),
@@ -593,6 +621,43 @@ export default function PartnersPage (){
                             mt:1
                         }}
                     />
+                    {/* Dinamika naplate — kada se partneru radi obračun provizije.
+                        Po njoj se određuje razdoblje obračuna, pa je dio šifarnika
+                        partnera, a ne postavka izvještaja. */}
+                    <TextField
+                        select
+                        variant="outlined"
+                        fullWidth
+                        label="Dinamika naplate"
+                        value={editedData.billing_cycle || "MONTHLY"}
+                        onChange={handleChangeEdit}
+                        name="billing_cycle"
+                        sx={{
+                            mt:1
+                        }}
+                    >
+                        <MenuItem value="MONTHLY">Mjesečno — 1. u mjesecu, za prethodni mjesec</MenuItem>
+                        <MenuItem value="SEMI_MONTHLY">Dvomjesečno — 1. i 16. u mjesecu</MenuItem>
+                        <MenuItem value="WEEKLY">Dan u tjednu</MenuItem>
+                    </TextField>
+                    {editedData.billing_cycle === "WEEKLY" ? (
+                        <TextField
+                            select
+                            variant="outlined"
+                            fullWidth
+                            label="Dan obračuna"
+                            value={editedData.billing_weekday || ""}
+                            onChange={handleChangeEdit}
+                            name="billing_weekday"
+                            sx={{
+                                mt:1
+                            }}
+                        >
+                            {DANI_U_TJEDNU.map((d) => (
+                                <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
+                            ))}
+                        </TextField>
+                    ) : null}
                     <TextField
                         type="number"
                         variant="outlined"
