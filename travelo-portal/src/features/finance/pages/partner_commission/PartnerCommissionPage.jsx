@@ -71,7 +71,8 @@ export default function PartnerCommissionPage() {
     );
 
     return (
-        <Box sx={{ p: 2 }}>
+        // Puna sirina kao i ostali prikazi u Financijama.
+        <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
             <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
                 Obračun provizije partnerima
             </Typography>
