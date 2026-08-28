@@ -20,6 +20,7 @@ import { finalizeSaleThunk, salesData, clearLastInvoice, syncPendingSalesThunk, 
 import {
     fetchVoyageTicketsThunk, fetchLineTicketsThunk, validateScanThunk, validationData, clearScanResult,
     getCachedTicket, getCachedLineTicket, updateCachedTicket, findRelatedTickets, addTicketsToCache,
+    lookupTicketRemote,
     listCachedTickets, countCachedValidated,
 } from '../store/slices/validationSlice';
 import api from '../api/client';
@@ -45,6 +46,19 @@ const timeOnly = (s) => {
     if (!s) return '';
     const m = /(\d{1,2}):(\d{2})/.exec(String(s));
     return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
+};
+
+// Datum na DD/MM/YYYY. Vozni red drži "28/08/2026", karta "28.08.2026. 10:00",
+// a backend zna vratiti i ISO — bez svođenja na isti oblik usporedba datuma
+// karte i polaska nikad ne prolazi.
+const datumSamo = (v) => {
+    const s = String(v || '').trim();
+    if (!s) return '';
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+    const dmy = /^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/.exec(s);
+    if (dmy) return `${dmy[1].padStart(2, '0')}/${dmy[2].padStart(2, '0')}/${dmy[3]}`;
+    return s.slice(0, 10);
 };
 
 // Extract ordered unique harbors from a voyage's legs.
@@ -160,6 +174,14 @@ export default function SaleScreen() {
                 const lineTicket = getCachedLineTicket(ticketUuid);
                 if (lineTicket) local = lineTicket;
             }
+            // Karta s druge linije nije ni u jednom lokalnom cacheu — uređaj
+            // povlači samo karte svog polaska i svoje linije. Zato se za tu
+            // jednu kartu pita poslužitelj. Bez mreže ostaje "nije pronađena",
+            // isto kao i dosad. Ne ide u cache polaska da ne pokvari brojače
+            // validiranih karata tog polaska.
+            if (!local) {
+                local = await lookupTicketRemote(ticketUuid);
+            }
             // Provjera pripada li karta TRENUTNOM polasku. SQLite fallback
             // (findTicketByUuidOrCode) vraća bilo koju kartu koju je terminal
             // prodao — može biti za drugi datum/liniju, pa moramo dodatno filtrirati.
@@ -177,22 +199,38 @@ export default function SaleScreen() {
                 && !local.route_uuid
                 && local.departure_planed
                 && v?.departure_date
-                && String(local.departure_planed).slice(0, 10) !== String(v.departure_date).slice(0, 10)
+                && datumSamo(local.departure_planed) !== datumSamo(v.departure_date)
             );
 
-            // Iznimka: karta za isti dan, istu liniju i istu relaciju, ali drugi
-            // polazak. Putnik je propustio svoj brod ili došao na raniji — to nije
-            // neispravna karta, pa se ne odbija nego se djelatniku ponudi da sam
-            // odobri ukrcaj. Validacija ni tada nije automatska.
+            // Iznimka: karta za isti dan i istu relaciju, ali drugi polazak —
+            // uključujući polazak druge linije. Putnik je propustio svoj brod,
+            // došao na raniji ili mu je karta izdana na drugoj liniji za istu
+            // relaciju; to nije neispravna karta, pa se ne odbija nego se
+            // djelatniku ponudi da sam odobri ukrcaj. Validacija ni tada nije
+            // automatska.
             const ticketRoute = voyageMismatch
                 ? (sync.salesRoutes || []).find((r) => String(r.uuid) === String(local.route_uuid))
                 : null;
+            // Ruta karte ne mora postojati na uređaju — druga linija mu je možda
+            // uskraćena — pa podaci padaju natrag na samu kartu.
+            const ticketDate = datumSamo(ticketRoute?.departure_date || local?.departure_planed);
+            const ticketDepId = ticketRoute?.departure_harbor_id ?? local?.departure_harbor_id;
+            const ticketArrId = ticketRoute?.arrival_harbor_id ?? local?.arrival_harbor_id;
+            const ticketLineCode = String(ticketRoute?.line_code || local?.line_code || '');
             const otherVoyageSameRelation = Boolean(
-                ticketRoute
-                && voyageRoutes.some((r) => r.departure_date === ticketRoute.departure_date
-                    && r.line_code === ticketRoute.line_code
-                    && String(r.departure_harbor_id) === String(ticketRoute.departure_harbor_id)
-                    && String(r.arrival_harbor_id) === String(ticketRoute.arrival_harbor_id))
+                local
+                && (voyageMismatch || dateMismatch)
+                && voyageRoutes.some((r) => datumSamo(r.departure_date) === ticketDate
+                    && String(r.departure_harbor_id) === String(ticketDepId)
+                    && String(r.arrival_harbor_id) === String(ticketArrId))
+            );
+            // Druga linija se posebno označava: to je krupnija odluka od
+            // propuštenog polaska iste linije, pa djelatnik mora vidjeti obje.
+            const otherLine = Boolean(
+                otherVoyageSameRelation
+                && ticketLineCode
+                && voyageRoutes.length
+                && String(voyageRoutes[0].line_code) !== ticketLineCode
             );
 
             let result;
@@ -224,10 +262,15 @@ export default function SaleScreen() {
                     harborMismatch,
                     expectedHarborName: local.departure_harbor_name,
                     selectedHarborName: selectedHarbor?.name || '',
-                    // Karta s drugog polaska iste linije, relacije i datuma —
-                    // djelatnik odlučuje pušta li putnika.
+                    // Karta s drugog polaska iste relacije i datuma — djelatnik
+                    // odlučuje pušta li putnika. `otherLine` znači da je i
+                    // linija druga.
                     otherVoyage: otherVoyageSameRelation,
-                    ticketVoyageTime: timeOnly(ticketRoute?.departure_time) || '',
+                    otherLine,
+                    ticketLineName: String(ticketRoute?.line_name || local.line_name || local.line_code || ''),
+                    currentLineName: String(voyageRoutes[0]?.line_name || v?.line_name || ''),
+                    ticketVoyageTime: timeOnly(ticketRoute?.departure_time)
+                        || timeOnly(local.departure_planed),
                     currentVoyageTime: fromTime || '',
                     related,
                 };
@@ -1488,9 +1531,11 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
         const bg = warn ? colors.warning : colors.primaryDark;
         const title = result.harborMismatch
             ? '⚠ KRIVA LUKA UKRCAJA'
-            : result.otherVoyage
-                ? '⚠ KARTA ZA DRUGI POLAZAK'
-                : '✓ KARTA VALJANA';
+            : result.otherLine
+                ? '⚠ KARTA S DRUGE LINIJE'
+                : result.otherVoyage
+                    ? '⚠ KARTA ZA DRUGI POLAZAK'
+                    : '✓ KARTA VALJANA';
         return (
             <View style={[overlayStyles.full, { backgroundColor: bg }]}>
                 <View style={overlayStyles.choiceHeader}>
@@ -1522,10 +1567,27 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
                             <Text style={overlayStyles.harborLabel}>Ovaj polazak:</Text>
                             <Text style={overlayStyles.harborValue}>{String(result.currentVoyageTime || '—')}</Text>
                         </View>
-                        <View style={overlayStyles.harborRow}>
-                            <Text style={overlayStyles.harborLabel}>Ista linija i relacija</Text>
-                            <Text style={overlayStyles.harborValue}>DA</Text>
-                        </View>
+                        {result.otherLine ? (
+                            <>
+                                <View style={overlayStyles.harborRow}>
+                                    <Text style={overlayStyles.harborLabel}>Linija karte:</Text>
+                                    <Text style={overlayStyles.harborValue}>{String(result.ticketLineName || '—')}</Text>
+                                </View>
+                                <View style={overlayStyles.harborRow}>
+                                    <Text style={overlayStyles.harborLabel}>Ovaj polazak:</Text>
+                                    <Text style={overlayStyles.harborValue}>{String(result.currentLineName || '—')}</Text>
+                                </View>
+                                <View style={overlayStyles.harborRow}>
+                                    <Text style={overlayStyles.harborLabel}>Ista relacija i datum</Text>
+                                    <Text style={overlayStyles.harborValue}>DA</Text>
+                                </View>
+                            </>
+                        ) : (
+                            <View style={overlayStyles.harborRow}>
+                                <Text style={overlayStyles.harborLabel}>Ista linija i relacija</Text>
+                                <Text style={overlayStyles.harborValue}>DA</Text>
+                            </View>
+                        )}
                     </View>
                 ) : null}
 

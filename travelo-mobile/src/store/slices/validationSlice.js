@@ -184,6 +184,27 @@ export const fetchLineTicketsThunk = createAsyncThunk(
     }
 );
 
+// Dohvat jedne karte s poslužitelja, po uuid-u iz QR koda. Uređaj lokalno drži
+// samo karte svog polaska i svoje linije, pa karta s druge linije nije ni u
+// jednom cacheu — bez ovoga bi scan pao na "Karta nije pronađena" i djelatnik
+// ne bi imao što odobriti. Bez mreže vraća null, tj. ostaje kako je i bilo.
+export const lookupTicketRemote = async (kljuc) => {
+    const uuid = String(kljuc || '').trim();
+    if (!uuid) return null;
+    try {
+        const resp = await api.get(ENDPOINTS.voyageTickets, {
+            params: { ticket_uuid: uuid, limit: 1 },
+            timeout: 8000,
+        });
+        const body = resp.data?.data ?? resp.data ?? {};
+        const nadjena = Array.isArray(body.tickets) ? body.tickets[0] : null;
+        return nadjena ? sanitizeTicket(nadjena) : null;
+    } catch (err) {
+        console.log('[lookupTicketRemote] nije uspio:', err?.message || err);
+        return null;
+    }
+};
+
 // Učitaj karte iz lokalne baze za dane rute (offline-friendly).
 export const loadLocalVoyageTicketsThunk = createAsyncThunk(
     'validation/loadLocalVoyageTickets',

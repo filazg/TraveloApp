@@ -56,6 +56,7 @@ const listTicketsController = async (req, res) => {
             arrival_harbor_id,
             status,
             ticket_code,
+            ticket_uuid,
             order_uuid,
             partner_uuid,
             route_uuids, // CSV — koristi mobile validacija za sve karte odabranog polaska
@@ -73,7 +74,12 @@ const listTicketsController = async (req, res) => {
 
         const where = {};
 
-        if (ticket_code) {
+        // Pretraga po jednoj karti ne traži datum. QR kod nosi ticket_uuid, pa
+        // mobilna validacija tim putem prepoznaje kartu koju uređaj nema u
+        // lokalnoj kopiji — karta s druge linije ili drugog dana.
+        if (ticket_uuid) {
+            where.ticket_uuid = ticket_uuid;
+        } else if (ticket_code) {
             where.ticket_code = ticket_code;
         } else if (order_uuid) {
             where.order_uuid = order_uuid;
