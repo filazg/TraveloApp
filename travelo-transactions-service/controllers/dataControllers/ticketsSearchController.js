@@ -80,7 +80,11 @@ const listTicketsController = async (req, res) => {
         if (ticket_uuid) {
             where.ticket_uuid = ticket_uuid;
         } else if (ticket_code) {
-            where.ticket_code = ticket_code;
+            // Bez razlike velikih i malih slova: blagajna izdaje oznake malim
+            // slovima ("2f1436c69876"), mobilna velikima ("HEXNYZ7DHA"), a
+            // oznaka se s papira prepisuje rukom. `iLike` bez zamjenskih znakova
+            // je i dalje točno podudaranje, samo ne pada na veličini slova.
+            where.ticket_code = { [Op.iLike]: String(ticket_code).trim() };
         } else if (order_uuid) {
             where.order_uuid = order_uuid;
         } else {

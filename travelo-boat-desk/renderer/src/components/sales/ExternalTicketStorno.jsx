@@ -122,7 +122,10 @@ export default function ExternalTicketStorno() {
                     size="small"
                     label="Oznaka karte"
                     value={kod}
-                    onChange={(e) => setKod(e.target.value.toUpperCase())}
+                    // Bez pretvaranja u velika slova: blagajne izdaju oznake
+                    // malim slovima, mobilna velikima, a traži se točno kako
+                    // piše na karti.
+                    onChange={(e) => setKod(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") trazi(); }}
                     sx={{ width: 220 }}
                 />

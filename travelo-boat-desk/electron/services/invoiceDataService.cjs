@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const axios = require('axios');
 const https = require("https");
+const { Op } = require("sequelize");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
 const { companyModel, usersModel } = require("../db/models/BasicData.cjs");
 const { shiftModel } = require("../db/models/ShiftsData.cjs");
@@ -1111,7 +1112,6 @@ const syncPendingInvoicesService = async () => {
     const token = pairingData?.token
     if (!backendUrl || !token) return { ok: false, reason: 'no_backend_url_or_token' }
 
-    const { Op } = require('sequelize')
     const pending = await invoicesModel.findAll({
       where: {
         [Op.or]: [
@@ -1176,8 +1176,10 @@ const lookupExternalTicketService = async (ticketCode) => {
     if (!oznaka) return { ok: false, reason: 'Upiši oznaku karte.' };
 
     // Vlastita karta ide postojećim putem — ondje su i račun i stavke, pa
-    // storno može ispraviti izvorni račun umjesto da radi zaseban.
-    const lokalna = await ticketsModel.findOne({ where: { ticket_code: oznaka } });
+    // storno može ispraviti izvorni račun umjesto da radi zaseban. Traži se bez
+    // razlike velikih i malih slova, jer se oznaka prepisuje s papira (SQLite
+    // LIKE je za ASCII slova neosjetljiv na veličinu).
+    const lokalna = await ticketsModel.findOne({ where: { ticket_code: { [Op.like]: oznaka } } });
     if (lokalna) {
       return { ok: true, local: true, ticket: lokalna.toJSON() };
     }
