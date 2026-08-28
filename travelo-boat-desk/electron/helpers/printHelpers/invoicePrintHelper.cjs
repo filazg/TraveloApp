@@ -239,11 +239,6 @@ const printInvoice = async ({ invoice, items, copy }) => {
                 printer.println(invoice.buyer_oib)
             }
         }
-        printer.drawLine();
-        printer.println("U cijenu je uračunato 6% naknade za lučku taksu.");
-        printer.println("The price includes 6% of the port tax fee.");
-        printer.println("Lučke takse u cijeni su prolazne stavke. Oslobođeno PDV-a prema čl. 33 st.3 zakona i PDV-u. /");
-        printer.println("Port taxes in the price are a passing item. Exempt from VAT according to Art. 33 paragraf 3 of the Law on VAT.");
         if(invoice.payment_data?.tid && settingsData.pos_print_on_app){
             if(invoice.payment_data?.tid ){
                 printer.drawLine();
@@ -391,9 +386,6 @@ const printTickets = async ({ tickets,copy }) => {
                 });
             printer.println(tickets[t].ticket_code)
             printer.alignLeft();
-            printer.drawLine();
-            printer.println('Dozvoljena osobna prtljaga do 23kg / Maximum luggage weight up to 23kg')
-            printer.println('Dužni ste predočiti kartu s kodom prilikom ukrcaja / You are obligated to present the code printed on the ticket while boarding')
             printNapomena(printer, osnovniPodaci?.billing_device_ticket_footer);
             cutOrFeed(printer, settingsData.printer_cut);
         }

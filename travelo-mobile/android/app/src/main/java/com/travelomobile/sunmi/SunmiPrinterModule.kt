@@ -630,12 +630,6 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                 dline(p)
             }
 
-            // ----- FOOTER (lučka taksa, čl. 33) -----
-            for (line in wrapLines("U cijenu je uračunato 6% naknade za lučku taksu.", W)) p.printText("$line\n", null)
-            for (line in wrapLines("The price includes 6% of the port tax fee.", W)) p.printText("$line\n", null)
-            for (line in wrapLines("Lučke takse u cijeni su prolazne stavke. Oslobođeno PDV-a prema čl. 33 st.3 zakona i PDV-u.", W)) p.printText("$line\n", null)
-            for (line in wrapLines("Port taxes in the price are a passing item. Exempt from VAT according to Art. 33 paragraf 3 of the Law on VAT.", W)) p.printText("$line\n", null)
-
             // Napomena s naplatnog uređaja. Definira se u administraciji, po
             // uređaju i odvojeno za račun i za kartu — račun ide kupcu, karta
             // putniku. Prazno polje ne ostavlja ni crtu ni prazan redak.
@@ -1083,13 +1077,9 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                         p.setFontSize(24f, null)
                     }
                     p.setAlignment(0, null)
-                    dline(p)
 
-                    // ----- FOOTER -----
+                    // ----- NAPOMENA S UREĐAJA -----
                     p.setFontSize(20f, null)
-                    for (line in wrapLines("Dozvoljena osobna prtljaga do 23kg / Maximum luggage weight up to 23kg", W)) p.printText("$line\n", null)
-                    for (line in wrapLines("Dužni ste predočiti kartu s kodom prilikom ukrcaja / You are obligated to present the code printed on the ticket while boarding", W)) p.printText("$line\n", null)
-
                     printNapomena(p, safeString(bd, "billing_device_ticket_footer"), W)
 
                     p.lineWrap(1, null)
