@@ -39,20 +39,64 @@ const centriranPunRedak = (tekst, sirina) => {
 // Napomena s naplatnog uređaja na dnu ispisa. Definira se u administraciji, po
 // uređaju, odvojeno za račun i za kartu — račun ide kupcu, karta putniku, pa
 // tekst nije isti. Prazno polje ne ostavlja ni crtu ni prazan redak.
+// Prelomi odlomak na zadanu širinu i razvuci ga od ruba do ruba: višak mjesta
+// se razdijeli po razmacima između riječi. Zadnji redak odlomka ostaje kakav
+// jest — razvučen bi izgledao kao greška, a ne kao poravnanje.
+const poravnajObostrano = (odlomak, sirina) => {
+    const rijeci = String(odlomak).trim().split(/\s+/).filter(Boolean);
+    if (!rijeci.length) return [];
+    const redci = [];
+    let tekuci = [];
+    for (const rijec of rijeci) {
+        const duljina = tekuci.reduce((z, r) => z + r.length, 0) + tekuci.length + rijec.length;
+        if (tekuci.length && duljina > sirina) {
+            redci.push(tekuci);
+            tekuci = [];
+        }
+        tekuci.push(rijec);
+    }
+    if (tekuci.length) redci.push(tekuci);
+
+    return redci.map((redak, i) => {
+        const zadnji = i === redci.length - 1;
+        if (zadnji || redak.length === 1) return redak.join(' ');
+        const slova = redak.reduce((z, r) => z + r.length, 0);
+        const praznina = sirina - slova;
+        const razmaka = redak.length - 1;
+        const osnovni = Math.floor(praznina / razmaka);
+        // Ostatak se dodaje slijeva, kao u tisku — inače bi zadnji razmak
+        // pokupio sve i redak bi vizualno pukao na desnoj strani.
+        let ostatak = praznina % razmaka;
+        return redak.reduce((tekst, rijec, j) => {
+            if (j === 0) return rijec;
+            const dodatni = ostatak > 0 ? 1 : 0;
+            if (ostatak > 0) ostatak -= 1;
+            return tekst + ' '.repeat(osnovni + dodatni) + rijec;
+        }, '');
+    });
+};
+
 // Ispisuje se sitnijim fontom (font B, 9×17 umjesto 12×24): napomena je duga,
 // a nije glavni sadržaj računa ni karte. Font se vraća na A jer isti printer
 // nastavlja ispisivati — kod karata i sljedeću kartu u petlji.
+//
+// Širina se privremeno diže jer biblioteka prelama po broju znakova, a ne po
+// otisku: u font B na istu traku stane oko trećina znakova više, pa bi se uz
+// zatečenih 42 tekst lomio nasred papira i stajao kao uski stupac.
 const printNapomena = (printer, tekst) => {
     const napomena = String(tekst ?? '').trim();
     if (!napomena) return;
+    const sirinaA = Number(printer?.config?.width) || 42;
+    const sirinaB = Math.floor(sirinaA * 4 / 3);
     printer.drawLine();
-    printer.alignCenter();
-    printer.setTypeFontB();
-    for (const redak of napomena.split(String.fromCharCode(10))) {
-        if (redak.trim()) printer.println(redak.trim());
-    }
-    printer.setTypeFontA();
     printer.alignLeft();
+    printer.setTypeFontB();
+    printer.config.width = sirinaB;
+    for (const odlomak of napomena.split(String.fromCharCode(10))) {
+        for (const redak of poravnajObostrano(odlomak, sirinaB)) printer.println(redak);
+    }
+    printer.config.width = sirinaA;
+    printer.setTypeFontA();
 };
 
 const printInvoice = async ({ invoice, items, copy }) => {
