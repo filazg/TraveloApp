@@ -78,6 +78,27 @@ export const fetchPartnerInvoicesThunk = createAsyncThunk(
     }
 );
 
+// Obračun provizije partnerima koji prodaju u naše ime. Nije popis dokumenata
+// nego izračun za razdoblje — poslužitelj svaki put zbroji prodaju s partnerskih
+// prodajnih mjesta, pa se ništa ne pamti ni ne zastarijeva.
+export const fetchPartnerCommissionThunk = createAsyncThunk(
+    "finance/fetchPartnerCommission",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/partner_commission", { params });
+            const payload = unwrapBff(resp);
+            return {
+                partners: payload?.partners || [],
+                totals: payload?.totals || { tickets: 0, gross: 0, base: 0, commission: 0 },
+                from: payload?.from || params.from || "",
+                to: payload?.to || params.to || "",
+            };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
 export const fetchPartnerInvoiceDetailsThunk = createAsyncThunk(
     "finance/fetchPartnerInvoiceDetails",
     async (partner_invoice_uuid, { rejectWithValue }) => {
@@ -498,6 +519,9 @@ const financeSlice = createSlice({
         partnerInvoices: [],
         partnerInvoicesLoading: false,
         partnerInvoicesError: null,
+        partnerCommission: { partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 }, from: "", to: "" },
+        partnerCommissionLoading: false,
+        partnerCommissionError: null,
         partnerInvoiceDetails: null,
         partnerInvoiceDetailsLoading: false,
         partnersList: [],
@@ -699,6 +723,18 @@ const financeSlice = createSlice({
             .addCase(fetchPartnerInvoicesThunk.rejected, (s, a) => {
                 s.partnerInvoicesLoading = false;
                 s.partnerInvoicesError = a.payload?.message || "Greška pri dohvatu partner računa";
+            })
+            .addCase(fetchPartnerCommissionThunk.pending, (s) => {
+                s.partnerCommissionLoading = true;
+                s.partnerCommissionError = null;
+            })
+            .addCase(fetchPartnerCommissionThunk.fulfilled, (s, a) => {
+                s.partnerCommissionLoading = false;
+                s.partnerCommission = a.payload;
+            })
+            .addCase(fetchPartnerCommissionThunk.rejected, (s, a) => {
+                s.partnerCommissionLoading = false;
+                s.partnerCommissionError = a.payload?.message || "Greška pri dohvatu obračuna provizije";
             })
             .addCase(fetchPartnerInvoiceDetailsThunk.pending, (s) => {
                 s.partnerInvoiceDetailsLoading = true;

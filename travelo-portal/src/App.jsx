@@ -26,6 +26,7 @@ import InvoicesPage from './features/finance/pages/invoices/InvoicesPage';
 import FinanceInvoicesPage from './features/finance/FinanceInvoicesPage';
 import FinancePage from './features/finance/FinancePage';
 import PartnerInvoicesPage from './features/finance/pages/partner_invoices/PartnerInvoicesPage';
+import PartnerCommissionPage from './features/finance/pages/partner_commission/PartnerCommissionPage';
 import CountriesPage from './features/backoffice/pages/countries/CountriesPage';
 import TicketsOverviewPage from './features/finance/pages/tickets/TicketsOverviewPage';
 import HarborTaxReportPage from './features/finance/pages/harbor_tax/HarborTaxReportPage';
@@ -85,6 +86,7 @@ function App() {
                 <Route path='finance' element={<FinancePage/>}></Route>
                 <Route path='finance/invoices' element={<FinanceInvoicesPage/>}></Route>
                 <Route path='finance/partner_invoices' element={<PartnerInvoicesPage/>}></Route>
+                <Route path='finance/partner_commission' element={<PartnerCommissionPage/>}></Route>
                 <Route path='finance/tickets' element={<TicketsOverviewPage/>}></Route>
                 <Route path='finance/harbor_tax_report' element={<HarborTaxReportPage/>}></Route>
                 <Route path='finance/shifts' element={<ShiftsPage/>}></Route>

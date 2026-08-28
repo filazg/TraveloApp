@@ -8,6 +8,7 @@ const { listInvoicesController } = require('../controllers/dataControllers/invoi
 const { backfillInvoicesFiscalController } = require('../controllers/dataControllers/invoicesBackfillController');
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
 const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
+const { partnerCommissionController } = require('../controllers/dataControllers/partnerCommissionController');
 const { listTicketsController } = require('../controllers/dataControllers/ticketsSearchController');
 const { cancelTicketsController } = require('../controllers/dataControllers/cancelTicketsController');
 const { harborTaxReportController } = require('../controllers/dataControllers/harborTaxReportController');
@@ -81,6 +82,12 @@ router
 router
     .route('/partner_invoice/:partner_invoice_uuid')
     .get(getPartnerInvoiceDetailsController)
+
+// Obracun provizije partnerima koji prodaju u nase ime, na partnerskom
+// prodajnom mjestu. Suprotan smjer od partnerskih racuna: mi placamo njima.
+router
+    .route('/partner_commission')
+    .get(partnerCommissionController)
 
 router
     .route('/tickets_search')

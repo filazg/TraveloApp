@@ -239,6 +239,19 @@
                             "icon": "Handshake"
                         },
                         {
+                            "key": "PARTNER_COMMISSION",
+                            "label": {
+                                "hr": "Provizija partnera",
+                                "en": "Partner commission"
+                            },
+                            "subtitle": {
+                                "hr": "Obračun provizije po razdoblju",
+                                "en": "Commission settlement per period"
+                            },
+                            "path": "/finance/partner_commission",
+                            "icon": "Percent"
+                        },
+                        {
                             "key": "TICKETS_OVERVIEW",
                             "label": {
                                 "hr": "Pregled karata",
