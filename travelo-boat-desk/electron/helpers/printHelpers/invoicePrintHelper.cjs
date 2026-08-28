@@ -39,14 +39,19 @@ const centriranPunRedak = (tekst, sirina) => {
 // Napomena s naplatnog uređaja na dnu ispisa. Definira se u administraciji, po
 // uređaju, odvojeno za račun i za kartu — račun ide kupcu, karta putniku, pa
 // tekst nije isti. Prazno polje ne ostavlja ni crtu ni prazan redak.
+// Ispisuje se sitnijim fontom (font B, 9×17 umjesto 12×24): napomena je duga,
+// a nije glavni sadržaj računa ni karte. Font se vraća na A jer isti printer
+// nastavlja ispisivati — kod karata i sljedeću kartu u petlji.
 const printNapomena = (printer, tekst) => {
     const napomena = String(tekst ?? '').trim();
     if (!napomena) return;
     printer.drawLine();
     printer.alignCenter();
+    printer.setTypeFontB();
     for (const redak of napomena.split(String.fromCharCode(10))) {
         if (redak.trim()) printer.println(redak.trim());
     }
+    printer.setTypeFontA();
     printer.alignLeft();
 };
 
