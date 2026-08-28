@@ -149,11 +149,26 @@ const cancelTicketsController = async (req, res) => {
         }
 
         const tickets = await TicketsModel.findAll({ where: { ticket_uuid: { [Op.in]: ticket_uuids } } });
-        if (tickets.length !== ticket_uuids.length) {
+        // Broje se različiti uuid-i, ne redci. Zatečene dvostruke karte — ista
+        // prodaja zapisana dvaput jer je terminal ponovio slanje — inače su
+        // rušile storno porukom "only 2/1 tickets found", iako je karta uredno
+        // nađena. Storniraju se svi redci te karte.
+        const nadjeni = new Set(tickets.map((t) => t.ticket_uuid));
+        if (nadjeni.size !== ticket_uuids.length) {
             return res.status(404).json({
                 status: 404,
-                data: { message: `only ${tickets.length}/${ticket_uuids.length} tickets found` },
+                data: { message: `only ${nadjeni.size}/${ticket_uuids.length} tickets found` },
             });
+        }
+        // Novac se računa po karti, a ne po zatečenom retku: dvostruko zapisana
+        // karta inače daje dvostruki povrat. Označavanje storniranim ide na sve
+        // retke te karte, da nijedan ne ostane važeći.
+        const karteZaPovrat = [];
+        const vidjeni = new Set();
+        for (const t of tickets) {
+            if (vidjeni.has(t.ticket_uuid)) continue;
+            vidjeni.add(t.ticket_uuid);
+            karteZaPovrat.push(t);
         }
         // Karta otkazanog putovanja nosi `is_canceled`, ali NIJE stornirana —
         // putnik nije dobio novac natrag. Njoj storno tek treba, pa se ovdje
@@ -234,7 +249,7 @@ const cancelTicketsController = async (req, res) => {
         const invoiceItemDetailsToAdd = [];
 
         // One invoice_item per ticket (refund line). Amount is negative = refund.
-        for (const t of tickets) {
+        for (const t of karteZaPovrat) {
             const refundPos = +(Number(t.single_price || 0) * (pct / 100)).toFixed(2);
             const refund = -refundPos;
             const { port, base, vat } = splitAmount(refund);
@@ -327,8 +342,10 @@ const cancelTicketsController = async (req, res) => {
             { where: { id: ticketIds } }
         );
 
-        // Release capacity in booking service (per ticket, qty=1 each since ticket rows are singular)
-        const releaseItems = tickets
+        // Release capacity in booking service (per ticket, qty=1 each since ticket rows are singular).
+        // Ide po karti, ne po retku — inače bi dvostruko zapisana karta oslobodila
+        // dva mjesta, a zauzimala je jedno.
+        const releaseItems = karteZaPovrat
             .filter((t) => t.route_uuid && t.ticket_type_uuid)
             .map((t) => ({ route_uuid: t.route_uuid, ticket_type_uuid: t.ticket_type_uuid, qty: 1 }));
         if (releaseItems.length) await releaseBookings(releaseItems);
@@ -344,9 +361,9 @@ const cancelTicketsController = async (req, res) => {
                 amount: total_amount, // negativan na računu, u nalogu ide kao iznos isplate
                 storno_invoice_uuid: invoice_uuid,
                 storno_invoice_code: finalInvoiceCode,
-                ticket_uuids: tickets.map((t) => t.ticket_uuid),
-                ticket_codes: tickets.map((t) => t.ticket_code).filter(Boolean),
-                description: `Povrat po stornu ${finalInvoiceCode} - ${tickets.length} ${rijecKarte(tickets.length)}`,
+                ticket_uuids: karteZaPovrat.map((t) => t.ticket_uuid),
+                ticket_codes: karteZaPovrat.map((t) => t.ticket_code).filter(Boolean),
+                description: `Povrat po stornu ${finalInvoiceCode} - ${karteZaPovrat.length} ${rijecKarte(karteZaPovrat.length)}`,
                 created_by: refund.created_by || null,
             };
 
@@ -397,7 +414,7 @@ const cancelTicketsController = async (req, res) => {
                 invoice_code: finalInvoiceCode,
                 is_f2: isF2,
                 total_amount,
-                canceled_ticket_uuids: tickets.map((t) => t.ticket_uuid),
+                canceled_ticket_uuids: karteZaPovrat.map((t) => t.ticket_uuid),
                 refund_item: refundItem,
             },
         });

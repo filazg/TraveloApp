@@ -136,6 +136,65 @@ const finalizeTerminalSaleController = async (req, res) => {
         if (!payment_method_uuid) return res.status(400).json({ status: 400, data: { message: "payment_method_uuid required" } });
         if (!items.length) return res.status(400).json({ status: 400, data: { message: "no tickets in cart" } });
 
+        // Ista prodaja poslana dvaput. Terminal gura zaostatak sve dok ne dobije
+        // potvrdu, pa nakon isteka veze zna poslati račun koji je već zapisan —
+        // odgovor se izgubio, a prodaja je prošla. Bez ove provjere nastane
+        // drugi račun i druge karte s istim uuid-ima: izvještaji broje duplo, a
+        // storno padne s "only 2/1 tickets found".
+        //
+        // Provjera stoji prije rezervacije mjesta, jer bi ponovljeni zahtjev
+        // inače drugi put umanjio raspoloživost polaska.
+        if (client_invoice_uuid) {
+            const vecZapisan = await InvoiceModel.findOne({
+                where: { invoice_uuid: client_invoice_uuid },
+            });
+            if (vecZapisan) {
+                const karte = await TicketsModel.findAll({
+                    where: { invoice_uuid: client_invoice_uuid },
+                });
+                console.log("[finalizeSale] racun", client_invoice_uuid, "je vec zapisan — ponovljeni zahtjev, nista se ne stvara");
+                return res.status(200).json({
+                    status: 200,
+                    data: {
+                        invoice_uuid: vecZapisan.invoice_uuid,
+                        invoice_no: vecZapisan.invoice_no,
+                        invoice_fiskal_no: vecZapisan.invoice_fiskal_no,
+                        invoice_year: vecZapisan.invoice_year,
+                        invoice_code: vecZapisan.invoice_code,
+                        is_f2: Boolean(vecZapisan.fiskal_required),
+                        order_uuid: vecZapisan.order_uuid,
+                        total_amount: vecZapisan.invoice_amount,
+                        total_vat_base: vecZapisan.invoice_vat_base,
+                        total_vat: vecZapisan.invoice_vat,
+                        total_harbor_tax: vecZapisan.invoice_harbor_tax,
+                        payment_method_name: vecZapisan.invoice_payment_method_name,
+                        tickets_count: karte.length,
+                        fiskal_required: Boolean(vecZapisan.fiskal_required),
+                        already_recorded: true,
+                        tickets: karte.map((t) => ({
+                            ticket_uuid: t.ticket_uuid,
+                            ticket_code: t.ticket_code,
+                            ticket_qr: t.ticket_qr,
+                            order_uuid: t.order_uuid,
+                            ticket_type_uuid: t.ticket_type_uuid,
+                            ticket_type_name: t.ticket_type_name,
+                            line_code: t.line_code,
+                            line_name: t.line_name,
+                            route_uuid: t.route_uuid,
+                            departure_harbor_id: t.departure_harbor_id,
+                            departure_harbor_name: t.departure_harbor_name,
+                            arrival_harbor_id: t.arrival_harbor_id,
+                            arrival_harbor_name: t.arrival_harbor_name,
+                            departure_planed: t.departure_planed,
+                            single_price: t.single_price,
+                            status: t.status,
+                            validate_data: t.validate_data,
+                        })),
+                    },
+                });
+            }
+        }
+
         const { company, businessPremise: bp, billingDevice: bd } = await loadFiscalContext(terminal_uuid);
         const pmList = bd.payment || bd.payment_methods || [];
         const pm = pmList.find((x) => x.uuid === payment_method_uuid);
