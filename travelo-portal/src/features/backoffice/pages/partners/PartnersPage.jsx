@@ -47,6 +47,7 @@ export default function PartnersPage (){
     const [newWebUser, setNewWebUser] = useState([])
     const [newApiUser, setNewApiUser] = useState([])
     const [webUser, setWebUser] = useState({})
+    const [editStaff, setEditStaff] = useState(null)
     const [apiUser, setApiUser] = useState({})
     const [rowToActivate, setRowsToActivate] = useState(null);
     
@@ -181,6 +182,7 @@ export default function PartnersPage (){
             renderCell: (params) => (
                 <Checkbox
                     checked={imaWebPristup(params.row.username)}
+                    onClick={(e) => e.stopPropagation()}
                     onChange={() => prebaciWebPristup(params.row)}
                 />
             ),
@@ -206,11 +208,6 @@ export default function PartnersPage (){
             ],
         },
     ]
-
-    const handleProcessWebRowUpdate = (newRow) => {
-        setNewWebUser((prev) => prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r)));
-        return newRow;
-    };
 
     const handleProcessApiRowUpdate = (newRow) => {
         setNewApiUser((prev) => prev.map((r) => (r.id === newRow.id ? { ...r, ...newRow } : r)));
@@ -260,6 +257,34 @@ export default function PartnersPage (){
         await dispatch(getBackofficeThunk({path:'users'}))
         setWebUser({})
         setAddWebModal(false)
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+
+    // Izmjena djelatnika ide istim putem kao izmjena naseg operatera. Lozinka se
+    // ne prikazuje: polje je prazno i mijenja je samo tko nesto upise, inace se
+    // salje zatecena i jezgra je prepozna kao nepromijenjenu.
+    const otvoriDjelatnika = (red) => {
+        setEditStaff({ ...red, password: '', _lozinka: red.password })
+    }
+
+    const spremiDjelatnika = async () => {
+        if (!editStaff?.uuid) return
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value:'Spremanje djelatnika'}))
+        await dispatch(patchBackofficeThunk({path:'users', data:{
+            uuid: editStaff.uuid,
+            name: editStaff.name,
+            surname: editStaff.surname,
+            legal_id: editStaff.legal_id,
+            mark: editStaff.mark,
+            code: editStaff.code,
+            password: editStaff.password ? editStaff.password : editStaff._lozinka,
+            is_active: editStaff.is_active,
+            partner_uuid: selectedRow?.uuid,
+            partner_name: selectedRow?.partner_name,
+        }}))
+        await dispatch(getBackofficeThunk({path:'users'}))
+        setEditStaff(null)
         await dispatch(setAuthData({path:'loading', value:false}))
     }
 
@@ -744,8 +769,8 @@ export default function PartnersPage (){
                             rows={djelatniciPartnera || []}
                             columns={columns_web}
                             getRowId={(row) => row.id}
-                            processRowUpdate={handleProcessWebRowUpdate}
-                            onProcessRowUpdateError={(err) => console.log('web row update error:', err)}
+                            onRowClick={(params) => otvoriDjelatnika(params.row)}
+                            sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
                         />
                     </Box> 
                     <Stack direction='row' justifyContent= "space-between" sx={{mt:1}} >
@@ -853,6 +878,83 @@ export default function PartnersPage (){
                         variant="contained"
                         >
                             {t('backoffice.partners.add')}
+                    </Button>
+                </Box>
+            </Modal>
+            <Modal
+                open={!!editStaff} onClose={() => setEditStaff(null)}
+            >
+                <Box sx={{ ...style, width: 320, maxHeight: '90vh', overflowY: "auto" }}>
+                    <Typography sx={{ fontWeight: 700 }}>Djelatnik partnera</Typography>
+                    <TextField
+                        type="text" variant="outlined" fullWidth required
+                        label="Ime" value={editStaff?.name || ""}
+                        onChange={(e) => setEditStaff({ ...editStaff, name: e.target.value })}
+                        sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth required
+                        label="Prezime" value={editStaff?.surname || ""}
+                        onChange={(e) => setEditStaff({ ...editStaff, surname: e.target.value })}
+                        sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth required
+                        label="OIB" value={editStaff?.legal_id || ""}
+                        onChange={(e) => setEditStaff({ ...editStaff, legal_id: e.target.value })}
+                        sx={{ mt:1 }}
+                    />
+                    {/* Korisničko ime se ne mijenja naknadno: po njemu se
+                        prepoznaje prijava i veže pristup partnerskoj prodaji. */}
+                    <TextField
+                        type="text" variant="outlined" fullWidth disabled
+                        label={t('backoffice.partners.web_user_username')}
+                        value={editStaff?.username || ""}
+                        sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth
+                        label="Nova lozinka"
+                        placeholder="ostavi prazno ako se ne mijenja"
+                        value={editStaff?.password || ""}
+                        onChange={(e) => setEditStaff({ ...editStaff, password: e.target.value })}
+                        sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth required
+                        label="Oznaka" value={editStaff?.mark || ""}
+                        onChange={(e) => setEditStaff({ ...editStaff, mark: e.target.value })}
+                        sx={{ mt:1 }}
+                    />
+                    <TextField
+                        type="text" variant="outlined" fullWidth
+                        label="Šifra" value={editStaff?.code || ""}
+                        onChange={(e) => setEditStaff({ ...editStaff, code: e.target.value })}
+                        sx={{ mt:1 }}
+                    />
+                    <TextField
+                        select variant="outlined" fullWidth
+                        label="Aktivan"
+                        value={editStaff?.is_active === false ? 'false' : 'true'}
+                        onChange={(e) => setEditStaff({ ...editStaff, is_active: e.target.value === 'true' })}
+                        sx={{ mt:1 }}
+                    >
+                        <MenuItem value="true">Da</MenuItem>
+                        <MenuItem value="false">Ne (ne može se prijaviti)</MenuItem>
+                    </TextField>
+                    <Button
+                        onClick={spremiDjelatnika}
+                        disabled={
+                            !editStaff?.name || !editStaff?.surname
+                            || !editStaff?.legal_id || !editStaff?.mark
+                        }
+                        sx={{ height: 60, mt: 3, width: "100%" }}
+                        variant="contained"
+                    >
+                        Spremi
+                    </Button>
+                    <Button onClick={() => setEditStaff(null)} sx={{ mt: 1, width: "100%" }}>
+                        Odustani
                     </Button>
                 </Box>
             </Modal>
