@@ -13,6 +13,14 @@ export default function MainMenuScreen() {
     const auth = useSelector(authData);
     const sync = useSelector(syncData);
     const shifts = useSelector(shiftsData);
+
+    // Partnersko prodajno mjesto ne plovi — ondje se karta prodaje na pultu, pa
+    // izbornik govori o prodaji. Ako uredaj uz to ne validira, ni podnaslov ne
+    // spominje validaciju.
+    const partnerskoMjesto = sync.basicData?.business_premise_own === 'PARTNER_BP';
+    const smijeValidirati = sync.basicData?.billing_device_can_validate !== false;
+    const naslovProdaje = partnerskoMjesto ? 'Prodaja' : 'Plovidba';
+    const podnaslovProdaje = smijeValidirati ? 'Prodaja i validacija karata' : 'Prodaja karata';
     const hasOpenShift = !!shifts.currentOpen?.shift_uuid;
 
     const onVoyagePress = () => {
@@ -68,9 +76,9 @@ export default function MainMenuScreen() {
                         onPress={onVoyagePress}
                         activeOpacity={0.85}
                     >
-                        <Text style={styles.tilePrimaryTitle}>Plovidba</Text>
+                        <Text style={styles.tilePrimaryTitle}>{naslovProdaje}</Text>
                         <Text style={styles.tilePrimarySub}>
-                            {hasOpenShift ? 'Prodaja i validacija karata' : 'Otvorite smjenu za prodaju'}
+                            {hasOpenShift ? podnaslovProdaje : 'Otvorite smjenu za prodaju'}
                         </Text>
                     </TouchableOpacity>
 

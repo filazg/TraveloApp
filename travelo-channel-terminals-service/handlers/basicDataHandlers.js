@@ -52,6 +52,10 @@ const getTerminalBasicDataHandler = async(data)=>{
                 business_premise_country:businessPremiseDataForTerminal.country || '',
                 business_premise_description:businessPremiseDataForTerminal.description || '',
                 business_premise_working_time:businessPremiseDataForTerminal.working_time || '',
+                // Vlasnistvo prodajnog mjesta. Terminal partnera prodaje u nase
+                // ime, ali ne plovi — pa mu izbornik ne govori o plovidbi.
+                business_premise_own:businessPremiseDataForTerminal.bp_own || '',
+                business_premise_partner_name:businessPremiseDataForTerminal.partner_name || '',
                 billing_device_uuid:terminaData.uuid || '',
                 billing_device_fiscal_mark:terminaData.fiscal_mark || '',
                 billing_device_name:terminaData.name || '',
