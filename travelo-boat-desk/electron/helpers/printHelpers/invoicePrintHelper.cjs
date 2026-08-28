@@ -371,9 +371,9 @@ const printTickets = async ({ tickets,copy }) => {
             printer.alignLeft();
             printer.leftRight("Dep/Pol", tickets[t].ticket_departure_harbor_name + ' / ' + tickets[t].ticket_departure);
             printer.leftRight("Arr/Dol", tickets[t].ticket_arrival_harbor_name + ' / ' + tickets[t].ticket_arrival);
-            printer.drawLine();
+            // Bez crta oko retka s putnikom: polazak, dolazak, putnik i linija
+            // su jedna cjelina, pa su crte samo trošile papir i razbijale je.
             printer.leftRight("Passanger/Putnik", tickets[t].ticket_type_name);
-            printer.drawLine();
             printer.leftRight("Line/Linija", tickets[t].line_name);
             printer.drawLine();
             if(tickets[t].ticket_type_name === "MOSI"){
