@@ -68,15 +68,28 @@ export default function SalesScreen() {
     await dispatch(setStateData({ path: "status", value: "loading" }));
     await dispatch(setStateData({ path: "loadingText", value: "Preuzimanje podataka sa servera..." }));
     try {
-      await window.api.app.syncTransportBackend();
-      await window.api.app.syncBasicBackend();
+      // Oba IPC-a vracaju { ok, error } umjesto da bacaju, pa se ishod mora
+      // provjeriti. Bez toga je sinkronizacija javljala uspjeh i kad podaci
+      // nisu stigli — npr. napomene s naplatnog uredaja nisu se osvjezile, a
+      // blagajnik je vidio zelenu poruku.
+      const transportRes = await window.api.app.syncTransportBackend();
+      const basicRes = await window.api.app.syncBasicBackend();
+      const neuspjeh = [
+        transportRes?.ok === false ? "vozni red" : null,
+        basicRes?.ok === false ? "osnovni podaci" : null,
+      ].filter(Boolean);
       const basicData = await window.api.app.getLocalBasicDataIpc();
       await dispatch(setStateData({ path: "basicData", value: basicData.data }));
       // Vozni redovi se drže odvojeno od osnovnih podataka i FilterBar ih čita
       // iz transportData — bez ovoga bi nova pretraga i dalje nudila stari red.
       const transportData = await window.api.app.getLocalTransportDataIpc();
       await dispatch(setStateData({ path: "transportData", value: transportData.data }));
-      await dispatch(setStateData({ path: "alertData", value: { message: "Podaci su sinkronizirani.", severity: "success" } }));
+      await dispatch(setStateData({
+        path: "alertData",
+        value: neuspjeh.length
+          ? { message: `Sinkronizacija nije prošla: ${neuspjeh.join(" i ")}. Zadržani su zadnji spremljeni podaci.`, severity: "warning" }
+          : { message: "Podaci su sinkronizirani.", severity: "success" },
+      }));
     } catch (error) {
       console.error("Greška pri sinkronizaciji podataka:", error);
       await dispatch(setStateData({ path: "alertData", value: { message: "Sinkronizacija nije uspjela.", severity: "error" } }));

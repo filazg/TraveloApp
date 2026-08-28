@@ -61,7 +61,14 @@ async function syncBasicDataService() {
       },
     });
     console.log('BASIC DATAAAAAAAAAAA',basicData.data.users)
-    if (basicData) {     
+    if (basicData) {
+      // Nepotpun odgovor se ne sprema. Bez ove provjere truncate isprazni
+      // operatere, tvrtku i sredstva placanja, a create(undefined) puca —
+      // blagajna ostane bez podataka za prodaju.
+      if (!basicData.data?.basic_data || !Array.isArray(basicData.data?.users) ||
+          !Array.isArray(basicData.data?.payment_method)) {
+        throw new Error("Osnovni podaci nisu stigli u cijelosti");
+      }
       await usersModel.truncate();
       await usersModel.bulkCreate(basicData.data.users);
       await companyModel.truncate();
@@ -92,6 +99,10 @@ async function syncBasicDataService() {
       console.log("pairing status: ");
       console.log(getPair);
     }
+    // Greska ide dalje. Dosad se gutala, pa je pozivatelj dobio "proslo je"
+    // i prodajni modul je javljao uspjesnu sinkronizaciju iako podaci nisu
+    // stigli — a operater je onda cekao izmjene koje nikad nisu dosle.
+    throw error;
   }
 }
 
@@ -117,11 +128,10 @@ async function syncTransportDataService() {
 
       // Nepotpun odgovor se ne sprema. Bez ove provjere bi truncate ispraznio
       // vozni red, a bulkCreate(undefined) puknuo — blagajna bi ostala bez
-      // ijednog polaska do sljedeceg uspjesnog syncа.
+      // ijednog polaska do sljedeceg uspjesnog syncanja.
       if (!Array.isArray(salesRoutesData) || !Array.isArray(linesData) ||
           !Array.isArray(priceData) || !Array.isArray(harborsData)) {
-        console.log("SYNC TRANSPORT DATA SERVICE: nepotpun odgovor, vozni red ostaje nepromijenjen");
-        return;
+        throw new Error("Vozni red nije stigao u cijelosti");
       }
 
       await salesRoutesDataModel.truncate();
@@ -137,9 +147,9 @@ async function syncTransportDataService() {
     }
   } catch (error) {
     console.log(error);
-    if (error) {
-      console.log(error)
-    }
+    // Isto kao kod osnovnih podataka: neuspjeh mora doci do prodajnog modula,
+    // da sinkronizacija ne javlja uspjeh kad vozni red nije osvjezen.
+    throw error;
   }
 }
 
