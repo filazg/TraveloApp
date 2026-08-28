@@ -21,7 +21,7 @@ import {
     fetchVoyageTicketsThunk, fetchLineTicketsThunk, validateScanThunk, validationData, clearScanResult,
     getCachedTicket, getCachedLineTicket, updateCachedTicket, findRelatedTickets, addTicketsToCache,
     lookupTicketRemote,
-    listCachedTickets, countCachedValidated,
+    listCachedTickets, countCachedValidated, countCachedValid,
 } from '../store/slices/validationSlice';
 import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
@@ -237,11 +237,15 @@ export default function SaleScreen() {
             if (!local) {
                 result = { kind: 'reject', message: 'Karta nije pronađena za ovaj polazak.' };
                 soundError();
+            } else if (local.is_canceled) {
+                // Storno se javlja prije provjere polaska: putniku i djelatniku
+                // je važnije da je karta vraćena nego to što je bila za drugi
+                // polazak. Prije je takva karta znala izaći kao "nije za ovaj
+                // polazak", pa se nije znalo o čemu se radi.
+                result = { kind: 'reject', message: 'Karta je stornirana i ne vrijedi.', ticket: local };
+                soundError();
             } else if ((voyageMismatch || dateMismatch) && !otherVoyageSameRelation) {
                 result = { kind: 'reject', message: 'Karta nije za ovaj polazak.', ticket: local };
-                soundError();
-            } else if (local.is_canceled) {
-                result = { kind: 'reject', message: 'Karta je stornirana.', ticket: local };
                 soundError();
             } else if (local.status === 'validated' || local.validate_data) {
                 result = { kind: 'already', ticket: local };
@@ -1780,7 +1784,9 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
     // Re-komputiramo listu i brojila na svaki render — cache se ažurira tijekom
     // scan-a pa će parent re-render (zbog scanResult promjene) osvježiti prikaz.
     const allTickets = listCachedTickets();
-    const total = allTickets.length;
+    // Brojač govori koliko se putnika ukrcava, pa stornirane ne ulaze — one
+    // ostaju u popisu samo da se vidi da su nevažeće.
+    const total = countCachedValid();
     const validatedCount = countCachedValidated();
 
     const filtered = search.trim()
@@ -1791,11 +1797,16 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
         })
         : allTickets;
 
-    // Sortiraj: nevalidirane prvo, pa validirane; unutar grupe po ticket_code.
+    // Sortiraj: nevalidirane prvo, pa validirane, pa stornirane na dnu — one
+    // se ne ukrcavaju, a i dalje moraju biti nadohvat ako ih netko donese.
+    const rang = (t) => {
+        if (t.is_canceled) return 2;
+        return (t.status === 'validated' || t.validate_data) ? 1 : 0;
+    };
     const sorted = [...filtered].sort((a, b) => {
-        const aVal = a.status === 'validated' || a.validate_data ? 1 : 0;
-        const bVal = b.status === 'validated' || b.validate_data ? 1 : 0;
-        if (aVal !== bVal) return aVal - bVal;
+        const ra = rang(a);
+        const rb = rang(b);
+        if (ra !== rb) return ra - rb;
         return (a.ticket_code || '').localeCompare(b.ticket_code || '');
     });
 
@@ -1874,23 +1885,30 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
                     </Text>
                 ) : (
                     sorted.map((t) => {
+                        // Stornirana karta se prikazuje, ali se ne može validirati
+                        // dodirom — nevažeća je, a djelatnik mora vidjeti zašto.
+                        const isCanceled = !!t.is_canceled;
                         const isValidated = t.status === 'validated' || t.validate_data;
-                        const markerColor = isValidated ? colors.error : colors.primary;
-                        const Row = isValidated ? View : TouchableOpacity;
+                        const markerColor = isCanceled ? colors.error : (isValidated ? colors.error : colors.primary);
+                        const Row = (isValidated || isCanceled) ? View : TouchableOpacity;
                         return (
                             <Row
                                 key={t.ticket_uuid}
-                                style={vs.ticketRow}
-                                onPress={isValidated ? undefined : () => onTicketTap?.(t.ticket_uuid)}
+                                style={[vs.ticketRow, isCanceled && vs.ticketRowCanceled]}
+                                onPress={(isValidated || isCanceled) ? undefined : () => onTicketTap?.(t.ticket_uuid)}
                                 activeOpacity={0.7}
                             >
                                 <View style={[vs.ticketMarker, { backgroundColor: markerColor }]} />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={vs.ticketCode}>{String(t.ticket_code || '')}</Text>
-                                    <Text style={vs.ticketType}>{String(t.ticket_type_name || '')}</Text>
+                                    <Text style={[vs.ticketCode, isCanceled && vs.ticketTextCanceled]}>
+                                        {String(t.ticket_code || '')}
+                                    </Text>
+                                    <Text style={[vs.ticketType, isCanceled && vs.ticketTextCanceled]}>
+                                        {String(t.ticket_type_name || '')}
+                                    </Text>
                                 </View>
-                                <Text style={vs.ticketStatus}>
-                                    {isValidated ? 'VALIDIRANO' : 'AKTIVNA'}
+                                <Text style={[vs.ticketStatus, isCanceled && vs.ticketStatusCanceled]}>
+                                    {isCanceled ? 'STORNIRANA' : (isValidated ? 'VALIDIRANO' : 'AKTIVNA')}
                                 </Text>
                             </Row>
                         );
@@ -1971,6 +1989,11 @@ const vs = StyleSheet.create({
     ticketCode: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', fontFamily: 'monospace' },
     ticketType: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
     ticketStatus: { color: colors.textSecondary, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+    // Stornirana karta: prigušen redak i precrtan kod, da se na prvi pogled
+    // razlikuje od one koja se ukrcava, plus crvena riječ STORNIRANA.
+    ticketRowCanceled: { opacity: 0.65 },
+    ticketTextCanceled: { textDecorationLine: 'line-through' },
+    ticketStatusCanceled: { color: colors.error },
     emptyText: { color: colors.textMuted, textAlign: 'center', padding: 30, fontStyle: 'italic' },
     scanBtn: {
         marginHorizontal: 12, marginTop: 14,

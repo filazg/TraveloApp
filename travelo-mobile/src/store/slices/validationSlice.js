@@ -53,31 +53,34 @@ export const getCachedLineTicket = (key) => _lineTicketsByUuid.get(key) || null;
 
 // Lista karata polaska za validaciju (Map ima dupli zapis po uuid i code).
 //
-// Stornirane karte se izostavljaju: popis odgovara na pitanje "što još treba
-// validirati", a stornirana karta ne treba. Karta stornirana drugdje — na
-// blagajni ili u portalu — inače je i dalje stajala kao da čeka ukrcaj, jer je
-// terminal o njoj znao samo ono što je zatekao pri prodaji. Sam scan i dalje
-// prepoznaje takvu kartu i odbija je s objašnjenjem, jer se traži po Mapi.
+// Stornirane karte ostaju u popisu, ali označene. Skrivanje bi značilo da
+// djelatnik s takvom kartom u ruci ne nađe ništa i ne zna što joj je, a ovako
+// svi na brodu vide da je karta stornirana i time nevažeća. Iz brojača su
+// izuzete jer se ne ukrcavaju.
 export const listCachedTickets = () => {
     const seen = new Set();
     const out = [];
     for (const t of _voyageTicketsByUuid.values()) {
         if (!t?.ticket_uuid || seen.has(t.ticket_uuid)) continue;
         seen.add(t.ticket_uuid);
-        if (t.is_canceled) continue;
         out.push(t);
     }
     return out;
 };
 
-// Broj validiranih karata u cache-u.
+// Broj validiranih karata u cache-u. Stornirane se ne broje — one se ne
+// ukrcavaju, pa nemaju što raditi ni u "ukupno" ni u "validirano".
 export const countCachedValidated = () => {
     let n = 0;
     for (const t of listCachedTickets()) {
+        if (t.is_canceled) continue;
         if (t.status === 'validated' || t.validate_data) n += 1;
     }
     return n;
 };
+
+// Broj karata koje se stvarno ukrcavaju — bez storniranih.
+export const countCachedValid = () => listCachedTickets().filter((t) => !t.is_canceled).length;
 
 // Nađi sve NEVALIDIRANE karte iz iste narudžbe (order_uuid) — isključujući main.
 // Koristi se za "validate related tickets" flow nakon scan-a jedne karte.
