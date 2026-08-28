@@ -1,14 +1,35 @@
 const { getCompanyController, getBusinessPremisesController, getBillingDevicesController, getUsersController, getPaymentMethodsController, getStornoPercentagesController } = require("../controllers/coreServiceControllers/backofficeServiceControllers")
 const { getIntegrationsConfigData } = require("../controllers/configServices/configSyncController")
 
+// Kratka memorija sifarnika. Osnovni podaci se slazu iz sest odvojenih poziva
+// na backoffice, a mijenjaju se rijetko — tvrtka, prodajna mjesta, uredaji,
+// operateri, sredstva placanja i postotci storna. Terminal ih trazi pri svakoj
+// prijavi i svakom osvjezavanju, pa se slozeni sifarnik drzi minutu.
+const MEMORIJA_MS = 60 * 1000;
+let sifarnik = null;
+
+const dohvatiSifarnik = async () => {
+    if (sifarnik && (Date.now() - sifarnik.kad) < MEMORIJA_MS) return sifarnik.podaci;
+    // Pozivi idu usporedno: dosad su isli jedan za drugim, pa se cekanje
+    // zbrajalo — sest odlazaka na bazu u Amsterdamu umjesto najduzeg od njih.
+    const [companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData] =
+        await Promise.all([
+            getCompanyController(),
+            getBusinessPremisesController(),
+            getBillingDevicesController(),
+            getUsersController(),
+            getPaymentMethodsController(),
+            getStornoPercentagesController(),
+        ]);
+    const podaci = { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData };
+    sifarnik = { kad: Date.now(), podaci };
+    return podaci;
+};
+
 const getTerminalBasicDataHandler = async(data)=>{
     try {
-        const companyData = await getCompanyController()
-        const businessPremisesData = await getBusinessPremisesController()
-        const billingDevicesData = await getBillingDevicesController()
-        const usersData = await getUsersController()
-        const paymentsData = await getPaymentMethodsController()
-        const stornoPercentagesData = await getStornoPercentagesController()
+        const { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData } =
+            await dohvatiSifarnik()
         const terminaData = billingDevicesData.data.billing_devices.find((terminal)=> terminal.uuid === data.header.data.t && terminal.is_active)
         if(terminaData){
             let usersForTerminal = []
