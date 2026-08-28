@@ -201,6 +201,7 @@ export default function DocumentsScreen() {
             //    sekvence kao prodajni). Backend NE smije utjecati na izdavanje.
             const ticketsToCancel = detailTickets.filter((t) => stornoTicketUuids[t.ticket_uuid]);
             const pmName = (sync.paymentMethods || []).find((p) => p.uuid === stornoPaymentUuid)?.name || 'Storno';
+            const operaterIme = `${auth.operator?.user_name || ''} ${auth.operator?.user_surname || ''}`.trim();
             const stornoLocal = await buildLocalStorno({
                 originalInvoice: selected,
                 ticketsToCancel,
@@ -215,6 +216,9 @@ export default function DocumentsScreen() {
                 order_uuid: stornoLocal.order_uuid,
                 shift_uuid: shifts.currentOpen?.shift_uuid || selected.shift_uuid || null,
                 operator_uuid: auth.operator?.user_uuid || null,
+                // Ime se sprema uz račun jer ponovni ispis iz Dokumenata čita
+                // operatera iz zapisa računa, a ne iz prijavljenog korisnika.
+                operater_name: operaterIme,
                 voyage_key: selected.voyage_key || null,
                 amount: stornoLocal.total_amount,
                 total_amount: stornoLocal.total_amount,
@@ -300,7 +304,10 @@ export default function DocumentsScreen() {
                     total_vat: stornoLocal.total_vat,
                     total_harbor_tax: stornoLocal.total_harbor_tax,
                     payment_method_name: pmName,
-                    operater_name: 'STORNO',
+                    // Pod "Izdao" ide operater koji je storno napravio. Prije je
+                    // ovdje stajalo 'STORNO', pa je račun izlazio bez imena — a
+                    // da je račun storno vidi se po inverznoj oznaci na vrhu.
+                    operater_name: operaterIme,
                     // Bez ovoga native sloj ne zna da je racun storno pa nije
                     // ispisivao oznaku STORNO; is_f2 mu treba za oznaku
                     // "F2 RAČUN BR" (inace storno F2 ispada kao obican racun).
@@ -313,7 +320,7 @@ export default function DocumentsScreen() {
                     items,
                     paymentName: stornoR.payment_method_name,
                     basicData: sync.basicData,
-                    operator: { name: 'STORNO' },
+                    operator: auth.operator || { name: operaterIme },
                     voyage: null,
                     fromHarbor: { name: detailTickets[0]?.departure_harbor_name || '' },
                     toHarbor: { name: detailTickets[0]?.arrival_harbor_name || '' },

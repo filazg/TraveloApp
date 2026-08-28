@@ -235,10 +235,10 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
         } catch (e: Exception) { promise.reject("COLS_ERR", e.message) }
     }
 
-    // ESC 7 (heating params 13/240/4) + ESC E 1 (emphasis) + ESC G 1 (double-strike).
-    // Maksimalno tamniji ispis bez mijenjanja drivera. Pozvati unutar buffer batch-a.
+    // ESC E 1 (emphasis) + ESC G 1 (double-strike). Maksimalno tamniji ispis bez
+    // mijenjanja drivera. Pozvati unutar buffer batch-a. ESC 7 (heating params)
+    // je maknut jer ga firmware V2s-a otisne kao znak `7`.
     private fun applyHeavyPrintMode(p: IWoyouService) {
-        try { p.sendRAWData(byteArrayOf(0x1B, 0x37, 0x0D, 0xF0.toByte(), 0x04), null) } catch (_: Exception) {}
         try { p.sendRAWData(byteArrayOf(0x1B, 0x45, 0x01), null) } catch (_: Exception) {}
         try { p.sendRAWData(byteArrayOf(0x1B, 0x47, 0x01), null) } catch (_: Exception) {}
     }
@@ -300,10 +300,15 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
         return try { map.getBoolean(key) } catch (_: Exception) { false }
     }
 
-    // ===== Layout helpers — Sunmi V2s 58mm thermal, ~32 chars/line @ font 22-24. =====
-    private val W = 32
-    private val LINE_HARD = "================================\n"
-    private val LINE_SOFT = "--------------------------------\n"
+    // ===== Layout helpers — Sunmi V2s 58mm thermal, 31 chars/line @ font 22-24. =====
+    //
+    // Bilo je 32, ali 32. znak printeru ne stane pa ga sam prebaci u sljedeći
+    // redak: naziv linije je izlazio kao "Split – Milna – Hvar – Korčula",
+    // zatim redak na kojem piše samo "–", a na karti je zadnje slovo završilo
+    // samo u svom retku. Crte se crtaju iz iste širine da prate ostatak ispisa.
+    private val W = 31
+    private val LINE_HARD = "=".repeat(W) + "\n"
+    private val LINE_SOFT = "-".repeat(W) + "\n"
 
     private fun hline(p: IWoyouService) { p.printText(LINE_HARD, null) }
     private fun dline(p: IWoyouService) { p.printText(LINE_SOFT, null) }
@@ -316,12 +321,25 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
 
     // Word-wrap text na ≤ max chars po retku. Lomi po razmacima; predugu riječ
     // ostavlja samostalno (printer ju onda wrapa pixelima).
+    //
+    // Crtica i kosa crta drže se riječi ispred sebe. Nazivi linija su nizovi
+    // luka odvojenih crticama ("Split – Milna – Hvar – …"), pa je prelamanje po
+    // samim razmacima znalo ostaviti redak na kojem piše samo "–".
     private fun wrapLines(text: String, max: Int): List<String> {
         if (text.isEmpty()) return emptyList()
         val out = mutableListOf<String>()
-        var current = StringBuilder()
+        val words = mutableListOf<String>()
         for (word in text.split(" ")) {
             if (word.isEmpty()) continue
+            val samoRazdjelnik = word.all { it == '-' || it == '–' || it == '—' || it == '/' }
+            if (samoRazdjelnik && words.isNotEmpty()) {
+                words[words.size - 1] = words[words.size - 1] + " " + word
+            } else {
+                words.add(word)
+            }
+        }
+        var current = StringBuilder()
+        for (word in words) {
             val candidate = if (current.isEmpty()) word else "$current $word"
             if (candidate.length <= max) {
                 current.setLength(0); current.append(candidate)
@@ -380,6 +398,26 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
         return padR(label, leftW) + padL(value, rightW)
     }
 
+    // Kao lrLine, ali za nazive koji ne stanu u 16 znakova ("Vrijeme izdavanja",
+    // "Sredstvo plaćanja", "Putnik / Passanger") — dosad ih je padR odsijecao
+    // nasred riječi. Naziv dobiva 18 mjesta, a vrijednost koja u preostalih 14
+    // ne stane ide u svoj redak, desno poravnata, umjesto da se odreže.
+    // `desnoUNastavku` vrijedi samo za redak koji se prelio: na računu nastavak
+    // ostaje uz desni rub, uz vrijednost iznad sebe, a na karti ide lijevo —
+    // ondje su nazivi linija dugi pa desno poravnat nastavak izgleda kao da je
+    // otkinut od svog retka.
+    private fun printMeta(p: IWoyouService, label: String, value: String, leftW: Int = 18, desnoUNastavku: Boolean = true) {
+        val rightW = W - leftW
+        if (value.length <= rightW) {
+            p.printText(padR(label, leftW) + padL(value, rightW) + "\n", null)
+            return
+        }
+        p.printText(label + "\n", null)
+        for (line in wrapLines(value, W)) {
+            p.printText((if (desnoUNastavku) padL(line, W) else line) + "\n", null)
+        }
+    }
+
     // ISO "yyyy-MM-dd'T'HH:mm:ss[.…]" → različiti formati za prikaz.
     private fun fmtIsoDate(iso: String): String {
         if (iso.isEmpty()) return ""
@@ -407,17 +445,54 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
     // printColumnsString ni heavy-ink ESC sekvence koje znaju glitch-ati alignment.
     // Napomena s naplatnog uređaja na dnu ispisa. Tekst zna biti u više
     // redaka, pa se lomi po prijelomima i po širini papira.
+    // Razvuče redak od ruba do ruba: višak mjesta se razdijeli po razmacima
+    // između riječi, s ostatkom slijeva kao u tisku. Zadnji redak odlomka
+    // ostaje kakav jest — razvučen bi izgledao kao greška, a ne kao poravnanje.
+    private fun poravnajObostrano(odlomak: String, sirina: Int): List<String> {
+        val redci = wrapLines(odlomak.trim(), sirina)
+        if (redci.isEmpty()) return redci
+        return redci.mapIndexed { i, redak ->
+            val rijeci = redak.split(" ").filter { it.isNotEmpty() }
+            val zadnji = i == redci.size - 1
+            if (zadnji || rijeci.size < 2) return@mapIndexed redak
+            val slova = rijeci.sumOf { it.length }
+            val razmaka = rijeci.size - 1
+            val praznina = sirina - slova
+            val osnovni = praznina / razmaka
+            var ostatak = praznina % razmaka
+            buildString {
+                append(rijeci.first())
+                for (j in 1 until rijeci.size) {
+                    val dodatni = if (ostatak > 0) 1 else 0
+                    if (ostatak > 0) ostatak -= 1
+                    append(" ".repeat(osnovni + dodatni))
+                    append(rijeci[j])
+                }
+            }
+        }
+    }
+
+    // Font se postavlja ovdje, a ne na pozivnom mjestu — napomena je jednako
+    // sporedna na računu kao i na karti, pa nema razloga da račun nosi krupniji
+    // otisak. Na kraju se vraća osnovnih 24f jer isti buffer ide dalje.
+    //
+    // Prelama se na širinu sitnijeg fonta: pri 20f znak je uži nego pri 24f, pa
+    // u red stane oko petine više znakova. Uz W=31 napomena bi stajala kao uski
+    // stupac nasred papira. Jedan znak se ostavlja kao zaliha da printer ne bi
+    // sam prelomio redak.
     private fun printNapomena(p: IWoyouService, tekst: String, W: Int) {
         val napomena = tekst.trim()
         if (napomena.isEmpty()) return
+        val sirina = (W * 24 / 20) - 1
         dline(p)
-        p.setAlignment(1, null)
+        p.setAlignment(0, null)
+        p.setFontSize(20f, null)
         for (redak in napomena.split(Char(10))) {
             val t = redak.trim()
             if (t.isEmpty()) continue
-            for (line in wrapLines(t, W)) p.printText("$line" + Char(10), null)
+            for (line in poravnajObostrano(t, sirina)) p.printText("$line" + Char(10), null)
         }
-        p.setAlignment(0, null)
+        p.setFontSize(24f, null)
     }
 
     @ReactMethod
@@ -432,10 +507,12 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             p.enterPrinterBuffer(true)
             Log.d("SunmiPrint", "printReceipt: buffer entered")
 
-            // ESC 7 — pojačaj heating params za tamniji ispis.
             // ESC E 1 — hardware emphasis (bold) — pouzdaniji od setPrinterStyle.
             // Sve nakon ovoga je bold cijelo vrijeme (user feedback: "slabo se vidi").
-            try { p.sendRAWData(byteArrayOf(0x1B, 0x37, 0x0B, 0xC8.toByte(), 0x02), null) } catch (_: Exception) {}
+            //
+            // ESC 7 (heating params) je maknut: firmware V2s-a tu naredbu ne
+            // prepoznaje pa `7` završi na papiru kao znak, odmah ispred naziva
+            // tvrtke. Bold i double-strike i bez njega daju dovoljno tamno.
             try { p.sendRAWData(byteArrayOf(0x1B, 0x45, 0x01), null) } catch (_: Exception) {}
             p.setPrinterStyle(1000, 1)
 
@@ -540,19 +617,19 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                 else SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(now)
             val invTime = if (createdAt.isNotEmpty()) fmtIsoTime(createdAt)
                 else SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(now)
-            p.printText(lrLine("Datum izdavanja", invDate) + "\n", null)
-            p.printText(lrLine("Vrijeme izdavanja", invTime) + "\n", null)
+            printMeta(p, "Datum izdavanja", invDate)
+            printMeta(p, "Vrijeme izdavanja", invTime)
             val opName = (safeString(operator, "user_name") + " " + safeString(operator, "user_surname")).trim()
                 .ifEmpty { safeString(operator, "name") }
                 .ifEmpty { safeString(r, "operater_name") }
-            if (opName.isNotEmpty()) p.printText(lrLine("Izdao", opName) + "\n", null)
+            if (opName.isNotEmpty()) printMeta(p, "Izdao", opName)
             val payName = paymentName.ifEmpty { safeString(r, "payment_method_name") }
-            if (payName.isNotEmpty()) p.printText(lrLine("Sredstvo plaćanja", payName) + "\n", null)
+            if (payName.isNotEmpty()) printMeta(p, "Sredstvo plaćanja", payName)
             dline(p)
 
             // ----- STAVKE -----
-            // Po liniji bold heading "${line_name} / ${dep} -- ${arr}/${dep_planned}",
-            // pa po vrsti karte 3 stupca (vrsta 14 | qty x cij 10 | iznos 8) = 32.
+            // Zaglavlje po polasku (relacija, linija, vrijeme), pa po vrsti
+            // karte 3 stupca (vrsta 13 | qty x cij 10 | iznos 8) = W.
             if (items != null) {
                 for (i in 0 until items.size()) {
                     val it = items.getMap(i) ?: continue
@@ -567,35 +644,35 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     val arrHarbor = safeString(route, "arrival_harbor_name").ifEmpty { safeString(it, "arrival_harbor_name") }
                     val depPlanned = safeString(route, "departure_planned").ifEmpty { safeString(it, "departure_planned") }
 
-                    // Bold heading: "line_name / depHarbor -- arrHarbor/depPlanned"
+                    // Zaglavlje stavke: relacija, linija i polazak svaki u svom
+                    // retku. Dosad su bili nanizani u jedan redak pa se lomio
+                    // gdje stigne i nije se dalo pročitati što je što. Polazak
+                    // ide desno, relacija i linija lijevo.
                     p.setPrinterStyle(1000, 1)
-                    val heading = buildString {
-                        if (lineName.isNotEmpty()) append(lineName)
-                        if (depHarbor.isNotEmpty() || arrHarbor.isNotEmpty()) {
-                            if (isNotEmpty()) append(" / ")
-                            append("$depHarbor -- $arrHarbor")
-                        }
-                        if (depPlanned.isNotEmpty()) {
-                            if (isNotEmpty()) append("/")
-                            append(depPlanned)
-                        }
+                    val relacija = listOf(depHarbor, arrHarbor).filter { it.isNotEmpty() }.joinToString(" -- ")
+                    if (relacija.isNotEmpty()) {
+                        for (line in wrapLines(relacija, W)) p.printText("$line\n", null)
                     }
-                    if (heading.isNotEmpty()) {
-                        for (line in wrapLines(heading, W)) p.printText("$line\n", null)
+                    if (lineName.isNotEmpty()) {
+                        for (line in wrapLines(lineName, W)) p.printText("$line\n", null)
+                    }
+                    if (depPlanned.isNotEmpty()) {
+                        p.printText(padL(trunc(depPlanned, W), W) + "\n", null)
                     }
                     // Heading je već bold (globalno) — ostavi ON.
 
                     // 3-stupčana stavka: name(14) | "qty x cijena"(10) | iznos(8)
                     val priceCol = "${qty}x${"%.2f".format(unit)}"
                     val totalCol = "%.2f".format(total)
-                    val nameCol = padR(trunc(name, 14), 14)
+                    val nameW = W - 18
+                    val nameCol = padR(trunc(name, nameW), nameW)
                     p.printText("$nameCol${padL(priceCol, 10)}${padL(totalCol, 8)}\n", null)
                 }
             }
             dline(p)
 
             // ----- TOTALI (rightAlign u boat-desk; ovdje leftRight) -----
-            p.printText(lrLine("Osnovice", "%.2f EUR".format(safeDouble(r, "total_vat_base"))) + "\n", null)
+            p.printText(lrLine("Osnovica", "%.2f EUR".format(safeDouble(r, "total_vat_base"))) + "\n", null)
             p.printText(lrLine("PDV 25%", "%.2f EUR".format(safeDouble(r, "total_vat"))) + "\n", null)
             p.printText(lrLine("Luč. naknada", "%.2f EUR".format(safeDouble(r, "total_harbor_tax"))) + "\n", null)
             p.lineWrap(1, null)
@@ -635,7 +712,9 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             // putniku. Prazno polje ne ostavlja ni crtu ni prazan redak.
             printNapomena(p, safeString(bd, "billing_device_footer"), W)
 
-            p.lineWrap(3, null)
+            // Tri prazna retka više nego prije — zadnji redak je inače sjedao
+            // pretijesno uz rub odrezanog papira.
+            p.lineWrap(6, null)
             try { p.cutPaper(null) } catch (_: Exception) {}
             Log.d("SunmiPrint", "printReceipt: exit buffer (commit)")
             p.exitPrinterBuffer(true)
@@ -665,8 +744,8 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             p.enterPrinterBuffer(true)
             p.setAlignment(0, null)
             p.setFontSize(24f, null)
-            // Globalni heating boost + bold (isto kao u printReceipt — sav tekst tamniji).
-            try { p.sendRAWData(byteArrayOf(0x1B, 0x37, 0x0B, 0xC8.toByte(), 0x02), null) } catch (_: Exception) {}
+            // Globalni bold (isto kao u printReceipt — sav tekst tamniji).
+            // ESC 7 maknut, firmware ga otisne kao znak `7`.
             try { p.sendRAWData(byteArrayOf(0x1B, 0x45, 0x01), null) } catch (_: Exception) {}
             p.setPrinterStyle(1000, 1)
 
@@ -870,7 +949,9 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             p.setFontSize(20f, null)
             val sdfNow = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault())
             p.printText(center("Ispisano: ${sdfNow.format(Date())}") + "\n", null)
-            if (!safeBool(shift, "_synced")) p.printText(center("* OFFLINE — sync u tijeku *") + "\n", null)
+            // Oznaka "* OFFLINE — sync u tijeku *" je maknuta: zaključak je
+            // dokument za operatera i vlasnika, a stanje sinkronizacije je
+            // unutarnja stvar aplikacije — na papiru je samo zbunjivalo.
 
             p.lineWrap(3, null)
             try { p.cutPaper(null) } catch (_: Exception) {}
@@ -903,8 +984,8 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                 try {
                     p.setAlignment(0, null)
                     p.setFontSize(24f, null)
-                    // Globalni bold + heating boost za cijelu kartu (user feedback).
-                    try { p.sendRAWData(byteArrayOf(0x1B, 0x37, 0x0B, 0xC8.toByte(), 0x02), null) } catch (_: Exception) {}
+                    // Globalni bold za cijelu kartu (user feedback).
+                    // ESC 7 maknut, firmware ga otisne kao znak `7`.
                     try { p.sendRAWData(byteArrayOf(0x1B, 0x45, 0x01), null) } catch (_: Exception) {}
                     p.setPrinterStyle(1000, 1)
 
@@ -973,10 +1054,10 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     dline(p)
 
                     // ----- PUTNIK / LINIJA -----
-                    p.printText(lrLine("Putnik / Passanger", safeString(t, "ticket_type_name")) + "\n", null)
+                    printMeta(p, "Putnik / Passanger", safeString(t, "ticket_type_name"), desnoUNastavku = false)
                     dline(p)
                     val lineLabel = safeString(t, "line_name").ifEmpty { safeString(t, "line_code") }
-                    p.printText(lrLine("Linija / Line", lineLabel) + "\n", null)
+                    printMeta(p, "Linija / Line", lineLabel, desnoUNastavku = false)
                     dline(p)
 
                     // ----- POVLAŠTENA KARTA -----
@@ -1079,10 +1160,11 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     p.setAlignment(0, null)
 
                     // ----- NAPOMENA S UREĐAJA -----
-                    p.setFontSize(20f, null)
                     printNapomena(p, safeString(bd, "billing_device_ticket_footer"), W)
 
-                    p.lineWrap(1, null)
+                    // Prazni redci prije reza — inače zadnji redak sjedne
+                    // pretijesno uz rub odrezanog papira.
+                    p.lineWrap(4, null)
                     try { p.cutPaper(null) } catch (_: Exception) {}
                     p.exitPrinterBuffer(true)
                 } catch (e: Exception) {
