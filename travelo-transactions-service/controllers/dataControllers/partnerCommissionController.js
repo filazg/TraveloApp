@@ -44,24 +44,79 @@ const krajDana = (v) => {
     return d;
 };
 
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const DANI = ["nedjelja", "ponedjeljak", "utorak", "srijeda", "četvrtak", "petak", "subota"];
+
+// Razdoblje obračuna proizlazi iz dinamike naplate partnera — uvijek zadnje
+// zaokruženo razdoblje, ono za koje se obračun radi. Blagajnik ga zato ne
+// upisuje: dinamika je dogovorena s partnerom i stoji u šifarniku.
+const razdobljePoDinamici = (partner, danasnji = new Date()) => {
+    const danas = new Date(danasnji.getFullYear(), danasnji.getMonth(), danasnji.getDate());
+    const cycle = String(partner?.billing_cycle || "MONTHLY").toUpperCase();
+
+    if (cycle === "SEMI_MONTHLY") {
+        // Obračun je 1. i 16.: nakon 16. u mjesecu zaokružena je prva polovica
+        // tekućeg mjeseca, prije toga druga polovica prethodnog.
+        if (danas.getDate() >= 16) {
+            const od = new Date(danas.getFullYear(), danas.getMonth(), 1);
+            const doo = new Date(danas.getFullYear(), danas.getMonth(), 15);
+            return { from: iso(od), to: iso(doo), cycle, label: "Dvomjesečno — prva polovica mjeseca" };
+        }
+        const prosli = new Date(danas.getFullYear(), danas.getMonth() - 1, 1);
+        const od = new Date(prosli.getFullYear(), prosli.getMonth(), 16);
+        const doo = new Date(danas.getFullYear(), danas.getMonth(), 0);
+        return { from: iso(od), to: iso(doo), cycle, label: "Dvomjesečno — druga polovica prethodnog mjeseca" };
+    }
+
+    if (cycle === "WEEKLY") {
+        // Dan obračuna je ISO dan (1 = ponedjeljak). Uzima se zadnji takav dan
+        // koji je nastupio, a razdoblje je sedam dana prije njega.
+        const dan = Number(partner?.billing_weekday) || 1;
+        const danasISO = danas.getDay() === 0 ? 7 : danas.getDay();
+        let nazad = danasISO - dan;
+        if (nazad < 0) nazad += 7;
+        const obracun = new Date(danas.getFullYear(), danas.getMonth(), danas.getDate() - nazad);
+        const doo = new Date(obracun.getFullYear(), obracun.getMonth(), obracun.getDate() - 1);
+        const od = new Date(obracun.getFullYear(), obracun.getMonth(), obracun.getDate() - 7);
+        return { from: iso(od), to: iso(doo), cycle, label: `Tjedno — obračun ${DANI[obracun.getDay()]}` };
+    }
+
+    const od = new Date(danas.getFullYear(), danas.getMonth() - 1, 1);
+    const doo = new Date(danas.getFullYear(), danas.getMonth(), 0);
+    return { from: iso(od), to: iso(doo), cycle: "MONTHLY", label: "Mjesečno — prethodni mjesec" };
+};
+
 const partnerCommissionController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
-        const { from, to, partner_uuid } = req.query || {};
-        const od = pocetakDana(from);
-        const doo = krajDana(to);
-        if (!od || !doo) {
-            return res.status(400).json({
-                status: 400,
-                data: { message: "from i to su obavezni (YYYY-MM-DD ili DD/MM/YYYY)" },
-            });
-        }
+        const { partner_uuid } = req.query || {};
+        let { from, to } = req.query || {};
 
         const [prostoriPodaci, partneriPodaci] = await Promise.all([
             dohvatiIzBackofficea("/business_premises"),
             dohvatiIzBackofficea("/partners"),
         ]);
         const partneri = partneriPodaci.partners || [];
+
+        // Bez izričitog raspona razdoblje se računa iz dinamike naplate. Kod
+        // "svih partnera" mjerodavna je mjesečna dinamika, jer zajednički
+        // prikaz ne može slijediti tri različita rasporeda odjednom.
+        let razdoblje = null;
+        if (!from || !to) {
+            const partner = partner_uuid ? partneri.find((p) => p.uuid === partner_uuid) : null;
+            razdoblje = razdobljePoDinamici(partner);
+            from = razdoblje.from;
+            to = razdoblje.to;
+        }
+
+        const od = pocetakDana(from);
+        const doo = krajDana(to);
+        if (!od || !doo) {
+            return res.status(400).json({
+                status: 400,
+                data: { message: "razdoblje se ne da odrediti — provjeri dinamiku naplate partnera" },
+            });
+        }
         // Samo prodajna mjesta koja su označena kao partnerska i vezana na
         // partnera. Neoznačeno mjesto je naše i nema provizije.
         const partnerskiProstori = (prostoriPodaci.business_premises || [])
@@ -71,7 +126,7 @@ const partnerCommissionController = async (req, res) => {
         if (!partnerskiProstori.length) {
             return res.send({
                 status: 200,
-                data: { from, to, partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
+                data: { from, to, period: razdoblje, partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
             });
         }
 
@@ -171,7 +226,7 @@ const partnerCommissionController = async (req, res) => {
             commission: +(z.commission + p.commission).toFixed(2),
         }), { tickets: 0, gross: 0, base: 0, commission: 0 });
 
-        res.send({ status: 200, data: { from, to, partners: partnersOut, totals } });
+        res.send({ status: 200, data: { from, to, period: razdoblje, partners: partnersOut, totals } });
     } catch (error) {
         console.log("partnerCommissionController error:", error?.message || error);
         res.status(500).json({ status: 500, data: { message: error.message } });

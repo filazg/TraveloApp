@@ -25,24 +25,25 @@ import { izveziObracunProvizije } from "./provizijaExcel";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
-// Prvi i zadnji dan tekućeg mjeseca — obračun se u pravilu radi za mjesec.
-const prviDanMjeseca = () => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+const hrDatum = (isoDatum) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(isoDatum || ""));
+    return m ? `${m[3]}.${m[2]}.${m[1]}.` : String(isoDatum || "");
 };
-const danas = () => new Date().toISOString().slice(0, 10);
 
 export default function PartnerCommissionPage() {
     const dispatch = useDispatch();
     const finance = useSelector(financeSliceData);
 
-    const [from, setFrom] = useState(prviDanMjeseca());
-    const [to, setTo] = useState(danas());
     const [partnerUuid, setPartnerUuid] = useState("");
 
     const obracun = finance.partnerCommission || {};
     const partneri = obracun.partners || [];
     const totals = obracun.totals || { tickets: 0, gross: 0, base: 0, commission: 0 };
+    // Razdoblje dolazi s poslužitelja, iz dinamike naplate partnera — ne bira se
+    // ovdje, da obračun ne ovisi o tome što je netko upisao.
+    const from = obracun.from || "";
+    const to = obracun.to || "";
+    const razdoblje = obracun.period || null;
 
     // Kartica u Financijama pali zaslon učitavanja prije nego preda stranicu, pa
     // ga stranica mora ugasiti — inače prekrivač ostane preko svega i izgleda
@@ -50,18 +51,16 @@ export default function PartnerCommissionPage() {
     useEffect(() => {
         dispatch(setAuthData({ path: "loading", value: false }));
         dispatch(fetchPartnersListThunk());
-        dispatch(fetchPartnerCommissionThunk({ from, to }));
+        dispatch(fetchPartnerCommissionThunk({}));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const trazi = async () => {
         dispatch(setAuthData({ path: "loadingMessage", value: "Obračun provizije…" }));
         dispatch(setAuthData({ path: "loading", value: true }));
-        await dispatch(fetchPartnerCommissionThunk({
-            from,
-            to,
-            ...(partnerUuid ? { partner_uuid: partnerUuid } : {}),
-        }));
+        await dispatch(fetchPartnerCommissionThunk(
+            partnerUuid ? { partner_uuid: partnerUuid } : {}
+        ));
         dispatch(setAuthData({ path: "loading", value: false }));
     };
 
@@ -79,22 +78,6 @@ export default function PartnerCommissionPage() {
 
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="center">
-                    <TextField
-                        type="date"
-                        size="small"
-                        label="Od"
-                        value={from}
-                        onChange={(e) => setFrom(e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                    />
-                    <TextField
-                        type="date"
-                        size="small"
-                        label="Do"
-                        value={to}
-                        onChange={(e) => setTo(e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                    />
                     <TextField
                         select
                         size="small"
@@ -125,9 +108,21 @@ export default function PartnerCommissionPage() {
                         Excel
                     </Button>
                 </Stack>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1.5, flexWrap: "wrap" }} useFlexGap>
+                    {from && to ? (
+                        <Chip
+                            color="primary"
+                            variant="outlined"
+                            label={`Razdoblje: ${hrDatum(from)} – ${hrDatum(to)}`}
+                            sx={{ fontWeight: 700 }}
+                        />
+                    ) : null}
+                    {razdoblje?.label ? <Chip size="small" label={razdoblje.label} /> : null}
+                </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                    Obuhvaćena je prodaja s prodajnih mjesta označenih kao partnerska, po datumu izdavanja karte.
-                    Provizija se računa na neto osnovicu — bez lučke pristojbe i bez PDV-a.
+                    Razdoblje se određuje iz dinamike naplate partnera. Obuhvaćena je prodaja s prodajnih
+                    mjesta označenih kao partnerska, po datumu izdavanja karte. Provizija se računa na neto
+                    osnovicu — bez lučke pristojbe i bez PDV-a.
                 </Typography>
             </Paper>
 
