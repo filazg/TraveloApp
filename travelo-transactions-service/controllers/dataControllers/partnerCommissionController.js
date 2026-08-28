@@ -109,7 +109,7 @@ const razdobljePoDinamici = (partner, danasnji = new Date(), tekuce = false) => 
 };
 
 const partnerCommissionController = async (req, res) => {
-    const { TicketsModel } = req.app.locals.models;
+    const { TicketsModel, InvoiceModel } = req.app.locals.models;
     try {
         const { partner_uuid, period } = req.query || {};
         let { from, to } = req.query || {};
@@ -152,13 +152,45 @@ const partnerCommissionController = async (req, res) => {
             });
         }
 
-        // Razdoblje se mjeri po izdavanju karte, ne po polasku — obračunava se
-        // prodaja koja se dogodila, a polazak zna biti mjesecima kasnije.
+        // Prodajno mjesto stoji na RAČUNU, ne na karti — karta zna samo svoju
+        // vožnju. Zato se prvo nađu računi partnerskih prodajnih mjesta u
+        // razdoblju, pa njihove karte. Razdoblje se mjeri po izdavanju računa,
+        // ne po polasku, jer se obračunava prodaja koja se dogodila, a polazak
+        // zna biti mjesecima kasnije.
+        const racuni = await InvoiceModel.findAll({
+            where: {
+                invoice_business_premise_uuid: { [Op.in]: partnerskiProstori.map((p) => p.uuid) },
+                createdAt: { [Op.between]: [od, doo] },
+            },
+            attributes: ["invoice_uuid", "order_uuid", "invoice_business_premise_uuid"],
+        });
+
+        if (!racuni.length) {
+            return res.send({
+                status: 200,
+                data: { from, to, period: razdoblje, partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
+            });
+        }
+
+        // Karta se veže na račun preko invoice_uuid; web prodaja nema
+        // invoice_uuid na karti nego order_uuid, pa se hvata i tim putem.
+        const prostorPoRacunu = new Map();
+        const narudzbe = [];
+        for (const r of racuni) {
+            prostorPoRacunu.set(r.invoice_uuid, r.invoice_business_premise_uuid);
+            for (const o of String(r.order_uuid || "").split(",").map((x) => x.trim()).filter(Boolean)) {
+                prostorPoRacunu.set(o, r.invoice_business_premise_uuid);
+                narudzbe.push(o);
+            }
+        }
+
         const karte = await TicketsModel.findAll({
             where: {
-                business_premise_uuid: { [Op.in]: partnerskiProstori.map((p) => p.uuid) },
-                [Op.or]: [{ is_canceled: false }, { is_canceled: null }],
-                createdAt: { [Op.between]: [od, doo] },
+                [Op.or]: [
+                    { invoice_uuid: { [Op.in]: racuni.map((r) => r.invoice_uuid) } },
+                    ...(narudzbe.length ? [{ order_uuid: { [Op.in]: narudzbe } }] : []),
+                ],
+                [Op.and]: [{ [Op.or]: [{ is_canceled: false }, { is_canceled: null }] }],
             },
             order: [["createdAt", "ASC"]],
         });
@@ -168,7 +200,8 @@ const partnerCommissionController = async (req, res) => {
 
         for (const red of karte) {
             const k = red.dataValues || red;
-            const prostor = poProstoru.get(k.business_premise_uuid);
+            const prostorUuid = prostorPoRacunu.get(k.invoice_uuid) || prostorPoRacunu.get(k.order_uuid);
+            const prostor = poProstoru.get(prostorUuid);
             if (!prostor) continue;
             const partner = partneri.find((p) => p.uuid === prostor.partner_uuid);
             const pct = Number(partner?.commission_pct) || 0;
