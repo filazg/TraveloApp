@@ -14,17 +14,15 @@ async function findConflictingActiveWeb(BusinessPremisesModel, { type, is_active
 const getBusinessPremisesDataController = async(req,res)=>{
     const { BusinessPremisesModel } = req.app.locals.models;
     try {
-        const result = sequelize.transaction(async (t)=>{
-            const businessPremisesData = await BusinessPremisesModel.findAll({
-                attributes: { exclude: ['createdAt','updatedAt'] },
-                order: [["id", "ASC"]],
-            })
-            res.send({
-                status:200,
-                data:{
-                    business_premises:businessPremisesData
-                }
-            })
+        const businessPremisesData = await BusinessPremisesModel.findAll({
+            attributes: { exclude: ['createdAt','updatedAt'] },
+            order: [["id", "ASC"]],
+        })
+        res.send({
+            status:200,
+            data:{
+                business_premises:businessPremisesData
+            }
         })
     } catch (error) {
         console.log(error)

@@ -5,21 +5,19 @@ const sequelize = getSequelize();
 const getHolidaysDataController = async(req,res)=>{
     const {HolidaysModel} = req.app.locals.models;
     try {
-        const result = await sequelize.transaction(async (t)=>{
-            const holidaysData = await HolidaysModel.findAll({
-                where:{
-                    is_active:true
-                },
-                attributes: { exclude: ['createdAt','updatedAt']},
-                order:['id']
-            })
-            res.send({
-                status:200,
-                data:{
-                    holidays:holidaysData
-                }
-            })
-         })
+        const holidaysData = await HolidaysModel.findAll({
+            where:{
+                is_active:true
+            },
+            attributes: { exclude: ['createdAt','updatedAt']},
+            order:['id']
+        })
+        res.send({
+            status:200,
+            data:{
+                holidays:holidaysData
+            }
+        })
     } catch (error) {
         
     }

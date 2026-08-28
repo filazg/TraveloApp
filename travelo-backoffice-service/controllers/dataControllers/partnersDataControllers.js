@@ -7,56 +7,54 @@ const getPartnersDataController = async(req,res)=>{
     const {PartnersModel, PartnersWebUsersModel, PartnersAPIUsersModel} = req.app.locals.models;
     try {
         let partnersDataToSend = []
-        const result = await sequelize.transaction(async (t)=>{
-            const partnersData = await PartnersModel.findAll({
-                attributes: { exclude: ['createdAt','updatedAt'] },
-                order:['id']
+        const partnersData = await PartnersModel.findAll({
+            attributes: { exclude: ['createdAt','updatedAt'] },
+            order:['id']
+        })
+        for(const partner of partnersData){
+            const partnerWebPermissions = await PartnersWebUsersModel.findAll({
+                where:{
+                    partner_uuid:partner.uuid,
+                    is_active:true
+                },
+                attributes: { exclude: ['createdAt','updatedAt'] }
             })
-            for(const partner of partnersData){
-                const partnerWebPermissions = await PartnersWebUsersModel.findAll({
-                    where:{
-                        partner_uuid:partner.uuid,
-                        is_active:true
-                    },
-                    attributes: { exclude: ['createdAt','updatedAt'] }
-                })
-                const partnerAPIPermissions = await PartnersAPIUsersModel.findAll({
-                    where:{
-                        partner_uuid:partner.uuid,
-                        is_active:true
-                    },
-                    attributes: { exclude: ['createdAt','updatedAt'] }
-                })
-                const dataToSend = {
-                    id:partner.id,
-                    uuid:partner.uuid,
-                    partner_name:partner.partner_name,
-                    partner_acr:partner.partner_acr,
-                    partner_legal_id:partner.partner_legal_id,
-                    partner_vat_id:partner.partner_legal_id,
-                    partner_address:partner.partner_address,
-                    partner_postal_code:partner.partner_postal_code,
-                    partner_town:partner.partner_town,
-                    partner_country:partner.partner_country,
-                    partner_email:partner.partner_email,
-                    partner_contact_person:partner.partner_contact_person,
-                    commission_pct:partner.commission_pct,
-                    vat_rate:partner.vat_rate,
-                    f2_required:partner.f2_required,
-                    billing_cycle:partner.billing_cycle,
-                    billing_weekday:partner.billing_weekday,
-                    is_active:partner.is_active,
-                    web_permissions:partnerWebPermissions,
-                    api_permissions:partnerAPIPermissions
-                }
-                partnersDataToSend = [...partnersDataToSend, dataToSend]
+            const partnerAPIPermissions = await PartnersAPIUsersModel.findAll({
+                where:{
+                    partner_uuid:partner.uuid,
+                    is_active:true
+                },
+                attributes: { exclude: ['createdAt','updatedAt'] }
+            })
+            const dataToSend = {
+                id:partner.id,
+                uuid:partner.uuid,
+                partner_name:partner.partner_name,
+                partner_acr:partner.partner_acr,
+                partner_legal_id:partner.partner_legal_id,
+                partner_vat_id:partner.partner_legal_id,
+                partner_address:partner.partner_address,
+                partner_postal_code:partner.partner_postal_code,
+                partner_town:partner.partner_town,
+                partner_country:partner.partner_country,
+                partner_email:partner.partner_email,
+                partner_contact_person:partner.partner_contact_person,
+                commission_pct:partner.commission_pct,
+                vat_rate:partner.vat_rate,
+                f2_required:partner.f2_required,
+                billing_cycle:partner.billing_cycle,
+                billing_weekday:partner.billing_weekday,
+                is_active:partner.is_active,
+                web_permissions:partnerWebPermissions,
+                api_permissions:partnerAPIPermissions
             }
-            res.send({
-                status:200,
-                data:{
-                    partners:partnersDataToSend
-                }
-            })
+            partnersDataToSend = [...partnersDataToSend, dataToSend]
+        }
+        res.send({
+            status:200,
+            data:{
+                partners:partnersDataToSend
+            }
         })
     } catch (error) {
         console.log(error)

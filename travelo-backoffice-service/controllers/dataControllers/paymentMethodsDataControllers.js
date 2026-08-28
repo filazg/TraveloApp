@@ -10,17 +10,15 @@ const asBool = (v) => v === true || v === 'true'
 const getPaymentMethodsDataController = async(req,res)=>{
     const {PaymentMethodsModel} = req.app.locals.models;
     try {
-         const result = await sequelize.transaction(async (t)=>{
             const paymentMethodsData = await PaymentMethodsModel.findAll({
-                attributes: { exclude: ['createdAt','updatedAt'] },
+            attributes: { exclude: ['createdAt','updatedAt'] },
             })
             res.send({
-                status:200,
-                data:{
-                    payment_methods:paymentMethodsData
-                }
+            status:200,
+            data:{
+                payment_methods:paymentMethodsData
+            }
             })
-         }) 
     } catch (error) {
         console.log(error)
         res.send({

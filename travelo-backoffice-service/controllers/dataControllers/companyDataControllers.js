@@ -6,16 +6,14 @@ const sequelize = getSequelize();
 const getCompanyDataController = async(req,res)=>{
     const { CompanyModel } = req.app.locals.models;
     try {
-        const result = sequelize.transaction(async (t) => {
-            const companyData = await CompanyModel.findOne({
-                attributes: { exclude: ['createdAt','updatedAt'] },
-            })
-            res.send({
-                status:200,
-                data:{
-                    company:companyData
-                }
-            })
+        const companyData = await CompanyModel.findOne({
+            attributes: { exclude: ['createdAt','updatedAt'] },
+        })
+        res.send({
+            status:200,
+            data:{
+                company:companyData
+            }
         })
     } catch (error) {
         console.log(error)

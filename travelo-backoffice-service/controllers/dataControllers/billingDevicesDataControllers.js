@@ -117,63 +117,61 @@ const getBillingDevicesController = async(req,res)=>{
     const { BillingDevicesModel, BillingDevicesPermissionsModel, BillingDevicesPaymentMethodsModel, BillingDevicesExcludedLinesModel } = req.app.locals.models;
     try {
         let billingDeviceDataToSend = []
-        const result = await sequelize.transaction(async (t)=>{
-            const billingDevicesData = await BillingDevicesModel.findAll({
-                attributes: { exclude: ['createdAt','updatedAt'] },
-                order: [["id", "ASC"]],
-            })
-            for(const billingDevice of billingDevicesData){
-                const permissionsForBillingDevice = await BillingDevicesPermissionsModel.findAll({
-                    where:{
-                        billing_device_uuid:billingDevice.uuid,
-                        is_active:true
-                    },
-                    attributes: { exclude: ['createdAt','updatedAt'] }
-                })
-                const paymentMethodsForBillingDevice = await BillingDevicesPaymentMethodsModel.findAll({
-                    where:{
-                        billing_device_uuid:billingDevice.uuid,
-                        is_active:true
-                    },
-                    attributes: { exclude: ['createdAt','updatedAt'] }
-                })
-                // Linije koje su uređaju zabranjene. Prazna lista znači da su sve
-                // dozvoljene — to je i zadano stanje.
-                const excludedLinesForBillingDevice = await BillingDevicesExcludedLinesModel.findAll({
-                    where:{
-                        billing_device_uuid:billingDevice.uuid,
-                        is_active:true
-                    },
-                    attributes: { exclude: ['createdAt','updatedAt'] }
-                })
-                const dataTaAdd = {
-                    id:billingDevice.id,
-                    uuid:billingDevice.uuid,
-                    business_premise_uuid:billingDevice.business_premise_uuid,
-                    business_premise_name:billingDevice.business_premise_name,
-                    name:billingDevice.name,
-                    tid:billingDevice.tid,
-                    otp:billingDevice.otp,
-                    fiscal_mark:billingDevice.fiscal_mark,
-                    cost_center:billingDevice.cost_center,
-                    device_model:billingDevice.device_model,
-                    serial_number:billingDevice.serial_number,
-                    auto_pair:billingDevice.auto_pair,
-                    auto_validate:billingDevice.auto_validate,
-                    description:billingDevice.description,
-                    type_uuid:billingDevice.type_uuid,
-                    type_name:billingDevice.type_name,
-                    header:billingDevice.header,
-                    footer:billingDevice.footer,
-                    ticket_footer:billingDevice.ticket_footer,
-                    is_active:billingDevice.is_active,
-                    permissions:permissionsForBillingDevice,
-                    payment:paymentMethodsForBillingDevice,
-                    excluded_lines:excludedLinesForBillingDevice
-                }
-                billingDeviceDataToSend = [...billingDeviceDataToSend, dataTaAdd]
-            }
+        const billingDevicesData = await BillingDevicesModel.findAll({
+            attributes: { exclude: ['createdAt','updatedAt'] },
+            order: [["id", "ASC"]],
         })
+        for(const billingDevice of billingDevicesData){
+            const permissionsForBillingDevice = await BillingDevicesPermissionsModel.findAll({
+                where:{
+                    billing_device_uuid:billingDevice.uuid,
+                    is_active:true
+                },
+                attributes: { exclude: ['createdAt','updatedAt'] }
+            })
+            const paymentMethodsForBillingDevice = await BillingDevicesPaymentMethodsModel.findAll({
+                where:{
+                    billing_device_uuid:billingDevice.uuid,
+                    is_active:true
+                },
+                attributes: { exclude: ['createdAt','updatedAt'] }
+            })
+            // Linije koje su uređaju zabranjene. Prazna lista znači da su sve
+            // dozvoljene — to je i zadano stanje.
+            const excludedLinesForBillingDevice = await BillingDevicesExcludedLinesModel.findAll({
+                where:{
+                    billing_device_uuid:billingDevice.uuid,
+                    is_active:true
+                },
+                attributes: { exclude: ['createdAt','updatedAt'] }
+            })
+            const dataTaAdd = {
+                id:billingDevice.id,
+                uuid:billingDevice.uuid,
+                business_premise_uuid:billingDevice.business_premise_uuid,
+                business_premise_name:billingDevice.business_premise_name,
+                name:billingDevice.name,
+                tid:billingDevice.tid,
+                otp:billingDevice.otp,
+                fiscal_mark:billingDevice.fiscal_mark,
+                cost_center:billingDevice.cost_center,
+                device_model:billingDevice.device_model,
+                serial_number:billingDevice.serial_number,
+                auto_pair:billingDevice.auto_pair,
+                auto_validate:billingDevice.auto_validate,
+                description:billingDevice.description,
+                type_uuid:billingDevice.type_uuid,
+                type_name:billingDevice.type_name,
+                header:billingDevice.header,
+                footer:billingDevice.footer,
+                ticket_footer:billingDevice.ticket_footer,
+                is_active:billingDevice.is_active,
+                permissions:permissionsForBillingDevice,
+                payment:paymentMethodsForBillingDevice,
+                excluded_lines:excludedLinesForBillingDevice
+            }
+            billingDeviceDataToSend = [...billingDeviceDataToSend, dataTaAdd]
+        }
         res.send({
             status:200,
             data:{

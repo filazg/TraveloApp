@@ -32,52 +32,50 @@ const getUsersDataController = async(req,res)=>{
     const {UsersModel, UsersPermissionsModel} = req.app.locals.models;
     try {
         let usersDataToSend = []
-        const result = await sequelize.transaction(async (t)=>{
-            const usersData = await UsersModel.findAll({
-                attributes: { exclude: ['createdAt','updatedAt'] },
-                order:['id']
+        const usersData = await UsersModel.findAll({
+            attributes: { exclude: ['createdAt','updatedAt'] },
+            order:['id']
+        })
+        console.log('usersData')
+        console.log(usersData)
+        console.log('usersData')
+        console.log('usersData')
+        for(const user of usersData){
+            const permissionsForUser = await UsersPermissionsModel.findAll({
+                where:{
+                    user_uuid:user.uuid,
+                    is_active:true
+                },
+                attributes: { exclude: ['createdAt','updatedAt'] }
             })
-            console.log('usersData')
-            console.log(usersData)
-            console.log('usersData')
-            console.log('usersData')
-            for(const user of usersData){
-                const permissionsForUser = await UsersPermissionsModel.findAll({
-                    where:{
-                        user_uuid:user.uuid,
-                        is_active:true
-                    },
-                    attributes: { exclude: ['createdAt','updatedAt'] }
-                })
-                const dataToAdd = {
-                    id:user.id,
-                    uuid:user.uuid,
-                    name:user.name,
-                    surname:user.surname,
-                    legal_id:user.legal_id,
-                    username:user.username,
-                    password:user.password,
-                    mark:user.mark,
-                    is_company_employee:user.is_company_employee,
-                    partner_uuid:user.partner_uuid,
-                    partner_name:user.partner_name,
-                    code:user.code,
-                    // Bez ovoga se SAOP ID spremi u bazu, ali ga popis ne vrati —
-                    // forma se otvori prazna pa izgleda kao da nije spremljen.
-                    saop_clerk_id:user.saop_clerk_id,
-                    is_active:user.is_active,
-                    permissions:permissionsForUser
-                }
-                usersDataToSend = [...usersDataToSend, dataToAdd]
+            const dataToAdd = {
+                id:user.id,
+                uuid:user.uuid,
+                name:user.name,
+                surname:user.surname,
+                legal_id:user.legal_id,
+                username:user.username,
+                password:user.password,
+                mark:user.mark,
+                is_company_employee:user.is_company_employee,
+                partner_uuid:user.partner_uuid,
+                partner_name:user.partner_name,
+                code:user.code,
+                // Bez ovoga se SAOP ID spremi u bazu, ali ga popis ne vrati —
+                // forma se otvori prazna pa izgleda kao da nije spremljen.
+                saop_clerk_id:user.saop_clerk_id,
+                is_active:user.is_active,
+                permissions:permissionsForUser
             }
-            console.log('tu smo')
-            console.log(usersDataToSend)
-            res.send({
-                status:200,
-                data:{
-                    users:usersDataToSend    
-                }
-            })
+            usersDataToSend = [...usersDataToSend, dataToAdd]
+        }
+        console.log('tu smo')
+        console.log(usersDataToSend)
+        res.send({
+            status:200,
+            data:{
+                users:usersDataToSend    
+            }
         })
         
     } catch (error) {
@@ -94,51 +92,49 @@ const getINTUsersDataController = async(req,res)=>{
     const {UsersModel, UsersPermissionsModel} = req.app.locals.models;
     try {
         let usersDataToSend = []
-        const result = await sequelize.transaction(async (t)=>{
-            const usersData = await UsersModel.findAll({
-                attributes: { exclude: ['createdAt','updatedAt'] },
+        const usersData = await UsersModel.findAll({
+            attributes: { exclude: ['createdAt','updatedAt'] },
+        })
+        console.log('usersData')
+        console.log(usersData)
+        console.log('usersData')
+        console.log('usersData')
+        for(const user of usersData){
+            const permissionsForUser = await UsersPermissionsModel.findAll({
+                where:{
+                    user_uuid:user.uuid,
+                    is_active:true
+                },
+                attributes: { exclude: ['createdAt','updatedAt'] }
             })
-            console.log('usersData')
-            console.log(usersData)
-            console.log('usersData')
-            console.log('usersData')
-            for(const user of usersData){
-                const permissionsForUser = await UsersPermissionsModel.findAll({
-                    where:{
-                        user_uuid:user.uuid,
-                        is_active:true
-                    },
-                    attributes: { exclude: ['createdAt','updatedAt'] }
-                })
-                const dataToAdd = {
-                    id:user.id,
-                    uuid:user.uuid,
-                    name:user.name,
-                    surname:user.surname,
-                    legal_id:user.legal_id,
-                    username:user.username,
-                    password:user.password,
-                    mark:user.mark,
-                    is_company_employee:user.is_company_employee,
-                    partner_uuid:user.partner_uuid,
-                    partner_name:user.partner_name,
-                    code:user.code,
-                    // Bez ovoga se SAOP ID spremi u bazu, ali ga popis ne vrati —
-                    // forma se otvori prazna pa izgleda kao da nije spremljen.
-                    saop_clerk_id:user.saop_clerk_id,
-                    is_active:user.is_active,
-                    permissions:permissionsForUser
-                }
-                usersDataToSend = [...usersDataToSend, dataToAdd]
+            const dataToAdd = {
+                id:user.id,
+                uuid:user.uuid,
+                name:user.name,
+                surname:user.surname,
+                legal_id:user.legal_id,
+                username:user.username,
+                password:user.password,
+                mark:user.mark,
+                is_company_employee:user.is_company_employee,
+                partner_uuid:user.partner_uuid,
+                partner_name:user.partner_name,
+                code:user.code,
+                // Bez ovoga se SAOP ID spremi u bazu, ali ga popis ne vrati —
+                // forma se otvori prazna pa izgleda kao da nije spremljen.
+                saop_clerk_id:user.saop_clerk_id,
+                is_active:user.is_active,
+                permissions:permissionsForUser
             }
-            console.log('tu smo')
-            console.log(usersDataToSend)
-            res.send({
-                status:200,
-                data:{
-                    users:usersDataToSend    
-                }
-            })
+            usersDataToSend = [...usersDataToSend, dataToAdd]
+        }
+        console.log('tu smo')
+        console.log(usersDataToSend)
+        res.send({
+            status:200,
+            data:{
+                users:usersDataToSend    
+            }
         })
         
     } catch (error) {
