@@ -223,7 +223,7 @@ const updateUserDataController = async(req,res)=>{
    
     try {
         const data = req.body.body
-        const result = sequelize.transaction(async (t)=>{
+        const result = await sequelize.transaction(async (t)=>{
             const userExist = await UsersModel.findOne({
                 where:{
                     uuid:data.uuid,
@@ -265,7 +265,15 @@ const updateUserDataController = async(req,res)=>{
                         uuid:data.uuid,
                     }
                 })
-                //if(data.permissions && data.permissions.length > 0){
+                // Dozvole se diraju samo kad ih pozivatelj posalje. Prije se
+                // popis obilazio bezuvjetno, pa je izmjena koja ne salje dozvole
+                // (npr. djelatnik partnera s kartice partnera) pucala na
+                // "data.permissions is not iterable" — i to unutar transakcije
+                // koja se ne ceka, pa se iznimka nije nigdje uhvatila, odgovor
+                // nikad nije poslan i portal je ostajao na zaslonu cekanja.
+                // Usput bi zatecene dozvole vec bile ugasene.
+                const dozvole = Array.isArray(data.permissions) ? data.permissions : null
+                if(dozvole){
                     const updateUserPermissions = await UsersPermissionsModel.update({
                         is_active:false
                     },{
@@ -274,7 +282,7 @@ const updateUserDataController = async(req,res)=>{
                         }
                     })
                     let premissionsToAdd = []
-                    for(const permission of data.permissions){
+                    for(const permission of dozvole){
                         const newPermission = {
                             uuid:crypto.randomUUID(16),
                             user_uuid:userExist.uuid,
@@ -296,7 +304,7 @@ const updateUserDataController = async(req,res)=>{
                         }
                     })
                     const addUserPermissions = await UsersPermissionsModel.bulkCreate(premissionsToAdd)
-                //}
+                }
                 publishBackofficeEvent('update_users')
                 res.send({
                     status:202,
@@ -309,7 +317,12 @@ const updateUserDataController = async(req,res)=>{
             }
         })
     } catch (error) {
-        
+        // Bez ovoga zahtjev visi: greska se dosad nije ni biljezila ni javljala,
+        // pa je portal cekao odgovor koji nikad ne stigne.
+        console.log('updateUserDataController error:', error?.message || error)
+        if (!res.headersSent) {
+            res.status(500).send({ status: 500, msg: error?.message || 'update failed' })
+        }
     }
 }
 
