@@ -7,6 +7,7 @@ import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import AnchorIcon from "@mui/icons-material/Anchor";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import PercentIcon from "@mui/icons-material/Percent";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -80,6 +81,7 @@ function TileCard({ icon: Icon, title, subtitle, enabled, onClick }) {
 const CARDS = [
     { label: "Računi", subtitle: "Izdani računi", icon: ReceiptLongIcon, path: "/finance/invoices", enabled: true },
     { label: "Partner računi", subtitle: "Fakture partnerima", icon: HandshakeIcon, path: "/finance/partner_invoices", enabled: true },
+    { label: "Provizija partnera", subtitle: "Obračun za partnerska prodajna mjesta", icon: PercentIcon, path: "/finance/partner_commission", enabled: true },
     { label: "Pregled karata", subtitle: "Sve prodane karte", icon: ConfirmationNumberIcon, path: "/finance/tickets", enabled: true },
     { label: "Lučke uprave", subtitle: "Izvještaj naplata luka", icon: AnchorIcon, path: "/finance/harbor_tax_report", enabled: true },
     { label: "Smjene", subtitle: "Zaključci smjena", icon: AccessTimeIcon, path: "/finance/shifts", enabled: true },
