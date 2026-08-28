@@ -64,7 +64,10 @@ const getTerminalBasicDataHandler = async(data)=>{
                 billing_device_auto_validate:terminaData.auto_validate || '',
                 // Smije li se na uredaju prodavati za buduce datume. Bez toga
                 // mobilna ne bi znala smije li ponuditi odabir dana polaska.
-                billing_device_future_sale:!!terminaData.future_sale
+                billing_device_future_sale:!!terminaData.future_sale,
+                // Smije li se na uredaju validirati. Mobilna po tome odlucuje
+                // hoce li uopce prikazati prebacivanje Prodaja/Validacija.
+                billing_device_can_validate:terminaData.can_validate !== false
             }
             // 7pay (kartično placanje na mobilnom terminalu) — kredencijali dolaze
             // iz control-servisa, terminal ih ne drzi trajno. Salju se samo ako su

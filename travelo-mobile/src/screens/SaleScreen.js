@@ -93,6 +93,10 @@ export default function SaleScreen() {
 
     // Mode: 'sale' = prodaja karata; 'validate' = ulazna validacija pri ukrcaju.
     const [mode, setMode] = useState('sale');
+    // Uredaj koji ne validira nema sto prebacivati — ostaje samo prodaja.
+    // Zadano je da smije, jer je to dosadasnje ponasanje svih uredaja.
+    const smijeValidirati = sync.basicData?.billing_device_can_validate !== false;
+    const nacin = smijeValidirati ? mode : 'sale';
 
     const harbors = useMemo(() => harborsFromVoyage(v), [v]);
     const [fromIdx, setFromIdx] = useState(0);
@@ -131,7 +135,7 @@ export default function SaleScreen() {
     // Background scanner lifecycle. Routes scan po trenutnom modu — sale samo
     // pokaže kod, validate dispatcha validateScanThunk.
     const modeRef = useRef(mode);
-    useEffect(() => { modeRef.current = mode; }, [mode]);
+    useEffect(() => { modeRef.current = nacin; }, [nacin]);
 
     useEffect(() => {
         dispatch(refreshPendingCountThunk());
@@ -783,20 +787,30 @@ export default function SaleScreen() {
                     <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
                 {/* MODE TOGGLE — Prodaja / Validacija */}
-                <View style={styles.modeToggle}>
-                    <TouchableOpacity
-                        style={[styles.modeBtn, mode === 'sale' && styles.modeBtnActive]}
-                        onPress={() => setMode('sale')}
-                    >
-                        <Text style={[styles.modeBtnText, mode === 'sale' && styles.modeBtnTextActive]}>Prodaja</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.modeBtn, mode === 'validate' && styles.modeBtnActive]}
-                        onPress={() => setMode('validate')}
-                    >
-                        <Text style={[styles.modeBtnText, mode === 'validate' && styles.modeBtnTextActive]}>Validacija</Text>
-                    </TouchableOpacity>
-                </View>
+                {smijeValidirati ? (
+                    <View style={styles.modeToggle}>
+                        <TouchableOpacity
+                            style={[styles.modeBtn, nacin === 'sale' && styles.modeBtnActive]}
+                            onPress={() => setMode('sale')}
+                        >
+                            <Text style={[styles.modeBtnText, nacin === 'sale' && styles.modeBtnTextActive]}>Prodaja</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.modeBtn, nacin === 'validate' && styles.modeBtnActive]}
+                            onPress={() => setMode('validate')}
+                        >
+                            <Text style={[styles.modeBtnText, nacin === 'validate' && styles.modeBtnTextActive]}>Validacija</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    // Bez validacije naslov preuzima prostor prebacivanja, da
+                    // zaglavlje ne ostane prazno.
+                    <View style={styles.modeToggle}>
+                        <View style={[styles.modeBtn, styles.modeBtnActive]}>
+                            <Text style={[styles.modeBtnText, styles.modeBtnTextActive]}>Prodaja</Text>
+                        </View>
+                    </View>
+                )}
                 {/* Narančasta oznaka zaostalih prodaja je maknuta — stajala je
                     uz Prodaju/Validaciju i smetala. Zaostatak se i tako gura
                     sam (pri pokretanju, periodično i pri povratku aplikacije u
@@ -807,7 +821,7 @@ export default function SaleScreen() {
                 </View>
             </View>
 
-            {mode === 'validate' ? (
+            {nacin === 'validate' ? (
                 <ValidationPanel
                     voyage={v}
                     validation={validation}

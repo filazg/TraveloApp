@@ -460,6 +460,7 @@ export default function BillingDevicesPage (){
         { field: 'serial_number', headerName:t('backoffice.billing_devices.serial_number'), flex: 2 },
         { field: 'auto_validate', type: 'boolean', headerName:t('backoffice.billing_devices.auto_validate'), flex: 2},
         { field: 'future_sale', type: 'boolean', headerName: 'Budući datumi', flex: 2},
+        { field: 'can_validate', type: 'boolean', headerName: 'Validacija', flex: 2},
         { field: 'auto_pair', type: 'boolean', headerName: 'Auto uparivanje', flex: 2},
         { field: 'is_active', type: 'boolean', headerName:t('backoffice.billing_devices.is_active'), flex: 2},
     ];
@@ -704,6 +705,27 @@ export default function BillingDevicesPage (){
                         >
                             <MenuItem value="false">Ne (samo današnji polasci)</MenuItem>
                             <MenuItem value="true">Da (može birati datum polaska)</MenuItem>
+                        </TextField>
+                    )}
+                    {/* Uređaj koji samo prodaje ne treba prebacivanje na
+                        validaciju — gumb bi mu bio suvišan. */}
+                    {newData.type === 'mobile' && (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Validacija karata"
+                            select
+                            required
+                            value={
+                                newData.can_validate === false || newData.can_validate === 'false'
+                                    ? 'false' : 'true'
+                            }
+                            onChange={handleChange}
+                            name="can_validate"
+                            sx={{ mt: 1 }}
+                        >
+                            <MenuItem value="true">Da (uređaj validira karte)</MenuItem>
+                            <MenuItem value="false">Ne (samo prodaja)</MenuItem>
                         </TextField>
                     )}
                     {(newData.type === 'pc' || newData.type === 'mobile') && (
@@ -1065,6 +1087,25 @@ export default function BillingDevicesPage (){
                         >
                             <MenuItem value="false">Ne (samo današnji polasci)</MenuItem>
                             <MenuItem value="true">Da (može birati datum polaska)</MenuItem>
+                        </TextField>
+                    ) : null}
+                    {editedData?.type_name === 'mobile' || editedData?.type === 'mobile' ? (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Validacija karata"
+                            select
+                            required
+                            value={
+                                editedData?.can_validate === false || editedData?.can_validate === 'false'
+                                    ? 'false' : 'true'
+                            }
+                            onChange={handleChangeEdit}
+                            name="can_validate"
+                            sx={{ mt: 1 }}
+                        >
+                            <MenuItem value="true">Da (uređaj validira karte)</MenuItem>
+                            <MenuItem value="false">Ne (samo prodaja)</MenuItem>
                         </TextField>
                     ) : null}
                     <TextField

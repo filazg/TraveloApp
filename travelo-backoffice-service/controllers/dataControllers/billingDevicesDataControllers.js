@@ -160,6 +160,7 @@ const getBillingDevicesController = async(req,res)=>{
                 auto_pair:billingDevice.auto_pair,
                 auto_validate:billingDevice.auto_validate,
                 future_sale:billingDevice.future_sale,
+                can_validate:billingDevice.can_validate,
                 description:billingDevice.description,
                 type_uuid:billingDevice.type_uuid,
                 type_name:billingDevice.type_name,
@@ -275,6 +276,11 @@ const addBillingDeviceController = async(req,res)=>{
                         future_sale: isMobile
                             ? (data.future_sale === true || data.future_sale === 'true')
                             : false,
+                        // Validacija je zadano dopustena; iskljucuje se samo kad
+                        // se uredaj koristi iskljucivo za prodaju.
+                        can_validate: isMobile
+                            ? !(data.can_validate === false || data.can_validate === 'false')
+                            : true,
                         description:data.description,
                         type_uuid:data.type,
                         type_name:data.type,
@@ -411,6 +417,7 @@ const updateBillingDeviceController = async(req,res)=>{
                         // ako je type_uuid bio UUID (currentType !== 'mobile' → forced false).
                         auto_validate: (data.auto_validate === true || data.auto_validate === 'true'),
                         future_sale: (data.future_sale === true || data.future_sale === 'true'),
+                        can_validate: !(data.can_validate === false || data.can_validate === 'false'),
                         description:data.description,
                         header:data.header,
                         footer:data.footer,

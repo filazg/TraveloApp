@@ -56,6 +56,15 @@ module.exports =  (sequelize) =>{
             type:DataTypes.BOOLEAN,
             allowNull:true
         },
+        // Smije li se na uredaju validirati karta. Uredaj koji samo prodaje
+        // (npr. sank ili kiosk) nema potrebu za validacijom, pa mu se i gumb
+        // Prodaja/Validacija ne prikazuje. Zadano je da smije, jer je to
+        // dosadasnje ponasanje svih uredaja.
+        can_validate:{
+            type:DataTypes.BOOLEAN,
+            allowNull:false,
+            defaultValue:true
+        },
         // Prodaja za buduce datume. Pokretna blagajna radi na brodu i najcesce
         // prodaje za polazak koji upravo krece, pa je dopustenje iznimka koja se
         // svjesno ukljucuje — ne zeli se da djelatnik greskom proda kartu za
