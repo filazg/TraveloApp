@@ -6,6 +6,7 @@ import { allAppData, setStateData } from "../../store/appSlice";
 
 import CloseIcon from "@mui/icons-material/Close";
 import TicketsActions from "./TicketsActions";
+import ExternalTicketStorno from "./ExternalTicketStorno";
 import { gridModalSx, gridBoxSx } from "./listModalStyles";
 
 
@@ -70,6 +71,10 @@ export default function TicketsListModal() {
                         <Typography variant="h6" sx={{ fontWeight: 800 }}>Karte</Typography>
                         <IconButton onClick={handleTicketsModalClose}><CloseIcon /></IconButton>
                     </Stack>
+                    {/* Traženje po oznaci stoji iznad popisa: karta s drugog
+                        prodajnog mjesta nije u ovom popisu i ne može biti, pa
+                        je traženje jedini put do nje. */}
+                    <ExternalTicketStorno />
                     <Box sx={gridBoxSx}>
                         <DataGrid
                             rows={appData.workingData.tickets || []}

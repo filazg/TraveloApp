@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const axios = require('axios');
+const https = require("https");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
 const { companyModel, usersModel } = require("../db/models/BasicData.cjs");
 const { shiftModel } = require("../db/models/ShiftsData.cjs");
@@ -1162,9 +1163,270 @@ const syncPendingInvoicesService = async () => {
   }
 }
 
+// ---- Storno karte prodane na drugom prodajnom mjestu ----------------------
+//
+// Putnik s kartom kupljenom u drugoj poslovnici ili na brodu dolazi na ovu
+// blagajnu tražiti povrat. Karta nije u lokalnoj bazi, pa se traži na
+// poslužitelju po oznaci. Pravilo tko smije biti izvor (poslovnica ili
+// pokretna blagajna) stoji na poslužitelju, da vrijedi jednako za sve
+// terminale.
+const lookupExternalTicketService = async (ticketCode) => {
+  try {
+    const oznaka = String(ticketCode || '').trim();
+    if (!oznaka) return { ok: false, reason: 'Upiši oznaku karte.' };
+
+    // Vlastita karta ide postojećim putem — ondje su i račun i stavke, pa
+    // storno može ispraviti izvorni račun umjesto da radi zaseban.
+    const lokalna = await ticketsModel.findOne({ where: { ticket_code: oznaka } });
+    if (lokalna) {
+      return { ok: true, local: true, ticket: lokalna.toJSON() };
+    }
+
+    const settingsData = await systemSettingsDataModel.findOne();
+    const pairingData = await pairingDataModel.findOne();
+    const backendUrl = settingsData?.backend_url;
+    if (!backendUrl) return { ok: false, reason: 'Backend nije postavljen u postavkama.' };
+
+    const odgovor = await axios.get(backendUrl + '/terminals/terminal/external_ticket', {
+      params: { ticket_code: oznaka },
+      headers: { authorization: 'Bearer ' + pairingData?.token },
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      timeout: 20000,
+      validateStatus: () => true,
+    });
+    if (odgovor.status !== 200) {
+      const poruka = odgovor.data?.data?.message || odgovor.data?.message || ('HTTP ' + odgovor.status);
+      return { ok: false, reason: poruka };
+    }
+    const podaci = odgovor.data?.data ?? odgovor.data ?? {};
+    if (!podaci.found) {
+      return { ok: false, reason: podaci.message || 'Karta s tom oznakom ne postoji.' };
+    }
+    return {
+      ok: true,
+      local: false,
+      ticket: podaci.ticket,
+      business_premise: podaci.business_premise,
+      allowed: !!podaci.allowed,
+      reason: podaci.reason || '',
+    };
+  } catch (error) {
+    console.log('lookupExternalTicketService error:', error?.message || error);
+    return { ok: false, reason: 'Poslužitelj ne odgovara — karta se ne može provjeriti.' };
+  }
+};
+
+// Storno takve karte. Za razliku od storna vlastite prodaje, ovaj traži mrežu:
+// izvorna karta živi na drugom uređaju, pa se bez poslužitelja ne može ni
+// provjeriti je li već vraćena ni označiti storniranom. Zato prvo ide
+// poslužitelj, pa tek onda lokalni račun i ispis — ako poslužitelj padne,
+// blagajna nije potrošila broj računa niti isplatila novac.
+const cancelExternalTicketService = async ({ ticket_code, user, payment, paymentData, stornoPct }) => {
+  try {
+    const nalaz = await lookupExternalTicketService(ticket_code);
+    if (!nalaz.ok) return { ok: false, error: { message: nalaz.reason } };
+    if (nalaz.local) {
+      return { ok: false, error: { message: 'Karta je prodana na ovoj blagajni — storniraj je kroz popis karata.' } };
+    }
+    if (!nalaz.allowed) {
+      return { ok: false, error: { message: nalaz.reason || 'Ova karta se ne može stornirati na blagajni.' } };
+    }
+    if (!payment?.uuid) return { ok: false, error: { message: 'Odaberi sredstvo povrata.' } };
+
+    const karta = nalaz.ticket;
+    const basicData = await companyModel.findOne();
+    const settingsData = await systemSettingsDataModel.findOne();
+    const pairingData = await pairingDataModel.findOne();
+    const backendUrl = settingsData?.backend_url;
+
+    const shiftData = await shiftModel.findOne({
+      where: { operater_username: user.user_username, shift_open: true },
+      order: [['id', 'DESC']],
+    });
+    if (!shiftData) {
+      return { ok: false, error: { message: `Operater ${user.user_username} nema otvorenu smjenu.` } };
+    }
+
+    const postotak = Number.isFinite(Number(stornoPct)) && Number(stornoPct) > 0
+      ? Math.min(100, Number(stornoPct))
+      : 100;
+    const refundPrice = +(Number(karta.single_price) * (postotak / 100)).toFixed(2);
+    if (!(refundPrice > 0)) {
+      return { ok: false, error: { message: 'Iznos povrata je 0 — provjeri postotak i cijenu karte.' } };
+    }
+
+    // Storno tuđe karte ide u redovnu (F1) sekvencu ove blagajne. F2 se ovdje
+    // ne radi: e-račun traži podatke o kupcu s izvornog računa, a blagajna ih
+    // nema — original je izdan na drugom prodajnom mjestu.
+    const invoiceYear = new Date().getFullYear();
+    const billingDeviceUuid = basicData.billing_device_uuid;
+    const invoiceUUID = crypto.randomBytes(16).toString('hex');
+    const orderUUID = crypto.randomBytes(16).toString('hex');
+    const itemUUID = crypto.randomBytes(16).toString('hex');
+    const invoiceNo = await nextInvoiceNoLocal(invoiceYear, billingDeviceUuid, settingsData);
+    const invoiceFiskalNo = await nextInvoiceFiskalNoLocal(invoiceYear, billingDeviceUuid, settingsData);
+    const invoiceCode = buildInvoiceCode(false, invoiceFiskalNo, basicData.business_premise_fiscal_mark, basicData.billing_device_fiscal_mark);
+
+    // 1) Poslužitelj prvi — on označava izvornu kartu storniranom i zapisuje
+    //    storno račun pod brojem koji je blagajna upravo dodijelila.
+    if (!backendUrl) return { ok: false, error: { message: 'Backend nije postavljen — storno tuđe karte traži vezu.' } };
+    let odgovor;
+    try {
+      odgovor = await axios.post(backendUrl + '/terminals/terminal/cancel_tickets', {
+        ticket_uuids: [karta.ticket_uuid],
+        terminal_uuid: billingDeviceUuid,
+        payment_method_uuid: payment.uuid,
+        percentage: postotak,
+        storno_invoice_uuid: invoiceUUID,
+        storno_invoice_no: invoiceNo,
+        storno_invoice_year: invoiceYear,
+        storno_invoice_fiskal_no: invoiceFiskalNo,
+        storno_invoice_code: invoiceCode,
+        storno_is_f2: false,
+      }, {
+        headers: { authorization: 'Bearer ' + pairingData?.token },
+        httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+        timeout: 25000,
+        validateStatus: () => true,
+      });
+    } catch (error) {
+      return { ok: false, error: { message: 'Poslužitelj ne odgovara — storno nije izvršen.' } };
+    }
+    if (odgovor.status !== 200) {
+      const poruka = odgovor.data?.data?.message || odgovor.data?.message || ('HTTP ' + odgovor.status);
+      return { ok: false, error: { message: `Storno nije izvršen — ${poruka}` } };
+    }
+
+    // 2) Lokalni storno račun — od ovog trenutka je novac izašao iz blagajne i
+    //    mora se vidjeti u smjeni.
+    const vatBase = +((refundPrice * 0.94) / 1.25).toFixed(2);
+    const vat = +((refundPrice * 0.94) - vatBase).toFixed(2);
+    const harborTax = +(refundPrice - (refundPrice * 0.94)).toFixed(2);
+
+    const newGroup = {
+      ticket_group_uuid: karta.ticket_group_uuid || null,
+      ticket_type_name: karta.ticket_type_name,
+      ticket_type_uuid: karta.ticket_type_uuid,
+      sales_route_uuid: karta.route_uuid,
+      single_price: refundPrice,
+      total_price: refundPrice,
+      total_vat_base: vatBase,
+      total_vat: vat,
+      total_harbor_tax: harborTax,
+      shift_uuid: shiftData.shift_uuid,
+      order_number: orderUUID,
+      item_uuid: itemUUID,
+      quantity: -1,
+    };
+    const newItem = {
+      item_uuid: itemUUID,
+      invoice_uuid: invoiceUUID,
+      sales_route_uuid: karta.route_uuid,
+      line_code: karta.line_code,
+      line_name: karta.line_name,
+      departure: karta.departure_planed,
+      departure_harbor_id: karta.departure_harbor_id,
+      departure_harbor_name: karta.departure_harbor_name,
+      arrival: karta.arrival_planed,
+      arrival_harbor_id: karta.arrival_harbor_id,
+      arrival_harbor_name: karta.arrival_harbor_name,
+      item_amount: refundPrice,
+      item_vat_base: vatBase,
+      item_vat: vat,
+      item_harbor_fee: harborTax,
+      shift_uuid: shiftData.shift_uuid,
+      order_number: orderUUID,
+      tickets_group: [newGroup],
+    };
+    const invoiceToAdd = {
+      invoice_uuid: invoiceUUID,
+      invoice_no: invoiceNo,
+      invoice_fiskal_no: invoiceFiskalNo,
+      invoice_code: invoiceCode,
+      fiskal_required: false,
+      is_f2: false,
+      invoice_year: invoiceYear,
+      invoice_date: new Date(),
+      invoice_client_uuid: basicData.clinet_uuid,
+      invoice_client_name: basicData.client_name,
+      invoice_client_address: basicData.client_address,
+      invoice_client_postal_code: basicData.client_postal_code,
+      invoice_client_town: basicData.client_town,
+      invoice_client_country: basicData.client_country,
+      invoice_client_oib: basicData.client_legal_id,
+      invoice_business_premise_uuid: basicData.business_premise_uuid,
+      invoice_business_premise_name: basicData.business_premise_name,
+      invoice_business_premise_address: basicData.business_premise_address,
+      invoice_business_premise_postal_code: basicData.business_premise_postal_code || '',
+      invoice_business_premise_postal_town: basicData.business_premise_town,
+      invoice_business_premise_fiscal_mark: basicData.business_premise_fiscal_mark,
+      invoice_billing_device_uuid: billingDeviceUuid,
+      invoice_billing_device_fiscal_mark: basicData.billing_device_fiscal_mark,
+      invoice_is_pay: true,
+      invoice_payment_data_uuid: 'keš',
+      invoice_ZKI: '',
+      invoice_operator_name: user.user_name + ' ' + user.user_surname,
+      invoice_operator_id: user.id,
+      invoice_operator_uuid: user.user_uuid,
+      invoice_operator_mark: user.user_mark,
+      invoice_payment_method_uuid: payment.uuid,
+      invoice_payment_method_name: payment.name,
+      invoice_payment_method_fiscal_mark: payment.payment_type_acr,
+      order_number: orderUUID,
+      shift_uuid: shiftData.shift_uuid,
+      invoice_status: 'canceled',
+      invoice_canceled: true,
+      invoice_amount: refundPrice * -1,
+      invoice_vat_base: vatBase * -1,
+      invoice_vat: vat * -1,
+      invoice_harbor_tax: harborTax * -1,
+      invoice_items: [newItem],
+      payment_data: paymentData || {},
+      // Trag odakle je karta došla — po ovome se na zaključku odvaja od storna
+      // vlastite prodaje.
+      storno_source_channel: nalaz.business_premise?.name || '',
+      storno_source_type: nalaz.business_premise?.type || '',
+      storno_source_ticket_code: karta.ticket_code,
+      // Račun je već zapisan na poslužitelju kroz cancel_tickets, pa ga sync
+      // ne smije gurati ponovno kroz add_invoices.
+      invoice_send: 'SEND',
+    };
+
+    await invoicesModel.create(invoiceToAdd);
+    await invoiceTransportItemsModel.bulkCreate([newItem]);
+    await ticketsGroupsModel.bulkCreate([newGroup]);
+
+    // 3) Ispis storno računa. Neuspjeh printera ne poništava storno — novac je
+    //    vraćen, a račun se uvijek može ponovno ispisati iz popisa.
+    try {
+      await cancelInvoicePrint({
+        basic_data: basicData,
+        invoice: invoiceToAdd,
+        tickets_groups: [newGroup],
+        items: [newItem],
+      });
+    } catch (printErr) {
+      console.log('cancelExternalTicketService ispis nije uspio:', printErr?.message || printErr);
+    }
+
+    return {
+      ok: true,
+      invoice: invoiceToAdd,
+      refund_amount: refundPrice,
+      source: nalaz.business_premise,
+      ticket_code: karta.ticket_code,
+    };
+  } catch (error) {
+    console.log('cancelExternalTicketService error:', error?.message || error);
+    return { ok: false, error: { message: error?.message || 'Storno nije izvršen.' } };
+  }
+};
+
 module.exports = {
   getInvoicesDataService,
   getInvoiceDataService,
+  lookupExternalTicketService,
+  cancelExternalTicketService,
   getInvoicesDetailsDataService,
   createInvoiceService,
   cancelInvoiceService,

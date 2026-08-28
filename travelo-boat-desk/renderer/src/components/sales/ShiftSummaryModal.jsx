@@ -67,6 +67,8 @@ export default function ShiftSummaryModal() {
     const details = appData.workingData?.shiftDetails || [];
     const storno = appData.workingData?.shiftStorno || [];
     const stornoAmount = appData.workingData?.shiftStornoAmount || 0;
+    const stornoVanjski = appData.workingData?.shiftStornoExternal || [];
+    const stornoVanjskiAmount = appData.workingData?.shiftStornoExternalAmount || 0;
     const totals = appData.workingData?.shiftTotals || {};
     const shift = appData.workingData?.shiftSummaryFor;
 
@@ -162,6 +164,31 @@ export default function ShiftSummaryModal() {
                         ))}
                         <Divider sx={{ my: 1 }} />
                         <SummaryRow name="Ukupno stornirano" amount={stornoAmount} bold />
+                    </Paper>
+                ) : null}
+
+                {/* Storno karte s drugog prodajnog mjesta ide zasebno: prihod od
+                    te karte nikad nije bio u ovoj blagajni, a novac iz nje
+                    izlazi — bez toga se manjak pri primopredaji ne da objasniti. */}
+                {stornoVanjski.length > 0 ? (
+                    <Paper variant="accent" sx={{ p: 2 }}>
+                        <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" }}
+                            color="text.secondary"
+                        >
+                            Storno s drugih prodajnih mjesta
+                        </Typography>
+                        <Divider sx={{ my: 1 }} />
+                        {stornoVanjski.map((row, i) => (
+                            <SummaryRow
+                                key={`storno-ext-${row.ticket_code || i}`}
+                                name={`${row.channel || "—"} · ${row.ticket_code || ""}`}
+                                amount={row.amount}
+                            />
+                        ))}
+                        <Divider sx={{ my: 1 }} />
+                        <SummaryRow name="Ukupno" amount={stornoVanjskiAmount} bold />
                     </Paper>
                 ) : null}
 

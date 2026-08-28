@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld("api", {
     createInvoiceIPC: (data) => ipcRenderer.invoke("app:createInvoiceIPC",data),
     cancelInvoiceIPC: (data) => ipcRenderer.invoke("app:cancelInvoiceIPC",data),
     cancelTicketIPC: (data) => ipcRenderer.invoke("app:cancelTicketIPC",data),
+    lookupExternalTicketIPC: (ticketCode) => ipcRenderer.invoke("app:lookupExternalTicketIPC", ticketCode),
+    cancelExternalTicketIPC: (data) => ipcRenderer.invoke("app:cancelExternalTicketIPC", data),
     printInvoiceCopyIPC: (data) => ipcRenderer.invoke("app:printInvoiceCopyIPC",data),
     printAllTicketsCopyIPC: (data) => ipcRenderer.invoke("app:printAllTicketsCopyIPC",data),
     printTicketCopyIPC: (data) => ipcRenderer.invoke("app:printTicketCopyIPC",data),

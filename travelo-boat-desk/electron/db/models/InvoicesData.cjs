@@ -246,6 +246,22 @@ const invoicesModel = sequelize.define('invoices',{
         type: Sequelize.DATE,
         allowNull: true
     },
+    // Storno karte prodane na drugom prodajnom mjestu. Popunjeno je samo kod
+    // takvih storna — po tome se na zaključku smjene odvajaju od storna
+    // vlastite prodaje, jer novac izlazi iz ove blagajne, a prihod je bio na
+    // tuđoj.
+    storno_source_channel:{
+        type: Sequelize.STRING,
+        allowNull: true
+    },
+    storno_source_type:{
+        type: Sequelize.STRING,
+        allowNull: true
+    },
+    storno_source_ticket_code:{
+        type: Sequelize.STRING,
+        allowNull: true
+    },
 },{
     freezeTableName: true
 })

@@ -171,6 +171,31 @@ const shiftPrintHelper = async (data) => {
             printer.leftRight('UKUPNO STORNIRANO:', (data.storno_amount || 0).toFixed(2) + ' EUR')
             printer.bold(false);
         }
+        // STORNO S DRUGIH PRODAJNIH MJESTA — izdvojeno jer prihod od tih karata
+        // nikad nije bio u ovoj blagajni, a novac iz nje izlazi. Bez toga
+        // primopredaja pokazuje manjak koji se ne da objasniti iz prodaje.
+        if (data.storno_external && data.storno_external.length > 0) {
+            printer.drawLine();
+            printer.newLine();
+            printer.alignCenter();
+            printer.println("STORNO S DRUGIH PRODAJNIH MJESTA")
+            printer.alignLeft();
+            printer.drawLine();
+            for (let n = 0; n < data.storno_external.length; n++) {
+                const redak = data.storno_external[n];
+                printer.leftRight(
+                    String(redak.channel || '—') + ' / ' + String(redak.ticket_code || ''),
+                    Number(redak.amount || 0).toFixed(2) + ' EUR'
+                )
+            }
+            printer.drawLine();
+            printer.bold(true);
+            printer.leftRight(
+                'UKUPNO (' + (data.storno_external_count || 0) + '):',
+                (data.storno_external_amount || 0).toFixed(2) + ' EUR'
+            )
+            printer.bold(false);
+        }
         printer.drawLine();
         printer.newLine();
         //SREDSTVA PLAĆANJA

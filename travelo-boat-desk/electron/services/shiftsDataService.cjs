@@ -116,6 +116,36 @@ const buildStornoBreakdown = (shiftInvoices) => {
         storno: [...byPayment.values()].map((r) => ({ ...r, amount: +r.amount.toFixed(2) })),
         storno_count: count,
         storno_amount: +amount.toFixed(2),
+        ...buildVanjskiStorno(shiftInvoices),
+    };
+};
+
+// Storno karte prodane na drugom prodajnom mjestu iskazuje se posebno: prihod
+// od te karte nikad nije bio u ovoj blagajni, a novac iz nje izlazi. Bez tog
+// izdvajanja zaključak izgleda kao da je blagajna vratila vlastitu prodaju, pa
+// se manjak ne da objasniti.
+const buildVanjskiStorno = (shiftInvoices) => {
+    const redci = [];
+    let amount = 0;
+    for (const row of shiftInvoices) {
+        const inv = row.dataValues || row;
+        if (!isStornoInvoice(inv)) continue;
+        if (!inv.storno_source_channel) continue;
+        const value = Math.abs(Number(inv.invoice_amount) || 0);
+        amount += value;
+        redci.push({
+            channel: inv.storno_source_channel,
+            channel_type: inv.storno_source_type || '',
+            ticket_code: inv.storno_source_ticket_code || '',
+            payment_type_name: inv.invoice_payment_method_name || '',
+            invoice_label: invoiceLabel(inv),
+            amount: +value.toFixed(2),
+        });
+    }
+    return {
+        storno_external: redci,
+        storno_external_count: redci.length,
+        storno_external_amount: +amount.toFixed(2),
     };
 };
 

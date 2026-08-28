@@ -20,6 +20,8 @@ export default function ShiftActions({params, rowId, setRowId}) {
             {path:'workingData/shiftDetails', value: summary.shift_details || []},
             {path:'workingData/shiftStorno', value: summary.storno || []},
             {path:'workingData/shiftStornoAmount', value: summary.storno_amount || 0},
+            {path:'workingData/shiftStornoExternal', value: summary.storno_external || []},
+            {path:'workingData/shiftStornoExternalAmount', value: summary.storno_external_amount || 0},
             {path:'workingData/shiftTotals', value: {
                 invoice_count: summary.invoice_count,
                 shift_first_invoice: summary.shift_first_invoice,

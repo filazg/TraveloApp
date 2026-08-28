@@ -5,7 +5,7 @@ const { pairingWithBackendService, syncBasicDataService, syncTransportDataServic
 const { getLocalBasicDataService, getLocalTransportDataService } = require("../services/localDataService.cjs");
 const { getBookingDataService } = require("../services/bookingDataService.cjs");
 const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService, reprintShiftService, syncPendingShiftsService } = require("../services/shiftsDataService.cjs");
-const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService } = require("../services/invoiceDataService.cjs");
+const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService, lookupExternalTicketService, cancelExternalTicketService } = require("../services/invoiceDataService.cjs");
 const { getBuyersDataService } = require("../services/buyersDataService.cjs");
 const { otpPaymentHandler } = require("../helpers/paymentHelpers/otpPaymentHelper.cjs");
 const { setSystemSetingsDataService, getSystemSetingsDataService } = require("../services/systemSettingsDataService.cjs");
@@ -217,6 +217,24 @@ function registerAppIpc() {
       return ok(data);
     } catch (e) {
       return fail("Failed to load initial data", e?.stack || String(e));
+    }
+  });
+  // Karta prodana na drugom prodajnom mjestu: prvo traženje po oznaci, pa
+  // storno. Odvojeni su jer blagajnik prvo mora vidjeti što je našao.
+  ipcMain.handle("app:lookupExternalTicketIPC", async (_event, ticketCode) => {
+    try {
+      const data = await lookupExternalTicketService(ticketCode);
+      return ok(data);
+    } catch (e) {
+      return fail("Traženje karte nije uspjelo", e?.stack || String(e));
+    }
+  });
+  ipcMain.handle("app:cancelExternalTicketIPC", async (_event, in_data) => {
+    try {
+      const data = await cancelExternalTicketService(in_data);
+      return ok(data);
+    } catch (e) {
+      return fail("Storno nije izvršen", e?.stack || String(e));
     }
   });
   ipcMain.handle("app:getTicketsIPC", async () => {

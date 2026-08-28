@@ -7,6 +7,7 @@ const { handleFinalizeSaleFeature } = require('../features/deskTerminals/finaliz
 const { handleVoyageTicketsFeature, handleValidateTicketFeature, handleBuyersListFeature } = require('../features/deskTerminals/voyageTicketsFeature');
 const { handleCheckIslandCardFeature, handleCancelTicketsFeature } = require('../features/deskTerminals/akdFeature');
 const { handleUpsertTerminalShiftFeature, handleListShiftsFeature } = require('../features/deskTerminals/shiftDataFeature');
+const { handleExternalTicketFeature } = require('../features/deskTerminals/externalTicketFeature');
 const router = express.Router();
 
 router
@@ -51,6 +52,11 @@ router
 router
     .route('/terminal/cancel_tickets')
     .post(handleCancelTicketsFeature)
+
+// Traženje karte prodane na drugom prodajnom mjestu, za storno na blagajni.
+router
+    .route('/terminal/external_ticket')
+    .get(handleExternalTicketFeature)
 
 router
     .route('/terminal/shift')
