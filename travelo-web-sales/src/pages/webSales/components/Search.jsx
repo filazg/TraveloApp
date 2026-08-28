@@ -46,12 +46,20 @@ export default function SearchComponent (){
 
     let dtoswow = d1;
 
-    const filteredHarborsTo = webSalesData?.transportData?.harbors.filter(
+    // Luke idu abecedno. Poslužitelj ih vraća redoslijedom iz voznog reda, pa
+    // je putnik svoju luku morao tražiti po popisu. `localeCompare` s hrvatskim
+    // pravilima da č, ć, š, ž sjednu na svoje mjesto, a ne iza z.
+    const abecedno = (luke) =>
+        [...(luke || [])].sort((a, b) =>
+            String(a?.name || "").localeCompare(String(b?.name || ""), "hr", { sensitivity: "base" })
+        );
+
+    const filteredHarborsTo = abecedno(webSalesData?.transportData?.harbors?.filter(
         (harbor) => harbor?.id !== webSalesData?.searchData?.travel_from?.id
-    );
-    const filteredHarborsFrom = webSalesData?.transportData?.harbors.filter(
+    ));
+    const filteredHarborsFrom = abecedno(webSalesData?.transportData?.harbors?.filter(
         (harbor) => harbor.id !== webSalesData?.searchData?.travel_to?.id
-    );
+    ));
 
     const handleFirstDirectionData = (newData) => {
         const newValue = newData;

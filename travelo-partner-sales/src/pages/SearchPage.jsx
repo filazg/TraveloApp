@@ -67,6 +67,16 @@ export default function SearchPage() {
     setSubmitted(true)
   }
 
+  // Luke abecedno, kao i na web prodaji. Poslužitelj ih vraća redoslijedom iz
+  // voznog reda, pa se svoja luka tražila po popisu. Hrvatska pravila
+  // usporedbe, da č, ć, š, ž ne odu iza z.
+  const lukeAbecedno = useMemo(
+    () => [...(harbors || [])].sort((a, b) =>
+      String(a?.name || '').localeCompare(String(b?.name || ''), 'hr', { sensitivity: 'base' })
+    ),
+    [harbors]
+  )
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
       <Typography variant="h5" fontWeight={900} sx={{ mb: 2 }}>
@@ -83,7 +93,7 @@ export default function SearchPage() {
             sx={{ minWidth: 220 }}
           >
             <MenuItem value="">— sve —</MenuItem>
-            {harbors.map((h) => (
+            {lukeAbecedno.map((h) => (
               <MenuItem key={h.uuid} value={h.code}>
                 {h.name} ({h.code})
               </MenuItem>
@@ -97,7 +107,7 @@ export default function SearchPage() {
             sx={{ minWidth: 220 }}
           >
             <MenuItem value="">— sve —</MenuItem>
-            {harbors.map((h) => (
+            {lukeAbecedno.map((h) => (
               <MenuItem key={h.uuid} value={h.code}>
                 {h.name} ({h.code})
               </MenuItem>
