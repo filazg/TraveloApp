@@ -51,13 +51,20 @@ export const setLineTicketsCache = (tickets) => {
 };
 export const getCachedLineTicket = (key) => _lineTicketsByUuid.get(key) || null;
 
-// Lista svih unique karata u cache-u (Map ima dupli zapis po uuid i code).
+// Lista karata polaska za validaciju (Map ima dupli zapis po uuid i code).
+//
+// Stornirane karte se izostavljaju: popis odgovara na pitanje "što još treba
+// validirati", a stornirana karta ne treba. Karta stornirana drugdje — na
+// blagajni ili u portalu — inače je i dalje stajala kao da čeka ukrcaj, jer je
+// terminal o njoj znao samo ono što je zatekao pri prodaji. Sam scan i dalje
+// prepoznaje takvu kartu i odbija je s objašnjenjem, jer se traži po Mapi.
 export const listCachedTickets = () => {
     const seen = new Set();
     const out = [];
     for (const t of _voyageTicketsByUuid.values()) {
         if (!t?.ticket_uuid || seen.has(t.ticket_uuid)) continue;
         seen.add(t.ticket_uuid);
+        if (t.is_canceled) continue;
         out.push(t);
     }
     return out;
