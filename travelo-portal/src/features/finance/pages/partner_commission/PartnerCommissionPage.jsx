@@ -35,6 +35,9 @@ export default function PartnerCommissionPage() {
     const finance = useSelector(financeSliceData);
 
     const [partnerUuid, setPartnerUuid] = useState("");
+    // "Obračunsko" je zadnje zaokruženo razdoblje — ono za isplatu. "Tekuće"
+    // služi za uvid usred razdoblja, dok se prodaja još događa.
+    const [vrsta, setVrsta] = useState("closed");
 
     const obracun = finance.partnerCommission || {};
     const partneri = obracun.partners || [];
@@ -51,16 +54,17 @@ export default function PartnerCommissionPage() {
     useEffect(() => {
         dispatch(setAuthData({ path: "loading", value: false }));
         dispatch(fetchPartnersListThunk());
-        dispatch(fetchPartnerCommissionThunk({}));
+        dispatch(fetchPartnerCommissionThunk({ period: "closed" }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const trazi = async () => {
         dispatch(setAuthData({ path: "loadingMessage", value: "Obračun provizije…" }));
         dispatch(setAuthData({ path: "loading", value: true }));
-        await dispatch(fetchPartnerCommissionThunk(
-            partnerUuid ? { partner_uuid: partnerUuid } : {}
-        ));
+        await dispatch(fetchPartnerCommissionThunk({
+            period: vrsta,
+            ...(partnerUuid ? { partner_uuid: partnerUuid } : {}),
+        }));
         dispatch(setAuthData({ path: "loading", value: false }));
     };
 
@@ -90,6 +94,17 @@ export default function PartnerCommissionPage() {
                         {(finance.partnersList || []).map((p) => (
                             <MenuItem key={p.uuid} value={p.uuid}>{p.partner_name}</MenuItem>
                         ))}
+                    </TextField>
+                    <TextField
+                        select
+                        size="small"
+                        label="Razdoblje"
+                        value={vrsta}
+                        onChange={(e) => setVrsta(e.target.value)}
+                        sx={{ minWidth: 220 }}
+                    >
+                        <MenuItem value="closed">Obračunsko — zadnje zaokruženo</MenuItem>
+                        <MenuItem value="current">Tekuće — u tijeku</MenuItem>
                     </TextField>
                     <Button
                         variant="contained"
@@ -132,8 +147,9 @@ export default function PartnerCommissionPage() {
 
             {!partneri.length && !finance.partnerCommissionLoading ? (
                 <Alert severity="info">
-                    Nema prodaje za odabrano razdoblje. Provjeri je li prodajno mjesto u Administraciji
-                    označeno kao partnersko i vezano na partnera.
+                    Nema prodaje u ovom razdoblju. Dvije stvari koje to najčešće uzrokuju: nijedno
+                    prodajno mjesto nije u Administraciji označeno kao partnersko, ili je prodaja
+                    novija od obračunskog razdoblja — tada prebaci razdoblje na „Tekuće".
                 </Alert>
             ) : null}
 

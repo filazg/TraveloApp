@@ -50,9 +50,31 @@ const DANI = ["nedjelja", "ponedjeljak", "utorak", "srijeda", "četvrtak", "peta
 // Razdoblje obračuna proizlazi iz dinamike naplate partnera — uvijek zadnje
 // zaokruženo razdoblje, ono za koje se obračun radi. Blagajnik ga zato ne
 // upisuje: dinamika je dogovorena s partnerom i stoji u šifarniku.
-const razdobljePoDinamici = (partner, danasnji = new Date()) => {
+const razdobljePoDinamici = (partner, danasnji = new Date(), tekuce = false) => {
     const danas = new Date(danasnji.getFullYear(), danasnji.getMonth(), danasnji.getDate());
     const cycle = String(partner?.billing_cycle || "MONTHLY").toUpperCase();
+
+    // Tekuće razdoblje — ono koje još traje. Ne služi za isplatu nego za uvid
+    // usred razdoblja: koliko je partner zaradio dosad. Iznos nije konačan jer
+    // se prodaja još događa.
+    if (tekuce) {
+        if (cycle === "SEMI_MONTHLY") {
+            const od = danas.getDate() >= 16
+                ? new Date(danas.getFullYear(), danas.getMonth(), 16)
+                : new Date(danas.getFullYear(), danas.getMonth(), 1);
+            return { from: iso(od), to: iso(danas), cycle, label: "Tekuće razdoblje — u tijeku", running: true };
+        }
+        if (cycle === "WEEKLY") {
+            const dan = Number(partner?.billing_weekday) || 1;
+            const danasISO = danas.getDay() === 0 ? 7 : danas.getDay();
+            let nazad = danasISO - dan;
+            if (nazad < 0) nazad += 7;
+            const zadnjiObracun = new Date(danas.getFullYear(), danas.getMonth(), danas.getDate() - nazad);
+            return { from: iso(zadnjiObracun), to: iso(danas), cycle, label: "Tekuće razdoblje — u tijeku", running: true };
+        }
+        const od = new Date(danas.getFullYear(), danas.getMonth(), 1);
+        return { from: iso(od), to: iso(danas), cycle: "MONTHLY", label: "Tekuće razdoblje — u tijeku", running: true };
+    }
 
     if (cycle === "SEMI_MONTHLY") {
         // Obračun je 1. i 16.: nakon 16. u mjesecu zaokružena je prva polovica
@@ -89,7 +111,7 @@ const razdobljePoDinamici = (partner, danasnji = new Date()) => {
 const partnerCommissionController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
-        const { partner_uuid } = req.query || {};
+        const { partner_uuid, period } = req.query || {};
         let { from, to } = req.query || {};
 
         const [prostoriPodaci, partneriPodaci] = await Promise.all([
@@ -104,7 +126,7 @@ const partnerCommissionController = async (req, res) => {
         let razdoblje = null;
         if (!from || !to) {
             const partner = partner_uuid ? partneri.find((p) => p.uuid === partner_uuid) : null;
-            razdoblje = razdobljePoDinamici(partner);
+            razdoblje = razdobljePoDinamici(partner, new Date(), String(period) === "current");
             from = razdoblje.from;
             to = razdoblje.to;
         }
