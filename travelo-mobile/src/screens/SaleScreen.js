@@ -1537,7 +1537,15 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
                     ? '⚠ KARTA ZA DRUGI POLAZAK'
                     : '✓ KARTA VALJANA';
         return (
-            <View style={[overlayStyles.full, { backgroundColor: bg }]}>
+            // Gornji dio se pomiče, gumbi stoje na dnu. Na malom zaslonu V2s-a
+            // sadržaj zna prerasti ekran — najprije kod karte s druge linije,
+            // gdje uz vremena stoje i obje linije — pa su gumbi ispadali izvan
+            // vidljivog dijela i djelatnik nije imao što stisnuti.
+            <View style={[overlayStyles.full, overlayStyles.fullColumn, { backgroundColor: bg }]}>
+                <ScrollView
+                    style={overlayStyles.confirmScroll}
+                    contentContainerStyle={overlayStyles.confirmScrollContent}
+                >
                 <View style={overlayStyles.choiceHeader}>
                     <Text style={overlayStyles.choiceTitle}>{title}</Text>
                     <Text style={overlayStyles.choiceBig}>{String(t.ticket_type_name || '')}</Text>
@@ -1596,16 +1604,19 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
                         <Text style={overlayStyles.relatedHeader}>
                             Povezane nevalidirane karte iste narudžbe ({related.length}):
                         </Text>
-                        <ScrollView style={overlayStyles.relatedList}>
+                        {/* Popis se ne pomiče zasebno — pomiče se cijeli gornji
+                            dio, pa se ne bore dva pomična područja jedno u drugom. */}
+                        <View style={overlayStyles.relatedList}>
                             {related.map((rt) => (
                                 <View key={rt.ticket_uuid} style={overlayStyles.relatedItem}>
                                     <Text style={overlayStyles.relatedCode}>{String(rt.ticket_code || '')}</Text>
                                     <Text style={overlayStyles.relatedType}>{String(rt.ticket_type_name || '')}</Text>
                                 </View>
                             ))}
-                        </ScrollView>
+                        </View>
                     </View>
                 ) : null}
+                </ScrollView>
 
                 {hasRelated ? (
                     <View style={overlayStyles.choiceRow}>
@@ -1681,23 +1692,26 @@ const overlayStyles = StyleSheet.create({
     line: { color: colors.textOnPrimary, fontSize: 22, marginVertical: 4, textAlign: 'center' },
     code: { color: colors.textOnPrimary, fontSize: 18, fontFamily: 'monospace', marginTop: 18, opacity: 0.85 },
     hint: { color: colors.textOnPrimary, fontSize: 12, marginTop: 40, opacity: 0.7 },
+    // Potvrda ukrcaja: pomični gornji dio, gumbi ostaju na dnu.
+    fullColumn: { alignItems: 'stretch', justifyContent: 'flex-start' },
+    confirmScroll: { flex: 1 },
+    confirmScrollContent: { paddingBottom: 8 },
     choiceHeader: {
-        alignItems: 'center', paddingTop: 30, paddingHorizontal: 20,
+        alignItems: 'center', paddingTop: 14, paddingHorizontal: 20,
     },
-    choiceTitle: { color: colors.textOnPrimary, fontSize: 32, fontWeight: '900', marginBottom: 8, letterSpacing: 2 },
-    choiceBig: { color: colors.textOnPrimary, fontSize: 22, fontWeight: '800', marginVertical: 4, textAlign: 'center' },
-    choiceCode: { color: colors.textOnPrimary, fontSize: 16, fontFamily: 'monospace', opacity: 0.85 },
+    choiceTitle: { color: colors.textOnPrimary, fontSize: 24, fontWeight: '900', marginBottom: 4, letterSpacing: 1, textAlign: 'center' },
+    choiceBig: { color: colors.textOnPrimary, fontSize: 19, fontWeight: '800', marginVertical: 2, textAlign: 'center' },
+    choiceCode: { color: colors.textOnPrimary, fontSize: 15, fontFamily: 'monospace', opacity: 0.85 },
     relatedBox: {
-        flex: 1,
-        marginHorizontal: 16, marginTop: 20,
+        marginHorizontal: 16, marginTop: 12,
         backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 10,
-        paddingVertical: 12,
+        paddingVertical: 10,
     },
     relatedHeader: {
         color: colors.textOnPrimary, fontSize: 14, fontWeight: '700',
         paddingHorizontal: 14, paddingBottom: 8,
     },
-    relatedList: { flex: 1, paddingHorizontal: 10 },
+    relatedList: { paddingHorizontal: 10 },
     relatedItem: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 3,
@@ -1707,28 +1721,30 @@ const overlayStyles = StyleSheet.create({
     relatedType: { color: colors.textOnPrimary, fontSize: 14, fontWeight: '600', flex: 1, textAlign: 'right' },
     choiceRow: {
         flexDirection: 'row',
-        marginTop: 16, marginHorizontal: 20,
+        marginTop: 10, marginHorizontal: 20,
     },
     choiceBtn: {
         flex: 1, marginHorizontal: 6,
-        paddingVertical: 28, borderRadius: 14,
+        paddingVertical: 18, borderRadius: 14,
         alignItems: 'center', justifyContent: 'center',
     },
-    choiceBtnText: { color: colors.textOnPrimary, fontSize: 22, fontWeight: '900', letterSpacing: 1 },
-    choiceBtnSub: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700', marginTop: 4, letterSpacing: 1 },
+    choiceBtnText: { color: colors.textOnPrimary, fontSize: 20, fontWeight: '900', letterSpacing: 1 },
+    choiceBtnSub: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700', marginTop: 2, letterSpacing: 1 },
     cancelBtn: {
-        marginTop: 24, paddingVertical: 12, paddingHorizontal: 32,
+        marginTop: 10, marginBottom: 12, paddingVertical: 10, paddingHorizontal: 32,
         alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8,
     },
     cancelBtnText: { color: colors.textOnPrimary, fontSize: 14, fontWeight: '700' },
     harborInfo: {
-        marginHorizontal: 16, marginTop: 30,
+        marginHorizontal: 16, marginTop: 12,
         backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10,
-        padding: 16,
+        padding: 12,
     },
-    harborRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 6 },
-    harborLabel: { color: colors.warningLight, fontSize: 14, fontWeight: '600' },
-    harborValue: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '800' },
+    harborRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginVertical: 3 },
+    harborLabel: { color: colors.warningLight, fontSize: 13, fontWeight: '600', flexShrink: 0, marginRight: 10 },
+    // Nazivi linija su dugi ("Split – Milna – Hvar – …") pa vrijednost mora
+    // smjeti prijeći u drugi red umjesto da gura redak izvan ekrana.
+    harborValue: { color: colors.textOnPrimary, fontSize: 15, fontWeight: '800', flexShrink: 1, textAlign: 'right' },
 });
 
 // Status validacije — prikazuje LocalValidationStatus iz lokalnog scan rezultata
