@@ -254,6 +254,12 @@ const updateUserDataController = async(req,res)=>{
                     surname:data.surname,
                     password:hash,
                     is_active:data.is_active,
+                    // Veza na partnera se dosad nije spremala pri izmjeni, pa se
+                    // djelatnik nije mogao prebaciti drugom partneru. Vrsta
+                    // djelatnika se ne mijenja ovdje, pa se partner pamti samo
+                    // kad je poslan.
+                    ...(data.partner_uuid !== undefined ? { partner_uuid: data.partner_uuid || null } : {}),
+                    ...(data.partner_name !== undefined ? { partner_name: data.partner_name || null } : {}),
                     ...(data.legal_id !== undefined ? { legal_id: data.legal_id } : {}),
                     ...(data.mark !== undefined ? { mark: data.mark } : {}),
                     ...(data.code !== undefined ? { code: normalizeCode(data.code) } : {}),

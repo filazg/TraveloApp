@@ -26,6 +26,18 @@ export default function UsersPage (){
 
     // Jezgra odbija duplu oznaku ili šifru statusom 208; bez ovoga bi forma
     // izgledala kao da je spremila, a zapis ne bi bio promijenjen.
+    const partnerPoUuid = (uuid) => (backofficeData.backofficeData.partners || []).find((p) => p.uuid === uuid)
+    // Partner se pamti samo kod djelatnika koji nije naš. Prebacivanjem natrag na
+    // "djelatnik tvrtke" veza se briše, da zaostali partner ne filtrira uređaje.
+    const handlePartnerChange = (e) => {
+        const partner = partnerPoUuid(e.target.value)
+        setNewData({ ...newData, partner_uuid: partner?.uuid || '', partner_name: partner?.partner_name || '' })
+    }
+    const handlePartnerChangeEdit = (e) => {
+        const partner = partnerPoUuid(e.target.value)
+        setEditedData({ ...editedData, partner_uuid: partner?.uuid || '', partner_name: partner?.partner_name || '' })
+    }
+
     const rejectionMessage = (payload) => {
         const result = payload?.result
         if (!result || result.status === undefined) return ""
@@ -42,6 +54,9 @@ export default function UsersPage (){
         await dispatch(setAuthData({path:'loadingMessage', value:'Preuzimanje podataka o korisnicima'}))
         await dispatch(getBackofficeThunk({path:'users'}))
         await dispatch(getBackofficeThunk({path:'payment_methods'}))
+        // Partneri se dohvaćaju jer djelatnik može biti partnerov, a ne naš —
+        // po toj vezi se na partnerskom naplatnom uređaju nude samo njegovi ljudi.
+        await dispatch(getBackofficeThunk({path:'partners'}))
         //await dispatch(getBackofficeThunk({path:'portal_modules'}))
         await dispatch(setAuthData({path:'loading', value:false}))
     }
@@ -357,6 +372,25 @@ export default function UsersPage (){
                         <MenuItem value={true} >{t('backoffice.users.is_company_yes')}</MenuItem>
                         <MenuItem value={false}>{t('backoffice.users.is_company_no')}</MenuItem>
                     </TextField>
+                    {String(newData.is_company_employee) === 'false' ? (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            select
+                            label="Partner"
+                            required
+                            value={newData.partner_uuid || ""}
+                            onChange={handlePartnerChange}
+                            name="partner_uuid"
+                            sx={{
+                                mt:1
+                            }}
+                        >
+                            {(backofficeData.backofficeData.partners || []).map((p)=>(
+                                <MenuItem key={p.uuid} value={p.uuid}>{p.partner_name}</MenuItem>
+                            ))}
+                        </TextField>
+                    ) : null}
                     <TextField
                         type="text"
                         variant="outlined"
@@ -504,6 +538,9 @@ export default function UsersPage (){
                             mt:1
                         }}
                     />
+                    {/* Vrsta djelatnika se i dalje ne mijenja naknadno, ali partner
+                        smije: partner se preimenuje ili se djelatnik prebaci k
+                        drugom, a dosad se to moglo samo pri unosu. */}
                     <TextField
                         type="boolean"
                         variant="outlined"
@@ -518,6 +555,25 @@ export default function UsersPage (){
                             mt:1
                         }}
                     />
+                    {editedData?.is_company_employee === false || String(editedData?.is_company_employee) === 'false' ? (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            select
+                            label="Partner"
+                            required
+                            value={editedData?.partner_uuid || ""}
+                            onChange={handlePartnerChangeEdit}
+                            name="partner_uuid"
+                            sx={{
+                                mt:1
+                            }}
+                        >
+                            {(backofficeData.backofficeData.partners || []).map((p)=>(
+                                <MenuItem key={p.uuid} value={p.uuid}>{p.partner_name}</MenuItem>
+                            ))}
+                        </TextField>
+                    ) : null}
                     <TextField
                         type="text"
                         variant="outlined"

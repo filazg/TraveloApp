@@ -407,7 +407,19 @@ export default function BillingDevicesPage (){
         console.log(selectedRow)
         const forLeft = (backofficeData.backofficeData.payment_methods.filter(d => !selectedRow?.payment.some(s => s.uuid === d.uuid)))
         const forRight = (backofficeData.backofficeData.payment_methods.filter(d => selectedRow?.payment.some(s => s.uuid === d.uuid)))
-        const forLeftOP = (backofficeData.backofficeData.users.filter(d => !selectedRow?.permissions.some(s => s.uuid === d.uuid)))
+        // Djelatnici koji se nude ovise o vlasnistvu prodajnog mjesta: na
+        // partnerskom rade samo djelatnici tog partnera, na nasem samo nasi.
+        // Vec dodijeljeni ostaju u desnom stupcu bez obzira na to — inace bi
+        // zatecena dodjela nestala iz popisa i tiho se izgubila pri spremanju.
+        const prostorUredjaja = (backofficeData.backofficeData.business_premises || [])
+            .find((bp) => bp.uuid === selectedRow?.business_premise_uuid)
+        const partnerskiProstor = prostorUredjaja?.bp_own === 'PARTNER_BP'
+        const pripadaProstoru = (u) => (partnerskiProstor
+            ? u.partner_uuid === prostorUredjaja?.partner_uuid
+            : !u.partner_uuid)
+        const forLeftOP = (backofficeData.backofficeData.users
+            .filter(d => !selectedRow?.permissions.some(s => s.uuid === d.uuid))
+            .filter(pripadaProstoru))
         const forRightOP = (backofficeData.backofficeData.users.filter(d => selectedRow?.permissions.some(s => s.uuid === d.uuid)))
         // Linije: desno stoje ZABRANJENE. Obrnuto od druge dvije liste, jer su
         // linije po pravilu sve dozvoljene pa se pamti samo iznimka.
