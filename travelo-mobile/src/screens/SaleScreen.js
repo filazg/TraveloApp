@@ -793,19 +793,13 @@ export default function SaleScreen() {
                         <Text style={[styles.modeBtnText, mode === 'validate' && styles.modeBtnTextActive]}>Validacija</Text>
                     </TouchableOpacity>
                 </View>
+                {/* Narančasta oznaka zaostalih prodaja je maknuta — stajala je
+                    uz Prodaju/Validaciju i smetala. Zaostatak se i tako gura
+                    sam (pri pokretanju, periodično i pri povratku aplikacije u
+                    prvi plan), a ručno guranje i broj zaostalih stoje na gumbu
+                    Sync u Dokumentima. */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', minWidth: layout.headerButtonHeight }}>
-                    {sales.pendingCount > 0 ? (
-                        <TouchableOpacity
-                            style={styles.pendingBadge}
-                            onPress={() => dispatch(syncPendingSalesThunk())}
-                            disabled={sales.syncing}
-                        >
-                            {sales.syncing
-                                ? <ActivityIndicator color={colors.textOnPrimary} size="small" />
-                                : <Text style={styles.pendingText}>↑ {sales.pendingCount}</Text>}
-                        </TouchableOpacity>
-                    ) : null}
-                    <HomeButton style={{ marginLeft: 8 }} />
+                    <HomeButton />
                 </View>
             </View>
 
@@ -2048,14 +2042,6 @@ const styles = StyleSheet.create({
     modeBtnActive: { backgroundColor: colors.surface },
     modeBtnText: { color: colors.secondary, fontSize: 16, fontWeight: '700' },
     modeBtnTextActive: { color: colors.primary },
-    pendingBadge: {
-        width: 100, height: 32,
-        backgroundColor: colors.warning,
-        borderRadius: 16,
-        alignItems: 'center', justifyContent: 'center',
-        marginRight: 8,
-    },
-    pendingText: { color: colors.textOnPrimary, fontSize: 13, fontWeight: '800' },
 
     voyageBoxSlim: {
         backgroundColor: colors.surface,
