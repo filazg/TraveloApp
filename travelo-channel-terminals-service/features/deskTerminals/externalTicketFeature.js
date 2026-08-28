@@ -54,6 +54,12 @@ const handleExternalTicketFeature = async (req, res) => {
         const tip = prostor?.type || "";
         const dozvoljeno = DOZVOLJENI_TIPOVI.includes(tip);
         const vecStornirana = Boolean(karta.is_canceled) || String(karta.status || "").toUpperCase() === "CANCELED";
+        // Validirana karta je iskorištena — putnik je ukrcan i vožnja mu je
+        // pružena, pa nema što vratiti. Status dolazi u više oblika
+        // ("validated" s mobilne, "VALIDATE" s blagajne), a `validate_data` je
+        // najpouzdaniji trag jer se upisuje pri samoj validaciji.
+        const vecValidirana = Boolean(karta.validate_data)
+            || String(karta.status || "").toUpperCase().startsWith("VALID");
 
         return res.send({
             status: 200,
@@ -66,14 +72,17 @@ const handleExternalTicketFeature = async (req, res) => {
                     type: tip,
                     type_name: nazivTipa(tip),
                 },
-                allowed: dozvoljeno && !vecStornirana,
+                allowed: dozvoljeno && !vecStornirana && !vecValidirana,
+                validated: vecValidirana,
                 reason: !prostor
                     ? "Prodajno mjesto karte nije poznato."
                     : !dozvoljeno
                         ? `Karta je izdana na prodajnom mjestu tipa ${nazivTipa(tip)} — na blagajni se može stornirati samo karta poslovnice ili pokretne blagajne.`
                         : vecStornirana
                             ? "Karta je već stornirana."
-                            : "",
+                            : vecValidirana
+                                ? "Karta je validirana — putnik je ukrcan, pa storno nije moguć."
+                                : "",
             },
         });
     } catch (error) {

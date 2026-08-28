@@ -1249,9 +1249,15 @@ const lookupExternalTicketService = async (ticketCode) => {
     if (lokalna) {
       const karta = lokalna.toJSON();
       const stornirana = karta.ticket_status === 'CANCELED' || !!karta.ticket_is_canceled || !!karta.ticket_deactivate;
+      // Validirana karta je iskorištena — putnik je ukrcan, vožnja mu je
+      // pružena, pa nema što vratiti.
+      const validirana = !!karta.ticket_validate_data
+        || String(karta.ticket_status || '').toUpperCase().startsWith('VALID');
       const rok = stornirana
         ? { allowed: false, reason: 'Karta je već stornirana.', minutes_left: 0 }
-        : ocijeniRok(karta.ticket_departure);
+        : validirana
+          ? { allowed: false, reason: 'Karta je validirana — putnik je ukrcan, pa storno nije moguć.', minutes_left: 0 }
+          : ocijeniRok(karta.ticket_departure);
       // Kartično plaćanje na ovoj blagajni ima i povrat na karticu preko POS
       // terminala, a to ide samo kroz popis karata — ovdje bi novac bio vraćen
       // samo na papiru.
