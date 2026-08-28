@@ -23,6 +23,10 @@ export default function BusinessPremisesPage (){
         await dispatch(setAuthData({path:'loading', value:true}))
         await dispatch(setAuthData({path:'loadingMessage', value:'Preuzimanje podataka o poslovnim prostorima'}))
         await dispatch(getBackofficeThunk({path:'business_premises'}))
+        // Partneri se dohvaćaju ovdje jer se prodajno mjesto može označiti kao
+        // partnersko. Bez ovoga je popis partnera bio prazan, pa se partner nije
+        // imao odakle odabrati.
+        await dispatch(getBackofficeThunk({path:'partners'}))
         await dispatch(setAuthData({path:'loading', value:false}))
     }
     
@@ -35,6 +39,26 @@ export default function BusinessPremisesPage (){
     };
     const handleChangeEdit = async (e) => {
         setEditedBusinessPremiseData({...editedBusinessPremiseData, [e.target.name] : e.target.value})
+    };
+
+    // Partner se bira po uuid-u, a naziv se prepisuje uz njega — na prodajnom
+    // mjestu stoje oba, da izvještaji ne moraju u šifarnik za ime.
+    const partnerPoUuid = (uuid) => (backofficeData.partners || []).find((p) => p.uuid === uuid)
+    const handlePartnerChange = async (e) => {
+        const partner = partnerPoUuid(e.target.value)
+        setNewBusinessPremiseData({
+            ...newBusinessPremiseData,
+            partner_uuid: partner?.uuid || '',
+            partner_name: partner?.partner_name || '',
+        })
+    };
+    const handlePartnerChangeEdit = async (e) => {
+        const partner = partnerPoUuid(e.target.value)
+        setEditedBusinessPremiseData({
+            ...editedBusinessPremiseData,
+            partner_uuid: partner?.uuid || '',
+            partner_name: partner?.partner_name || '',
+        })
     };
 
     const handleSubmit = async(e)=>{
@@ -78,6 +102,10 @@ export default function BusinessPremisesPage (){
         { field: 'name', headerName:t('backoffice.business_premises.name'), flex: 2},
         { field: 'mark', headerName:t('backoffice.business_premises.mark'), flex: 2},
         { field: 'type', headerName:t('backoffice.business_premises.type') , flex: 2},
+        // Partnersko prodajno mjesto se mora vidjeti iz popisa — po njemu ide
+        // obračun provizije, pa nije svejedno je li mjesto naše ili partnerovo.
+        { field: 'partner_name', headerName: t('backoffice.business_premises.partners'), flex: 2,
+            valueGetter: (value, row) => (row?.bp_own === 'PARTNER_BP' ? (value || '—') : '') },
         { field: 'address', headerName:t('backoffice.business_premises.address') , flex: 2},
         { field: 'town', headerName:t('backoffice.business_premises.town'), flex: 2},
         { field: 'country', headerName:t('backoffice.business_premises.country'), flex: 2},
@@ -228,18 +256,26 @@ export default function BusinessPremisesPage (){
                                 label={t('backoffice.business_premises.partners')}
                                 placeholder={t('backoffice.business_premises.partners')}
                                 required
-                                value={newBusinessPremiseData.partner  || ""}
-                                onChange={handleChange}
-                                name="partner"
+                                value={newBusinessPremiseData.partner_uuid || ""}
+                                onChange={handlePartnerChange}
+                                name="partner_uuid"
                                  sx={{
                                     mt:1
                                 }}
                             >
+                                {/* Vrijednost je uuid, ne cijeli objekt — backend
+                                    sprema partner_uuid i partner_name, pa je prije
+                                    ostajalo neupisano i kad se partner odabrao.
+                                    Uz naziv stoji i provizija, jer se po njoj
+                                    obračunava, pa se odmah vidi što je odabrano. */}
                                 {backofficeData.partners?.map((partner)=>(
-                                <MenuItem key={partner.id} value={partner}>{partner.partner_name}</MenuItem>
+                                <MenuItem key={partner.uuid} value={partner.uuid}>
+                                    {partner.partner_name}
+                                    {partner.commission_pct != null ? ` — provizija ${Number(partner.commission_pct)} %` : ''}
+                                </MenuItem>
 
                                 ))}
-                                </TextField>                        
+                                </TextField>
                         </>  
                         : ''
                     }
@@ -448,38 +484,52 @@ export default function BusinessPremisesPage (){
                             mt:1
                         }}
                     />
+                    {/* Vlasništvo i partner se smiju mijenjati i naknadno:
+                        prodajno mjesto zna prijeći s vlastitog na partnersko ili
+                        promijeniti partnera, a dosad se to moglo samo pri unosu. */}
                     <TextField
                         type="boolean"
                         variant="outlined"
                         fullWidth
-                        disabled
+                        select
                         label={t('backoffice.business_premises.bp_own')}
                         placeholder={t('backoffice.business_premises.bp_own')}
                         required
                         value={editedBusinessPremiseData?.bp_own || ""}
+                        onChange={handleChangeEdit}
                         name="bp_own"
                         sx={{
                             mt:1
                         }}
-                    />
-                    {editedBusinessPremiseData?.partner  ? 
+                    >
+                        <MenuItem value='OWN_BP'>{t('backoffice.business_premises.own_bp')}</MenuItem>
+                        <MenuItem value='PARTNER_BP'>{t('backoffice.business_premises.partners_bp')}</MenuItem>
+                    </TextField>
+                    {editedBusinessPremiseData?.bp_own === 'PARTNER_BP' ?
                         <>
                             <TextField
                                 type="boolean"
                                 variant="outlined"
                                 fullWidth
                                 select
-                                disabled
                                 label={t('backoffice.business_premises.partners')}
                                 placeholder={t('backoffice.business_premises.partners')}
                                 required
-                                value={editedBusinessPremiseData?.partner  || ""}
-                                name="partner"
+                                value={editedBusinessPremiseData?.partner_uuid || ""}
+                                onChange={handlePartnerChangeEdit}
+                                name="partner_uuid"
                                  sx={{
                                     mt:1
                                 }}
-                            />                      
-                        </>  
+                            >
+                                {backofficeData.partners?.map((partner)=>(
+                                <MenuItem key={partner.uuid} value={partner.uuid}>
+                                    {partner.partner_name}
+                                    {partner.commission_pct != null ? ` — provizija ${Number(partner.commission_pct)} %` : ''}
+                                </MenuItem>
+                                ))}
+                            </TextField>
+                        </>
                         : ''
                     }
                     <TextField
