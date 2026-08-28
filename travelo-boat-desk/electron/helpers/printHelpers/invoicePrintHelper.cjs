@@ -344,11 +344,12 @@ const printTickets = async ({ tickets,copy }) => {
             // ostaju — ispisuju se samo kad vrijede, a bez njih se stornirana
             // karta ne razlikuje od važeće.
             //
-            // NAPOMENA: naziv je upisan rukom, ne uzima se iz podataka tvrtke.
-            // Na drugoj instalaciji karta će i dalje pisati ovo.
+            // Naziv tvrtke ide iz osnovnih podataka, kao i na računu. Prije je
+            // bio upisan rukom, pa bi svaka druga instalacija na kartama i
+            // dalje ispisivala tuđe ime.
             printer.alignCenter();
             printer.setTextDoubleHeight();
-            printer.println('KAPETAN LUKA - KRILO');
+            printer.println(String(osnovniPodaci?.client_name || 'TRAVELO').trim());
             printer.setTextNormal();
             printer.println('P R I J E V O Z N A   K A R T A');
             printer.drawLine();
