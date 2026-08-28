@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import api from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
 import { saveBasicData, saveTransportData, loadBasicData, loadTransportData, upsertBuyersFromSync } from '../../db/repo';
+import { getSetting, setSetting } from '../../db/db';
 
 // Load all persisted data from SQLite into redux on app boot.
 export const hydrateFromDbThunk = createAsyncThunk(
@@ -59,8 +60,19 @@ export const syncTransportDataThunk = createAsyncThunk(
     'sync/transportData',
     async (_, { rejectWithValue }) => {
         try {
-            const resp = await api.get(ENDPOINTS.transportData);
+            // `lean=1` — bez proslih polazaka i bez polja koja terminal ne
+            // koristi; paket padne s ~4 MB na ~2 MB. `v` je otisak zadnjeg
+            // preuzetog voznog reda: ako se nista nije promijenilo, posluzitelj
+            // vrati samo potvrdu i uredaj preskoci upis od nekoliko tisuca
+            // redaka. Vozni red se mijenja rijetko, a osvjezava cesto.
+            const zadnjaVerzija = await getSetting('transport_version');
+            const resp = await api.get(ENDPOINTS.transportData, {
+                params: { lean: 1, ...(zadnjaVerzija ? { v: zadnjaVerzija } : {}) },
+            });
             const payload = resp.data?.data ?? resp.data ?? {};
+            if (payload.unchanged) {
+                return { unchanged: true };
+            }
             // Nepotpun odgovor se ne sprema. Inace bi `|| []` obrisalo lokalni
             // vozni red i ostavilo uredaj bez ijednog polaska.
             if (!Array.isArray(payload.lines) || !Array.isArray(payload.sales_routes)) {
@@ -72,6 +84,7 @@ export const syncTransportDataThunk = createAsyncThunk(
                 salesRoutes: payload.sales_routes || [],
                 tripsPrices: payload.trips_prices || [],
             });
+            if (payload.version) await setSetting('transport_version', payload.version);
             return payload;
         } catch (err) {
             return rejectWithValue({ message: err.response?.data?.msg || err.message });
