@@ -159,6 +159,7 @@ const getBillingDevicesController = async(req,res)=>{
                 serial_number:billingDevice.serial_number,
                 auto_pair:billingDevice.auto_pair,
                 auto_validate:billingDevice.auto_validate,
+                future_sale:billingDevice.future_sale,
                 description:billingDevice.description,
                 type_uuid:billingDevice.type_uuid,
                 type_name:billingDevice.type_name,
@@ -268,6 +269,11 @@ const addBillingDeviceController = async(req,res)=>{
                         auto_pair: data.auto_pair === true || data.auto_pair === 'true',
                         auto_validate: isMobile
                             ? (data.auto_validate === true || data.auto_validate === 'true')
+                            : false,
+                        // Buduci datumi imaju smisla samo na pokretnoj blagajni;
+                        // na ostalim tipovima se ne pamte.
+                        future_sale: isMobile
+                            ? (data.future_sale === true || data.future_sale === 'true')
                             : false,
                         description:data.description,
                         type_uuid:data.type,
@@ -404,6 +410,7 @@ const updateBillingDeviceController = async(req,res)=>{
                         // Prije je bilo isMobile-only što je rušilo save za bus terminale
                         // ako je type_uuid bio UUID (currentType !== 'mobile' → forced false).
                         auto_validate: (data.auto_validate === true || data.auto_validate === 'true'),
+                        future_sale: (data.future_sale === true || data.future_sale === 'true'),
                         description:data.description,
                         header:data.header,
                         footer:data.footer,

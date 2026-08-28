@@ -81,14 +81,18 @@ export default function VoyageSelectScreen() {
     }, [dispatch]);
 
     const today = todayDmy();
+    // Polasci prate dan odabran na prethodnom ekranu. Bez dopustenja za buducu
+    // prodaju to je uvijek danasnji dan.
+    const smijeBuduce = !!sync.basicData?.billing_device_future_sale;
+    const dan = smijeBuduce ? (voyage.date || today) : today;
     const voyages = useMemo(
         () => groupVoyages(
             sync.salesRoutes.filter((r) =>
-                r.departure_date === today &&
+                r.departure_date === dan &&
                 (!line || r.line_code === line.code)
             )
         ),
-        [sync.salesRoutes, today, line]
+        [sync.salesRoutes, dan, line]
     );
 
     const onRefresh = () => dispatch(syncTransportDataThunk());
@@ -102,7 +106,7 @@ export default function VoyageSelectScreen() {
                 </TouchableOpacity>
                 <View style={{ flex: 1, alignItems: 'center' }}>
                     <Text style={styles.title}>{line?.code || 'Polazak'}</Text>
-                    <Text style={styles.subtitle}>{line?.name || ''} · {today}</Text>
+                    <Text style={styles.subtitle}>{line?.name || ''} · {dan}</Text>
                 </View>
                 <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
                     <HomeButton />

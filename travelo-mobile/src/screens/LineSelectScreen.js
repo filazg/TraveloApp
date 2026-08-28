@@ -12,7 +12,8 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { todayDmy } from '../api/config';
 import { syncTransportDataThunk, syncData } from '../store/slices/syncSlice';
-import { setLine } from '../store/slices/voyageSlice';
+import { setLine, setDate, voyageData } from '../store/slices/voyageSlice';
+import DatumProdaje from '../components/DatumProdaje';
 import { resetSection } from '../store/slices/navSlice';
 import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
@@ -20,7 +21,28 @@ import HomeButton from '../components/HomeButton';
 export default function LineSelectScreen() {
     const dispatch = useDispatch();
     const sync = useSelector(syncData);
+    const voyage = useSelector(voyageData);
     const today = todayDmy();
+    // Dan prodaje: uređaj kojem buduća prodaja nije dopuštena radi isključivo za
+    // danas, bez obzira što je ostalo u stanju od ranije.
+    const smijeBuduce = !!sync.basicData?.billing_device_future_sale;
+    const dan = smijeBuduce ? (voyage.date || today) : today;
+
+    // Promjena dana povlači vozni red ako ga uređaj za taj dan još nema —
+    // dok traje, stoji zaslon učitavanja, da djelatnik ne gleda prazan popis i
+    // ne misli da tog dana nema polazaka.
+    const [ucitavanje, setUcitavanje] = React.useState(false);
+    const promijeniDan = async (noviDan) => {
+        dispatch(setDate(noviDan));
+        const imaZaTajDan = sync.salesRoutes.some((r) => r.departure_date === noviDan);
+        if (imaZaTajDan) return;
+        setUcitavanje(true);
+        try {
+            await dispatch(syncTransportDataThunk());
+        } finally {
+            setUcitavanje(false);
+        }
+    };
 
     useEffect(() => {
         if (!sync.salesRoutes.length && !sync.transportLoading) {
@@ -32,10 +54,10 @@ export default function LineSelectScreen() {
     // Only lines that have at least one active route today.
     const lines = useMemo(() => {
         const codesToday = new Set(
-            sync.salesRoutes.filter((r) => r.is_active && r.departure_date === today).map((r) => r.line_code)
+            sync.salesRoutes.filter((r) => r.is_active && r.departure_date === dan).map((r) => r.line_code)
         );
         return sync.lines.filter((l) => codesToday.has(l.code));
-    }, [sync.lines, sync.salesRoutes, today]);
+    }, [sync.lines, sync.salesRoutes, dan]);
 
     return (
         <SafeAreaView style={styles.wrap}>
@@ -48,9 +70,12 @@ export default function LineSelectScreen() {
                     <HomeButton />
                 </View>
             </View>
-            <Text style={styles.sub}>Linije aktivne {today}</Text>
+            {smijeBuduce ? (
+                <DatumProdaje datum={dan} danas={today} onPromjena={promijeniDan} />
+            ) : null}
+            <Text style={styles.sub}>Linije aktivne {dan}</Text>
 
-            {sync.transportLoading && !lines.length ? (
+            {ucitavanje || (sync.transportLoading && !lines.length) ? (
                 <View style={styles.center}>
                     <ActivityIndicator color={colors.primary} size="large" />
                 </View>
@@ -60,7 +85,7 @@ export default function LineSelectScreen() {
                     keyExtractor={(l) => l.uuid || l.code}
                     contentContainerStyle={styles.list}
                     refreshControl={<RefreshControl refreshing={sync.transportLoading} onRefresh={() => dispatch(syncTransportDataThunk())} tintColor={colors.primary} />}
-                    ListEmptyComponent={<Text style={styles.empty}>Nema linija za današnji dan.</Text>}
+                    ListEmptyComponent={<Text style={styles.empty}>Nema linija za {dan}.</Text>}
                     renderItem={({ item }) => (
                         <TouchableOpacity style={styles.card} onPress={() => dispatch(setLine(item))}>
                             <Text style={styles.cardCode}>{item.code}</Text>

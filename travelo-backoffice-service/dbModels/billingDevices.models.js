@@ -56,6 +56,15 @@ module.exports =  (sequelize) =>{
             type:DataTypes.BOOLEAN,
             allowNull:true
         },
+        // Prodaja za buduce datume. Pokretna blagajna radi na brodu i najcesce
+        // prodaje za polazak koji upravo krece, pa je dopustenje iznimka koja se
+        // svjesno ukljucuje — ne zeli se da djelatnik greskom proda kartu za
+        // sljedeci tjedan misleci da prodaje za danas.
+        future_sale:{
+            type:DataTypes.BOOLEAN,
+            allowNull:false,
+            defaultValue:false
+        },
         // Zero-touch uparivanje: uređaj s ovom zastavicom i upisanim serijskim
         // brojem dobiva token po SN-u, bez unosa TID-a i OTP-a.
         auto_pair:{

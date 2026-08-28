@@ -1,4 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { todayDmy } from '../../api/config';
 
 // Selected voyage (polazak) for the device session.
 // A voyage is identified by (timetable_uuid, sequence, departure_date) — matches
@@ -8,6 +9,10 @@ const voyageSlice = createSlice({
     initialState: {
         selectedLine: null,   // { uuid, code, name, ... }
         selected: null,       // voyage (polazak) once picked from the line's voyage list
+        // Dan prodaje, "DD/MM/YYYY". Uvijek počinje od današnjeg — prodaja za
+        // drugi dan je iznimka koju djelatnik mora svjesno odabrati, i samo na
+        // uređaju kojem je to dopušteno.
+        date: todayDmy(),
     },
     reducers: {
         setLine(state, action) {
@@ -25,9 +30,15 @@ const voyageSlice = createSlice({
             console.log('[voyageSlice] clearVoyage dispatched');
             state.selected = null;
         },
+        // Promjenom dana otpada odabrani polazak: isti polazak sutra je drugi
+        // polazak, a i cijene i raspoloživost mu se razlikuju.
+        setDate(state, action) {
+            state.date = action.payload;
+            state.selected = null;
+        },
     },
 });
 
-export const { setLine, clearLine, setVoyage, clearVoyage } = voyageSlice.actions;
+export const { setLine, clearLine, setVoyage, clearVoyage, setDate } = voyageSlice.actions;
 export const voyageData = (state) => state.voyage;
 export default voyageSlice.reducer;

@@ -459,6 +459,7 @@ export default function BillingDevicesPage (){
             valueGetter: (_v, row) => modelNameByCode(row.device_model) },
         { field: 'serial_number', headerName:t('backoffice.billing_devices.serial_number'), flex: 2 },
         { field: 'auto_validate', type: 'boolean', headerName:t('backoffice.billing_devices.auto_validate'), flex: 2},
+        { field: 'future_sale', type: 'boolean', headerName: 'Budući datumi', flex: 2},
         { field: 'auto_pair', type: 'boolean', headerName: 'Auto uparivanje', flex: 2},
         { field: 'is_active', type: 'boolean', headerName:t('backoffice.billing_devices.is_active'), flex: 2},
     ];
@@ -681,6 +682,28 @@ export default function BillingDevicesPage (){
                         >
                             <MenuItem value="false">Ne (karta se ručno validira na ulazu)</MenuItem>
                             <MenuItem value="true">Da (karta se automatski validira pri prodaji)</MenuItem>
+                        </TextField>
+                    )}
+                    {/* Prodaja za buduće datume je iznimka koja se svjesno pali:
+                        pokretna blagajna radi na brodu i redovno prodaje za
+                        polazak koji upravo kreće. */}
+                    {newData.type === 'mobile' && (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Prodaja za buduće datume"
+                            select
+                            required
+                            value={
+                                newData.future_sale === true || newData.future_sale === 'true'
+                                    ? 'true' : 'false'
+                            }
+                            onChange={handleChange}
+                            name="future_sale"
+                            sx={{ mt: 1 }}
+                        >
+                            <MenuItem value="false">Ne (samo današnji polasci)</MenuItem>
+                            <MenuItem value="true">Da (može birati datum polaska)</MenuItem>
                         </TextField>
                     )}
                     {(newData.type === 'pc' || newData.type === 'mobile') && (
@@ -1025,6 +1048,25 @@ export default function BillingDevicesPage (){
                         <MenuItem value='true'>{t('backoffice.billing_devices.auto_validate_yes')}</MenuItem>
                         <MenuItem value='false'>{t('backoffice.billing_devices.auto_validate_no')}</MenuItem>
                     </TextField>
+                    {editedData?.type_name === 'mobile' || editedData?.type === 'mobile' ? (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Prodaja za buduće datume"
+                            select
+                            required
+                            value={
+                                editedData?.future_sale === true || editedData?.future_sale === 'true'
+                                    ? 'true' : 'false'
+                            }
+                            onChange={handleChangeEdit}
+                            name="future_sale"
+                            sx={{ mt: 1 }}
+                        >
+                            <MenuItem value="false">Ne (samo današnji polasci)</MenuItem>
+                            <MenuItem value="true">Da (može birati datum polaska)</MenuItem>
+                        </TextField>
+                    ) : null}
                     <TextField
                         variant="outlined"
                         fullWidth
