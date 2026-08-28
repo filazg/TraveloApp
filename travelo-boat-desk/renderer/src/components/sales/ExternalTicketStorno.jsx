@@ -40,14 +40,15 @@ export default function ExternalTicketStorno() {
                 setGreska(podaci.reason || "Karta nije pronađena.");
                 return;
             }
-            if (podaci.local) {
-                setGreska("Karta je prodana na ovoj blagajni — storniraj je iz popisa karata ispod.");
-                return;
-            }
+            // Karta s ove blagajne se ne šalje natrag u popis — nudi se odmah,
+            // samo se stornira drugim putem.
             setNalaz(podaci);
             // Povrat se nudi u sredstvu kojim je karta i plaćena, ako ga ova
             // blagajna ima u šifarniku. Blagajnik ga svejedno može promijeniti.
-            const izvorno = sredstva.find((p) => (p.uuid || p.payment_method_uuid) === podaci.ticket?.payment_method_uuid);
+            const platioUuid = podaci.local
+                ? podaci.ticket?.ticket_payment_method_uuid
+                : podaci.ticket?.payment_method_uuid;
+            const izvorno = sredstva.find((p) => (p.uuid || p.payment_method_uuid) === platioUuid);
             setSredstvoUuid(izvorno ? (izvorno.uuid || izvorno.payment_method_uuid) : "");
         } catch (error) {
             setGreska(error?.message || "Traženje nije uspjelo.");
@@ -67,29 +68,45 @@ export default function ExternalTicketStorno() {
             setGreska("Nema definiranih postotaka storniranja — dodaj ih u portalu pa sinkroniziraj.");
             return;
         }
+        const prikaz = nalaz.display || {};
         const odgovor = await stornoPicker.ask({
-            label: `Karta ${nalaz.ticket?.ticket_code || ""} (${nalaz.business_premise?.name || ""})`,
-            amount: Number(nalaz.ticket?.single_price || 0),
+            label: `Karta ${prikaz.code || ""} (${nalaz.business_premise?.name || ""})`,
+            amount: Number(prikaz.price || 0),
         });
         if (!odgovor?.status) return;
 
+        const placanje = {
+            uuid: sredstvo.uuid || sredstvo.payment_method_uuid,
+            name: sredstvo.name || sredstvo.payment_method_name,
+            payment_type_acr: sredstvo.payment_type_acr,
+        };
+
         setZauzeto(true);
         await dispatch(setStateData({ path: "status", value: "loading" }));
-        await dispatch(setStateData({ path: "loadingText", value: "Storno karte s drugog prodajnog mjesta..." }));
+        await dispatch(setStateData({
+            path: "loadingText",
+            value: nalaz.local ? "Storno karte..." : "Storno karte s drugog prodajnog mjesta...",
+        }));
         try {
-            const res = await window.api.app.cancelExternalTicketIPC({
-                ticket_code: nalaz.ticket?.ticket_code,
-                user: appData.logedUser,
-                payment: {
-                    uuid: sredstvo.uuid || sredstvo.payment_method_uuid,
-                    name: sredstvo.name || sredstvo.payment_method_name,
-                    payment_type_acr: sredstvo.payment_type_acr,
-                },
-                paymentData: {},
-                stornoPct: odgovor.value,
-            });
+            // Vlastita karta ide istim putem kao storno iz popisa — ondje storno
+            // ispravlja izvorni račun. Tuđa dobiva zaseban storno račun.
+            const res = nalaz.local
+                ? await window.api.app.cancelTicketIPC({
+                    ticket: nalaz.ticket,
+                    user: appData.logedUser,
+                    payment: placanje,
+                    paymentData: {},
+                    stornoPct: odgovor.value,
+                })
+                : await window.api.app.cancelExternalTicketIPC({
+                    ticket_code: prikaz.code,
+                    user: appData.logedUser,
+                    payment: placanje,
+                    paymentData: {},
+                    stornoPct: odgovor.value,
+                });
             const podaci = res?.data || {};
-            if (!podaci.ok) {
+            if (podaci.ok === false) {
                 const poruka = podaci.error?.message || "Storno nije izvršen.";
                 setGreska(poruka);
                 await dispatch(setStateData({ path: "alertData", value: { message: poruka, severity: "error" } }));
@@ -98,10 +115,17 @@ export default function ExternalTicketStorno() {
             await dispatch(setStateData({
                 path: "alertData",
                 value: {
-                    message: `Storno izvršen — vraćeno ${Number(podaci.refund_amount || 0).toFixed(2)} EUR za kartu ${podaci.ticket_code} (${podaci.source?.name || ""}).`,
+                    message: nalaz.local
+                        ? `Karta ${prikaz.code} je stornirana.`
+                        : `Storno izvršen — vraćeno ${Number(podaci.refund_amount || 0).toFixed(2)} EUR za kartu ${podaci.ticket_code} (${podaci.source?.name || ""}).`,
                     severity: "success",
                 },
             }));
+            // Popis karata ispod mora vidjeti novo stanje vlastite karte.
+            if (nalaz.local) {
+                const ticketsData = await window.api.app.getTicketsIPC();
+                await dispatch(setStateData({ path: "workingData/tickets", value: ticketsData.data.tickets }));
+            }
             setKod("");
             ocisti();
         } finally {
@@ -110,13 +134,13 @@ export default function ExternalTicketStorno() {
         }
     };
 
-    const karta = nalaz?.ticket;
+    const karta = nalaz?.display;
 
     return (
         <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
             <Stack direction="row" spacing={1.5} alignItems="center">
                 <Typography sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
-                    Storno karte s drugog prodajnog mjesta
+                    Storno karte po oznaci
                 </Typography>
                 <TextField
                     size="small"
@@ -140,13 +164,13 @@ export default function ExternalTicketStorno() {
                 <Box sx={{ mt: 1.5 }}>
                     <Divider sx={{ mb: 1.5 }} />
                     <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap" useFlexGap>
-                        <Typography sx={{ fontWeight: 800 }}>{karta.ticket_code}</Typography>
-                        <Typography>{karta.ticket_type_name}</Typography>
-                        <Typography>{karta.line_name}</Typography>
+                        <Typography sx={{ fontWeight: 800 }}>{karta.code}</Typography>
+                        <Typography>{karta.type}</Typography>
+                        <Typography>{karta.line}</Typography>
                         <Typography>
-                            {karta.departure_harbor_name} → {karta.arrival_harbor_name} · {karta.departure_planed}
+                            {karta.from} → {karta.to} · {karta.departure}
                         </Typography>
-                        <Typography sx={{ fontWeight: 700 }}>{Number(karta.single_price || 0).toFixed(2)} EUR</Typography>
+                        <Typography sx={{ fontWeight: 700 }}>{Number(karta.price || 0).toFixed(2)} EUR</Typography>
                         <Chip
                             size="small"
                             label={`${nalaz.business_premise?.name || "—"} · ${nalaz.business_premise?.type_name || ""}`}
@@ -154,6 +178,12 @@ export default function ExternalTicketStorno() {
                         />
                         {karta.status ? <Chip size="small" label={String(karta.status).toUpperCase()} /> : null}
                     </Stack>
+
+                    {/* Brod je otišao, ali rok još teče — blagajnik to mora
+                        vidjeti prije nego uzme novac iz ladice. */}
+                    {nalaz.warning ? (
+                        <Alert severity="warning" sx={{ mt: 1.5, fontWeight: 700 }}>{nalaz.warning}</Alert>
+                    ) : null}
 
                     {nalaz.allowed ? (
                         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 1.5 }}>
@@ -179,11 +209,13 @@ export default function ExternalTicketStorno() {
                             >
                                 STORNIRAJ
                             </Button>
-                            {/* Novac izlazi iz ove blagajne iako prihod nikad nije bio
-                                u njoj — zato se takav storno posebno iskazuje na
-                                zaključku smjene. */}
+                            {/* Kod tuđe karte novac izlazi iz ove blagajne iako
+                                prihod nikad nije bio u njoj — zato se takav storno
+                                posebno iskazuje na zaključku smjene. */}
                             <Typography variant="body2" color="text.secondary">
-                                Ide na zaključak kao storno s drugog prodajnog mjesta.
+                                {nalaz.local
+                                    ? "Storno vlastite prodaje — ispravlja izvorni račun."
+                                    : "Ide na zaključak kao storno s drugog prodajnog mjesta."}
                             </Typography>
                         </Stack>
                     ) : (

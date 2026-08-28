@@ -1163,25 +1163,117 @@ const syncPendingInvoicesService = async () => {
   }
 }
 
-// ---- Storno karte prodane na drugom prodajnom mjestu ----------------------
+// ---- Traženje karte po oznaci i storno ------------------------------------
 //
-// Putnik s kartom kupljenom u drugoj poslovnici ili na brodu dolazi na ovu
-// blagajnu tražiti povrat. Karta nije u lokalnoj bazi, pa se traži na
-// poslužitelju po oznaci. Pravilo tko smije biti izvor (poslovnica ili
-// pokretna blagajna) stoji na poslužitelju, da vrijedi jednako za sve
-// terminale.
+// Putnik dolazi s kartom na blagajnu tražiti povrat. Karta može biti vlastita
+// ili kupljena u drugoj poslovnici, odnosno na brodu — blagajnik u oba slučaja
+// samo upiše oznaku. Pravilo tko smije biti izvor (poslovnica ili pokretna
+// blagajna) stoji na poslužitelju, da vrijedi jednako za sve terminale.
+
+// Rok za storno nakon isplovljavanja. Brod je otišao, ali putnik koji je
+// zakasnio ili se predomislio ima još pola sata da mu se karta vrati.
+const ROK_NAKON_POLASKA_MIN = 30;
+
+// Polazak stiže u više oblika: blagajna i karta pišu "28.08.2026. 10:00",
+// poslužitelj zna vratiti i ISO. Bez svođenja na jedan oblik provjera roka
+// nikad ne bi prošla.
+const parsirajPolazak = (vrijednost) => {
+  const s = String(vrijednost || '').trim();
+  if (!s) return null;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(s);
+  if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3], +iso[4], +iso[5]);
+  const dmy = /^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})\.?\s+(\d{1,2}):(\d{2})/.exec(s);
+  if (dmy) return new Date(+dmy[3], +dmy[2] - 1, +dmy[1], +dmy[4], +dmy[5]);
+  const datum = new Date(s);
+  return Number.isNaN(datum.getTime()) ? null : datum;
+};
+
+const hhmm = (datum) => String(datum.getHours()).padStart(2, '0') + ':' + String(datum.getMinutes()).padStart(2, '0');
+
+// Ocjena roka. Nepoznat ili neprepoznat polazak ne blokira storno — blagajnik
+// tada odlučuje sam, kao i dosad; radije propustiti nego zaustaviti povrat na
+// podatku koji se nije dao pročitati.
+const ocijeniRok = (polazakText) => {
+  const polazak = parsirajPolazak(polazakText);
+  if (!polazak) return { allowed: true, warning: '', minutes_left: null };
+  const sada = new Date();
+  const proteklo = Math.floor((sada - polazak) / 60000);
+  if (proteklo <= 0) return { allowed: true, warning: '', minutes_left: null };
+  const preostalo = ROK_NAKON_POLASKA_MIN - proteklo;
+  if (preostalo <= 0) {
+    return {
+      allowed: false,
+      reason: `Rok za storno je istekao — brod je isplovio u ${hhmm(polazak)}, a storno je moguć još ${ROK_NAKON_POLASKA_MIN} min nakon polaska.`,
+      minutes_left: 0,
+    };
+  }
+  return {
+    allowed: true,
+    warning: `Brod je isplovio u ${hhmm(polazak)} — za storno je ostalo još ${preostalo} min.`,
+    minutes_left: preostalo,
+  };
+};
+
+// Jedinstven prikaz karte, bez obzira dolazi li iz lokalne baze ili s
+// poslužitelja — sučelje tako ne mora znati odakle je karta.
+const prikazKarte = (karta, lokalna) => (lokalna ? {
+  code: karta.ticket_code,
+  type: karta.ticket_type_name,
+  line: karta.line_name,
+  from: karta.ticket_departure_harbor_name,
+  to: karta.ticket_arrival_harbor_name,
+  departure: karta.ticket_departure,
+  price: Number(karta.ticket_single_price) || 0,
+  status: karta.ticket_status,
+} : {
+  code: karta.ticket_code,
+  type: karta.ticket_type_name,
+  line: karta.line_name,
+  from: karta.departure_harbor_name,
+  to: karta.arrival_harbor_name,
+  departure: karta.departure_planed,
+  price: Number(karta.single_price) || 0,
+  status: karta.status,
+});
+
 const lookupExternalTicketService = async (ticketCode) => {
   try {
     const oznaka = String(ticketCode || '').trim();
     if (!oznaka) return { ok: false, reason: 'Upiši oznaku karte.' };
 
-    // Vlastita karta ide postojećim putem — ondje su i račun i stavke, pa
-    // storno može ispraviti izvorni račun umjesto da radi zaseban. Traži se bez
-    // razlike velikih i malih slova, jer se oznaka prepisuje s papira (SQLite
-    // LIKE je za ASCII slova neosjetljiv na veličinu).
+    // Vlastita karta se ne šalje natrag na traženje — nudi se odmah, samo se
+    // stornira drugim putem: ondje su i račun i stavke, pa storno ispravlja
+    // izvorni račun umjesto da radi zaseban. Traži se bez razlike velikih i
+    // malih slova (SQLite LIKE je za ASCII neosjetljiv na veličinu).
     const lokalna = await ticketsModel.findOne({ where: { ticket_code: { [Op.like]: oznaka } } });
     if (lokalna) {
-      return { ok: true, local: true, ticket: lokalna.toJSON() };
+      const karta = lokalna.toJSON();
+      const stornirana = karta.ticket_status === 'CANCELED' || !!karta.ticket_is_canceled || !!karta.ticket_deactivate;
+      const rok = stornirana
+        ? { allowed: false, reason: 'Karta je već stornirana.', minutes_left: 0 }
+        : ocijeniRok(karta.ticket_departure);
+      // Kartično plaćanje na ovoj blagajni ima i povrat na karticu preko POS
+      // terminala, a to ide samo kroz popis karata — ovdje bi novac bio vraćen
+      // samo na papiru.
+      const racun = await invoicesModel.findOne({ where: { order_number: karta.order_number } });
+      const karticno = !!racun?.payment_data?.tid;
+      return {
+        ok: true,
+        local: true,
+        ticket: karta,
+        display: prikazKarte(karta, true),
+        business_premise: {
+          name: racun?.invoice_business_premise_name || '',
+          type_name: 'ova blagajna',
+        },
+        card_payment: karticno,
+        allowed: rok.allowed && !karticno,
+        reason: karticno
+          ? 'Karta je plaćena karticom na ovoj blagajni — storniraj je iz popisa ispod, da povrat ode i na karticu.'
+          : (rok.reason || ''),
+        warning: rok.warning || '',
+        minutes_left: rok.minutes_left,
+      };
     }
 
     const settingsData = await systemSettingsDataModel.findOne();
@@ -1204,13 +1296,19 @@ const lookupExternalTicketService = async (ticketCode) => {
     if (!podaci.found) {
       return { ok: false, reason: podaci.message || 'Karta s tom oznakom ne postoji.' };
     }
+    // Rok se računa ovdje, a ne na poslužitelju, jer se mjeri prema satu
+    // blagajne — to je vrijeme koje blagajnik i putnik gledaju.
+    const rok = podaci.allowed ? ocijeniRok(podaci.ticket?.departure_planed) : { allowed: false };
     return {
       ok: true,
       local: false,
       ticket: podaci.ticket,
+      display: prikazKarte(podaci.ticket, false),
       business_premise: podaci.business_premise,
-      allowed: !!podaci.allowed,
-      reason: podaci.reason || '',
+      allowed: !!podaci.allowed && rok.allowed,
+      reason: podaci.reason || rok.reason || '',
+      warning: rok.warning || '',
+      minutes_left: rok.minutes_left ?? null,
     };
   } catch (error) {
     console.log('lookupExternalTicketService error:', error?.message || error);
@@ -1228,8 +1326,10 @@ const cancelExternalTicketService = async ({ ticket_code, user, payment, payment
     const nalaz = await lookupExternalTicketService(ticket_code);
     if (!nalaz.ok) return { ok: false, error: { message: nalaz.reason } };
     if (nalaz.local) {
-      return { ok: false, error: { message: 'Karta je prodana na ovoj blagajni — storniraj je kroz popis karata.' } };
+      return { ok: false, error: { message: 'Karta je prodana na ovoj blagajni — ide kroz storno vlastite prodaje.' } };
     }
+    // Rok se provjerava i ovdje, ne samo pri traženju: između prikaza i
+    // potvrde može proći dovoljno vremena da istekne.
     if (!nalaz.allowed) {
       return { ok: false, error: { message: nalaz.reason || 'Ova karta se ne može stornirati na blagajni.' } };
     }
