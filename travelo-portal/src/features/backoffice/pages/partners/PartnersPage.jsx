@@ -105,10 +105,17 @@ export default function PartnersPage (){
     }
 
     const handleSubmitEdit = async(e)=>{
-        e.preventDefault();        
+        e.preventDefault();
+        // Web korisnik bez lozinke se ne moze prijaviti. Zatecene takve zapise
+        // popunjavamo lozinkom pripadnog djelatnika, po korisnickom imenu.
+        const webKorisnici = (newWebUser || []).map((w) => {
+            if (w.password) return w
+            const djelatnik = djelatniciPartnera.find((d) => d.username === w.username)
+            return djelatnik?.password ? { ...w, password: djelatnik.password } : w
+        })
         const dataToSend = {
             ...editedData,
-            web_permissions: newWebUser,
+            web_permissions: webKorisnici,
             api_permissions: newApiUser
         };
 
@@ -296,7 +303,14 @@ export default function PartnersPage (){
             return
         }
         const newId = (newWebUser || []).reduce((max, item) => Math.max(max, item.id || 0), 0) + 1;
-        setNewWebUser([...(newWebUser || []), { id: newId, username: djelatnik.username, password: '' }])
+        // Lozinka se preuzima od djelatnika. Prijava na partnersku prodaju
+        // prihvaca i bcrypt zapis, pa osoba ima jednu lozinku i za blagajnu i za
+        // web. Prazna lozinka je znacila da se prijava nikad ne moze provjeriti.
+        setNewWebUser([...(newWebUser || []), {
+            id: newId,
+            username: djelatnik.username,
+            password: djelatnik.password || '',
+        }])
     }
 
     const handleChangeNewApiUser = async(e)=>{
