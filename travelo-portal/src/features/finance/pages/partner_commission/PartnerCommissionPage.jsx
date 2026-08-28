@@ -45,6 +45,11 @@ export default function PartnerCommissionPage() {
     const from = obracun.from || "";
     const to = obracun.to || "";
 
+    // Otvoreno razdoblje — ono koje jos traje. Stoji uz obracun kao stanje, ne
+    // kao podloga za isplatu: iznos nije konacan jer se prodaja jos dogadja.
+    const otvoreno = finance.partnerCommissionOpen || {};
+    const otvoreniPartner = (otvoreno.partners || [])[0] || null;
+
     // Kartica u Financijama pali zaslon učitavanja prije nego preda stranicu, pa
     // ga stranica mora ugasiti — inače prekrivač ostane preko svega i izgleda
     // kao da se ništa nije otvorilo.
@@ -61,7 +66,11 @@ export default function PartnerCommissionPage() {
         if (!partnerUuid) return;
         dispatch(setAuthData({ path: "loadingMessage", value: "Obračun provizije…" }));
         dispatch(setAuthData({ path: "loading", value: true }));
-        await dispatch(fetchPartnerCommissionThunk({ partner_uuid: partnerUuid }));
+        // Dva razdoblja idu usporedno: zaokruzeno (za isplatu) i otvoreno (stanje).
+        await Promise.all([
+            dispatch(fetchPartnerCommissionThunk({ partner_uuid: partnerUuid })),
+            dispatch(fetchPartnerCommissionThunk({ partner_uuid: partnerUuid, period: "current" })),
+        ]);
         dispatch(setAuthData({ path: "loading", value: false }));
     };
 
@@ -134,6 +143,60 @@ export default function PartnerCommissionPage() {
                     ovog partnera, i pada li prodaja u to razdoblje — obračunava se zadnje zaokruženo
                     razdoblje, ne ono koje traje.
                 </Alert>
+            ) : null}
+
+            {partnerUuid && otvoreniPartner ? (
+                <Paper variant="outlined" sx={{ mb: 2, borderColor: "warning.main" }}>
+                    <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={2}
+                        sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
+                    >
+                        <Typography sx={{ fontWeight: 800, flex: 1 }}>
+                            Otvoreno razdoblje{otvoreno.from && otvoreno.to
+                                ? ` · ${hrDatum(otvoreno.from)} – ${hrDatum(otvoreno.to)}` : ""}
+                        </Typography>
+                        <Chip size="small" color="warning" label="u tijeku — nije za isplatu" />
+                    </Stack>
+                    <TableContainer sx={{ overflowX: "auto" }}>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Prodajno mjesto</TableCell>
+                                    <TableCell align="right">Karata</TableCell>
+                                    <TableCell align="right">Promet</TableCell>
+                                    <TableCell align="right">Osnovica</TableCell>
+                                    <TableCell align="right">Provizija</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {(otvoreniPartner.premises || []).map((m) => (
+                                    <TableRow key={`open-${m.business_premise_uuid}`} hover>
+                                        <TableCell>{m.business_premise_name}</TableCell>
+                                        <TableCell align="right">{m.tickets}</TableCell>
+                                        <TableCell align="right">{fmtEUR(m.gross)}</TableCell>
+                                        <TableCell align="right">{fmtEUR(m.base)}</TableCell>
+                                        <TableCell align="right">{fmtEUR(m.commission)}</TableCell>
+                                    </TableRow>
+                                ))}
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 800 }}>Dosad u ovom razdoblju</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{otvoreniPartner.tickets}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(otvoreniPartner.gross)}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(otvoreniPartner.base)}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 900 }}>{fmtEUR(otvoreniPartner.commission)}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Paper>
+            ) : null}
+
+            {partneri.length ? (
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                    Obračun{from && to ? ` · ${hrDatum(from)} – ${hrDatum(to)}` : ""}
+                </Typography>
             ) : null}
 
             {partneri.map((p) => (

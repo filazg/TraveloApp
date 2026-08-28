@@ -520,6 +520,9 @@ const financeSlice = createSlice({
         partnerInvoicesLoading: false,
         partnerInvoicesError: null,
         partnerCommission: { partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 }, from: "", to: "" },
+        // Otvoreno razdoblje se drži odvojeno od obračunskog: to su dva različita
+        // podatka o istom partneru i ne smiju se pregaziti jedan drugim.
+        partnerCommissionOpen: { partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 }, from: "", to: "" },
         partnerCommissionLoading: false,
         partnerCommissionError: null,
         partnerInvoiceDetails: null,
@@ -730,7 +733,8 @@ const financeSlice = createSlice({
             })
             .addCase(fetchPartnerCommissionThunk.fulfilled, (s, a) => {
                 s.partnerCommissionLoading = false;
-                s.partnerCommission = a.payload;
+                if (a.meta?.arg?.period === "current") s.partnerCommissionOpen = a.payload;
+                else s.partnerCommission = a.payload;
             })
             .addCase(fetchPartnerCommissionThunk.rejected, (s, a) => {
                 s.partnerCommissionLoading = false;
