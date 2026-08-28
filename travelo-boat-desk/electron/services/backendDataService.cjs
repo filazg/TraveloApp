@@ -115,6 +115,15 @@ async function syncTransportDataService() {
       const harborsData = transportData.data.harbors;
       const linesData = transportData.data.lines;
 
+      // Nepotpun odgovor se ne sprema. Bez ove provjere bi truncate ispraznio
+      // vozni red, a bulkCreate(undefined) puknuo — blagajna bi ostala bez
+      // ijednog polaska do sljedeceg uspjesnog syncа.
+      if (!Array.isArray(salesRoutesData) || !Array.isArray(linesData) ||
+          !Array.isArray(priceData) || !Array.isArray(harborsData)) {
+        console.log("SYNC TRANSPORT DATA SERVICE: nepotpun odgovor, vozni red ostaje nepromijenjen");
+        return;
+      }
+
       await salesRoutesDataModel.truncate();
       await salesRoutesDataModel.bulkCreate(salesRoutesData);
       await salesRoutePricesDataModel.truncate();

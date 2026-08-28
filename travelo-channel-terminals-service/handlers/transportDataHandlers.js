@@ -2,19 +2,22 @@ const { getHarborsController, getLinesController, getRoutesController, getPrices
 const { getBillingDevicesController } = require("../controllers/coreServiceControllers/backofficeServiceControllers")
 
 // Linije koje su naplatnom uređaju zabranjene. Backoffice pamti iznimke, ne
-// dozvole — prazna lista (ili uređaj koji se ne nađe) znači da uređaj vidi sve.
-// Zato je i ponašanje pri grešci "vidi sve": prodaja ne smije stati zato što
-// backoffice trenutno ne odgovara.
+// dozvole — prazna lista znači da uređaj vidi sve.
+//
+// Kad backoffice ne odgovori, greška se propušta dalje i vozni red se NE
+// isporučuje. Prije se u tom slučaju vraćala prazna lista zabrana, pa je
+// uređaj dobio sve linije i spremio ih lokalno — ispao je zabranjeni vozni
+// red na terminalu i ostao ondje do sljedećeg uspješnog syncа. Bolje je da
+// sync padne i uređaj zadrži prethodnu, ispravno filtriranu kopiju.
 const getExcludedLineUuids = async (billingDeviceUuid) => {
     if (!billingDeviceUuid) return []
-    try {
-        const billingDevicesData = await getBillingDevicesController()
-        const terminal = billingDevicesData?.data?.billing_devices?.find((d) => d.uuid === billingDeviceUuid)
-        return (terminal?.excluded_lines || []).map((l) => l.uuid).filter(Boolean)
-    } catch (error) {
-        console.log('[transport_data] dohvat zabranjenih linija pao:', error?.message || error)
-        return []
+    const billingDevicesData = await getBillingDevicesController()
+    const terminal = billingDevicesData?.data?.billing_devices?.find((d) => d.uuid === billingDeviceUuid)
+    if (!terminal) {
+        // Uređaj koji backoffice ne poznaje ne smije dobiti tuđi vozni red.
+        throw new Error(`naplatni uređaj ${billingDeviceUuid} nije nađen u backofficeu`)
     }
+    return (terminal?.excluded_lines || []).map((l) => l.uuid).filter(Boolean)
 }
 
 const transportDataHandlers = async(billingDeviceUuid)=>{
@@ -59,8 +62,10 @@ const transportDataHandlers = async(billingDeviceUuid)=>{
             trips_prices:pricesForTerminal
         }
     } catch (error) {
-        console.log(error)
-        return
+        // Greška se ne guta: dosad se vraćalo `undefined` pa je terminal dobio
+        // 200 bez podataka i nije znao da vozni red nije osvježen.
+        console.log('[transport_data] neuspjeh:', error?.message || error)
+        throw error
     }
 }
 

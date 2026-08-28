@@ -61,6 +61,11 @@ export const syncTransportDataThunk = createAsyncThunk(
         try {
             const resp = await api.get(ENDPOINTS.transportData);
             const payload = resp.data?.data ?? resp.data ?? {};
+            // Nepotpun odgovor se ne sprema. Inace bi `|| []` obrisalo lokalni
+            // vozni red i ostavilo uredaj bez ijednog polaska.
+            if (!Array.isArray(payload.lines) || !Array.isArray(payload.sales_routes)) {
+                return rejectWithValue({ message: 'Vozni red nije stigao u cijelosti' });
+            }
             await saveTransportData({
                 harbors: payload.harbors || [],
                 lines: payload.lines || [],
