@@ -43,7 +43,7 @@ export default function BusinessPremisesPage (){
 
     // Partner se bira po uuid-u, a naziv se prepisuje uz njega — na prodajnom
     // mjestu stoje oba, da izvještaji ne moraju u šifarnik za ime.
-    const partnerPoUuid = (uuid) => (backofficeData.partners || []).find((p) => p.uuid === uuid)
+    const partnerPoUuid = (uuid) => (backofficeData.backofficeData.partners || []).find((p) => p.uuid === uuid)
     const handlePartnerChange = async (e) => {
         const partner = partnerPoUuid(e.target.value)
         setNewBusinessPremiseData({
@@ -268,7 +268,7 @@ export default function BusinessPremisesPage (){
                                     ostajalo neupisano i kad se partner odabrao.
                                     Uz naziv stoji i provizija, jer se po njoj
                                     obračunava, pa se odmah vidi što je odabrano. */}
-                                {backofficeData.partners?.map((partner)=>(
+                                {backofficeData.backofficeData.partners?.map((partner)=>(
                                 <MenuItem key={partner.uuid} value={partner.uuid}>
                                     {partner.partner_name}
                                     {partner.commission_pct != null ? ` — provizija ${Number(partner.commission_pct)} %` : ''}
@@ -522,7 +522,7 @@ export default function BusinessPremisesPage (){
                                     mt:1
                                 }}
                             >
-                                {backofficeData.partners?.map((partner)=>(
+                                {backofficeData.backofficeData.partners?.map((partner)=>(
                                 <MenuItem key={partner.uuid} value={partner.uuid}>
                                     {partner.partner_name}
                                     {partner.commission_pct != null ? ` — provizija ${Number(partner.commission_pct)} %` : ''}
