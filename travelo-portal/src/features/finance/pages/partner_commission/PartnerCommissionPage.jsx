@@ -40,10 +40,10 @@ export default function PartnerCommissionPage() {
     const partneri = obracun.partners || [];
     const totals = obracun.totals || { tickets: 0, gross: 0, base: 0, commission: 0 };
     // Razdoblje dolazi s poslužitelja, iz dinamike naplate partnera — ne bira se
-    // ovdje, da obračun ne ovisi o tome što je netko upisao.
+    // ovdje i ne prikazuje se uz tablicu; spominje se samo kad nema prodaje, da
+    // se vidi za što je obračun bio prazan.
     const from = obracun.from || "";
     const to = obracun.to || "";
-    const razdoblje = obracun.period || null;
 
     // Kartica u Financijama pali zaslon učitavanja prije nego preda stranicu, pa
     // ga stranica mora ugasiti — inače prekrivač ostane preko svega i izgleda
@@ -108,17 +108,6 @@ export default function PartnerCommissionPage() {
                     >
                         Excel
                     </Button>
-                </Stack>
-                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1.5, flexWrap: "wrap" }} useFlexGap>
-                    {from && to ? (
-                        <Chip
-                            color="primary"
-                            variant="outlined"
-                            label={`Razdoblje: ${hrDatum(from)} – ${hrDatum(to)}`}
-                            sx={{ fontWeight: 700 }}
-                        />
-                    ) : null}
-                    {razdoblje?.label ? <Chip size="small" label={razdoblje.label} /> : null}
                 </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
                     Razdoblje se određuje iz dinamike naplate partnera. Obuhvaćena je prodaja s prodajnih
