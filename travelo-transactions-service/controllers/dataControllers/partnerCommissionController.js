@@ -9,16 +9,9 @@ const { getCoreServiceConfigData } = require("../configSyncController");
 // partnersko i vezano na partnera. Novac je naš, a partneru dugujemo proviziju —
 // suprotan smjer od partnerskih računa, gdje partner duguje nama.
 //
-// Osnovica je neto: bez lučke pristojbe (prolazna stavka) i bez PDV-a.
-const HARBOR_RATE = 0.06;
-const VAT_RATE = 0.25;
-const neto = (iznos) => {
-    const bruto = Number(iznos) || 0;
-    const pristojba = +(bruto * HARBOR_RATE).toFixed(2);
-    const bezPristojbe = bruto - pristojba;
-    const osnovica = +(bezPristojbe / (1 + VAT_RATE)).toFixed(2);
-    return { bruto, pristojba, osnovica, pdv: +(bezPristojbe - osnovica).toFixed(2) };
-};
+// Osnovica je neto: bez lučke pristojbe (prolazna stavka) i bez PDV-a. Pravilo
+// je zajedničko s računom koji partneru izdajemo, pa stoji na jednom mjestu.
+const { neto } = require("../../helpers/provizija");
 
 const dohvatiIzBackofficea = async (putanja) => {
     const coreConfig = await getCoreServiceConfigData();

@@ -5,6 +5,9 @@ const { Op } = require("sequelize");
 const { getSequelize } = require("../../config/database");
 const { getModels } = require("../../dbModels");
 const { getCoreServiceConfigData } = require("../configSyncController");
+// Osnovica i provizija po istom pravilu kao u obračunu provizije: izvještaj koji
+// partner dobije i račun koji mu izdamo moraju pokazivati isti iznos.
+const { neto, provizijaOd } = require("../../helpers/provizija");
 
 async function fetchPartnersFromBackoffice() {
     const coreConfig = await getCoreServiceConfigData();
@@ -84,24 +87,41 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
         const fiskalRequired = Boolean(partner.f2_required) || channel.fiskal_required === true;
 
         let gross = 0;
+        let commissionBase = 0;
         const ticketItems = tickets.map((t) => {
             const g = parseFloat(t.single_price) || 0;
+            const i = neto(g);
             gross += g;
-            return { ticket: t, gross: g };
+            commissionBase += i.osnovica;
+            return { ticket: t, gross: g, base: i.osnovica };
         });
         gross = +gross.toFixed(2);
-
-        const commissionAmount = +((gross * commissionPct) / 100).toFixed(2);
+        // Provizija ide na osnovicu — bez lučke pristojbe i bez PDV-a. Prije se
+        // računala na naplaćeni iznos, pa je partneru išlo i na tuđi novac:
+        // pristojba je prolazna stavka, PDV je državin.
+        commissionBase = +commissionBase.toFixed(2);
+        const commissionAmount = provizijaOd(commissionBase, commissionPct);
         const netAmount = +(gross - commissionAmount).toFixed(2);
         // option (b): net_amount includes VAT; extract VAT out of it
         const vatAmount = vatRate > 0 ? +((netAmount * vatRate) / (100 + vatRate)).toFixed(2) : 0;
         const vatBase = +(netAmount - vatAmount).toFixed(2);
 
-        const items = ticketItems.map(({ ticket, gross: g }) => {
-            const itemCommission = +((g * commissionPct) / 100).toFixed(2);
-            const itemNet = +(g - itemCommission).toFixed(2);
-            return { ticket, gross: g, commission: itemCommission, net: itemNet };
+        const items = ticketItems.map(({ ticket, gross: g, base }) => {
+            const itemCommission = provizijaOd(base, commissionPct);
+            return { ticket, gross: g, base, commission: itemCommission, net: +(g - itemCommission).toFixed(2) };
         });
+        // Zbroj stavaka mora dati iznos u zaglavlju: provizija se računa na
+        // zbroj osnovice, pa se ostatak zaokruživanja pripisuje zadnjoj stavci —
+        // inače račun ne štima sam sa sobom.
+        if (items.length) {
+            const zbrojStavaka = +items.reduce((z, s) => z + s.commission, 0).toFixed(2);
+            const razlika = +(commissionAmount - zbrojStavaka).toFixed(2);
+            if (razlika !== 0) {
+                const zadnja = items[items.length - 1];
+                zadnja.commission = +(zadnja.commission + razlika).toFixed(2);
+                zadnja.net = +(zadnja.gross - zadnja.commission).toFixed(2);
+            }
+        }
 
         const periodFrom = tickets[0].createdAt;
         const periodTo = now;
@@ -130,6 +150,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                     tickets_count: tickets.length,
                     gross_amount: gross,
                     commission_pct: commissionPct,
+                    commission_base: commissionBase,
                     commission_amount: commissionAmount,
                     net_amount: netAmount,
                     vat_rate: vatRate,
@@ -149,7 +170,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 { transaction: tx }
             );
 
-            const itemsPayload = items.map(({ ticket, gross: g, commission, net }) => ({
+            const itemsPayload = items.map(({ ticket, gross: g, base, commission, net }) => ({
                 partner_invoice_uuid: invoiceUuid,
                 ticket_uuid: ticket.ticket_uuid,
                 order_uuid: ticket.order_uuid,
@@ -164,6 +185,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 arrival_harbor_name: ticket.arrival_harbor_name,
                 departure: ticket.departure,
                 gross_amount: g,
+                commission_base: base,
                 commission_amount: commission,
                 net_amount: net,
             }));
@@ -186,6 +208,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 tickets_count: tickets.length,
                 gross_amount: gross,
                 commission_pct: commissionPct,
+                commission_base: commissionBase,
                 commission_amount: commissionAmount,
                 net_amount: netAmount,
                 vat_rate: vatRate,

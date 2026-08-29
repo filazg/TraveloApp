@@ -88,6 +88,12 @@ export default function PartnerInvoicePreviewDrawer({ invoice, onClose }) {
                     <Typography variant="h6">{fmtEUR(head.gross_amount)}</Typography>
                 </Box>
                 <Box>
+                    {/* Bez osnovice se postotak i iznos provizije ne mogu složiti:
+                        na bruto iznos ne daju taj rezultat. */}
+                    <Typography variant="subtitle2" color="text.secondary">Osnovica za proviziju</Typography>
+                    <Typography variant="h6">{fmtEUR(head.commission_base)}</Typography>
+                </Box>
+                <Box>
                     <Typography variant="subtitle2" color="text.secondary">Provizija ({Number(head.commission_pct || 0).toFixed(2)}%)</Typography>
                     <Typography variant="h6">{fmtEUR(head.commission_amount)}</Typography>
                 </Box>

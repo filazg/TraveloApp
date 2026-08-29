@@ -112,6 +112,14 @@ function TabRacuniZaProvizije() {
                 valueFormatter: (v) => fmtEUR(v),
             },
             {
+                field: "commission_base",
+                headerName: "Osnovica",
+                width: 120,
+                align: "right",
+                headerAlign: "right",
+                valueFormatter: (v) => fmtEUR(v),
+            },
+            {
                 field: "commission_pct",
                 headerName: "Prov. %",
                 width: 100,

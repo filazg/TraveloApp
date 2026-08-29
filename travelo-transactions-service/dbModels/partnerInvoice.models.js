@@ -80,6 +80,14 @@ module.exports = (sequelize) => {
                 allowNull: false,
                 defaultValue: 0,
             },
+            // Iznos na koji je provizija obračunata: bruto bez lučke pristojbe i
+            // bez PDV-a. Stoji na računu jer se inače postotak i iznos provizije
+            // ne mogu složiti — na bruto iznos ne daju taj rezultat.
+            commission_base: {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0,
+            },
             commission_amount: {
                 type: DataTypes.DECIMAL(12, 2),
                 allowNull: false,
@@ -238,6 +246,12 @@ module.exports = (sequelize) => {
                 allowNull: true,
             },
             gross_amount: {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0,
+            },
+            // Osnovica te karte — bez lučke pristojbe i bez PDV-a.
+            commission_base: {
                 type: DataTypes.DECIMAL(12, 2),
                 allowNull: false,
                 defaultValue: 0,
