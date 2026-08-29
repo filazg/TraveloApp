@@ -4,8 +4,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
 import { authData, autoPairThunk, logoutOperator, restoreTokenThunk } from '../store/slices/authSlice';
 import { syncBasicDataThunk, syncTransportDataThunk, syncAllThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
+import { startSyncStream, stopSyncStream } from '../api/syncStream';
 import { autoCloseStaleShiftThunk, loadCurrentOpenThunk, loadRecentShiftsThunk, shiftsData, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
 import { syncPendingSalesThunk } from '../store/slices/salesSlice';
+import { refreshOpenVoyageTicketsThunk } from '../store/slices/validationSlice';
 import { openDb } from '../db/db';
 import { voyageData } from '../store/slices/voyageSlice';
 import { navData } from '../store/slices/navSlice';
@@ -77,6 +79,22 @@ export default function AppNavigator() {
         if (auth.token && !sync.basicData && !sync.loading) dispatch(syncBasicDataThunk());
         if (auth.token && !sync.salesRoutes.length && !sync.transportLoading) dispatch(syncTransportDataThunk());
     }, [auth.token, sync.hydrated, sync.basicData, sync.loading, sync.salesRoutes.length, sync.transportLoading, dispatch]);
+
+    // Poslužitelj javlja kad se nešto promijeni — storno karte, otkaz ili pomak
+    // polaska — pa uređaj povuče podatke odmah, umjesto da ih čeka do sljedećeg
+    // ručnog osvježavanja. Do tada se stornirana karta mogla validirati, a
+    // otkazan polazak prodavati.
+    useEffect(() => {
+        if (!auth.token) return undefined;
+        startSyncStream((promjene) => {
+            if (promjene.includes('transport')) dispatch(syncTransportDataThunk());
+            // Karte se ne drže u zalihi nego se povlače po polasku; osvježi se
+            // ono što je trenutno otvoreno, pa storno s drugog uređaja odmah
+            // vrijedi i ovdje.
+            if (promjene.includes('tickets')) dispatch(refreshOpenVoyageTicketsThunk());
+        });
+        return () => stopSyncStream();
+    }, [auth.token, dispatch]);
 
     // Load operator's open shift + recent shifts after operator login. Also push pending
     // (offline-saved) snapshots to backend best-effort whenever auth+basic_data are ready.

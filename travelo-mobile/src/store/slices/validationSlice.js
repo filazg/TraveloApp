@@ -157,10 +157,27 @@ export const fetchVoyageTicketsThunk = createAsyncThunk(
             // Sanitiziraj sve karte i spremi u module-level cache (NE u Redux state).
             const sanitized = tickets.map(sanitizeTicket).filter(Boolean);
             setVoyageTicketsCache(sanitized);
-            return { count: sanitized.length, fetchedAt: new Date().toISOString() };
+            // Upit se pamti da se isti polazak moze povuci ponovno kad
+            // posluzitelj javi da je karta stornirana.
+            return { count: sanitized.length, fetchedAt: new Date().toISOString(), query: { date, routeUuids } };
         } catch (err) {
             return rejectWithValue({ message: err?.message || 'Sync karata nije uspio' });
         }
+    }
+);
+
+// Ponovno povuci karte polaska koji je trenutno otvoren.
+//
+// Storno se dogodi na drugom uredaju (blagajna, druga mobilna), a ovaj bi kartu
+// jos drzao valjanom i pustio je kroz validaciju. Bez otvorenog polaska nema se
+// sto osvjezavati, pa se tiho preskace.
+export const refreshOpenVoyageTicketsThunk = createAsyncThunk(
+    'validation/refreshOpenVoyageTickets',
+    async (_, { getState, dispatch }) => {
+        const upit = getState()?.validation?.lastQuery;
+        if (!upit?.date || !upit?.routeUuids) return { skipped: true };
+        await dispatch(fetchVoyageTicketsThunk(upit));
+        return { refreshed: true };
     }
 );
 
@@ -307,6 +324,9 @@ const slice = createSlice({
         processing: false,
         lastFetched: null,
         ticketsCount: 0,
+        // Zadnji dohvaceni polazak — po njemu se karte osvjezavaju kad
+        // posluzitelj javi storno.
+        lastQuery: null,
         scanResult: null,    // { ok, already, ticket, message, validated_at }
         scanError: null,     // { message, code, ticket? }
     },
@@ -319,6 +339,7 @@ const slice = createSlice({
             s.loading = false;
             s.lastFetched = a.payload.fetchedAt;
             s.ticketsCount = a.payload.count;
+            if (a.payload.query) s.lastQuery = a.payload.query;
         });
         b.addCase(fetchVoyageTicketsThunk.rejected, (s) => { s.loading = false; });
         b.addCase(validateScanThunk.pending, (s) => { s.processing = true; });
