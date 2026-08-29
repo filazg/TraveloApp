@@ -142,6 +142,10 @@ const createOrderController = async (req, res) => {
                         customer_name: order.customer_name,
                         customer_email: order.customer_email,
                         partner_uuid: order.partner_uuid,
+                        // Tko je prodao. Partner ima vise korisnika, a obracun
+                        // provizije razraduje promet po osobi — bez ovoga karta
+                        // zna samo da je prodana "partneru".
+                        sold_by_username: order.partner_web_user_username || null,
                         note: order.note,
                     }, { timeout: 8000, validateStatus: () => true });
                     if (resp.status === 200) {
