@@ -21,7 +21,7 @@ const { handleGetAccountsFeature, handleAddAccountFeature, handleUpdateAccountFe
 const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature, handleGetDailyRealizationDemoFeature, handleSendDailyRealizationDemoToErpFeature } = require('../features/transactions/dailyRealizationHandlers');
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
-const { handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature } = require('../features/transactions/partnerInvoicesHandlers');
+const { handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
 const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleTransferTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
 const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
@@ -229,6 +229,10 @@ router
 router
     .route('/transactions/partner_commission')
     .get(handleGetPartnerCommissionFeature)
+
+router
+    .route('/transactions/partner_commission_details')
+    .get(handleGetPartnerCommissionDetailsFeature)
 
 router
     .route('/transactions/tickets_search')

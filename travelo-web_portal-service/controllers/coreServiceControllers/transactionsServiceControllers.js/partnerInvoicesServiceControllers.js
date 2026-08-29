@@ -44,8 +44,24 @@ const getPartnerCommissionController = async (params = {}) => {
     }
 };
 
+// Detalji obracuna — karta po karta, podloga za provjeru iznosa.
+const getPartnerCommissionDetailsController = async (params = {}) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(
+            coreConfigData.services.transactions.url + '/partner_commission_details',
+            { params }
+        );
+        return response.data;
+    } catch (error) {
+        console.log('getPartnerCommissionDetailsController error:', error?.message || error);
+        return { data: { rows: [] } };
+    }
+};
+
 module.exports = {
     getPartnerInvoicesController,
     getPartnerInvoiceDetailsController,
     getPartnerCommissionController,
+    getPartnerCommissionDetailsController,
 };

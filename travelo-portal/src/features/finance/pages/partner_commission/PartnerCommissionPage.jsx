@@ -19,9 +19,12 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadIcon from "@mui/icons-material/Download";
-import { fetchPartnerCommissionThunk, fetchPartnersListThunk, financeSliceData } from "../../financeSlice";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import { IconButton, Tooltip } from "@mui/material";
+import { dohvatiDetaljeProvizije, fetchPartnerCommissionThunk, fetchPartnersListThunk, financeSliceData } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
 import { izveziObracunProvizije } from "./provizijaExcel";
+import { izveziDetaljeProvizije, pripadaRetku } from "./detaljiExcel";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
@@ -39,7 +42,7 @@ const hrDatum = (isoDatum) => {
 //  2. za vlastiti račun — karte prodane kroz partnersku prodaju. Njih partner
 //     naplaćuje sam, a provizija mu se odbija na zbirnom računu. Razrada ide po
 //     njegovim korisnicima.
-function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istaknuto }) {
+function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istaknuto, naDetalje }) {
     const partner = (podaci.partners || [])[0] || null;
     const kanal = podaci.partner_channel || null;
     if (!partner && !kanal) return null;
@@ -60,6 +63,19 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                     {podaci.from && podaci.to ? ` · ${hrDatum(podaci.from)} – ${hrDatum(podaci.to)}` : ""}
                 </Typography>
                 {oznaka ? <Chip size="small" color={oznakaBoja} label={oznaka} /> : null}
+                {/* Cijelo razdoblje odjednom; pojedini redak ima svoj gumb u tablici. */}
+                <Tooltip title="Preuzmi detalje cijelog razdoblja">
+                    <span>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<FileDownloadOutlinedIcon />}
+                            onClick={() => naDetalje?.(podaci, null, "cijelo razdoblje")}
+                        >
+                            Skini sve
+                        </Button>
+                    </span>
+                </Tooltip>
             </Stack>
 
             {/* ---- 1. ZA NAŠ RAČUN ---- */}
@@ -79,6 +95,7 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                                     <TableCell align="right">Promet</TableCell>
                                     <TableCell align="right">Osnovica</TableCell>
                                     <TableCell align="right">Provizija</TableCell>
+                                    <TableCell align="right" sx={{ width: 56 }} />
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -94,6 +111,21 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                                             <TableCell align="right">{fmtEUR(r.gross)}</TableCell>
                                             <TableCell align="right">{fmtEUR(r.base)}</TableCell>
                                             <TableCell align="right">{fmtEUR(r.commission)}</TableCell>
+                                            <TableCell align="right">
+                                                <Tooltip title="Preuzmi detalje ovog retka">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => naDetalje?.(podaci, {
+                                                            scope: "company",
+                                                            business_premise_name: m.business_premise_name,
+                                                            billing_device: r.billing_device,
+                                                            operator: r.operator,
+                                                        }, `${m.business_premise_name} · ${r.billing_device || "—"} · ${r.operator || "—"}`)}
+                                                    >
+                                                        <FileDownloadOutlinedIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </TableCell>
                                         </TableRow>
                                     ))
                                 ))}
@@ -103,6 +135,7 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                                     <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(partner.gross)}</TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(partner.base)}</TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 900 }}>{fmtEUR(partner.commission)}</TableCell>
+                                    <TableCell />
                                 </TableRow>
                             </TableBody>
                         </Table>
@@ -128,6 +161,7 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                                     <TableCell align="right">Promet</TableCell>
                                     <TableCell align="right">Osnovica</TableCell>
                                     <TableCell align="right">Provizija</TableCell>
+                                    <TableCell align="right" sx={{ width: 56 }} />
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -138,6 +172,19 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                                         <TableCell align="right">{fmtEUR(r.gross)}</TableCell>
                                         <TableCell align="right">{fmtEUR(r.base)}</TableCell>
                                         <TableCell align="right">{fmtEUR(r.commission)}</TableCell>
+                                        <TableCell align="right">
+                                            <Tooltip title="Preuzmi detalje ovog korisnika">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => naDetalje?.(podaci, {
+                                                        scope: "channel",
+                                                        username: r.username,
+                                                    }, `korisnik ${r.username}`)}
+                                                >
+                                                    <FileDownloadOutlinedIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                                 <TableRow>
@@ -146,6 +193,7 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                                     <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(kanal.gross)}</TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(kanal.base)}</TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 900 }}>{fmtEUR(kanal.commission)}</TableCell>
+                                    <TableCell />
                                 </TableRow>
                             </TableBody>
                         </Table>
@@ -203,6 +251,31 @@ export default function PartnerCommissionPage() {
             dispatch(fetchPartnerCommissionThunk({ partner_uuid: partnerUuid, period: "current" })),
         ]);
         dispatch(setAuthData({ path: "loading", value: false }));
+    };
+
+    // Detalji se dohvacaju tek na klik: popis zna imati stotine redaka, a
+    // vecina pogleda na obracun ih ne treba.
+    const preuzmiDetalje = async (podaci, filtar, opis) => {
+        if (!partnerUuid || !podaci?.from || !podaci?.to) return;
+        dispatch(setAuthData({ path: "loadingMessage", value: "Priprema detalja…" }));
+        dispatch(setAuthData({ path: "loading", value: true }));
+        try {
+            const svi = await dohvatiDetaljeProvizije({
+                partner_uuid: partnerUuid,
+                from: podaci.from,
+                to: podaci.to,
+            });
+            const redci = svi.filter((r) => pripadaRetku(r, filtar));
+            izveziDetaljeProvizije({
+                redci,
+                partner: odabraniPartner?.partner_name || podaci.partners?.[0]?.partner_name || "",
+                from: podaci.from,
+                to: podaci.to,
+                opis,
+            });
+        } finally {
+            dispatch(setAuthData({ path: "loading", value: false }));
+        }
     };
 
     const nemaNista = !partneri.length && !obracun.partner_channel;
@@ -271,6 +344,7 @@ export default function PartnerCommissionPage() {
                         oznakaBoja="primary"
                         podaci={obracun}
                         nazivTvrtke={nazivTvrtke}
+                        naDetalje={preuzmiDetalje}
                     />
                     <ObracunKartica
                         naslov="Otvoreno razdoblje"
@@ -279,6 +353,7 @@ export default function PartnerCommissionPage() {
                         podaci={otvoreno}
                         nazivTvrtke={nazivTvrtke}
                         istaknuto
+                        naDetalje={preuzmiDetalje}
                     />
                 </>
             ) : null}

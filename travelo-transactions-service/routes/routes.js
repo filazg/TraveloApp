@@ -8,7 +8,7 @@ const { listInvoicesController } = require('../controllers/dataControllers/invoi
 const { backfillInvoicesFiscalController } = require('../controllers/dataControllers/invoicesBackfillController');
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
 const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
-const { partnerCommissionController } = require('../controllers/dataControllers/partnerCommissionController');
+const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
 const { listTicketsController } = require('../controllers/dataControllers/ticketsSearchController');
 const { cancelTicketsController } = require('../controllers/dataControllers/cancelTicketsController');
 const { harborTaxReportController } = require('../controllers/dataControllers/harborTaxReportController');
@@ -88,6 +88,11 @@ router
 router
     .route('/partner_commission')
     .get(partnerCommissionController)
+
+// Detalji obracuna — karta po karta, podloga za provjeru iznosa.
+router
+    .route('/partner_commission_details')
+    .get(partnerCommissionDetailsController)
 
 router
     .route('/tickets_search')

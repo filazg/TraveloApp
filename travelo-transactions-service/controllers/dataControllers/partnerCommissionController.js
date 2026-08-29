@@ -396,4 +396,143 @@ const partnerCommissionController = async (req, res) => {
     }
 };
 
-module.exports = { partnerCommissionController };
+// Detalji obračuna — karta po karta, za razdoblje i partnera. Zbroj u obračunu
+// kaže koliko, a detalji kada i što: bez njih se iznos ne može provjeriti ni
+// objasniti partneru kad pita otkud brojka.
+//
+// Vraća se cijelo razdoblje odjednom, s oznakom izvora na svakom retku
+// (prodajno mjesto, uređaj, operater, odnosno korisnik partnera), pa isti popis
+// služi i za preuzimanje svega i za pojedini redak razrade.
+const partnerCommissionDetailsController = async (req, res) => {
+    const { TicketsModel, InvoiceModel } = req.app.locals.models;
+    try {
+        const { partner_uuid, period } = req.query || {};
+        let { from, to } = req.query || {};
+        if (!partner_uuid) {
+            return res.status(400).json({ status: 400, data: { message: "partner_uuid je obavezan" } });
+        }
+
+        const [prostoriPodaci, partneriPodaci] = await Promise.all([
+            dohvatiIzBackofficea("/business_premises"),
+            dohvatiIzBackofficea("/partners"),
+        ]);
+        const partneri = partneriPodaci.partners || [];
+        const partner = partneri.find((p) => p.uuid === partner_uuid) || null;
+        const pct = Number(partner?.commission_pct) || 0;
+
+        if (!from || !to) {
+            const razdoblje = razdobljePoDinamici(partner, new Date(), String(period) === "current");
+            from = razdoblje.from;
+            to = razdoblje.to;
+        }
+        const od = pocetakDana(from);
+        const doo = krajDana(to);
+        if (!od || !doo) {
+            return res.status(400).json({ status: 400, data: { message: "razdoblje se ne da odrediti" } });
+        }
+
+        const redci = [];
+        const uRedak = (k, izvor) => {
+            const i = neto(k.single_price);
+            return {
+                ...izvor,
+                sold_at: k.issued_at || k.createdAt,
+                ticket_code: k.ticket_code,
+                ticket_type_name: k.ticket_type_name,
+                line_name: k.line_name,
+                departure_harbor_name: k.departure_harbor_name,
+                arrival_harbor_name: k.arrival_harbor_name,
+                departure_planed: k.departure_planed,
+                gross: i.bruto,
+                base: i.osnovica,
+                commission: +((i.osnovica * pct) / 100).toFixed(2),
+            };
+        };
+
+        // 1) Prodaja u naše ime — ide preko računa partnerskih prodajnih mjesta.
+        const partnerskiProstori = (prostoriPodaci.business_premises || [])
+            .filter((p) => p.bp_own === "PARTNER_BP" && p.partner_uuid === partner_uuid);
+        if (partnerskiProstori.length) {
+            const racuni = await InvoiceModel.findAll({
+                where: {
+                    invoice_business_premise_uuid: { [Op.in]: partnerskiProstori.map((p) => p.uuid) },
+                    createdAt: { [Op.between]: [od, doo] },
+                },
+                attributes: [
+                    "invoice_uuid", "order_uuid", "invoice_business_premise_name",
+                    "invoice_billing_device_fiscal_mark", "invoice_operator_name",
+                ],
+            });
+            if (racuni.length) {
+                const izvorPoRacunu = new Map();
+                const narudzbe = [];
+                for (const r of racuni) {
+                    const izvor = {
+                        scope: "company",
+                        business_premise_name: r.invoice_business_premise_name || "",
+                        billing_device: r.invoice_billing_device_fiscal_mark || "",
+                        operator: r.invoice_operator_name || "",
+                        username: "",
+                    };
+                    izvorPoRacunu.set(r.invoice_uuid, izvor);
+                    for (const o of String(r.order_uuid || "").split(",").map((x) => x.trim()).filter(Boolean)) {
+                        izvorPoRacunu.set(o, izvor);
+                        narudzbe.push(o);
+                    }
+                }
+                const karte = await TicketsModel.findAll({
+                    where: {
+                        [Op.or]: [
+                            { invoice_uuid: { [Op.in]: racuni.map((r) => r.invoice_uuid) } },
+                            ...(narudzbe.length ? [{ order_uuid: { [Op.in]: narudzbe } }] : []),
+                        ],
+                        [Op.and]: [{ [Op.or]: [{ is_canceled: false }, { is_canceled: null }] }],
+                    },
+                    order: [["createdAt", "ASC"]],
+                });
+                for (const red of karte) {
+                    const k = red.dataValues || red;
+                    const izvor = izvorPoRacunu.get(k.invoice_uuid) || izvorPoRacunu.get(k.order_uuid);
+                    if (izvor) redci.push(uRedak(k, izvor));
+                }
+            }
+        }
+
+        // 2) Partnerova vlastita prodaja — karte partnerskog kanala.
+        const karteKanala = await TicketsModel.findAll({
+            where: {
+                partner_uuid,
+                [Op.or]: [{ is_canceled: false }, { is_canceled: null }],
+                createdAt: { [Op.between]: [od, doo] },
+            },
+            order: [["createdAt", "ASC"]],
+        });
+        for (const red of karteKanala) {
+            const k = red.dataValues || red;
+            redci.push(uRedak(k, {
+                scope: "channel",
+                business_premise_name: "",
+                billing_device: "",
+                operator: "",
+                username: k.sold_by_username || "\u2014",
+            }));
+        }
+
+        res.send({
+            status: 200,
+            data: {
+                from,
+                to,
+                partner_uuid,
+                partner_name: partner?.partner_name || "",
+                commission_pct: pct,
+                rows: redci,
+            },
+        });
+    } catch (error) {
+        console.log("partnerCommissionDetailsController error:", error?.message || error);
+        res.status(500).json({ status: 500, data: { message: error.message } });
+    }
+};
+
+module.exports = { partnerCommissionController, partnerCommissionDetailsController };

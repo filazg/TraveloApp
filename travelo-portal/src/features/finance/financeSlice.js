@@ -102,6 +102,14 @@ export const fetchPartnerCommissionThunk = createAsyncThunk(
     }
 );
 
+// Detalji obracuna se ne drze u stanju: dohvacaju se u trenutku preuzimanja i
+// odmah zavrse u datoteci, pa nema smisla puniti store s nekoliko tisuca redaka.
+export const dohvatiDetaljeProvizije = async (params = {}) => {
+    const resp = await api.get("/portal/transactions/partner_commission_details", { params });
+    const payload = unwrapBff(resp);
+    return payload?.rows || [];
+};
+
 export const fetchPartnerInvoiceDetailsThunk = createAsyncThunk(
     "finance/fetchPartnerInvoiceDetails",
     async (partner_invoice_uuid, { rejectWithValue }) => {

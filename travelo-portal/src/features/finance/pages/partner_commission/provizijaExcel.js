@@ -108,7 +108,7 @@ export function izveziObracunProvizije({ partneri = [], totals = {}, from, to, p
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Provizija");
     const naziv = partner?.partner_name
-        ? `Provizija_${partner.partner_name.replace(/[^\w\-]+/g, "_")}_${from}_${to}.xlsx`
+        ? `Provizija_${partner.partner_name.replace(/[^\w-]+/g, "_")}_${from}_${to}.xlsx`
         : `Provizija_partneri_${from}_${to}.xlsx`;
     XLSX.writeFile(wb, naziv);
 }
