@@ -1,0 +1,220 @@
+import { useState } from "react";
+import { useDispatch } from "react-redux";
+import {
+    Box,
+    Button,
+    Chip,
+    Paper,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Typography,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import { dohvatiDetaljeProvizije } from "../../financeSlice";
+import { setAuthData } from "../../../auth/authSlice";
+import { izveziObracunProvizije } from "../partner_commission/provizijaExcel";
+import { izveziDetaljeProvizije, pripadaRetku } from "../partner_commission/detaljiExcel";
+
+const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} EUR`;
+const hrDatum = (iso) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ""));
+    return m ? `${m[3]}.${m[2]}.${m[1]}.` : String(iso || "");
+};
+
+// Isti izgled kao račun: izvještaj je dokument koji partner dobiva i po kojem
+// nam ispostavlja svoj račun, pa se tako i čita.
+const DocStyles = {
+    fontFamily: `'Arial', 'Helvetica', sans-serif`,
+    color: "#1a1a1a",
+    "& table": { width: "100%", borderCollapse: "collapse" },
+    "& td, & th": { verticalAlign: "top", padding: "4px 6px" },
+    "& .head-row td": { fontSize: 13, lineHeight: 1.4 },
+    "& .totals td": { fontSize: 13 },
+    "& .totals .label": { color: "#555" },
+    "& .totals .total td": { fontSize: 14, fontWeight: 800, borderTop: "1px solid #999", paddingTop: 6 },
+};
+
+export default function CommissionReportDrawer({ partner, from, to, nazivTvrtke, onClose }) {
+    const dispatch = useDispatch();
+    const [uTijeku, setUTijeku] = useState("");
+
+    if (!partner) return null;
+
+    const preuzmiIzvjestaj = () => {
+        izveziObracunProvizije({
+            partneri: [partner],
+            totals: {
+                tickets: partner.tickets,
+                gross: partner.gross,
+                base: partner.base,
+                commission: partner.commission,
+            },
+            from,
+            to,
+            partner: { partner_name: partner.partner_name },
+        });
+    };
+
+    // Karte iza iznosa — partner ih traži kad usklađuje svoj račun s našim
+    // izvještajem. Dohvaćaju se tek na klik, popis zna imati stotine redaka.
+    const preuzmiKarte = async () => {
+        setUTijeku("karte");
+        dispatch(setAuthData({ path: "loadingMessage", value: "Priprema detalja…" }));
+        dispatch(setAuthData({ path: "loading", value: true }));
+        try {
+            const svi = await dohvatiDetaljeProvizije({ partner_uuid: partner.partner_uuid, from, to });
+            izveziDetaljeProvizije({
+                redci: svi.filter((r) => pripadaRetku(r, { scope: "company" })),
+                partner: partner.partner_name,
+                from,
+                to,
+                opis: "podloga za račun provizije",
+            });
+        } finally {
+            setUTijeku("");
+            dispatch(setAuthData({ path: "loading", value: false }));
+        }
+    };
+
+    return (
+        <Box sx={{ width: { xs: "100vw", sm: 820 }, height: "100%", display: "flex", flexDirection: "column" }}>
+            <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Typography variant="subtitle1" fontWeight={800}>
+                            Izvještaj za proviziju · {partner.partner_name}
+                        </Typography>
+                        <Chip size="small" color="primary" label={`${Number(partner.commission_pct).toFixed(2)} %`} />
+                    </Stack>
+                    <Button size="small" onClick={onClose} startIcon={<CloseIcon />}>
+                        Zatvori
+                    </Button>
+                </Stack>
+            </Box>
+
+            <Box sx={{ flex: 1, overflow: "auto", bgcolor: "#f2f2f2", py: 3 }}>
+                <Paper elevation={2} sx={{ mx: "auto", maxWidth: 760, p: 5, bgcolor: "#ffffff", ...DocStyles }}>
+                    <table>
+                        <tbody>
+                            <tr className="head-row">
+                                <td style={{ width: "50%" }}>
+                                    <strong>Prodavatelj u naše ime</strong>
+                                    <br />
+                                    {partner.partner_name}
+                                    <br />
+                                    {partner.partner_legal_id ? `OIB: ${partner.partner_legal_id}` : ""}
+                                </td>
+                                <td style={{ width: "50%" }}>
+                                    <strong>Podaci</strong>
+                                    <br />
+                                    razdoblje: {hrDatum(from)} – {hrDatum(to)}
+                                    <br />
+                                    prodano u ime i za račun: {nazivTvrtke || "—"}
+                                    <br />
+                                    provizija: {Number(partner.commission_pct).toFixed(2)} %
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <Box sx={{ textAlign: "center", my: 3 }}>
+                        <Typography variant="h5" fontWeight={800}>Izvještaj za proviziju</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            podloga za račun koji partner ispostavlja nama
+                        </Typography>
+                    </Box>
+
+                    <TableContainer sx={{ overflowX: "auto" }}>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Prodajno mjesto</TableCell>
+                                    <TableCell>Naplatni uređaj</TableCell>
+                                    <TableCell>Operater</TableCell>
+                                    <TableCell align="right">Karata</TableCell>
+                                    <TableCell align="right">Promet</TableCell>
+                                    <TableCell align="right">Osnovica</TableCell>
+                                    <TableCell align="right">Provizija</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {(partner.premises || []).map((m) => (
+                                    (m.rows || []).map((r, i) => (
+                                        <TableRow key={`${m.business_premise_uuid}-${r.billing_device}-${r.operator}`}>
+                                            {/* Naziv mjesta samo uz prvi redak, da se ne ponavlja niz stupac. */}
+                                            <TableCell>{i === 0 ? m.business_premise_name : ""}</TableCell>
+                                            <TableCell>{r.billing_device || "—"}</TableCell>
+                                            <TableCell>{r.operator || "—"}</TableCell>
+                                            <TableCell align="right">{r.tickets}</TableCell>
+                                            <TableCell align="right">{fmtEUR(r.gross)}</TableCell>
+                                            <TableCell align="right">{fmtEUR(r.base)}</TableCell>
+                                            <TableCell align="right">{fmtEUR(r.commission)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+                        <Box sx={{ width: 340 }} className="totals">
+                            <table>
+                                <tbody>
+                                    <tr>
+                                        <td className="label">Karata:</td>
+                                        <td style={{ textAlign: "right" }}>{partner.tickets}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label">Promet:</td>
+                                        <td style={{ textAlign: "right" }}>{fmtEUR(partner.gross)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label">Osnovica:</td>
+                                        <td style={{ textAlign: "right" }}>{fmtEUR(partner.base)}</td>
+                                    </tr>
+                                    <tr className="total">
+                                        <td>Ukupno za fakturirati:</td>
+                                        <td style={{ textAlign: "right" }}>{fmtEUR(partner.commission)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </Box>
+                    </Box>
+
+                    <Box sx={{ fontSize: 11, color: "#555", lineHeight: 1.5, mt: 3 }}>
+                        Osnovica je promet bez lučke pristojbe i bez PDV-a. Provizija se računa na zbroj
+                        osnovice, a ne po karti — zaokruživanje po karti bi na većem broju karata
+                        odstupilo od iznosa koji se stvarno plaća.
+                    </Box>
+                </Paper>
+            </Box>
+
+            <Box sx={{ px: 3, py: 2, borderTop: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Button
+                        variant="outlined"
+                        startIcon={<ReceiptLongOutlinedIcon />}
+                        onClick={preuzmiIzvjestaj}
+                    >
+                        Preuzmi izvještaj
+                    </Button>
+                    <Button
+                        variant="contained"
+                        startIcon={<FileDownloadOutlinedIcon />}
+                        onClick={preuzmiKarte}
+                        disabled={!!uTijeku}
+                    >
+                        {uTijeku === "karte" ? "Priprema…" : "Preuzmi karte"}
+                    </Button>
+                </Stack>
+            </Box>
+        </Box>
+    );
+}

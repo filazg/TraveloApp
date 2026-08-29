@@ -285,7 +285,9 @@ const partnerCommissionController = async (req, res) => {
                 poPartneru.set(prostor.partner_uuid, {
                     partner_uuid: prostor.partner_uuid,
                     partner_name: partner?.partner_name || prostor.partner_name || "",
-                    partner_legal_id: partner?.legal_id || null,
+                    // Partner nosi `partner_legal_id`; `legal_id` je polje tvrtke,
+                    // pa je OIB partnera dosad uvijek ispadao prazan.
+                    partner_legal_id: partner?.partner_legal_id || null,
                     commission_pct: pct,
                     tickets: 0,
                     gross: 0,

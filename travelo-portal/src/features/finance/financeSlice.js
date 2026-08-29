@@ -102,6 +102,28 @@ export const fetchPartnerCommissionThunk = createAsyncThunk(
     }
 );
 
+// Popis izvjestaja za razdoblje — jedan redak po partneru. Isti izvor kao
+// obracun, samo bez odabranog partnera: posluzitelj tada vraca sve partnere s
+// prodajom u nase ime, sto je upravo popis koji se pretrazuje.
+export const fetchPartnerCommissionReportsThunk = createAsyncThunk(
+    "finance/fetchPartnerCommissionReports",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/partner_commission", { params });
+            const payload = unwrapBff(resp);
+            return {
+                partners: payload?.partners || [],
+                totals: payload?.totals || { tickets: 0, gross: 0, base: 0, commission: 0 },
+                company_name: payload?.company_name || "",
+                from: payload?.from || params.from || "",
+                to: payload?.to || params.to || "",
+            };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
 // Detalji obracuna se ne drze u stanju: dohvacaju se u trenutku preuzimanja i
 // odmah zavrse u datoteci, pa nema smisla puniti store s nekoliko tisuca redaka.
 export const dohvatiDetaljeProvizije = async (params = {}) => {
@@ -536,6 +558,10 @@ const financeSlice = createSlice({
         partnerCommissionOpen: { partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 }, from: "", to: "" },
         partnerCommissionLoading: false,
         partnerCommissionError: null,
+        // Popis izvjestaja za odabrano razdoblje, jedan redak po partneru.
+        partnerCommissionReports: { partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 }, company_name: "", from: "", to: "" },
+        partnerCommissionReportsLoading: false,
+        partnerCommissionReportsError: null,
         partnerInvoiceDetails: null,
         partnerInvoiceDetailsLoading: false,
         partnersList: [],
@@ -750,6 +776,18 @@ const financeSlice = createSlice({
             .addCase(fetchPartnerCommissionThunk.rejected, (s, a) => {
                 s.partnerCommissionLoading = false;
                 s.partnerCommissionError = a.payload?.message || "Greška pri dohvatu obračuna provizije";
+            })
+            .addCase(fetchPartnerCommissionReportsThunk.pending, (s) => {
+                s.partnerCommissionReportsLoading = true;
+                s.partnerCommissionReportsError = null;
+            })
+            .addCase(fetchPartnerCommissionReportsThunk.fulfilled, (s, a) => {
+                s.partnerCommissionReportsLoading = false;
+                s.partnerCommissionReports = a.payload;
+            })
+            .addCase(fetchPartnerCommissionReportsThunk.rejected, (s, a) => {
+                s.partnerCommissionReportsLoading = false;
+                s.partnerCommissionReportsError = a.payload?.message || "Greška pri dohvatu izvještaja";
             })
             .addCase(fetchPartnerInvoiceDetailsThunk.pending, (s) => {
                 s.partnerInvoiceDetailsLoading = true;
