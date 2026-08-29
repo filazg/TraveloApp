@@ -143,6 +143,69 @@ const partnerCommissionController = async (req, res) => {
                 data: { message: "razdoblje se ne da odrediti — provjeri dinamiku naplate partnera" },
             });
         }
+        // Partnerova vlastita prodaja — karte prodane kroz partnersku prodaju.
+        // Njih partner naplacuje od putnika, a nama duguje bruto umanjen za
+        // proviziju, sto se obracunava na zbirnom partnerskom racunu. Zato NE
+        // ulaze u iznos za isplatu, ali se prikazuju: bez njih partner u
+        // obracunu ne vidi dio svoje zarade i cini mu se da prodaja nedostaje.
+        let vlastitaProdaja = null;
+        if (partner_uuid) {
+            const partner = partneri.find((p) => p.uuid === partner_uuid);
+            const pct = Number(partner?.commission_pct) || 0;
+            const karteKanala = await TicketsModel.findAll({
+                where: {
+                    partner_uuid,
+                    [Op.or]: [{ is_canceled: false }, { is_canceled: null }],
+                    createdAt: { [Op.between]: [od, doo] },
+                },
+            });
+            if (karteKanala.length) {
+                let bruto = 0;
+                let osnovica = 0;
+                let obracunato = 0;
+                // Razrada po korisniku partnera — tko je od njegovih ljudi
+                // prodao. Starije karte nemaju upisanog korisnika, pa idu pod
+                // "nepoznato" umjesto da nestanu iz razrade.
+                const poKorisniku = new Map();
+                for (const red of karteKanala) {
+                    const k = red.dataValues || red;
+                    const i = neto(k.single_price);
+                    bruto += i.bruto;
+                    osnovica += i.osnovica;
+                    if (k.partner_invoice_uuid) obracunato += 1;
+                    const korisnik = k.sold_by_username || "—";
+                    if (!poKorisniku.has(korisnik)) {
+                        poKorisniku.set(korisnik, { username: korisnik, tickets: 0, gross: 0, base: 0 });
+                    }
+                    const redK = poKorisniku.get(korisnik);
+                    redK.tickets += 1;
+                    redK.gross += i.bruto;
+                    redK.base += i.osnovica;
+                }
+                const base = +osnovica.toFixed(2);
+                vlastitaProdaja = {
+                    partner_uuid,
+                    partner_name: partner?.partner_name || "",
+                    commission_pct: pct,
+                    tickets: karteKanala.length,
+                    gross: +bruto.toFixed(2),
+                    base,
+                    commission: +((base * pct) / 100).toFixed(2),
+                    // Koliko ih je vec uslo u zbirni partnerski racun.
+                    invoiced: obracunato,
+                    rows: [...poKorisniku.values()].map((r) => {
+                        const rBase = +r.base.toFixed(2);
+                        return {
+                            ...r,
+                            gross: +r.gross.toFixed(2),
+                            base: rBase,
+                            commission: +((rBase * pct) / 100).toFixed(2),
+                        };
+                    }).sort((a, b) => String(a.username).localeCompare(String(b.username), "hr")),
+                };
+            }
+        }
+
         // Samo prodajna mjesta koja su označena kao partnerska i vezana na
         // partnera. Neoznačeno mjesto je naše i nema provizije.
         const partnerskiProstori = (prostoriPodaci.business_premises || [])
@@ -152,7 +215,7 @@ const partnerCommissionController = async (req, res) => {
         if (!partnerskiProstori.length) {
             return res.send({
                 status: 200,
-                data: { from, to, period: razdoblje, company_name: nazivTvrtke, partners: [], partner_channel: null, totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
+                data: { from, to, period: razdoblje, company_name: nazivTvrtke, partners: [], partner_channel: vlastitaProdaja, totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
             });
         }
 
@@ -176,7 +239,7 @@ const partnerCommissionController = async (req, res) => {
         if (!racuni.length) {
             return res.send({
                 status: 200,
-                data: { from, to, period: razdoblje, company_name: nazivTvrtke, partners: [], partner_channel: null, totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
+                data: { from, to, period: razdoblje, company_name: nazivTvrtke, partners: [], partner_channel: vlastitaProdaja, totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
             });
         }
 
@@ -318,69 +381,6 @@ const partnerCommissionController = async (req, res) => {
                 premises,
             };
         }).sort((a, b) => String(a.partner_name).localeCompare(String(b.partner_name), "hr"));
-
-        // Partnerova vlastita prodaja — karte prodane kroz partnersku prodaju.
-        // Njih partner naplacuje od putnika, a nama duguje bruto umanjen za
-        // proviziju, sto se obracunava na zbirnom partnerskom racunu. Zato NE
-        // ulaze u iznos za isplatu, ali se prikazuju: bez njih partner u
-        // obracunu ne vidi dio svoje zarade i cini mu se da prodaja nedostaje.
-        let vlastitaProdaja = null;
-        if (partner_uuid) {
-            const partner = partneri.find((p) => p.uuid === partner_uuid);
-            const pct = Number(partner?.commission_pct) || 0;
-            const karteKanala = await TicketsModel.findAll({
-                where: {
-                    partner_uuid,
-                    [Op.or]: [{ is_canceled: false }, { is_canceled: null }],
-                    createdAt: { [Op.between]: [od, doo] },
-                },
-            });
-            if (karteKanala.length) {
-                let bruto = 0;
-                let osnovica = 0;
-                let obracunato = 0;
-                // Razrada po korisniku partnera — tko je od njegovih ljudi
-                // prodao. Starije karte nemaju upisanog korisnika, pa idu pod
-                // "nepoznato" umjesto da nestanu iz razrade.
-                const poKorisniku = new Map();
-                for (const red of karteKanala) {
-                    const k = red.dataValues || red;
-                    const i = neto(k.single_price);
-                    bruto += i.bruto;
-                    osnovica += i.osnovica;
-                    if (k.partner_invoice_uuid) obracunato += 1;
-                    const korisnik = k.sold_by_username || "—";
-                    if (!poKorisniku.has(korisnik)) {
-                        poKorisniku.set(korisnik, { username: korisnik, tickets: 0, gross: 0, base: 0 });
-                    }
-                    const redK = poKorisniku.get(korisnik);
-                    redK.tickets += 1;
-                    redK.gross += i.bruto;
-                    redK.base += i.osnovica;
-                }
-                const base = +osnovica.toFixed(2);
-                vlastitaProdaja = {
-                    partner_uuid,
-                    partner_name: partner?.partner_name || "",
-                    commission_pct: pct,
-                    tickets: karteKanala.length,
-                    gross: +bruto.toFixed(2),
-                    base,
-                    commission: +((base * pct) / 100).toFixed(2),
-                    // Koliko ih je vec uslo u zbirni partnerski racun.
-                    invoiced: obracunato,
-                    rows: [...poKorisniku.values()].map((r) => {
-                        const rBase = +r.base.toFixed(2);
-                        return {
-                            ...r,
-                            gross: +r.gross.toFixed(2),
-                            base: rBase,
-                            commission: +((rBase * pct) / 100).toFixed(2),
-                        };
-                    }).sort((a, b) => String(a.username).localeCompare(String(b.username), "hr")),
-                };
-            }
-        }
 
         const totals = partnersOut.reduce((z, p) => ({
             tickets: z.tickets + p.tickets,
