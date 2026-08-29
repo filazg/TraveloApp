@@ -304,7 +304,7 @@ export default function PartnerInvoicesPage() {
                 onChange={(e, v) => setTab(v)}
                 sx={{ borderBottom: "1px solid", borderColor: "divider" }}
             >
-                <Tab label="Računi za provizije" />
+                <Tab label="Računi za prodaju" />
                 <Tab label="Izvještaji za provizije" />
             </Tabs>
             {tab === 0 ? <TabRacuniZaProvizije /> : <TabIzvjestajiZaProvizije />}
