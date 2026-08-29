@@ -44,6 +44,9 @@ const salesSlice = createSlice({
     routes: [],
     prices: [],
     loading: false,
+    // Cjenik ima svoju zastavicu: dohvaca se pri otvaranju dijaloga rezervacije,
+    // pa se ne smije mijesati s dohvatom luka i polazaka na pretrazi.
+    pricesLoading: false,
     error: null,
     orderSubmitting: false,
     lastOrder: null,
@@ -63,7 +66,9 @@ const salesSlice = createSlice({
       .addCase(fetchRoutes.pending, (s) => { s.loading = true; s.error = null })
       .addCase(fetchRoutes.fulfilled, (s, a) => { s.loading = false; s.routes = a.payload })
       .addCase(fetchRoutes.rejected, (s, a) => { s.loading = false; s.error = a.payload?.message || 'Greška' })
-      .addCase(fetchPrices.fulfilled, (s, a) => { s.prices = a.payload })
+      .addCase(fetchPrices.pending, (s) => { s.pricesLoading = true })
+      .addCase(fetchPrices.fulfilled, (s, a) => { s.pricesLoading = false; s.prices = a.payload })
+      .addCase(fetchPrices.rejected, (s, a) => { s.pricesLoading = false; s.error = a.payload?.message || 'Cjenik nije dohvacen' })
       .addCase(createOrder.pending, (s) => { s.orderSubmitting = true; s.orderError = null })
       .addCase(createOrder.fulfilled, (s, a) => { s.orderSubmitting = false; s.lastOrder = a.payload })
       .addCase(createOrder.rejected, (s, a) => { s.orderSubmitting = false; s.orderError = a.payload?.message || 'Rezervacija nije uspjela' })
