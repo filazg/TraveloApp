@@ -1,4 +1,16 @@
 const crypto = require("crypto");
+const { Op } = require("sequelize");
+
+// Granice dana su lokalne; datum stize kao YYYY-MM-DD.
+const pocetakDana = (v) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || "").trim());
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], 0, 0, 0, 0) : null;
+};
+const krajDana = (v) => {
+    const d = pocetakDana(v);
+    if (d) d.setHours(23, 59, 59, 999);
+    return d;
+};
 const { bezPdv, saljeBezPdva } = require("../../helpers/cijene");
 const axios = require("axios");
 const { getCoreServiceConfigData } = require("../configSyncController");
@@ -212,6 +224,13 @@ const listOrdersController = async (req, res) => {
         if (req.query.partner_uuid) where.partner_uuid = req.query.partner_uuid;
         if (req.query.partner_web_user_uuid) where.partner_web_user_uuid = req.query.partner_web_user_uuid;
         if (req.query.payment_reference) where.payment_reference = req.query.payment_reference;
+        // Razdoblje se mjeri po trenutku rezervacije, ne po polasku: partner
+        // trazi "sto sam prodao u kolovozu", a polazak zna biti mjesecima poslije.
+        const od = pocetakDana(req.query.from);
+        const doo = krajDana(req.query.to);
+        if (od && doo) where.createdAt = { [Op.between]: [od, doo] };
+        else if (od) where.createdAt = { [Op.gte]: od };
+        else if (doo) where.createdAt = { [Op.lte]: doo };
         const orders = await OrdersModel.findAll({
             where,
             order: [["id", "DESC"]],
@@ -224,7 +243,49 @@ const listOrdersController = async (req, res) => {
     }
 };
 
+// Karte jedne rezervacije. Partner ih trazi kad kupac pita "koja je moja
+// karta", pa se dohvacaju iz transakcija; provjerava se da narudzba pripada
+// tom partneru, da se tudi kod ne moze izvuci pogadanjem broja narudzbe.
+const listOrderTicketsController = async (req, res) => {
+    const { OrdersModel } = req.app.locals.models;
+    try {
+        const { order_uuid, partner_uuid } = req.query || {};
+        if (!order_uuid) {
+            return res.status(400).json({ status: 400, data: { message: "order_uuid required" } });
+        }
+        const order = await OrdersModel.findOne({ where: { uuid: order_uuid } });
+        if (!order) return res.status(404).json({ status: 404, data: { message: "order not found" } });
+        if (partner_uuid && order.partner_uuid !== partner_uuid) {
+            return res.status(404).json({ status: 404, data: { message: "order not found" } });
+        }
+
+        const coreConfig = await getCoreServiceConfigData();
+        const txUrl = coreConfig?.services?.transactions?.url;
+        if (!txUrl) return res.status(500).json({ status: 500, data: { message: "transactions service unavailable" } });
+
+        const resp = await axios.get(`${txUrl}/tickets`, {
+            params: { order_uuid },
+            timeout: 10000,
+            validateStatus: () => true,
+        });
+        const karte = resp.data?.data?.tickets || [];
+
+        // Partneru se iskazuje cijena po kojoj je narucio; karta u bazi nosi
+        // prodajnu cijenu s PDV-om.
+        const bezPdva = await saljeBezPdva(order.channel, order.partner_uuid);
+        const zaSlanje = bezPdva
+            ? karte.map((k) => ({ ...(k.dataValues || k), single_price: bezPdv(k.single_price) }))
+            : karte;
+
+        res.status(200).json({ status: 200, data: { tickets: zaSlanje } });
+    } catch (error) {
+        console.log("listOrderTicketsController error:", error?.message || error);
+        res.status(500).json({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
+    listOrderTicketsController,
     createOrderController,
     listOrdersController,
 };

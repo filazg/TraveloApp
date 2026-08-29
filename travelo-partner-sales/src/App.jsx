@@ -6,6 +6,7 @@ import RequireAuth from './features/auth/RequireAuth'
 import AppLayout from './layout/AppLayout'
 import LoadingOverlay from './layout/LoadingOverlay'
 import LoginPage from './pages/LoginPage'
+import ReservationsPage from './pages/ReservationsPage'
 import SearchPage from './pages/SearchPage'
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/search" replace />} />
             <Route path="search" element={<SearchPage />} />
+            <Route path="reservations" element={<ReservationsPage />} />
           </Route>
         </Route>
       </Routes>

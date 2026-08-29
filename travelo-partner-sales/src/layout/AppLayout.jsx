@@ -22,7 +22,7 @@ import BrandMark from './BrandMark'
 
 const NAV_ITEMS = [
   { path: '/search', label: 'Prodaja', icon: <SearchIcon fontSize="small" /> },
-  { path: '/reservations', label: 'Moje rezervacije', icon: <ReceiptLongIcon fontSize="small" />, disabled: true },
+  { path: '/reservations', label: 'Moje rezervacije', icon: <ReceiptLongIcon fontSize="small" /> },
 ]
 
 export default function AppLayout() {

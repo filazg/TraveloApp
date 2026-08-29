@@ -3,7 +3,7 @@ const { getHarborsDataController } = require('../controllers/dataControllers/har
 const { getLinesDataController } = require('../controllers/dataControllers/linesController');
 const { getRoutesDataController, cancelRoutesBatchController, rescheduleRoutesBatchController } = require('../controllers/dataControllers/routesController');
 const { getPricesDataController } = require('../controllers/dataControllers/pricesController');
-const { createOrderController, listOrdersController } = require('../controllers/dataControllers/ordersController');
+const { createOrderController, listOrdersController, listOrderTicketsController } = require('../controllers/dataControllers/ordersController');
 const { updateOrdersStatusController } = require('../controllers/dataControllers/ordersStatusController');
 const router = express.Router();
 
@@ -35,6 +35,11 @@ router
     .route('/orders')
     .get(listOrdersController)
     .post(createOrderController)
+
+// Karte jedne rezervacije — partnerski pregled "moje rezervacije".
+router
+    .route('/order_tickets')
+    .get(listOrderTicketsController)
 
 router
     .route('/orders_status')
