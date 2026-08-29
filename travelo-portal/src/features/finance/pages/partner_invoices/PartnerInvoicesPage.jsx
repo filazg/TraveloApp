@@ -8,6 +8,8 @@ import {
     Drawer,
     MenuItem,
     Stack,
+    Tab,
+    Tabs,
     TextField,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
@@ -20,6 +22,7 @@ import {
 } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
 import PartnerInvoicePreviewDrawer from "./PartnerInvoicePreviewDrawer";
+import TabIzvjestajiZaProvizije from "./CommissionReportsTab";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 const fmtDateTime = (s) => {
@@ -51,7 +54,10 @@ const MONTHS_HR = [
     "Prosinac",
 ];
 
-export default function PartnerInvoicesPage() {
+// Računi koje mi izdajemo partneru za karte koje je prodao za svoj račun: novac
+// je sjeo kod njega, pa mu fakturiramo prodano umanjeno za proviziju. Izdaju se
+// po dinamici naplate podešenoj na partneru.
+function TabRacuniZaProvizije() {
     const dispatch = useDispatch();
     const {
         partnerInvoices,
@@ -250,6 +256,27 @@ export default function PartnerInvoicesPage() {
                     onClose={() => setSelectedInvoice(null)}
                 />
             </Drawer>
+        </Box>
+    );
+}
+
+// Partnerski novac ide u dva smjera i ne miješa se: mi njemu fakturiramo karte
+// koje je prodao za svoj račun, a on nama proviziju za karte koje je prodao za
+// naš. Zato dva odvojena prikaza pod istom stavkom izbornika.
+export default function PartnerInvoicesPage() {
+    const [tab, setTab] = useState(0);
+
+    return (
+        <Box sx={{ mt: 2, ml: 2, width: "98%" }}>
+            <Tabs
+                value={tab}
+                onChange={(e, v) => setTab(v)}
+                sx={{ borderBottom: "1px solid", borderColor: "divider" }}
+            >
+                <Tab label="Računi za provizije" />
+                <Tab label="Izvještaji za provizije" />
+            </Tabs>
+            {tab === 0 ? <TabRacuniZaProvizije /> : <TabIzvjestajiZaProvizije />}
         </Box>
     );
 }
