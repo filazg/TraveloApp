@@ -6,6 +6,8 @@ import RequireAuth from './features/auth/RequireAuth'
 import AppLayout from './layout/AppLayout'
 import LoadingOverlay from './layout/LoadingOverlay'
 import LoginPage from './pages/LoginPage'
+import CommissionPage from './pages/CommissionPage'
+import FinancePage from './pages/FinancePage'
 import ReservationsPage from './pages/ReservationsPage'
 import SearchPage from './pages/SearchPage'
 
@@ -29,6 +31,8 @@ export default function App() {
             <Route index element={<Navigate to="/search" replace />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="reservations" element={<ReservationsPage />} />
+            <Route path="commission" element={<CommissionPage />} />
+            <Route path="finance" element={<FinancePage />} />
           </Route>
         </Route>
       </Routes>

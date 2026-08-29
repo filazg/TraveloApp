@@ -33,6 +33,13 @@ module.exports = (sequelize) => {
                 type: DataTypes.STRING,
                 allowNull: false,
             },
+            // Preslika iz backofficea; po njoj partnerska prodaja odlucuje sto
+            // korisniku uopce prikazuje.
+            roles: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                defaultValue: 'SALES',
+            },
             is_active: {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,

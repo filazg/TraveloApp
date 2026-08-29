@@ -181,6 +181,9 @@ const updatePartnerDataController = async(req,res)=>{
                             username:perm.username,
                             password:perm.password,
                             partner_acr:data.partner_acr,
+                            // Bez odabrane role korisnik ostaje na prodaji —
+                            // to je ono sto su zateceni korisnici dosad imali.
+                            roles:perm.roles || 'SALES',
                             is_active:true
                         }
                         webPermissionToAdd = [...webPermissionToAdd,newPermision]

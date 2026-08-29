@@ -15,14 +15,21 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import MenuIcon from '@mui/icons-material/Menu'
 import SearchIcon from '@mui/icons-material/Search'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
+import PercentIcon from '@mui/icons-material/Percent'
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import { useDispatch, useSelector } from 'react-redux'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { logoutRemote } from '../features/auth/authSlice'
 import BrandMark from './BrandMark'
 
+// Sto se komu prikazuje ovisi o ulozi korisnika: prodavac vidi prodaju i svoje
+// rezervacije, knjigovoda obracun provizije i racune. Isti covjek moze imati
+// obje uloge, pa se stranice filtriraju, a ne biraju.
 const NAV_ITEMS = [
-  { path: '/search', label: 'Prodaja', icon: <SearchIcon fontSize="small" /> },
-  { path: '/reservations', label: 'Moje rezervacije', icon: <ReceiptLongIcon fontSize="small" /> },
+  { path: '/search', label: 'Prodaja', icon: <SearchIcon fontSize="small" />, uloga: 'SALES' },
+  { path: '/reservations', label: 'Moje rezervacije', icon: <ReceiptLongIcon fontSize="small" />, uloga: 'SALES' },
+  { path: '/commission', label: 'Obračun provizije', icon: <PercentIcon fontSize="small" />, uloga: 'FINANCE' },
+  { path: '/finance', label: 'Računi i izvještaji', icon: <DescriptionOutlinedIcon fontSize="small" />, uloga: 'FINANCE' },
 ]
 
 export default function AppLayout() {
@@ -37,7 +44,18 @@ export default function AppLayout() {
     navigate('/login', { replace: true })
   }
 
-  const aktivna = NAV_ITEMS.find((i) => location.pathname.startsWith(i.path))
+  // Bez upisane uloge korisnik ostaje na prodaji — tako su radili i prije nego
+  // sto su uloge postojale.
+  const uloge = String(user?.roles || 'SALES').split(',').map((r) => r.trim()).filter(Boolean)
+  const stavke = NAV_ITEMS.filter((i) => uloge.includes(i.uloga))
+  const aktivna = stavke.find((i) => location.pathname.startsWith(i.path))
+
+  // Korisnik moze doci i na stranicu koju mu uloga ne otvara — izravnim
+  // linkom ili nakon promjene uloge. Tada ide na prvu koju smije, umjesto da
+  // gleda prazno.
+  if (!aktivna && stavke.length && location.pathname !== '/') {
+    return <Navigate to={stavke[0].path} replace />
+  }
 
   return (
     // Podloga i traka dolaze iz teme, kao u portalu: siva podloga #F3F6FB i
@@ -55,7 +73,7 @@ export default function AppLayout() {
               variant="h6"
               onPrimary
               sx={{ display: { xs: 'none', md: 'block' }, cursor: 'pointer', mr: 1 }}
-              onClick={() => navigate('/search')}
+              onClick={() => navigate(stavke[0]?.path || '/search')}
             />
             {/* Stranice stoje u padajucem izborniku, kao u portalu: kartica po
                 stranici trosi sirinu trake, a nedostupna kartica u njoj izgleda
@@ -88,7 +106,7 @@ export default function AppLayout() {
               }}
               MenuListProps={{ sx: { py: 0.5 } }}
             >
-              {NAV_ITEMS.map((item) => (
+              {stavke.map((item) => (
                 <MenuItem
                   key={item.path}
                   selected={item.path === aktivna?.path}

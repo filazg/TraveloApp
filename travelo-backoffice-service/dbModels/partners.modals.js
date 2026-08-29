@@ -132,6 +132,16 @@ module.exports =  (sequelize) =>{
                 type:DataTypes.STRING,
                 allowNull:true
             },
+            // Sto korisnik smije u partnerskoj prodaji. SALES otvara prodaju i
+            // njegove rezervacije, FINANCE obracun provizije i racune. Zapisuje
+            // se kao popis odvojen zarezom, jer isti covjek zna raditi oboje.
+            // Podrazumijevano SALES — zatecenim korisnicima se time ne mijenja
+            // ono sto su dosad imali.
+            roles:{
+                type:DataTypes.STRING,
+                allowNull:false,
+                defaultValue:'SALES'
+            },
             is_active:{
                 type:DataTypes.BOOLEAN,
                 allowNull:false

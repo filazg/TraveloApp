@@ -41,6 +41,7 @@ const partnerPortalLoginController = async (req, res) => {
                 partner_uuid: user.partner_uuid,
                 partner_name: user.partner_name,
                 partner_acr: user.partner_acr,
+                roles: user.roles || "SALES",
                 role: "partner_web_user",
             },
             JWT_SECRET,
@@ -58,6 +59,7 @@ const partnerPortalLoginController = async (req, res) => {
                 partner_uuid: user.partner_uuid,
                 partner_name: user.partner_name,
                 partner_acr: user.partner_acr,
+                roles: user.roles || "SALES",
             },
         });
     } catch (error) {
@@ -87,6 +89,7 @@ const partnerCheckLoginController = async (req, res) => {
                 partner_uuid: user.partner_uuid,
                 partner_name: user.partner_name,
                 partner_acr: user.partner_acr,
+                roles: user.roles || "SALES",
             },
         });
     } catch (err) {

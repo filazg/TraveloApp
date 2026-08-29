@@ -2,7 +2,7 @@ const express = require('express')
 const app = express()
 const bodyParser = require('body-parser');
 
-const { syncDatabaseConfigData, getDatabaseConfigData, syncCoreServiceConfigData, getCoreServiceConfigData } = require('./controllers/configSyncController');
+const { syncDatabaseConfigData, getDatabaseConfigData, syncCoreServiceConfigData, syncMainServiceConfigData, getCoreServiceConfigData } = require('./controllers/configSyncController');
 const { initSequelize } = require('./config/database');
 const { syncModels, initModels } = require('./dbModels');
 const { travelo_subscriber } = require('./controllers/subscriberController');
@@ -20,6 +20,7 @@ const syncData = ()=>{
 const startService = async ()=>{
     try {
         await syncCoreServiceConfigData()
+        await syncMainServiceConfigData()
         await syncDatabaseConfigData()
         const config = await getCoreServiceConfigData()
         const databseConfig = await getDatabaseConfigData()

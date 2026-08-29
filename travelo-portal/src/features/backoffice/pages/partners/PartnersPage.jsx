@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Box, Button, Checkbox, Drawer, FormControlLabel, Grid, IconButton, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Modal, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Checkbox, Drawer, FormControlLabel, Grid, IconButton, List, ListItemButton, ListItemIcon, ListItemText, MenuItem, Modal, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid, GridActionsCellItem } from "@mui/x-data-grid";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useDispatch, useSelector } from "react-redux";
@@ -32,6 +32,16 @@ const opisDinamike = (cycle, weekday) => {
     }
     return 'Mjesečno — 1. u mjesecu';
 };
+
+// Sto korisnik partnera smije u partnerskoj prodaji. Prije je to bila kvacica
+// "web prodaja" — ili sve ili nista; sada se bira uloga, jer knjigovoda treba
+// obracun i racune, a ne prodaju.
+const ULOGE = [
+    { value: '', label: 'Nema pristupa' },
+    { value: 'SALES', label: 'Prodaja' },
+    { value: 'FINANCE', label: 'Financije' },
+    { value: 'SALES,FINANCE', label: 'Prodaja + financije' },
+];
 
 export default function PartnersPage (){
     const dispatch = useDispatch()
@@ -184,14 +194,21 @@ export default function PartnersPage (){
         { field: 'code', headerName: 'Šifra', width: 100 },
         {
             field: 'web_access',
-            headerName: 'Web prodaja',
-            width: 130,
+            headerName: 'Partnerska prodaja',
+            width: 200,
             renderCell: (params) => (
-                <Checkbox
-                    checked={imaWebPristup(params.row.username)}
+                <Select
+                    size="small"
+                    fullWidth
+                    variant="standard"
+                    value={ulogaKorisnika(params.row.username)}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={() => prebaciWebPristup(params.row)}
-                />
+                    onChange={(e) => postaviUlogu(params.row, e.target.value)}
+                >
+                    {ULOGE.map((u) => (
+                        <MenuItem key={u.value || 'bez'} value={u.value}>{u.label}</MenuItem>
+                    ))}
+                </Select>
             ),
         },
         { field: 'is_active', type: 'boolean', headerName: 'Aktivan', width: 100 },
@@ -232,6 +249,8 @@ export default function PartnersPage (){
     const djelatniciPartnera = (backofficeData.backofficeData.users || [])
         .filter((u) => u.partner_uuid && u.partner_uuid === selectedRow?.uuid)
     const imaWebPristup = (username) => (newWebUser || []).some((w) => w.username === username)
+    const ulogaKorisnika = (username) =>
+        (newWebUser || []).find((w) => w.username === username)?.roles || (imaWebPristup(username) ? 'SALES' : '')
 
     // Djelatnik partnera se zapisuje kao operater vezan na partnera — isti put
     // kojim se kreiraju i nasi ljudi, pa vrijede ista pravila (jedinstvena
@@ -253,12 +272,13 @@ export default function PartnersPage (){
             partner_uuid: selectedRow.uuid,
             partner_name: selectedRow.partner_name,
         }}))
-        if (webUser.web_access) {
+        if (webUser.roles) {
             const newId = newWebUser.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1;
             setNewWebUser([...newWebUser, {
                 id: newId,
                 username: webUser.username,
                 password: webUser.password,
+                roles: webUser.roles,
             }])
         }
         await dispatch(getBackofficeThunk({path:'users'}))
@@ -295,21 +315,24 @@ export default function PartnersPage (){
         await dispatch(setAuthData({path:'loading', value:false}))
     }
 
-    // Web pristup se pali i gasi bez diranja operatera — osoba ostaje na
-    // blagajni i kad joj se web prodaja ukine.
-    const prebaciWebPristup = (djelatnik) => {
-        if (imaWebPristup(djelatnik.username)) {
-            setNewWebUser((newWebUser || []).filter((w) => w.username !== djelatnik.username))
+    // Uloga se mijenja bez diranja operatera — osoba ostaje na blagajni i kad
+    // joj se pristup partnerskoj prodaji ukine.
+    const postaviUlogu = (djelatnik, uloge) => {
+        const bez = (newWebUser || []).filter((w) => w.username !== djelatnik.username)
+        if (!uloge) {
+            setNewWebUser(bez)
             return
         }
+        const postojeci = (newWebUser || []).find((w) => w.username === djelatnik.username)
         const newId = (newWebUser || []).reduce((max, item) => Math.max(max, item.id || 0), 0) + 1;
         // Lozinka se preuzima od djelatnika. Prijava na partnersku prodaju
         // prihvaca i bcrypt zapis, pa osoba ima jednu lozinku i za blagajnu i za
         // web. Prazna lozinka je znacila da se prijava nikad ne moze provjeriti.
-        setNewWebUser([...(newWebUser || []), {
-            id: newId,
+        setNewWebUser([...bez, {
+            id: postojeci?.id || newId,
             username: djelatnik.username,
-            password: djelatnik.password || '',
+            password: postojeci?.password || djelatnik.password || '',
+            roles: uloge,
         }])
     }
 
@@ -889,17 +912,17 @@ export default function PartnersPage (){
                         label="Šifra" placeholder="npr. 1234" value={webUser.code || ""}
                         onChange={handleChangeNewWebUser} name="code" sx={{ mt:1 }}
                     />
-                    <FormControlLabel
-                        sx={{ mt:1 }}
-                        control={
-                            <Checkbox
-                                checked={!!webUser.web_access}
-                                onChange={(e) => setWebUser({ ...webUser, web_access: e.target.checked })}
-                                name="web_access"
-                            />
-                        }
-                        label="Ima i pristup partnerskoj web prodaji"
-                    />
+                    <TextField
+                        select fullWidth variant="outlined" sx={{ mt:2 }}
+                        label="Pristup partnerskoj prodaji"
+                        value={webUser.roles ?? ''}
+                        onChange={(e) => setWebUser({ ...webUser, roles: e.target.value })}
+                        helperText="Prodaja otvara prodaju i rezervacije, financije obračun provizije i račune."
+                    >
+                        {ULOGE.map((u) => (
+                            <MenuItem key={u.value || 'bez'} value={u.value}>{u.label}</MenuItem>
+                        ))}
+                    </TextField>
                     <Button
                         type="submit"
                         onClick={handleAddWebUser}
