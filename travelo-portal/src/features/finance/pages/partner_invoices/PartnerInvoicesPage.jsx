@@ -92,7 +92,20 @@ function TabRacuniZaProvizije() {
     const columns = useMemo(
         () => [
             { field: "invoice_date", headerName: "Datum", width: 160, valueFormatter: (v) => fmtDateTime(v) },
-            { field: "partner_invoice_no", headerName: "Broj", width: 100 },
+            { field: "partner_invoice_no", headerName: "Broj", width: 80 },
+            {
+                // Ono što piše na samom računu: F1 nosi fiskalnu oznaku, F2 svoj kod.
+                field: "partner_invoice_code",
+                headerName: "Oznaka",
+                width: 130,
+                renderCell: (params) => params.value || "—",
+            },
+            {
+                field: "is_f2",
+                headerName: "Tip",
+                width: 70,
+                renderCell: (params) => (params.value ? "F2" : "F1"),
+            },
             { field: "invoice_year", headerName: "Godina", width: 100 },
             { field: "partner_name", headerName: "Partner", flex: 2, minWidth: 180 },
             { field: "partner_vat_id", headerName: "OIB/VAT", width: 140 },

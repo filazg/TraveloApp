@@ -17,6 +17,25 @@ module.exports = (sequelize) => {
                 type: DataTypes.INTEGER,
                 allowNull: false,
             },
+            // Numeracija po godini i naplatnom uredaju, isto pravilo kao na
+            // blagajni i mobilnoj: partner_invoice_no tece kontinuirano za F1 i
+            // F2, a partner_invoice_fiskal_no je sekvenca samo za F1 — F2 je
+            // ne trosi, pa ne remeti fiskalni niz.
+            partner_invoice_fiskal_no: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+            },
+            // Vidljiva oznaka racuna: "fiskalni_broj/PP/NU" za F1, a za F2
+            // osmeroznakovni kod, jer F2 nema tu strukturu.
+            partner_invoice_code: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            is_f2: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
             invoice_year: {
                 type: DataTypes.INTEGER,
                 allowNull: false,

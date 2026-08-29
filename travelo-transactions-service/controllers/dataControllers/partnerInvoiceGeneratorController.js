@@ -51,6 +51,21 @@ async function fetchPartnerChannelSettings() {
     }
 }
 
+// Oznaka F2 racuna. Alfabet bez 0/O/1/I — kod se cita s papira i prepisuje
+// rukom; isti generator kao na blagajni i mobilnoj, da F2 kodovi izgledaju isto
+// bez obzira gdje je racun izdan.
+const ALPHA32 = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const randomInvoiceCodeF2 = () => {
+    let s = "";
+    for (let i = 0; i < 8; i++) s += ALPHA32[crypto.randomInt(0, ALPHA32.length)];
+    return s;
+};
+
+// F1 nosi strukturu fiskalni_broj/poslovni_prostor/naplatni_uredaj; F2 je
+// nema, pa mu vidljiva oznaka racuna postaje njegov kod.
+const buildInvoiceCode = (isF2, fiskalNo, bpMark, bdMark) =>
+    isF2 ? randomInvoiceCodeF2() : ((fiskalNo && bpMark && bdMark) ? `${fiskalNo}/${bpMark}/${bdMark}` : null);
+
 async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
     const now = asOfDate ? new Date(asOfDate) : new Date();
     const currentYear = now.getFullYear();
@@ -71,11 +86,18 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
         partners_skipped: [],
     };
 
+    // Sekvenca ide po godini i naplatnom uredaju, kao i na blagajni: jedan
+    // uredaj — jedan niz, bez obzira kojem partneru racun ide.
+    const uredaj = channel.billing_device_uuid || null;
+    const zaUredaj = { invoice_year: currentYear, billing_device_uuid: uredaj };
     const maxRow = await PartnerInvoiceModel.findOne({
-        where: { invoice_year: currentYear },
+        where: zaUredaj,
         order: [["partner_invoice_no", "DESC"]],
     });
     let nextNo = (maxRow?.partner_invoice_no || 0) + 1;
+    // F2 ne trosi fiskalnu sekvencu, pa se ona vodi zasebno.
+    const maxFiskal = await PartnerInvoiceModel.max("partner_invoice_fiskal_no", { where: zaUredaj });
+    let nextFiskalNo = (Number.isFinite(maxFiskal) ? maxFiskal : 0) + 1;
 
     for (const partner of partnersToProcess) {
         const tickets = await TicketsModel.findAll({
@@ -160,6 +182,14 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
 
         const invoiceUuid = crypto.randomUUID();
         const invoiceNo = nextNo;
+        // F2 dobiva svoj kod i ne uzima fiskalni broj; F1 nastavlja fiskalni niz.
+        const invoiceFiskalNo = fiskalRequired ? null : nextFiskalNo;
+        const invoiceCode = buildInvoiceCode(
+            fiskalRequired,
+            invoiceFiskalNo,
+            channel.business_premise_fiscal_mark,
+            channel.billing_device_fiscal_mark
+        );
 
         const tx = await sequelize.transaction();
         try {
@@ -167,6 +197,9 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 {
                     partner_invoice_uuid: invoiceUuid,
                     partner_invoice_no: invoiceNo,
+                    partner_invoice_fiskal_no: invoiceFiskalNo,
+                    partner_invoice_code: invoiceCode,
+                    is_f2: fiskalRequired,
                     invoice_year: currentYear,
                     invoice_date: now,
                     period_from: periodFrom,
@@ -239,12 +272,16 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
 
             await tx.commit();
             nextNo += 1;
+            if (!fiskalRequired) nextFiskalNo += 1;
 
             result.invoices.push({
                 partner_uuid: partner.uuid,
                 partner_name: partner.partner_name,
                 partner_invoice_uuid: invoiceUuid,
                 partner_invoice_no: invoiceNo,
+                partner_invoice_fiskal_no: invoiceFiskalNo,
+                partner_invoice_code: invoiceCode,
+                is_f2: fiskalRequired,
                 tickets_count: tickets.length,
                 gross_amount: gross,
                 commission_pct: commissionPct,

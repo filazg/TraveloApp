@@ -80,9 +80,14 @@ export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, 
     const head = partnerInvoiceDetails?.invoice || invoiceFromList;
     const items = partnerInvoiceDetails?.items || [];
 
-    const naslov = head.fiskal_required
-        ? `F2 Račun/Invoice ${head.partner_invoice_no}/${head.invoice_year}`
-        : `Račun/Invoice ${head.partner_invoice_no}/${head.invoice_year}`;
+    // Vidljiva oznaka računa: F1 nosi "fiskalni_broj/PP/NU", F2 svoj kod, jer tu
+    // strukturu nema. Isto kao na blagajni i mobilnoj.
+    const jeF2 = head.is_f2 != null ? !!head.is_f2 : !!head.fiskal_required;
+    const oznaka = head.partner_invoice_code
+        || [head.partner_invoice_fiskal_no, head.business_premise_fiscal_mark, head.billing_device_fiscal_mark]
+            .filter(Boolean).join("/")
+        || `${head.partner_invoice_no}/${head.invoice_year}`;
+    const naslov = jeF2 ? `F2 Račun/Invoice ${oznaka}` : `Račun/Invoice ${oznaka}`;
 
     return (
         <Box sx={{ width: { xs: "100vw", sm: 780 }, height: "100%", display: "flex", flexDirection: "column" }}>
@@ -93,6 +98,7 @@ export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, 
                         <Typography variant="subtitle1" fontWeight={800}>
                             Partner račun #{head.partner_invoice_no}/{head.invoice_year}
                         </Typography>
+                        {jeF2 ? <Chip size="small" color="secondary" label="F2" /> : null}
                         {statusBadge(head.status)}
                     </Stack>
                     <Button size="small" onClick={onClose} startIcon={<CloseIcon />}>
@@ -144,6 +150,8 @@ export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, 
                                     vrijeme/time: {fmtTime(head.invoice_date)}
                                     <br />
                                     razdoblje/period: {fmtDate(head.period_from)} – {fmtDate(head.period_to)}
+                                    <br />
+                                    {jeF2 ? "kod/code" : "fisk. br./no."}: {oznaka}
                                     <br />
                                     plaćanje/payment: {head.payment_method_name || "Virman"}
                                     <br />
