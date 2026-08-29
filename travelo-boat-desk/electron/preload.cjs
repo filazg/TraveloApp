@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld("api", {
     printAllTicketsCopyIPC: (data) => ipcRenderer.invoke("app:printAllTicketsCopyIPC",data),
     printTicketCopyIPC: (data) => ipcRenderer.invoke("app:printTicketCopyIPC",data),
     readTesseraIPC: (data) => ipcRenderer.invoke("app:readTesseraIPC", data),
+    listCardReadersIPC: () => ipcRenderer.invoke("app:listCardReadersIPC"),
     getTicketsIPC: () => ipcRenderer.invoke("app:getTicketsIPC"),
     refreshF2InvoiceStatusIPC: (data) => ipcRenderer.invoke("app:refreshF2InvoiceStatusIPC", data),
     refreshPendingF2StatusesIPC: () => ipcRenderer.invoke("app:refreshPendingF2StatusesIPC"),

@@ -15,6 +15,8 @@ import {
   Switch,
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { Autocomplete, CircularProgress, InputAdornment, IconButton, Tooltip } from "@mui/material";
 import BrandMark from "./BrandMark";
 import { allAppData, setStateData } from "../../store/appSlice";
 import { useDispatch, useSelector } from "react-redux";
@@ -41,6 +43,34 @@ export default function SystemSettingsModal() {
       }
     })()
     return () => { otkazano = true }
+  }, [calculated])
+
+  // Spojeni citaci kartica. Naziv se dosad upisivao rukom, tocno onako kako ga
+  // vidi sustav — jedno slovo krivo i citanje kartice tiho ne radi, bez ikakve
+  // poruke. Zato se nudi popis onoga sto je stvarno spojeno.
+  const [citaci, setCitaci] = useState([])
+  const [citaciTraze, setCitaciTraze] = useState(false)
+  const [citaciTrazeno, setCitaciTrazeno] = useState(false)
+
+  const prepoznajCitace = async () => {
+    setCitaciTraze(true)
+    try {
+      const res = await window.api.app.listCardReadersIPC()
+      setCitaci(Array.isArray(res?.readers) ? res.readers : [])
+    } catch (e) {
+      console.log('listCardReadersIPC nije uspio:', e?.message || e)
+      setCitaci([])
+    } finally {
+      setCitaciTraze(false)
+      setCitaciTrazeno(true)
+    }
+  }
+
+  // Popis se dohvaca kad se postavke otkljucaju — citac se u meduvremenu mogao
+  // spojiti ili odspojiti, pa nema smisla pamtiti ga od dizanja aplikacije.
+  useEffect(() => {
+    if (!calculated) return
+    prepoznajCitace()
   }, [calculated])
 
   const handleClose = async() => {
@@ -236,13 +266,45 @@ export default function SystemSettingsModal() {
                 fullWidth
                 sx={{ mb: 2 }}
                 />
-            <TextField
-                name="card_reader"
-                label="card_reader"
+            <Autocomplete
+                freeSolo
+                options={citaci}
                 value={settingsData?.card_reader || ""}
-                onChange={handleChange}
-                fullWidth
+                onChange={(_e, v) => setNewSettingsData((prev) => ({ ...prev, card_reader: v || "" }))}
+                onInputChange={(_e, v) => setNewSettingsData((prev) => ({ ...prev, card_reader: v }))}
                 sx={{ mb: 2 }}
+                renderInput={(params) => (
+                    <TextField
+                        {...params}
+                        label="Čitač kartica"
+                        helperText={
+                            citaciTraze
+                                ? "Tražim spojene čitače…"
+                                : citaci.length
+                                    ? `Pronađeno čitača: ${citaci.length}`
+                                    : citaciTrazeno
+                                        ? "Nije pronađen nijedan čitač — provjeri je li spojen i uključen."
+                                        : " "
+                        }
+                        InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                                <>
+                                    <InputAdornment position="end">
+                                        <Tooltip title="Prepoznaj spojene čitače">
+                                            <span>
+                                                <IconButton onClick={prepoznajCitace} disabled={citaciTraze} size="small">
+                                                    {citaciTraze ? <CircularProgress size={18} /> : <RefreshIcon />}
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                    {params.InputProps.endAdornment}
+                                </>
+                            ),
+                        }}
+                    />
+                )}
             />
             <TextField
                 name="pos_port"

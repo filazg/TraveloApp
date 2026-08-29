@@ -301,6 +301,18 @@ function registerAppIpc() {
       return fail("Failed to sync pending invoices", e?.stack || String(e));
     }
   });
+  // Popis PC/SC citaca spojenih na racunalo. Naziv citaca se dosad upisivao
+  // rukom, tocno onako kako ga vidi sustav — jedno slovo krivo i citanje kartice
+  // tiho ne radi.
+  ipcMain.handle("app:listCardReadersIPC", async () => {
+    try {
+      const data = await runTesseraCli(["list-readers"], 8000);
+      return { ok: true, readers: Array.isArray(data?.readers) ? data.readers : [] };
+    } catch (e) {
+      return { ok: false, readers: [], error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
   ipcMain.handle("app:readTesseraIPC", async (_event, in_data) => {
   try {
     const args = ["read", "--reader", in_data];
