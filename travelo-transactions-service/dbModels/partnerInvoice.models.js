@@ -33,6 +33,33 @@ module.exports = (sequelize) => {
                 type: DataTypes.DATE,
                 allowNull: false,
             },
+            // Izdavatelj u trenutku izdavanja. Racun mora sam nositi tko ga je
+            // izdao — podaci tvrtke se s vremenom mijenjaju, a vec izdani racun
+            // se ne smije mijenjati zajedno s njima.
+            company_name: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            company_address: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            company_postal_code: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            company_town: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            company_legal_id: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            company_iban: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
             partner_uuid: {
                 type: DataTypes.STRING,
                 allowNull: false,

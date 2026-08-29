@@ -265,7 +265,8 @@ function TabRacuniZaProvizije() {
                 open={!!selectedInvoice}
                 onClose={() => setSelectedInvoice(null)}
                 PaperProps={{
-                    sx: { width: { xs: "100vw", sm: 720, md: 980 }, maxWidth: "100vw" },
+                    // Širinu određuje sam dokument, kao i kod ostalih računa.
+                    sx: { height: "100%", maxWidth: "100vw", overflow: "hidden" },
                 }}
             >
                 <PartnerInvoicePreviewDrawer

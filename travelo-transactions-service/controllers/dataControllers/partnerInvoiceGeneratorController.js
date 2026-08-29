@@ -17,6 +17,21 @@ async function fetchPartnersFromBackoffice() {
     return resp.data?.data?.partners || [];
 }
 
+// Podaci izdavatelja. Racun ih nosi kao snimku: podaci tvrtke se s vremenom
+// mijenjaju, a vec izdani racun se ne smije mijenjati zajedno s njima.
+async function fetchCompanyFromBackoffice() {
+    try {
+        const coreConfig = await getCoreServiceConfigData();
+        const boUrl = coreConfig?.services?.backoffice?.url;
+        if (!boUrl) return {};
+        const resp = await axios.get(`${boUrl}/company`, { timeout: 10000, validateStatus: () => true });
+        return resp.data?.data?.company || {};
+    } catch (err) {
+        console.log("fetchCompanyFromBackoffice error:", err?.message || err);
+        return {};
+    }
+}
+
 // Postavke izdavanja za kanal "partner" (Administracija → Partnerska prodaja).
 // Nose fiskalne oznake i sredstvo plaćanja; provizija i dinamika ostaju po partneru.
 async function fetchPartnerChannelSettings() {
@@ -45,6 +60,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
 
     const partners = await fetchPartnersFromBackoffice();
     const channel = await fetchPartnerChannelSettings();
+    const company = await fetchCompanyFromBackoffice();
     const partnersToProcess = onlyPartnerUuid
         ? partners.filter((p) => p.uuid === onlyPartnerUuid)
         : partners.filter((p) => p.is_active);
@@ -155,6 +171,12 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                     invoice_date: now,
                     period_from: periodFrom,
                     period_to: periodTo,
+                    company_name: company.name || null,
+                    company_address: company.address || null,
+                    company_postal_code: company.postal_code || null,
+                    company_town: company.town || null,
+                    company_legal_id: company.legal_id || null,
+                    company_iban: company.iban || null,
                     partner_uuid: partner.uuid,
                     partner_name: partner.partner_name,
                     partner_legal_id: partner.partner_legal_id,

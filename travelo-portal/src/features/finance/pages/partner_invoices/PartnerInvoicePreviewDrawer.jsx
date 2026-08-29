@@ -1,10 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
     Box,
     Button,
+    Chip,
     CircularProgress,
     Divider,
+    Drawer,
+    Paper,
     Stack,
     Table,
     TableBody,
@@ -15,286 +18,256 @@ import {
     Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import { fetchPartnerInvoiceDetailsThunk, financeSliceData } from "../../financeSlice";
+import PartnerInvoiceDetailsDrawer from "./PartnerInvoiceDetailsDrawer";
 
-const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
-const fmtDateTime = (s) => {
-    if (!s) return "";
-    const d = new Date(s);
-    if (isNaN(d.getTime())) return String(s);
-    return d.toLocaleString("hr-HR");
-};
+const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} EUR`;
 const fmtDate = (s) => {
     if (!s) return "";
     const d = new Date(s);
     if (isNaN(d.getTime())) return String(s);
-    return d.toLocaleDateString("hr-HR");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${dd}.${mm}.${d.getFullYear()}`;
+};
+const fmtTime = (s) => {
+    if (!s) return "";
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return "";
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-export default function PartnerInvoicePreviewDrawer({ invoice, onClose }) {
+const statusBadge = (s) => {
+    const map = {
+        paid: { label: "Plaćeno", color: "success" },
+        issued: { label: "Izdano", color: "primary" },
+        canceled: { label: "Stornirano", color: "error" },
+    };
+    const cfg = map[s] || { label: s || "—", color: "default" };
+    return <Chip size="small" label={cfg.label} color={cfg.color} />;
+};
+
+// Isti izgled kao ostali računi u sustavu — dokument na bijelom listu, a ne
+// popis brojki: partnerski račun je račun kao i svaki drugi i tako se čita.
+const DocStyles = {
+    fontFamily: `'Arial', 'Helvetica', sans-serif`,
+    color: "#1a1a1a",
+    "& table": { width: "100%", borderCollapse: "collapse" },
+    "& td, & th": { verticalAlign: "top", padding: "4px 6px" },
+    "& .head-row td": { fontSize: 13, lineHeight: 1.4 },
+    "& .items th": { fontSize: 12, fontWeight: 700, borderBottom: "1px solid #bbb", textAlign: "left" },
+    "& .items td": { fontSize: 12, borderBottom: "1px dotted #e5e5e5" },
+    "& .totals td": { fontSize: 13 },
+    "& .totals .label": { color: "#555" },
+    "& .totals .total td": { fontSize: 14, fontWeight: 800, borderTop: "1px solid #999", paddingTop: 6 },
+};
+
+export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, onClose }) {
     const dispatch = useDispatch();
     const { partnerInvoiceDetails, partnerInvoiceDetailsLoading } = useSelector(financeSliceData);
+    const [detaljiOtvoreni, setDetaljiOtvoreni] = useState(false);
 
     useEffect(() => {
-        if (invoice?.partner_invoice_uuid) {
-            dispatch(fetchPartnerInvoiceDetailsThunk(invoice.partner_invoice_uuid));
+        if (invoiceFromList?.partner_invoice_uuid) {
+            dispatch(fetchPartnerInvoiceDetailsThunk(invoiceFromList.partner_invoice_uuid));
         }
-    }, [dispatch, invoice?.partner_invoice_uuid]);
+    }, [dispatch, invoiceFromList?.partner_invoice_uuid]);
 
-    if (!invoice) return null;
+    if (!invoiceFromList) return null;
 
-    const head = partnerInvoiceDetails?.invoice || invoice;
+    // Popis vraća sažetak, detalji cijeli zapis — uzima se detaljni kad stigne.
+    const head = partnerInvoiceDetails?.invoice || invoiceFromList;
     const items = partnerInvoiceDetails?.items || [];
 
-    return (
-        <Box sx={{ p: 3, height: "100%", overflow: "auto" }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="h5" fontWeight="bold">
-                    Partner račun · #{head.partner_invoice_no}/{head.invoice_year}
-                </Typography>
-                <Button onClick={onClose} startIcon={<CloseIcon />}>Zatvori</Button>
-            </Stack>
+    const naslov = head.fiskal_required
+        ? `F2 Račun/Invoice ${head.partner_invoice_no}/${head.invoice_year}`
+        : `Račun/Invoice ${head.partner_invoice_no}/${head.invoice_year}`;
 
-            <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{ mb: 2 }}>
-                <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle2" color="text.secondary">Partner</Typography>
-                    <Typography fontWeight={700}>{head.partner_name || "—"}</Typography>
-                    {head.partner_legal_id && <Typography variant="body2">OIB: {head.partner_legal_id}</Typography>}
-                    {head.partner_vat_id && <Typography variant="body2">VAT: {head.partner_vat_id}</Typography>}
-                    {head.partner_address && <Typography variant="body2">{head.partner_address}</Typography>}
-                    {(head.partner_postal_code || head.partner_town) && (
-                        <Typography variant="body2">
-                            {[head.partner_postal_code, head.partner_town].filter(Boolean).join(" ")}
+    return (
+        <Box sx={{ width: { xs: "100vw", sm: 780 }, height: "100%", display: "flex", flexDirection: "column" }}>
+            {/* Traka iznad dokumenta — nije dio ispisa */}
+            <Box sx={{ px: 3, py: 1.5, borderBottom: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Typography variant="subtitle1" fontWeight={800}>
+                            Partner račun #{head.partner_invoice_no}/{head.invoice_year}
                         </Typography>
-                    )}
-                    {head.partner_country && <Typography variant="body2">{head.partner_country}</Typography>}
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle2" color="text.secondary">Podaci o računu</Typography>
-                    <Typography variant="body2">Datum izdavanja: <b>{fmtDateTime(head.invoice_date)}</b></Typography>
-                    <Typography variant="body2">
-                        Razdoblje: <b>{fmtDate(head.period_from)} — {fmtDate(head.period_to)}</b>
-                    </Typography>
-                    <Typography variant="body2">Status: <b>{head.status || "—"}</b></Typography>
-                    <Typography variant="body2">Broj karata: <b>{head.tickets_count}</b></Typography>
-                </Box>
-            </Stack>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* Račun se čita odozgo prema dolje: od naplaćenog se odbije provizija,
-                na ostatak ide PDV, a lučka pristojba se dodaje cijela i bez PDV-a
-                jer je prolazna stavka. */}
-            <Stack direction="row" spacing={4} sx={{ mb: 2, flexWrap: "wrap", rowGap: 2 }}>
-                <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Naplaćeno (bruto)</Typography>
-                    <Typography variant="h6">{fmtEUR(head.gross_amount)}</Typography>
-                </Box>
-                <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Osnovica</Typography>
-                    <Typography variant="h6">{fmtEUR(head.commission_base)}</Typography>
-                </Box>
-                <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Provizija ({Number(head.commission_pct || 0).toFixed(2)}%)</Typography>
-                    <Typography variant="h6">− {fmtEUR(head.commission_amount)}</Typography>
-                </Box>
-                <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Osnovica za PDV</Typography>
-                    <Typography variant="h6">{fmtEUR(head.vat_base)}</Typography>
-                </Box>
-                <Box>
-                    <Typography variant="subtitle2" color="text.secondary">PDV ({Number(head.vat_rate || 0).toFixed(2)}%)</Typography>
-                    <Typography variant="h6">{fmtEUR(head.vat_amount)}</Typography>
-                </Box>
-                <Box>
-                    {/* Pristojba nije naš prihod nego se prosljeđuje luci: fakturira
-                        se cijela, ne umanjuje za proviziju i ne ulazi u PDV. */}
-                    <Typography variant="subtitle2" color="text.secondary">Lučka pristojba (bez PDV-a)</Typography>
-                    <Typography variant="h6">{fmtEUR(head.harbor_tax_amount)}</Typography>
-                </Box>
-                <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Za naplatu</Typography>
-                    <Typography variant="h6" color="primary" fontWeight={800}>
-                        {fmtEUR(head.net_amount)}
-                    </Typography>
-                </Box>
-            </Stack>
-
-            <Divider sx={{ my: 2 }} />
-
-            {partnerInvoiceDetailsLoading ? (
-                <Stack alignItems="center" sx={{ py: 4 }}>
-                    <CircularProgress />
+                        {statusBadge(head.status)}
+                    </Stack>
+                    <Button size="small" onClick={onClose} startIcon={<CloseIcon />}>
+                        Zatvori
+                    </Button>
                 </Stack>
-            ) : (
-                <>
-                    <RouteSummarySection items={items} />
-                    <Divider sx={{ my: 3 }} />
-                    <OrderBreakdownSection items={items} />
-                </>
-            )}
-        </Box>
-    );
-}
+            </Box>
 
-function RouteSummarySection({ items }) {
-    const groups = groupBy(items, (it) => it.route_uuid || "—");
-    const rows = Object.entries(groups).map(([route_uuid, arr]) => {
-        const first = arr[0];
-        const line = [first.line_code, first.line_name].filter(Boolean).join(" · ");
-        const relation = [first.departure_harbor_name, first.arrival_harbor_name].filter(Boolean).join(" → ");
-        const count = arr.length;
-        const gross = arr.reduce((s, x) => s + Number(x.gross_amount || 0), 0);
-        const commission = arr.reduce((s, x) => s + Number(x.commission_amount || 0), 0);
-        const net = arr.reduce((s, x) => s + Number(x.net_amount || 0), 0);
-        return { route_uuid, line, relation, count, gross, commission, net };
-    });
+            <Box sx={{ flex: 1, overflow: "auto", bgcolor: "#f2f2f2", py: 3 }}>
+                <Paper elevation={2} sx={{ mx: "auto", maxWidth: 720, p: 5, bgcolor: "#ffffff", ...DocStyles }}>
+                    <Box sx={{ textAlign: "center", fontFamily: "monospace", color: "#777", fontSize: 11, letterSpacing: 1, mb: 2 }}>
+                        {head.partner_invoice_uuid}
+                    </Box>
 
-    return (
-        <>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-                Agregat po relaciji
-            </Typography>
-            <TableContainer>
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Linija</TableCell>
-                            <TableCell>Relacija</TableCell>
-                            <TableCell align="right">Karte</TableCell>
-                            <TableCell align="right">Bruto</TableCell>
-                            <TableCell align="right">Provizija</TableCell>
-                            <TableCell align="right">Osnovica za PDV</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {rows.map((r) => (
-                            <TableRow key={r.route_uuid}>
-                                <TableCell>{r.line}</TableCell>
-                                <TableCell>{r.relation}</TableCell>
-                                <TableCell align="right">{r.count}</TableCell>
-                                <TableCell align="right">{fmtEUR(r.gross)}</TableCell>
-                                <TableCell align="right">{fmtEUR(r.commission)}</TableCell>
-                                <TableCell align="right">{fmtEUR(r.net)}</TableCell>
-                            </TableRow>
-                        ))}
-                        {rows.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={6} align="center">
-                                    <Typography variant="body2" color="text.secondary">Nema stavki</Typography>
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </>
-    );
-}
+                    <table>
+                        <tbody>
+                            <tr className="head-row">
+                                <td style={{ width: "34%" }}>
+                                    <strong>{head.company_name || "—"}</strong>
+                                    <br />
+                                    {head.company_address}
+                                    <br />
+                                    {head.company_legal_id ? `OIB: ${head.company_legal_id}` : ""}
+                                    <br />
+                                    {head.company_postal_code} {head.company_town}
+                                </td>
+                                <td style={{ width: "34%" }}>
+                                    <strong>Kupac/Buyer</strong>
+                                    <br />
+                                    {head.partner_name}
+                                    <br />
+                                    {head.partner_legal_id ? `OIB: ${head.partner_legal_id}` : ""}
+                                    <br />
+                                    {head.partner_vat_id && head.partner_vat_id !== head.partner_legal_id
+                                        ? `VAT: ${head.partner_vat_id}`
+                                        : ""}
+                                    <br />
+                                    {head.partner_address}
+                                    <br />
+                                    {[head.partner_postal_code, head.partner_town].filter(Boolean).join(" ")}
+                                    <br />
+                                    {head.partner_country}
+                                </td>
+                                <td style={{ width: "32%" }}>
+                                    <strong>Podaci/Data:</strong>
+                                    <br />
+                                    datum/date: {fmtDate(head.invoice_date)}
+                                    <br />
+                                    vrijeme/time: {fmtTime(head.invoice_date)}
+                                    <br />
+                                    razdoblje/period: {fmtDate(head.period_from)} – {fmtDate(head.period_to)}
+                                    <br />
+                                    plaćanje/payment: {head.payment_method_name || "Virman"}
+                                    <br />
+                                    {head.company_iban ? `IBAN: ${head.company_iban}` : ""}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
 
-function OrderBreakdownSection({ items }) {
-    const groups = groupBy(items, (it) => it.order_uuid || `ticket:${it.ticket_uuid}`);
-    const orders = Object.entries(groups)
-        .map(([order_uuid, arr]) => {
-            const note = arr.find((x) => x.order_note)?.order_note || null;
-            const times = arr.map((x) => (x.sale_datetime ? new Date(x.sale_datetime).getTime() : null)).filter((t) => t != null);
-            const saleTime = times.length ? new Date(Math.min(...times)).toISOString() : null;
-            const count = arr.length;
-            const gross = arr.reduce((s, x) => s + Number(x.gross_amount || 0), 0);
-            const commission = arr.reduce((s, x) => s + Number(x.commission_amount || 0), 0);
-            const net = arr.reduce((s, x) => s + Number(x.net_amount || 0), 0);
-            return { order_uuid, note, saleTime, count, gross, commission, net, items: arr };
-        })
-        .sort((a, b) => (a.saleTime || "").localeCompare(b.saleTime || ""));
+                    <Box sx={{ textAlign: "center", my: 3 }}>
+                        <Typography variant="h5" fontWeight={800}>{naslov}</Typography>
+                    </Box>
 
-    return (
-        <>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-                Rezime po kupnji
-            </Typography>
-            <Stack spacing={2}>
-                {orders.map((o) => (
-                    <Box key={o.order_uuid} sx={{ border: "1px solid #e0e0e0", borderRadius: 1, p: 2 }}>
-                        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} spacing={1}>
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">Vrijeme kupnje</Typography>
-                                <Typography fontWeight={700}>{fmtDateTime(o.saleTime)}</Typography>
-                            </Box>
-                            <Stack direction="row" spacing={3}>
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Karte</Typography>
-                                    <Typography fontWeight={700}>{o.count}</Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Bruto</Typography>
-                                    <Typography fontWeight={700}>{fmtEUR(o.gross)}</Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Provizija</Typography>
-                                    <Typography fontWeight={700}>{fmtEUR(o.commission)}</Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Osnovica za PDV</Typography>
-                                    <Typography fontWeight={700} color="primary">{fmtEUR(o.net)}</Typography>
-                                </Box>
-                            </Stack>
-                        </Stack>
-                        {o.note && (
-                            <Box sx={{ mt: 1.5, bgcolor: "#fff8e1", border: "1px solid #ffe082", borderRadius: 1, p: 1.25 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontWeight: 700 }}>Napomena</Typography>
-                                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{o.note}</Typography>
-                            </Box>
-                        )}
-                        <Box sx={{ mt: 1.5 }}>
-                            <TableContainer>
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Karta</TableCell>
-                                            <TableCell>Tip</TableCell>
-                                            <TableCell>Linija</TableCell>
-                                            <TableCell>Relacija</TableCell>
-                                            <TableCell>Polazak</TableCell>
-                                            <TableCell align="right">Bruto</TableCell>
-                                            <TableCell align="right">Provizija</TableCell>
-                                            <TableCell align="right">Osnovica za PDV</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {o.items.map((it) => (
-                                            <TableRow key={it.id}>
-                                                <TableCell>{it.ticket_code}</TableCell>
-                                                <TableCell>{it.ticket_type_name}</TableCell>
-                                                <TableCell>{it.line_code || it.line_name}</TableCell>
-                                                <TableCell>
-                                                    {[it.departure_harbor_name, it.arrival_harbor_name].filter(Boolean).join(" → ")}
-                                                </TableCell>
-                                                <TableCell>{it.departure}</TableCell>
-                                                <TableCell align="right">{fmtEUR(it.gross_amount)}</TableCell>
-                                                <TableCell align="right">{fmtEUR(it.commission_amount)}</TableCell>
-                                                <TableCell align="right">{fmtEUR(it.net_amount)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
+                    {/* Račun ima nekoliko stavaka i tako se i čita; što je točno
+                        prodano stoji u razradi, iza gumba Detalji. */}
+                    <TableContainer className="items">
+                        <Table size="small" sx={{ mt: 1 }}>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell sx={{ width: 32 }}>#</TableCell>
+                                    <TableCell>Stavke/Items</TableCell>
+                                    <TableCell align="right" sx={{ width: 70 }}>Kol/Qty</TableCell>
+                                    <TableCell align="right" sx={{ width: 120 }}>Iznos/Amount</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell>1</TableCell>
+                                    <TableCell>
+                                        Prodane karte u razdoblju {fmtDate(head.period_from)} – {fmtDate(head.period_to)}
+                                        <br />
+                                        <span style={{ color: "#777" }}>osnovica bez lučke pristojbe i PDV-a</span>
+                                    </TableCell>
+                                    <TableCell align="right">{head.tickets_count}</TableCell>
+                                    <TableCell align="right">{fmtEUR(head.commission_base)}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell>2</TableCell>
+                                    <TableCell>
+                                        Provizija partnera {Number(head.commission_pct || 0).toFixed(2)} %
+                                        <br />
+                                        <span style={{ color: "#777" }}>obračunata na osnovicu</span>
+                                    </TableCell>
+                                    <TableCell align="right" />
+                                    <TableCell align="right">− {fmtEUR(head.commission_amount)}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell>3</TableCell>
+                                    <TableCell>
+                                        Lučka pristojba
+                                        <br />
+                                        <span style={{ color: "#777" }}>prolazna stavka, oslobođeno PDV-a</span>
+                                    </TableCell>
+                                    <TableCell align="right" />
+                                    <TableCell align="right">{fmtEUR(head.harbor_tax_amount)}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+                        <Box sx={{ width: 340 }} className="totals">
+                            <table>
+                                <tbody>
+                                    <tr>
+                                        <td className="label">Osnovica/Tax base:</td>
+                                        <td style={{ textAlign: "right" }}>{fmtEUR(head.vat_base)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label">PDV/VAT ({Number(head.vat_rate || 0).toFixed(0)}%):</td>
+                                        <td style={{ textAlign: "right" }}>{fmtEUR(head.vat_amount)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label">Lučka taksa/Port fee:</td>
+                                        <td style={{ textAlign: "right" }}>{fmtEUR(head.harbor_tax_amount)}</td>
+                                    </tr>
+                                    <tr className="total">
+                                        <td>Ukupno/Total:</td>
+                                        <td style={{ textAlign: "right" }}>{fmtEUR(head.net_amount)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </Box>
                     </Box>
-                ))}
-                {orders.length === 0 && (
-                    <Typography variant="body2" color="text.secondary" align="center">Nema stavki</Typography>
-                )}
-            </Stack>
-        </>
-    );
-}
 
-function groupBy(arr, keyFn) {
-    const out = {};
-    for (const item of arr) {
-        const k = keyFn(item);
-        if (!out[k]) out[k] = [];
-        out[k].push(item);
-    }
-    return out;
+                    <Divider sx={{ my: 3 }} />
+
+                    <Box sx={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>
+                        Naplaćeno od putnika: {fmtEUR(head.gross_amount)}. Provizija je obračunata na osnovicu, bez lučke
+                        pristojbe i bez PDV-a. /
+                        <br />
+                        Lučke takse u cijeni su prolazne stavke. Oslobođeno PDV-a prema čl. 33 st. 3 Zakona o PDV-u. /
+                        <br />
+                        Port taxes in the price are a passing item. Exempt from VAT according to Art. 33 paragraph 3 of the Law on VAT.
+                    </Box>
+                </Paper>
+            </Box>
+
+            <Box sx={{ px: 3, py: 2, borderTop: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
+                <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                    {partnerInvoiceDetailsLoading ? <CircularProgress size={18} /> : null}
+                    <Button
+                        variant="contained"
+                        startIcon={<ListAltOutlinedIcon />}
+                        onClick={() => setDetaljiOtvoreni(true)}
+                        disabled={!items.length}
+                    >
+                        Detalji
+                    </Button>
+                </Stack>
+            </Box>
+
+            <Drawer
+                anchor="right"
+                open={detaljiOtvoreni}
+                onClose={() => setDetaljiOtvoreni(false)}
+                PaperProps={{ sx: { width: { xs: "100vw", sm: 860, md: 1100 }, maxWidth: "100vw" } }}
+            >
+                <PartnerInvoiceDetailsDrawer
+                    invoice={head}
+                    items={items}
+                    onClose={() => setDetaljiOtvoreni(false)}
+                />
+            </Drawer>
+        </Box>
+    );
 }
