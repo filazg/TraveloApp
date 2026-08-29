@@ -72,7 +72,7 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                             startIcon={<FileDownloadOutlinedIcon />}
                             onClick={() => naDetalje?.(podaci, null, "cijelo razdoblje")}
                         >
-                            Skini sve
+                            Preuzmi sve
                         </Button>
                     </span>
                 </Tooltip>
@@ -319,10 +319,6 @@ export default function PartnerCommissionPage() {
                         Excel
                     </Button>
                 </Stack>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                    Razdoblje se određuje iz dinamike naplate partnera. Provizija se računa na neto
-                    osnovicu — bez lučke pristojbe i bez PDV-a.
-                </Typography>
             </Paper>
 
             {finance.partnerCommissionError ? (
