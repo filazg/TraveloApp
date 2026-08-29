@@ -278,8 +278,6 @@ export default function PartnerCommissionPage() {
         }
     };
 
-    const nemaNista = !partneri.length && !obracun.partner_channel;
-
     return (
         // Puna sirina kao i ostali prikazi u Financijama.
         <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
@@ -319,6 +317,10 @@ export default function PartnerCommissionPage() {
                         Excel
                     </Button>
                 </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+                    Razdoblje se određuje iz dinamike naplate partnera. Provizija se računa na neto
+                    osnovicu — bez lučke pristojbe i bez PDV-a.
+                </Typography>
             </Paper>
 
             {finance.partnerCommissionError ? (
@@ -354,12 +356,6 @@ export default function PartnerCommissionPage() {
                 </>
             ) : null}
 
-            {partnerUuid && nemaNista && !finance.partnerCommissionLoading ? (
-                <Alert severity="info">
-                    Nema prodaje u obračunskom razdoblju{from && to ? ` (${hrDatum(from)} – ${hrDatum(to)})` : ""}.
-                    Obračunava se zadnje zaokruženo razdoblje, ne ono koje traje.
-                </Alert>
-            ) : null}
         </Box>
     );
 }
