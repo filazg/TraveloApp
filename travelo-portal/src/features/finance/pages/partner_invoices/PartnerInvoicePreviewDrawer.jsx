@@ -231,10 +231,9 @@ export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, 
 
                     <Divider sx={{ my: 3 }} />
 
+                    {/* Koliko je partner naplatio putniku ne stoji na računu: prodaje u
+                        svoje ime i po svojoj cijeni, a mi mu fakturiramo svoju cijenu. */}
                     <Box sx={{ fontSize: 11, color: "#555", lineHeight: 1.5 }}>
-                        Naplaćeno od putnika: {fmtEUR(head.gross_amount)}. Provizija je obračunata na osnovicu, bez lučke
-                        pristojbe i bez PDV-a. /
-                        <br />
                         Lučke takse u cijeni su prolazne stavke. Oslobođeno PDV-a prema čl. 33 st. 3 Zakona o PDV-u. /
                         <br />
                         Port taxes in the price are a passing item. Exempt from VAT according to Art. 33 paragraph 3 of the Law on VAT.
