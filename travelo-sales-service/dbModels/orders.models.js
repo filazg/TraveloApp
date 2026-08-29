@@ -25,7 +25,7 @@ module.exports = (sequelize) => {
             arrival_harbor_name: { type: DataTypes.STRING, allowNull: true },
             departure_date: { type: DataTypes.STRING, allowNull: true },
             departure_time: { type: DataTypes.STRING, allowNull: true },
-            // Vrijeme dolaska s voznog reda ("DD.MM.YYYY. HH:mm"). Bez njega web
+            // Vrijeme dolaska s plovidbenog reda ("DD.MM.YYYY. HH:mm"). Bez njega web
             // prodaja nije imala sto upisati na kartu, pa je dolazak ostajao prazan.
             arrival_planned: { type: DataTypes.STRING, allowNull: true },
 

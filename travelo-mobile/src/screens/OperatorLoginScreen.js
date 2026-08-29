@@ -100,7 +100,7 @@ export default function OperatorLoginScreen() {
 
     const onRefresh = async () => {
         if (osvjezavanje) return;
-        // Povlači se i vozni red, ne samo osnovni podaci. Prije je gumb dohvaćao
+        // Povlači se i plovidbeni red, ne samo osnovni podaci. Prije je gumb dohvaćao
         // samo basic_data, pa promjena linija dozvoljenih uređaju nije stizala
         // dok se ne povuče popis linija — a gumb kaže "Osvježi podatke".
         const [res, transport] = await Promise.all([
@@ -194,8 +194,8 @@ export default function OperatorLoginScreen() {
                         )}
                     </TouchableOpacity>
 
-                    {/* I vozni red, ne samo sync.loading: basic_data zavrsi prije
-                        voznog reda, pa je pokazivac gasnuo dok se linije jos
+                    {/* I plovidbeni red, ne samo sync.loading: basic_data zavrsi prije
+                        plovidbenog reda, pa je pokazivac gasnuo dok se linije jos
                         povlace i operater je usao na stari popis. */}
                     <TouchableOpacity
                         style={[styles.btnLink, osvjezavanje && styles.btnDisabled]}

@@ -127,11 +127,11 @@ async function syncTransportDataService() {
       const linesData = transportData.data.lines;
 
       // Nepotpun odgovor se ne sprema. Bez ove provjere bi truncate ispraznio
-      // vozni red, a bulkCreate(undefined) puknuo — blagajna bi ostala bez
+      // plovidbeni red, a bulkCreate(undefined) puknuo — blagajna bi ostala bez
       // ijednog polaska do sljedeceg uspjesnog syncanja.
       if (!Array.isArray(salesRoutesData) || !Array.isArray(linesData) ||
           !Array.isArray(priceData) || !Array.isArray(harborsData)) {
-        throw new Error("Vozni red nije stigao u cijelosti");
+        throw new Error("Plovidbeni red nije stigao u cijelosti");
       }
 
       await salesRoutesDataModel.truncate();
@@ -148,7 +148,7 @@ async function syncTransportDataService() {
   } catch (error) {
     console.log(error);
     // Isto kao kod osnovnih podataka: neuspjeh mora doci do prodajnog modula,
-    // da sinkronizacija ne javlja uspjeh kad vozni red nije osvjezen.
+    // da sinkronizacija ne javlja uspjeh kad plovidbeni red nije osvjezen.
     throw error;
   }
 }

@@ -62,9 +62,9 @@ export const syncTransportDataThunk = createAsyncThunk(
         try {
             // `lean=1` — bez proslih polazaka i bez polja koja terminal ne
             // koristi; paket padne s ~4 MB na ~2 MB. `v` je otisak zadnjeg
-            // preuzetog voznog reda: ako se nista nije promijenilo, posluzitelj
+            // preuzetog plovidbenog reda: ako se nista nije promijenilo, posluzitelj
             // vrati samo potvrdu i uredaj preskoci upis od nekoliko tisuca
-            // redaka. Vozni red se mijenja rijetko, a osvjezava cesto.
+            // redaka. Plovidbeni red se mijenja rijetko, a osvjezava cesto.
             const zadnjaVerzija = await getSetting('transport_version');
             const resp = await api.get(ENDPOINTS.transportData, {
                 params: { lean: 1, ...(zadnjaVerzija ? { v: zadnjaVerzija } : {}) },
@@ -74,9 +74,9 @@ export const syncTransportDataThunk = createAsyncThunk(
                 return { unchanged: true };
             }
             // Nepotpun odgovor se ne sprema. Inace bi `|| []` obrisalo lokalni
-            // vozni red i ostavilo uredaj bez ijednog polaska.
+            // plovidbeni red i ostavilo uredaj bez ijednog polaska.
             if (!Array.isArray(payload.lines) || !Array.isArray(payload.sales_routes)) {
-                return rejectWithValue({ message: 'Vozni red nije stigao u cijelosti' });
+                return rejectWithValue({ message: 'Plovidbeni red nije stigao u cijelosti' });
             }
             await saveTransportData({
                 harbors: payload.harbors || [],

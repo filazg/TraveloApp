@@ -42,14 +42,14 @@ export default function SalesScreen() {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [syncing, setSyncing] = useState(false);
 
-  // Isto što radi i gumb SINKRONIZACIJA na prijavi: povuče vozne redove i
+  // Isto što radi i gumb SINKRONIZACIJA na prijavi: povuče plovidbene redove i
   // osnovne podatke s backenda pa osvježi ono što je u memoriji. Ovdje treba
-  // jer se vozni red ili cjenik znaju promijeniti usred smjene, a blagajnik se
+  // jer se plovidbeni red ili cjenik znaju promijeniti usred smjene, a blagajnik se
   // dotad morao odjaviti da bi to povukao.
   // Smjenu u 01:00 zatvara glavni proces. Kad se to dogodi, na ekranu bi inače
   // ostao prijavljen operater čija smjena više ne postoji — pa bi sljedeća
   // prodaja pala jer nema otvorene smjene. Zato se odjavljuje ovdje.
-  // Poslužitelj javlja kad se vozni red promijeni (otkaz ili pomak polaska), a
+  // Poslužitelj javlja kad se plovidbeni red promijeni (otkaz ili pomak polaska), a
   // glavni proces ga tiho povuče. Ovdje se samo osvježi ono što je na ekranu —
   // bez prekrivanja i bez poruke, da se operatera ne prekida usred prodaje.
   useEffect(() => {
@@ -86,12 +86,12 @@ export default function SalesScreen() {
       const transportRes = await window.api.app.syncTransportBackend();
       const basicRes = await window.api.app.syncBasicBackend();
       const neuspjeh = [
-        transportRes?.ok === false ? "vozni red" : null,
+        transportRes?.ok === false ? "plovidbeni red" : null,
         basicRes?.ok === false ? "osnovni podaci" : null,
       ].filter(Boolean);
       const basicData = await window.api.app.getLocalBasicDataIpc();
       await dispatch(setStateData({ path: "basicData", value: basicData.data }));
-      // Vozni redovi se drže odvojeno od osnovnih podataka i FilterBar ih čita
+      // Plovidbeni redovi se drže odvojeno od osnovnih podataka i FilterBar ih čita
       // iz transportData — bez ovoga bi nova pretraga i dalje nudila stari red.
       const transportData = await window.api.app.getLocalTransportDataIpc();
       await dispatch(setStateData({ path: "transportData", value: transportData.data }));

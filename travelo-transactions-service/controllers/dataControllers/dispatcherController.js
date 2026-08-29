@@ -5,8 +5,8 @@ const { sendDispatcherEmail } = require("../../helpers/dispatcherEmail");
 const { pomakni } = require("../../helpers/voyageTime");
 
 // Otkaz polaska mora stići na tri mjesta:
-//   1. boat — matični vozni red. Bez njega otkaz nestane pri prvom idućem
-//      sinkroniziranju voznog reda, jer se kopije brišu i pune odavde.
+//   1. boat — matični plovidbeni red. Bez njega otkaz nestane pri prvom idućem
+//      sinkroniziranju plovidbenog reda, jer se kopije brišu i pune odavde.
 //   2. sales — kopija za blagajne (desk i mobilna).
 //   3. web_sales — kopija za internetsku prodaju, koja ima svoj popis polazaka.
 //
@@ -34,7 +34,7 @@ async function propagirajOtkazRuta(route_uuids, otkazan) {
     };
 
     const boat = await posalji(coreConfig?.services?.boat?.url, "/sales_routes/cancel_batch");
-    if (!boat.ok) throw new Error(`vozni red nije azuriran: ${boat.error}`);
+    if (!boat.ok) throw new Error(`plovidbeni red nije azuriran: ${boat.error}`);
 
     const sales = await posalji(coreConfig?.services?.sales?.url, "/routes/cancel_batch");
 
@@ -48,7 +48,7 @@ async function propagirajOtkazRuta(route_uuids, otkazan) {
     return { boat, sales, web_sales: webSales };
 }
 
-// Pomak polaska. Matični servis izračuna razliku prema voznom redu i pomakne
+// Pomak polaska. Matični servis izračuna razliku prema plovidbenom redu i pomakne
 // svoje rute i etape; kopijama se šalje gotova razlika, da isti račun ne
 // postoji na tri mjesta.
 async function propagirajPomakRuta(route_uuids, new_departure) {
@@ -74,7 +74,7 @@ async function propagirajPomakRuta(route_uuids, new_departure) {
         "/sales_routes/reschedule_batch",
         { route_uuids, new_departure }
     );
-    if (!boat.ok) throw new Error(`vozni red nije pomaknut: ${boat.error}`);
+    if (!boat.ok) throw new Error(`plovidbeni red nije pomaknut: ${boat.error}`);
 
     const tijeloKopije = { route_uuids, delta_minutes: boat.delta_minutes };
     const sales = await posalji(coreConfig?.services?.sales?.url, "/routes/reschedule_batch", tijeloKopije);
@@ -198,12 +198,12 @@ const restoreSailingController = async (req, res) => {
 // POST /reschedule_sailing
 // body: { route_uuids: [], new_departure: "DD.MM.YYYY. HH:mm" | null, subject, body, sailing }
 //
-// Pomak polaska na novi datum i vrijeme. Planirano vrijeme (vozni red i ono
+// Pomak polaska na novi datum i vrijeme. Planirano vrijeme (plovidbeni red i ono
 // otisnuto na karti) ostaje netaknuto — mijenja se samo aktualno. Karte se
 // pomiču zajedno s polaskom da validacija na terminalu ne javlja nepodudaranje
 // vremena; putniku u ruci ostaje papir sa starim vremenom, zato i ide e-mail.
 //
-// `new_departure: null` vraća polazak na vozni red.
+// `new_departure: null` vraća polazak na plovidbeni red.
 const rescheduleSailingController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {

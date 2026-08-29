@@ -389,7 +389,7 @@ export const fetchSalesRoutesThunk = createAsyncThunk(
     async (_, { rejectWithValue }) => {
         try {
             // Isti rez kao u POS prodaji: samo stupci koji se koriste i bez
-            // prošlih polazaka. Vozni red je nekoliko tisuća redaka, a pregled
+            // prošlih polazaka. Plovidbeni red je nekoliko tisuća redaka, a pregled
             // karata i promjena polaska od njega trebaju samo linije, vremena i
             // luke — bez toga se pri svakom ulasku vukla puna tablica.
             const od = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);

@@ -42,7 +42,7 @@ const nowInZagreb = (date = new Date()) => {
 };
 
 // Neprepoznat zapis NE blokira prodaju — pogrešan format bi inače u trenu ugasio
-// cijeli vozni red; umjesto toga se logira.
+// cijeli plovidbeni red; umjesto toga se logira.
 const isSaleOpen = (actualDeparture, now = nowInZagreb()) => {
     const departure = parseDeparture(actualDeparture);
     if (departure === null) {

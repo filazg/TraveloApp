@@ -46,7 +46,7 @@ export default function SearchComponent (){
 
     let dtoswow = d1;
 
-    // Luke idu abecedno. Poslužitelj ih vraća redoslijedom iz voznog reda, pa
+    // Luke idu abecedno. Poslužitelj ih vraća redoslijedom iz plovidbenog reda, pa
     // je putnik svoju luku morao tražiti po popisu. `localeCompare` s hrvatskim
     // pravilima da č, ć, š, ž sjednu na svoje mjesto, a ne iza z.
     const abecedno = (luke) =>

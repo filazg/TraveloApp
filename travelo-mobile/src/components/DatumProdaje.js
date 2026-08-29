@@ -6,7 +6,7 @@ import { colors, shadows } from '../theme/colors';
 // kalendar. Prikazuje se samo na uređaju kojem je dopuštena prodaja za buduće
 // datume — inače se prodaje isključivo za danas i traka nema svrhe.
 //
-// Datumi se drže kao tekst "DD/MM/YYYY", isto kao u voznom redu, da se mogu
+// Datumi se drže kao tekst "DD/MM/YYYY", isto kao u plovidbenom redu, da se mogu
 // izravno uspoređivati bez parsiranja.
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -41,7 +41,7 @@ export default function DatumProdaje({ datum, danas, onPromjena }) {
         const d = izDmy(datum);
         d.setDate(d.getDate() + dana);
         // Unatrag se ne ide dalje od danas: karta za jučerašnji polazak se ne
-        // prodaje, a i vozni red za prošle dane uređaj više ne drži.
+        // prodaje, a i plovidbeni red za prošle dane uređaj više ne drži.
         if (uDmy(d) < danas && izDmy(uDmy(d)) < izDmy(danas)) return;
         onPromjena(uDmy(d));
     };

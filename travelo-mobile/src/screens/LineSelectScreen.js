@@ -28,7 +28,7 @@ export default function LineSelectScreen() {
     const smijeBuduce = !!sync.basicData?.billing_device_future_sale;
     const dan = smijeBuduce ? (voyage.date || today) : today;
 
-    // Promjena dana povlači vozni red ako ga uređaj za taj dan još nema —
+    // Promjena dana povlači plovidbeni red ako ga uređaj za taj dan još nema —
     // dok traje, stoji zaslon učitavanja, da djelatnik ne gleda prazan popis i
     // ne misli da tog dana nema polazaka.
     const [ucitavanje, setUcitavanje] = React.useState(false);

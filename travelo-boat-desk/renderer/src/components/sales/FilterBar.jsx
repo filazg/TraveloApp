@@ -11,7 +11,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
 import ShortcutHint from "../common/ShortcutHint";
 
-// Pomaknut polazak: vozni red ostaje u `departure`, stvarno vrijeme je u
+// Pomaknut polazak: plovidbeni red ostaje u `departure`, stvarno vrijeme je u
 // `actual_departure`. Blagajna prodaje po stvarnom vremenu, pa se ono i
 // prikazuje, a planirano stoji uz oznaku da se zna zašto se razlikuje.
 const samoVrijeme = (v) => {
@@ -145,7 +145,7 @@ export default function FilterBar() {
             seen.add(r.sequence);
             uniqueDepartures.push(r);
         }
-        // Redoslijed je dolazio onakav kakav je stigao iz voznog reda, pa su
+        // Redoslijed je dolazio onakav kakav je stigao iz plovidbenog reda, pa su
         // popodnevni polasci znali stajati iznad jutarnjih. Sortira se po satu
         // polaska ("HH:mm" pretvoren u minute, da radi i ako sat nije dvoznamenkast).
         const minutes = (time) => {
@@ -169,7 +169,7 @@ export default function FilterBar() {
         // Odvojene ovisnosti, ne `a || b || c` — taj izraz je jedna vrijednost, pa
         // dok je luka odabrana promjena datuma nije osvježavala popis polazaka.
         //
-        // Vozni red je u ovisnostima jer ga poslužitelj zna osvježiti sam (otkaz
+        // Plovidbeni red je u ovisnostima jer ga poslužitelj zna osvježiti sam (otkaz
         // ili pomak polaska): bez toga bi na ekranu ostao popis polazaka od
         // maloprije, pa bi blagajnik i dalje vidio polazak kojeg više nema —
         // podaci su novi, ali ekran star.

@@ -226,7 +226,7 @@ const finalizeWebSaleController = async (req, res) => {
                         line_name: order.line_name || null,
                         departure_harbor_id: order.departure_harbor_code,
                         departure_harbor_name: order.departure_harbor_name,
-                        // Vrijeme dolaska s voznog reda; bez njega je karta imala
+                        // Vrijeme dolaska s plovidbenog reda; bez njega je karta imala
                         // prazan dolazak (ili, s ranijim fallbackom, vrijeme polaska).
                         arrival_planed: order.arrival_planned || null,
                         arrival: order.arrival_planned || null,

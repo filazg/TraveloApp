@@ -68,7 +68,7 @@ import { authSliceData, setAuthData } from "../auth/authSlice";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
-// Pomaknut polazak: vozni red ostaje u `departure`, stvarno vrijeme je u
+// Pomaknut polazak: plovidbeni red ostaje u `departure`, stvarno vrijeme je u
 // `actual_departure`. Prodaja ide po stvarnom vremenu, a planirano se prikazuje
 // uz oznaku da se zna zašto se razlikuje.
 const samoVrijeme = (v) => {
@@ -433,11 +433,11 @@ export default function SalesPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400, p: 2 }}>
-            {/* Pad dohvata voznog reda inače izgleda kao da linija nema polazaka
+            {/* Pad dohvata plovidbenog reda inače izgleda kao da linija nema polazaka
                 — luke ostanu prazne i nigdje ne piše zašto. */}
             {sales.routesError && (
                 <Alert severity="error" sx={{ mb: 2 }}>
-                    Vozni red nije dohvaćen — polasci i luke se ne mogu ponuditi. {sales.routesError}
+                    Plovidbeni red nije dohvaćen — polasci i luke se ne mogu ponuditi. {sales.routesError}
                 </Alert>
             )}
 

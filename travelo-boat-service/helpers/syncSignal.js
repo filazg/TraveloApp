@@ -3,7 +3,7 @@ const { getCoreServiceConfigData } = require("../controllers/configSyncControlle
 
 // Javi uredajima da povuku podatke.
 //
-// Blagajna i mobilna rade offline i vozni red povlace same, pa otkazan ili
+// Blagajna i mobilna rade offline i plovidbeni red povlace same, pa otkazan ili
 // pomaknut polazak ne vide dok korisnik sam ne pokrene osvjezavanje — do tada ga
 // i dalje prodaju. Signal se biljezi u transakcijama, odakle ga uredaji citaju
 // jednim laganim upitom.

@@ -8,7 +8,7 @@ const { DataTypes } = require("sequelize");
 //
 // Umjesto da uredaj stalno povlaci cijeli paket (nekoliko megabajta), povlaci
 // ovaj zapis: par bajtova s brojacem po vrsti. Kad se brojac promijeni, tek tada
-// ide pravo osvjezavanje. Zato ovdje NE stoje maticni podaci (vozni red,
+// ide pravo osvjezavanje. Zato ovdje NE stoje maticni podaci (plovidbeni red,
 // cjenik) nego samo dogadaji koji zahtijevaju brzu reakciju.
 module.exports = (sequelize) => {
     const SyncSignalsModel = sequelize.define(

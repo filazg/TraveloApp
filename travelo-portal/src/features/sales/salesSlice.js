@@ -26,12 +26,12 @@ export const fetchPosHarborsThunk = createAsyncThunk("sales/fetchHarbors", async
 
 export const fetchPosRoutesThunk = createAsyncThunk("sales/fetchRoutes", async (_, { rejectWithValue }) => {
     try {
-        // Prošli polasci se ne prodaju, a vozni red je velik — bez tog reza se
+        // Prošli polasci se ne prodaju, a plovidbeni red je velik — bez tog reza se
         // vuku i rute davno odrađenih dana. Tjedan unatrag ostaje zbog naknadnih
         // provjera i ispravaka.
         const od = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
         // `fields=pos` reže redak na stupce koje prodaja stvarno koristi —
-        // vozni red je nekoliko tisuća redaka, pa je razlika osjetna.
+        // plovidbeni red je nekoliko tisuća redaka, pa je razlika osjetna.
         const resp = await api.get("/portal/sales/routes", { params: { from_date: od, fields: "pos" } });
         const payload = unwrapBff(resp);
         return Array.isArray(payload) ? payload : [];
@@ -283,7 +283,7 @@ const salesSlice = createSlice({
             // luke ostanu prazne, a nigdje ne piše zašto.
             .addCase(fetchPosRoutesThunk.rejected, (s, a) => {
                 s.routes = [];
-                s.routesError = a.payload?.message || a.error?.message || "Vozni red nije dohvaćen";
+                s.routesError = a.payload?.message || a.error?.message || "Plovidbeni red nije dohvaćen";
             })
             .addCase(fetchPosPricesThunk.fulfilled, (s, a) => { s.prices = a.payload || []; })
             .addCase(fetchPosBillingDevicesThunk.fulfilled, (s, a) => { s.billingDevices = a.payload || []; })

@@ -53,7 +53,7 @@ const groupVoyages = (routes) => {
         g.first_departure_time = g.legs[0]?.departure_time || '';
         g.start_harbor = g.legs[0]?.departure_harbor_name || '';
         g.end_harbor = g.legs[g.legs.length - 1]?.arrival_harbor_name || '';
-        // Pomaknut polazak: vozni red ostaje u `departure`, stvarno vrijeme je u
+        // Pomaknut polazak: plovidbeni red ostaje u `departure`, stvarno vrijeme je u
         // `actual_departure`. Blagajna mora prodavati po stvarnom vremenu, pa se
         // ono prikazuje, a planirano ostaje vidljivo uz oznaku.
         const prvi = g.legs[0] || {};
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     cardTime: { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
     cardDir: { fontSize: 11, color: colors.textSecondary },
-    // Pomaknut polazak — veliko vrijeme je stvarno, ovdje stoji ono iz voznog reda.
+    // Pomaknut polazak — veliko vrijeme je stvarno, ovdje stoji ono iz plovidbenog reda.
     cardMoved: {
         fontSize: 10, fontWeight: '800', color: colors.textOnPrimary,
         backgroundColor: colors.warning, borderRadius: 4,

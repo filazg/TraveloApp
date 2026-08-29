@@ -9,10 +9,10 @@ const { syncTransportDataService } = require("./backendDataService.cjs");
 
 // Poslužitelj javlja blagajni čim se nešto promijeni.
 //
-// Blagajna radi offline i vozni red povlači sama, pa otkazan ili pomaknut
+// Blagajna radi offline i plovidbeni red povlači sama, pa otkazan ili pomaknut
 // polazak ne vidi dok ga netko ručno ne osvježi — do tada ga i dalje prodaje.
 // Ovdje se drži otvorena veza prema kanalu; kad stigne poruka da se promijenio
-// vozni red, podaci se povuku tiho, bez prekrivanja zaslona i bez pitanja.
+// plovidbeni red, podaci se povuku tiho, bez prekrivanja zaslona i bez pitanja.
 //
 // Namjerno bez vlastitog brojača vremena: veza sama javlja, a kad pukne, ovdje
 // se čeka i pokušava ponovno.
@@ -43,14 +43,14 @@ const obradiSignale = async (signali) => {
     const prije = zadnjeStanje;
     zadnjeStanje = signali;
     // Prvo stanje je samo polazna točka — bez ovoga bi se pri svakom spajanju
-    // povlačio cijeli vozni red.
+    // povlačio cijeli plovidbeni red.
     if (!prije) return;
     if (Number(signali.transport || 0) === Number(prije.transport || 0)) return;
 
     try {
         await syncTransportDataService();
         javiProzorima({ kind: "transport" });
-        zapisi("vozni red osvjezen po javljanju posluzitelja");
+        zapisi("plovidbeni red osvjezen po javljanju posluzitelja");
     } catch (e) {
         // Uređaj ostaje na starim podacima; sljedeće javljanje ili ručno
         // osvježavanje će ga popraviti.

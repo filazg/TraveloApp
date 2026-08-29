@@ -46,7 +46,7 @@ const izIso = (s) => {
     return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
 };
 
-// Pomaknut polazak — prodaje se po stvarnom vremenu, planirano ostaje vozni red.
+// Pomaknut polazak — prodaje se po stvarnom vremenu, planirano ostaje plovidbeni red.
 const samoVrijeme = (v) => {
     const m = /(\d{1,2}):(\d{2})/.exec(String(v || ""));
     return m ? `${String(m[1]).padStart(2, "0")}:${m[2]}` : "";

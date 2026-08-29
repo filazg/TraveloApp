@@ -2,8 +2,8 @@ const { Op } = require("sequelize");
 const { getSequelize } = require("../../config/database");
 const { pomakni } = require("../../helpers/voyageTime");
 
-// Stupci koje treba portalska POS prodaja. Ostalo (šifre voznog reda, oznake,
-// smjer, zastavice) ondje se ne koristi, a vozni red je nekoliko tisuća redaka
+// Stupci koje treba portalska POS prodaja. Ostalo (šifre plovidbenog reda, oznake,
+// smjer, zastavice) ondje se ne koristi, a plovidbeni red je nekoliko tisuća redaka
 // pa svaki stupac košta. Popis je fiksan namjerno — klijent ne bira stupce.
 const POS_STUPCI = [
     "id", "uuid", "timetable_uuid", "departure_uuid", "sequence",
@@ -25,7 +25,7 @@ const getRoutesDataController = async (req, res) => {
             // blagajni iako je dispečer otkazao putovanje.
             // Neobavezni `from_date` (YYYY-MM-DD) odbacuje prošle polaske.
             // Bez njega se vraća sve, jer desk i mobilna kroz transport_data
-            // očekuju cijeli vozni red — filtrira samo onaj tko to traži.
+            // očekuju cijeli plovidbeni red — filtrira samo onaj tko to traži.
             // `departure_date` je tekst "DD/MM/YYYY", pa se uspoređuje preko
             // to_date, ne po abecedi.
             const odDatuma = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query?.from_date || ""))
@@ -65,7 +65,7 @@ const getRoutesDataController = async (req, res) => {
 //
 // Ovo je kopija ruta za blagajne; matični zapis je u boat-serviceu i ondje se
 // otkaz upisuje prvi. Ovdje se isti upis ponavlja da otkaz vrijedi odmah, bez
-// čekanja na sinkronizaciju voznog reda.
+// čekanja na sinkronizaciju plovidbenog reda.
 //
 // Uz sale_status gasi se i is_active jer terminali polaske filtriraju po njemu
 // (mobilna: LineSelectScreen). Sam sale_status nitko na blagajni ne gleda, pa
@@ -97,7 +97,7 @@ const cancelRoutesBatchController = async (req, res) => {
 //
 // Pomak polaska. Planirano vrijeme ostaje netaknuto; aktualno se racuna kao
 // planirano + razlika, pa je operacija idempotentna, a delta_minutes = 0 vraca
-// polazak na vozni red. Razliku racuna boat-service (maticni podaci) i salje je
+// polazak na plovidbeni red. Razliku racuna boat-service (maticni podaci) i salje je
 // ovamo, da isti racun ne postoji na tri mjesta.
 const rescheduleRoutesBatchController = async (req, res) => {
     const { RoutesModel } = req.app.locals.models;

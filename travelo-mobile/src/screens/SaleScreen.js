@@ -48,7 +48,7 @@ const timeOnly = (s) => {
     return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
 };
 
-// Datum na DD/MM/YYYY. Vozni red drži "28/08/2026", karta "28.08.2026. 10:00",
+// Datum na DD/MM/YYYY. Plovidbeni red drži "28/08/2026", karta "28.08.2026. 10:00",
 // a backend zna vratiti i ISO — bez svođenja na isti oblik usporedba datuma
 // karte i polaska nikad ne prolazi.
 const datumSamo = (v) => {
@@ -375,7 +375,7 @@ export default function SaleScreen() {
     // Scheduled times at the selected harbors.
     const fromLeg = v?.legs?.find((l) => l.departure_harbor_id === fromHarbor?.id);
     const toLeg = v?.legs?.find((l) => l.arrival_harbor_id === toHarbor?.id);
-    // Stvarno vrijeme ima prednost: kad dispečer pomakne polazak, vozni red
+    // Stvarno vrijeme ima prednost: kad dispečer pomakne polazak, plovidbeni red
     // ostaje u `departure`/`arrival`, a novo vrijeme je u `actual_*`. Blagajna
     // mora prodavati po onome kad brod stvarno kreće.
     const fromTime = timeOnly(fromLeg?.actual_departure || fromLeg?.departure_time || fromLeg?.departure);

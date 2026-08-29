@@ -98,7 +98,7 @@ const getAllSalesRoutesController = async(req,res)=>{
 // PATCH /sales_routes/cancel_batch — body: { route_uuids: [], canceled: true|false }
 //
 // Otkaz polaska mora biti upisan OVDJE, u matičnim podacima. Prodajni servisi
-// drže svoje kopije ruta koje se pri sinkronizaciji voznog reda brišu i
+// drže svoje kopije ruta koje se pri sinkronizaciji plovidbenog reda brišu i
 // ponovno pune odavde — otkaz upisan samo u kopiju nestane pri prvom idućem
 // syncu i polazak se vrati u prodaju.
 //
@@ -120,7 +120,7 @@ const cancelSalesRoutesBatchController = async (req, res) => {
                 : { sale_status: null, is_active: true },
             { where: { uuid: uuids } }
         );
-        // Uredaji sami povlace vozni red; bez ovoga bi otkazan polazak jos
+        // Uredaji sami povlace plovidbeni red; bez ovoga bi otkazan polazak jos
         // prodavali do sljedeceg rucnog osvjezavanja.
         await javiPromjenu("transport", otkazan ? `otkaz polaska (${uuids.length})` : `povrat otkaza (${uuids.length})`);
         res.send({ status: 200, data: { affected, canceled: otkazan } });
@@ -133,7 +133,7 @@ const cancelSalesRoutesBatchController = async (req, res) => {
 // PATCH /sales_routes/reschedule_batch
 // body: { route_uuids: [], new_departure: "DD.MM.YYYY. HH:mm" | null }
 //
-// Pomak polaska. Planirano vrijeme se NE dira — ono je objavljeni vozni red i
+// Pomak polaska. Planirano vrijeme se NE dira — ono je objavljeni plovidbeni red i
 // stoji na već izdanim kartama. Novo vrijeme ide u aktualna polja:
 // `actual_departure` i `actual_arrival` na ruti, `departure` i `arrival` na
 // etapama (departures).
@@ -142,7 +142,7 @@ const cancelSalesRoutesBatchController = async (req, res) => {
 // planiranom se primijeni na sve etape, pa trajanja plovidbe između luka
 // ostaju kakva jesu. Razlika se uvijek računa od PLANIRANOG, ne od trenutnog
 // aktualnog — tako drugi pomak istog polaska ne zbraja pogreške, a
-// `new_departure: null` vraća polazak na vozni red.
+// `new_departure: null` vraća polazak na plovidbeni red.
 const rescheduleSalesRoutesBatchController = async (req, res) => {
     const { RoutesModel, DeparturesModel } = req.app.locals.models;
     try {

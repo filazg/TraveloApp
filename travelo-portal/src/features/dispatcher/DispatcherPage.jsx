@@ -69,7 +69,7 @@ const SAILING_STATUS = {
 export default function DispatcherPage() {
     const dispatch = useDispatch();
     const d = useSelector(dispatcherSliceData);
-    // Radnje dispečera šalju e-mailove putnicima i mijenjaju vozni red u više
+    // Radnje dispečera šalju e-mailove putnicima i mijenjaju plovidbeni red u više
     // servisa — traju, pa moraju pokazati da se nešto radi.
     const { pokazi, sakrij, tijekom } = useLoading();
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -211,7 +211,7 @@ export default function DispatcherPage() {
                 start_harbor: harbors[0]?.harbor_name || "",
                 end_harbor: harbors[harbors.length - 1]?.harbor_name || "",
                 sale_status: saleStatus,
-                // Planirano vrijeme je vozni red; aktualno se razlikuje kad je
+                // Planirano vrijeme je plovidbeni red; aktualno se razlikuje kad je
                 // dispečer pomaknuo polazak. Oba dolaze s etape polaska.
                 planned_departure: s.departure_planed || "",
                 actual_departure: s.departure || "",
@@ -740,7 +740,7 @@ export default function DispatcherPage() {
                                 <b>{activeSailing.departure_time}</b> · {activeSailing.line_code} {activeSailing.line_name}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                {activeSailing.start_harbor} → {activeSailing.end_harbor} · po voznom redu {activeSailing.planned_departure || "—"}
+                                {activeSailing.start_harbor} → {activeSailing.end_harbor} · po plovidbenom redu {activeSailing.planned_departure || "—"}
                             </Typography>
                             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
                                 <TextField
@@ -776,7 +776,7 @@ export default function DispatcherPage() {
                                 onChange={(e) => setMoveBody(e.target.value)}
                             />
                             <Alert severity="info" sx={{ mt: 2 }}>
-                                Vozni red se ne mijenja — planirano vrijeme ostaje isto, a novo se upisuje kao
+                                Plovidbeni red se ne mijenja — planirano vrijeme ostaje isto, a novo se upisuje kao
                                 stvarno vrijeme polaska. Unosi se vrijeme isplovljenja iz prve luke; ostale luke
                                 se pomiču za istu razliku. Karte tog polaska prate novo vrijeme, a putnicima ide e-mail.
                             </Alert>
@@ -791,7 +791,7 @@ export default function DispatcherPage() {
                             onClick={() => posaljiPomak(null)}
                             disabled={d.actionLoading}
                         >
-                            Vrati na vozni red
+                            Vrati na plovidbeni red
                         </Button>
                     )}
                     <Button variant="contained" color="warning" onClick={handleConfirmMove} disabled={d.actionLoading}>

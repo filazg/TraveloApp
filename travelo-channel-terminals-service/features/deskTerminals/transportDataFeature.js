@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { transportDataHandlers } = require("../../handlers/transportDataHandlers")
 
-// Otisak paketa. Vozni red se mijenja rijetko, a terminal ga osvježava često —
+// Otisak paketa. Plovidbeni red se mijenja rijetko, a terminal ga osvježava često —
 // pri prijavi, na zahtjev i pri promjeni dana. Bez ovoga svaki put ide nekoliko
 // megabajta koje uređaj mora rasčlaniti i upisati u svoju bazu, iako su podaci
 // isti. S otiskom uređaj pošalje ono što ima, a poslužitelj odgovori "nema
