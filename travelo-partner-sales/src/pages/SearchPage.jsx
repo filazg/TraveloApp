@@ -78,19 +78,21 @@ export default function SearchPage() {
   )
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+    // Puna sirina kao i prikazi u portalu: rezultati pretrage su tablica i na
+    // uskom stupcu se lome, a ekran je ionako prazan sa strane.
+    <Box sx={{ width: '98%', mx: 'auto' }}>
       <Typography variant="h5" fontWeight={900} sx={{ mb: 2 }}>
         Pretraga polazaka
       </Typography>
 
       <Paper variant="outlined" sx={{ p: 3, mb: 3 }} component="form" onSubmit={onSearch}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
           <TextField
             select
             label="Od (polazna luka)"
             value={fromCode}
             onChange={(e) => setFromCode(e.target.value)}
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 260, flex: 1 }}
           >
             <MenuItem value="">— sve —</MenuItem>
             {lukeAbecedno.map((h) => (
@@ -104,7 +106,7 @@ export default function SearchPage() {
             label="Do (dolazna luka)"
             value={toCode}
             onChange={(e) => setToCode(e.target.value)}
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 260, flex: 1 }}
           >
             <MenuItem value="">— sve —</MenuItem>
             {lukeAbecedno.map((h) => (
@@ -118,7 +120,7 @@ export default function SearchPage() {
             value={date}
             onChange={(v) => setDate(v)}
             format="DD/MM/YYYY"
-            slotProps={{ textField: { sx: { minWidth: 180 } } }}
+            slotProps={{ textField: { sx: { minWidth: 200 } } }}
           />
           <Button
             type="submit"
@@ -126,7 +128,7 @@ export default function SearchPage() {
             size="large"
             startIcon={<SearchIcon />}
             disabled={loading}
-            sx={{ fontWeight: 900 }}
+            sx={{ fontWeight: 900, height: 56, px: 4 }}
           >
             Pretraži
           </Button>
