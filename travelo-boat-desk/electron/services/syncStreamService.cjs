@@ -32,6 +32,14 @@ const zapisi = (...dijelovi) => {
 let veza = null;
 let zaustavljen = false;
 let zadnjeStanje = null;
+let strazar = null;
+let ponovnoZakazano = null;
+
+// Koliko se ceka na bilo kakav znak zivota prije nego se veza proglasi mrtvom.
+// Posluzitelj salje otkucaj svakih 20 s, pa je tisina duza od minute pouzdan
+// znak da veze vise nema — a to se ne vidi uvijek kao greska: kad posluzitelj
+// ode, tok zna zavrsiti tiho, bez 'end' i bez 'error'.
+const TISINA_MS = 60 * 1000;
 
 const javiProzorima = (poruka) => {
     for (const w of BrowserWindow.getAllWindows()) {
@@ -79,8 +87,23 @@ const napraviCitac = () => {
     };
 };
 
+const ugasiStrazara = () => {
+    if (strazar) { clearTimeout(strazar); strazar = null; }
+};
+
+const nakalemiStrazara = () => {
+    ugasiStrazara();
+    strazar = setTimeout(() => {
+        zapisi("posluzitelj se ne javlja vise od minute, veza se otvara ponovno");
+        try { veza?.destroy(); } catch (e) { /* vec zatvoreno */ }
+        veza = null;
+        zakaziPonovno();
+    }, TISINA_MS);
+    strazar.unref?.();
+};
+
 const spoji = async () => {
-    if (zaustavljen) return;
+    if (zaustavljen || veza) return;
     try {
         const postavke = await systemSettingsDataModel.findOne();
         const uparivanje = await pairingDataModel.findOne();
@@ -101,15 +124,26 @@ const spoji = async () => {
         zapisi("otvorena veza prema posluzitelju za javljanje promjena");
         const citaj = napraviCitac();
 
+        nakalemiStrazara();
+
         veza.on("data", (komad) => {
+            // Svaki znak zivota, i obican otkucaj, pomice strazara.
+            nakalemiStrazara();
             for (const signali of citaj(komad)) obradiSignale(signali).catch(() => {});
         });
-        veza.on("end", () => { veza = null; zakaziPonovno(); });
-        veza.on("error", (e) => {
-            zapisi("veza prema posluzitelju pukla:", e?.message || e);
+        // Kad posluzitelj ode, tok zna zavrsiti i bez greske — zato se slusaju
+        // svi zavrsetci, inace bi blagajna ostala bez javljanja do restarta.
+        const prekinuto = (razlog) => {
+            ugasiStrazara();
+            if (!veza) return;
             veza = null;
+            zapisi("veza prema posluzitelju prekinuta:", razlog);
             zakaziPonovno();
-        });
+        };
+        veza.on("end", () => prekinuto("kraj toka"));
+        veza.on("close", () => prekinuto("zatvoreno"));
+        veza.on("aborted", () => prekinuto("prekinuto"));
+        veza.on("error", (e) => prekinuto(e?.message || String(e)));
     } catch (e) {
         zapisi("spajanje na javljanje promjena nije uspjelo:", e?.message || e);
         zakaziPonovno();
@@ -117,11 +151,17 @@ const spoji = async () => {
 };
 
 const zakaziPonovno = () => {
-    if (zaustavljen) return;
+    if (zaustavljen || ponovnoZakazano) return;
     // Zadnje stanje se NE zaboravlja: ako je veza pukla, a u međuvremenu je
     // polazak otkazan, prvo stanje nove veze mora se usporediti sa zatečenim —
     // inače bi se promjena u prekidu tiho izgubila.
-    setTimeout(() => { spoji().catch(() => {}) }, RAZMAK_PONOVNOG_SPAJANJA_MS).unref?.();
+    // Samo jedan zakazani povratak: strazar i prekid znaju okinuti jedan za
+    // drugim, pa bi se inace otvorile dvije veze prema posluzitelju.
+    ponovnoZakazano = setTimeout(() => {
+        ponovnoZakazano = null;
+        spoji().catch(() => {});
+    }, RAZMAK_PONOVNOG_SPAJANJA_MS);
+    ponovnoZakazano.unref?.();
 };
 
 const startSyncStreamService = () => {
@@ -131,6 +171,8 @@ const startSyncStreamService = () => {
 
 const stopSyncStreamService = () => {
     zaustavljen = true;
+    ugasiStrazara();
+    if (ponovnoZakazano) { clearTimeout(ponovnoZakazano); ponovnoZakazano = null; }
     try { veza?.destroy(); } catch (e) { /* vec zatvoreno */ }
     veza = null;
 };

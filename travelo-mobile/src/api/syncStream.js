@@ -15,9 +15,14 @@ import { storage } from './client';
 const DEV_GATEWAY = 'http://localhost:5100';
 const PUTANJA = '/terminals/terminal/sync_stream';
 const RAZMAK_PONOVNOG_SPAJANJA_MS = 15 * 1000;
+// Poslužitelj šalje otkucaj svakih 20 s; tišina duža od minute znači da veze
+// više nema. Na mobilnoj mreži prekid se često ne vidi kao greška — veza samo
+// utihne, a uređaj bi ostao bez javljanja dok se aplikacija ne pokrene ponovno.
+const TISINA_MS = 60 * 1000;
 
 let xhr = null;
 let ponovno = null;
+let strazar = null;
 let zaustavljen = true;
 let zadnjeStanje = null;
 let naPromjenu = null;
@@ -65,6 +70,20 @@ const napraviCitac = () => {
     };
 };
 
+const ugasiStrazara = () => {
+    if (strazar) { clearTimeout(strazar); strazar = null; }
+};
+
+const nakalemiStrazara = () => {
+    ugasiStrazara();
+    strazar = setTimeout(() => {
+        zapisi('poslužitelj se ne javlja više od minute — veza se otvara ponovno');
+        try { xhr?.abort(); } catch (e) { /* već zatvoreno */ }
+        xhr = null;
+        zakaziPonovno();
+    }, TISINA_MS);
+};
+
 const zakaziPonovno = () => {
     if (zaustavljen || ponovno) return;
     ponovno = setTimeout(() => { ponovno = null; spoji(); }, RAZMAK_PONOVNOG_SPAJANJA_MS);
@@ -84,8 +103,13 @@ const spoji = async () => {
         xhr.setRequestHeader('Accept', 'text/event-stream');
         xhr.onreadystatechange = () => {
             // 3 = stižu podaci, 4 = veza zatvorena.
-            if (xhr?.readyState === 3) citaj(xhr.responseText || '');
+            if (xhr?.readyState === 3) {
+                // Svaki znak života, i obični otkucaj, pomiče stražara.
+                nakalemiStrazara();
+                citaj(xhr.responseText || '');
+            }
             if (xhr?.readyState === 4) {
+                ugasiStrazara();
                 citaj(xhr.responseText || '');
                 xhr = null;
                 zakaziPonovno();
@@ -96,6 +120,7 @@ const spoji = async () => {
         // Bez isteka: veza se drži otvorena dok je ima.
         xhr.timeout = 0;
         xhr.send();
+        nakalemiStrazara();
         zapisi('otvorena veza prema poslužitelju');
     } catch (e) {
         zapisi('spajanje nije uspjelo:', e?.message || e);
@@ -105,6 +130,7 @@ const spoji = async () => {
 };
 
 const prekini = () => {
+    ugasiStrazara();
     try { xhr?.abort(); } catch (e) { /* već zatvoreno */ }
     xhr = null;
     if (ponovno) { clearTimeout(ponovno); ponovno = null; }
