@@ -47,9 +47,18 @@ export default function SystemSettingsModal() {
       dispatch(setStateData({path:'modalsStates/showSystemSettingsModal', value:false}))
   };
 
-  useEffect(()=>{
-    console.log('SETTINGS', settingsData)
-  },[])
+  // Forma se puni kad podaci stignu, i ponovno pri svakom otvaranju.
+  //
+  // Modal je montiran zajedno s ekranom prijave, dakle prije nego osnovni podaci
+  // stignu iz lokalne baze. Pocetna vrijednost useState-a tada je prazna i takva
+  // ostaje — polja su izgledala kao da postavke nisu ni zapisane, iako u bazi
+  // stoje. Ponovno punjenje pri otvaranju usput odbacuje i nespremljene izmjene
+  // iz prethodnog otvaranja.
+  const spremljenePostavke = appData.basicData?.settings
+  useEffect(() => {
+    if (!appData.modalsStates.showSystemSettingsModal) return
+    setNewSettingsData(spremljenePostavke || {})
+  }, [appData.modalsStates.showSystemSettingsModal, spremljenePostavke])
 
   const handleChange = (e) => {
         const { name, value } = e.target;
