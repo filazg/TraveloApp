@@ -8,6 +8,7 @@ import LoginScreen from "./screens/LoginScrean";
 import SalesScreen from "./screens/SalesScrean";
 import LoadingScreen from "./components/common/LoadingScreen";
 import InformationComponent from "./components/common/InvormationComponent";
+import SyncNotifications from "./components/common/SyncNotifications";
 
 
 
@@ -39,6 +40,7 @@ export default function App() {
  return (
   <>
     <InformationComponent />
+    <SyncNotifications />
     {(() => {
       switch (stage) {
         case "pairing":

@@ -5,6 +5,7 @@ const axios = require("axios");
 const { app, BrowserWindow } = require("electron");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs");
+const { salesRoutesDataModel } = require("../db/models/TransportData.cjs");
 const { syncTransportDataService } = require("./backendDataService.cjs");
 
 // Poslužitelj javlja blagajni čim se nešto promijeni.
@@ -47,6 +48,49 @@ const javiProzorima = (poruka) => {
     }
 };
 
+// Sto se tocno promijenilo saznaje se usporedbom: posluzitelj javlja samo da se
+// plovidbeni red promijenio, a blagajniku treba pisati koji je polazak otkazan
+// ili vracen. Zato se stanje snimi prije osvjezavanja pa usporedi s novim.
+const snimiPolaske = async () => {
+    const redci = await salesRoutesDataModel.findAll({
+        attributes: ["uuid", "departure_date", "departure_time", "actual_departure",
+            "departure_harbor_name", "arrival_harbor_name", "line_name"],
+    });
+    const karta = new Map();
+    for (const r of redci) {
+        const v = r.dataValues || r;
+        // Jedan polazak ima vise etapa (luka do luke); za obavijest je dovoljna
+        // jedna po polasku, pa se pamti po vremenu i liniji.
+        const kljuc = `${v.departure_date} ${v.departure_time} ${v.line_name}`;
+        if (!karta.has(kljuc)) karta.set(kljuc, v);
+    }
+    return karta;
+};
+
+const opisPolaska = (v) => {
+    const relacija = [v.departure_harbor_name, v.arrival_harbor_name].filter(Boolean).join(" – ");
+    return `${v.departure_date} ${v.departure_time}${v.line_name ? ` · ${v.line_name}` : ""}${relacija ? ` (${relacija})` : ""}`;
+};
+
+const usporediPolaske = (prije, poslije) => {
+    const otkazani = [];
+    const vraceni = [];
+    const pomaknuti = [];
+    for (const [kljuc, v] of prije) {
+        if (!poslije.has(kljuc)) otkazani.push(opisPolaska(v));
+        else {
+            const novi = poslije.get(kljuc);
+            if ((novi.actual_departure || "") !== (v.actual_departure || "")) {
+                pomaknuti.push(`${opisPolaska(v)} → ${novi.actual_departure}`);
+            }
+        }
+    }
+    for (const [kljuc, v] of poslije) {
+        if (!prije.has(kljuc)) vraceni.push(opisPolaska(v));
+    }
+    return { otkazani, vraceni, pomaknuti };
+};
+
 const obradiSignale = async (signali) => {
     const prije = zadnjeStanje;
     zadnjeStanje = signali;
@@ -56,9 +100,12 @@ const obradiSignale = async (signali) => {
     if (Number(signali.transport || 0) === Number(prije.transport || 0)) return;
 
     try {
+        const prijePolasci = await snimiPolaske();
         await syncTransportDataService();
-        javiProzorima({ kind: "transport" });
-        zapisi("plovidbeni red osvjezen po javljanju posluzitelja");
+        const promjene = usporediPolaske(prijePolasci, await snimiPolaske());
+        javiProzorima({ kind: "transport", promjene });
+        const koliko = promjene.otkazani.length + promjene.vraceni.length + promjene.pomaknuti.length;
+        zapisi(`plovidbeni red osvjezen po javljanju posluzitelja (promjena: ${koliko})`);
     } catch (e) {
         // Uređaj ostaje na starim podacima; sljedeće javljanje ili ručno
         // osvježavanje će ga popraviti.
