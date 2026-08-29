@@ -6,6 +6,7 @@ const { finalizeWebSaleController } = require('../controllers/dataControllers/fi
 const { renderInvoicePdfController } = require('../controllers/dataControllers/invoicePdfController');
 const { renderPartnerInvoicePdfController, renderPartnerInvoiceDetailsPdfController } = require('../controllers/dataControllers/partnerInvoicePdfController');
 const { renderCommissionReportPdfController, renderCommissionReportDetailsPdfController } = require('../controllers/dataControllers/commissionReportPdfController');
+const { bumpSyncSignalController, getSyncSignalsController } = require('../controllers/dataControllers/syncSignalsController');
 const { listInvoicesController } = require('../controllers/dataControllers/invoicesListController');
 const { backfillInvoicesFiscalController } = require('../controllers/dataControllers/invoicesBackfillController');
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
@@ -118,6 +119,12 @@ router
 router
     .route('/tickets_search')
     .get(listTicketsController)
+
+// Signali za osvjezavanje uredaja — brojac po vrsti podatka.
+router
+    .route('/sync_signals')
+    .get(getSyncSignalsController)
+    .post(bumpSyncSignalController)
 
 router
     .route('/cancel_tickets')

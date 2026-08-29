@@ -4,6 +4,7 @@ const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { releaseBookings } = require("../../helpers/bookingClient");
 const { dodajStavku } = require("./paymentOrderControllers");
+const { podigniSignal } = require("./syncSignalsController");
 const { provjeriIban } = require("../../helpers/iban");
 
 // Opis povrata završi u platnom nalogu i vidi ga primatelj na izvatku, pa je
@@ -402,6 +403,21 @@ const cancelTicketsController = async (req, res) => {
             } else {
                 refundItem = rezultat.body.item;
             }
+        }
+
+        // Uredaji rade offline i karte povlace same: bez ovoga stornirana karta
+        // ostaje valjana na blagajni i mobilnoj do sljedeceg rucnog osvjezavanja,
+        // pa se moze i validirati. Signal im kaze da povuku karte.
+        try {
+            await podigniSignal({
+                SyncSignalsModel: models.SyncSignalsModel,
+                kind: "tickets",
+                event: `storno ${invoice_code || invoice_uuid}`,
+            });
+        } catch (e) {
+            // Storno je vec izdan i ne smije pasti zbog signala; uredaj ce
+            // promjenu pokupiti pri sljedecem redovnom osvjezavanju.
+            console.log("signal za storno nije zapisan:", e?.message || e);
         }
 
         res.status(200).json({

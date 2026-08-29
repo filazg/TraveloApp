@@ -1,5 +1,6 @@
 const { getSequelize } = require("../../config/database");
 const { uMinute, pomakni } = require("../../helpers/voyageTime");
+const { javiPromjenu } = require("../../helpers/syncSignal");
 
 
 
@@ -119,6 +120,9 @@ const cancelSalesRoutesBatchController = async (req, res) => {
                 : { sale_status: null, is_active: true },
             { where: { uuid: uuids } }
         );
+        // Uredaji sami povlace vozni red; bez ovoga bi otkazan polazak jos
+        // prodavali do sljedeceg rucnog osvjezavanja.
+        await javiPromjenu("transport", otkazan ? `otkaz polaska (${uuids.length})` : `povrat otkaza (${uuids.length})`);
         res.send({ status: 200, data: { affected, canceled: otkazan } });
     } catch (error) {
         console.log("cancelSalesRoutesBatchController error:", error?.message || error);
@@ -189,6 +193,7 @@ const rescheduleSalesRoutesBatchController = async (req, res) => {
             });
         }
 
+        await javiPromjenu("transport", `pomak polaska ${planiraniPocetak}`);
         res.send({
             status: 200,
             data: {

@@ -6,6 +6,7 @@ const partnerInvoiceModelsFactory = require("./partnerInvoice.models");
 const shiftModelsFactory = require("./shift.models");
 const apiOrdersModelsFactory = require("./apiOrders.models");
 const paymentOrdersModelsFactory = require("./paymentOrders.models");
+const syncSignalsModelsFactory = require("./syncSignals.models");
 
 let models = null;
 
@@ -20,7 +21,8 @@ function initModels() {
       ...partnerInvoiceModelsFactory(sequelize),
       ...shiftModelsFactory(sequelize),
       ...apiOrdersModelsFactory(sequelize),
-      ...paymentOrdersModelsFactory(sequelize)
+      ...paymentOrdersModelsFactory(sequelize),
+      ...syncSignalsModelsFactory(sequelize)
     };
   }
 

@@ -8,11 +8,17 @@ const { handleVoyageTicketsFeature, handleValidateTicketFeature, handleBuyersLis
 const { handleCheckIslandCardFeature, handleCancelTicketsFeature } = require('../features/deskTerminals/akdFeature');
 const { handleUpsertTerminalShiftFeature, handleListShiftsFeature } = require('../features/deskTerminals/shiftDataFeature');
 const { handleExternalTicketFeature } = require('../features/deskTerminals/externalTicketFeature');
+const { handleGetSyncSignalsFeature } = require('../features/deskTerminals/syncSignalFeature');
 const router = express.Router();
 
 router
     .route('/terminal/basic_data')
     .get(handleGetBasicDataDeskTerminalsFeature)
+// Lagana provjera je li se sto promijenilo (storno, otkaz i pomak polaska).
+router
+    .route('/terminal/sync_signals')
+    .get(handleGetSyncSignalsFeature)
+
 router
     .route('/terminal/transport_data')
     .get(handleGetTransportDataDeskTerminalsFeature)
