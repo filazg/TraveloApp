@@ -64,6 +64,30 @@ const {
             ukupno += koliko;
         }
 
+        // API kanal: prodavatelj nije osoba nego partnerov terminal, pa se
+        // upisuje njegov TID. Narudzbe su ovdje, u istoj bazi, a TID stoji u
+        // backofficeu uz API korisnika.
+        const backofficeUrl = core?.services?.backoffice?.url;
+        if (backofficeUrl) {
+            const apiResp = await axios.get(`${backofficeUrl}/partners_api_users`, { timeout: 15000 });
+            const apiKorisnici = apiResp.data?.data?.partners_api_users || apiResp.data?.partners_api_users || [];
+            for (const u of apiKorisnici) {
+                if (!u.tid || !u.uuid) continue;
+                const [, meta] = await sequelize.query(
+                    `UPDATE tickets AS t
+                        SET sold_by_username = :tid
+                       FROM api_orders AS o
+                      WHERE t.order_uuid = o.order_uuid
+                        AND o.api_user_uuid = :korisnik
+                        AND (t.sold_by_username IS NULL OR t.sold_by_username = '')`,
+                    { replacements: { tid: u.tid, korisnik: u.uuid } }
+                );
+                const koliko = meta?.rowCount || 0;
+                if (koliko) console.log(`  ${u.tid} (${u.partner_name || ""}): ${koliko} karata`);
+                ukupno += koliko;
+            }
+        }
+
         const [preostalo] = await sequelize.query(
             `SELECT COUNT(*)::int AS bez_korisnika
                FROM tickets

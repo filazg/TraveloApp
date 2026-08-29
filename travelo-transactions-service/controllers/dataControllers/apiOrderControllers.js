@@ -78,7 +78,7 @@ const apiGetOrderController = async (req, res) => {
 const apiConfirmOrderController = async (req, res) => {
     const { ApiOrdersModel, TicketsModel } = req.app.locals.models;
     try {
-        const { partner_uuid, order_uuid } = req.body || {};
+        const { partner_uuid, order_uuid, tid } = req.body || {};
         if (!order_uuid) return res.status(400).json({ status: 400, data: { msg: "order_uuid required" } });
 
         const order = await ApiOrdersModel.findOne({ where: { order_uuid } });
@@ -155,6 +155,11 @@ const apiConfirmOrderController = async (req, res) => {
                     status: "created",
                     ticket_qr: ticket_uuid,
                     partner_uuid: order.partner_uuid,
+                    // Kod API prodaje prodavatelj nije osoba nego partnerov
+                    // terminal, pa se biljezi njegov TID — obracun provizije
+                    // razraduje promet po prodavatelju i inace bi API prodaja
+                    // stajala pod crticom.
+                    sold_by_username: tid || null,
                     partner_invoice_uuid: null,
                 };
                 ticketsToCreate.push(ticketRow);

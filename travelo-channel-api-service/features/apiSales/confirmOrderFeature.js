@@ -9,6 +9,10 @@ const handleConfirmOrderFeature = async (req, res) => {
         const result = await apiConfirmOrder({
             partner_uuid: req.partner.partner_uuid,
             order_uuid,
+            // Tko je prodao. Kod API prodaje to nije osoba nego terminal
+            // partnera, pa se u obracunu provizije prikazuje njegov TID —
+            // partner po njemu zna s kojeg je sustava karta izdana.
+            tid: req.partner.tid || null,
         });
         if (!result || result.status !== 200) {
             return res.status(result?.status || 500).json(result?.data || { msg: "Could not confirm order" });
