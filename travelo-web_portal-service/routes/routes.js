@@ -21,7 +21,7 @@ const { handleGetAccountsFeature, handleAddAccountFeature, handleUpdateAccountFe
 const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature, handleGetDailyRealizationDemoFeature, handleSendDailyRealizationDemoToErpFeature } = require('../features/transactions/dailyRealizationHandlers');
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
-const { handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
+const { handleGetPartnerInvoicePdfFeature, handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
 const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleTransferTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
 const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
@@ -225,6 +225,14 @@ router
 router
     .route('/transactions/partner_invoice/:partner_invoice_uuid')
     .get(handleGetPartnerInvoiceDetailsFeature)
+
+router
+    .route('/transactions/partner_invoice_pdf/:partner_invoice_uuid')
+    .get(handleGetPartnerInvoicePdfFeature(false))
+
+router
+    .route('/transactions/partner_invoice_details_pdf/:partner_invoice_uuid')
+    .get(handleGetPartnerInvoicePdfFeature(true))
 
 router
     .route('/transactions/partner_commission')

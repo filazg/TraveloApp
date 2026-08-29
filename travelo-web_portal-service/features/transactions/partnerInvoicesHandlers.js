@@ -3,6 +3,7 @@ const {
     getPartnerInvoiceDetailsController,
     getPartnerCommissionController,
     getPartnerCommissionDetailsController,
+    getPartnerInvoicePdfController,
 } = require('../../controllers/coreServiceControllers/transactionsServiceControllers.js/partnerInvoicesServiceControllers');
 
 const handleGetPartnerInvoicesFeature = async (req, res) => {
@@ -73,7 +74,24 @@ const handleGetPartnerCommissionDetailsFeature = async (req, res) => {
     }
 };
 
+const handleGetPartnerInvoicePdfFeature = (detalji) => async (req, res) => {
+    try {
+        const { partner_invoice_uuid } = req.params;
+        const response = await getPartnerInvoicePdfController(partner_invoice_uuid, detalji);
+        res.status(response.status);
+        res.setHeader('content-type', response.headers['content-type'] || 'application/pdf');
+        if (response.headers['content-disposition']) {
+            res.setHeader('content-disposition', response.headers['content-disposition']);
+        }
+        return res.send(Buffer.from(response.data));
+    } catch (error) {
+        console.log('handleGetPartnerInvoicePdfFeature error:', error?.message || error);
+        res.status(500).send('Partner invoice PDF proxy failed');
+    }
+};
+
 module.exports = {
+    handleGetPartnerInvoicePdfFeature,
     handleGetPartnerInvoicesFeature,
     handleGetPartnerInvoiceDetailsFeature,
     handleGetPartnerCommissionFeature,

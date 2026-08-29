@@ -19,7 +19,8 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
-import { fetchPartnerInvoiceDetailsThunk, financeSliceData } from "../../financeSlice";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import { fetchPartnerInvoiceDetailsThunk, financeSliceData, preuzmiPartnerRacunPdf } from "../../financeSlice";
 import PartnerInvoiceDetailsDrawer from "./PartnerInvoiceDetailsDrawer";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} EUR`;
@@ -67,6 +68,7 @@ export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, 
     const dispatch = useDispatch();
     const { partnerInvoiceDetails, partnerInvoiceDetailsLoading } = useSelector(financeSliceData);
     const [detaljiOtvoreni, setDetaljiOtvoreni] = useState(false);
+    const [pdfUTijeku, setPdfUTijeku] = useState("");
 
     useEffect(() => {
         if (invoiceFromList?.partner_invoice_uuid) {
@@ -88,6 +90,22 @@ export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, 
             .filter(Boolean).join("/")
         || `${head.partner_invoice_no}/${head.invoice_year}`;
     const naslov = jeF2 ? `F2 Račun/Invoice ${oznaka}` : `Račun/Invoice ${oznaka}`;
+
+    // Naziv datoteke nosi oznaku računa, da se u mapi prepozna bez otvaranja;
+    // "/" iz oznake u nazivu datoteke ne prolazi.
+    const nazivDatoteke = (sufiks) =>
+        `partner-racun-${String(oznaka).replace(/[^\w-]+/g, "-")}${sufiks}.pdf`;
+    const preuzmi = async (detalji) => {
+        setPdfUTijeku(detalji ? "detalji" : "racun");
+        try {
+            await preuzmiPartnerRacunPdf(head.partner_invoice_uuid, {
+                detalji,
+                naziv: nazivDatoteke(detalji ? "-detalji" : ""),
+            });
+        } finally {
+            setPdfUTijeku("");
+        }
+    };
 
     return (
         <Box sx={{ width: { xs: "100vw", sm: 780 }, height: "100%", display: "flex", flexDirection: "column" }}>
@@ -252,6 +270,22 @@ export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, 
             <Box sx={{ px: 3, py: 2, borderTop: "1px solid", borderColor: "divider", bgcolor: "background.paper" }}>
                 <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
                     {partnerInvoiceDetailsLoading ? <CircularProgress size={18} /> : null}
+                    <Button
+                        variant="outlined"
+                        startIcon={<PictureAsPdfIcon />}
+                        onClick={() => preuzmi(false)}
+                        disabled={!!pdfUTijeku}
+                    >
+                        {pdfUTijeku === "racun" ? "Priprema…" : "Račun PDF"}
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<PictureAsPdfIcon />}
+                        onClick={() => preuzmi(true)}
+                        disabled={!items.length || !!pdfUTijeku}
+                    >
+                        {pdfUTijeku === "detalji" ? "Priprema…" : "Detalji PDF"}
+                    </Button>
                     <Button
                         variant="contained"
                         startIcon={<ListAltOutlinedIcon />}

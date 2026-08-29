@@ -59,7 +59,18 @@ const getPartnerCommissionDetailsController = async (params = {}) => {
     }
 };
 
+// PDF se prosljeduje kao sirovi buffer, kao i kod obicnog racuna.
+const getPartnerInvoicePdfController = async (partner_invoice_uuid, detalji) => {
+    const coreConfigData = await getCoreServiceConfigData();
+    const put = detalji ? '/partner_invoice_details_pdf/' : '/partner_invoice_pdf/';
+    return axios.get(
+        coreConfigData.services.transactions.url + put + partner_invoice_uuid,
+        { responseType: 'arraybuffer', validateStatus: () => true }
+    );
+};
+
 module.exports = {
+    getPartnerInvoicePdfController,
     getPartnerInvoicesController,
     getPartnerInvoiceDetailsController,
     getPartnerCommissionController,

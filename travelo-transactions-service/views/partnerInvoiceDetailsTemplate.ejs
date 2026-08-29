@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="utf-8" />
+    <title>Detalji računa <%= r.partner_invoice_no %>/<%= r.invoice_year %></title>
+    <style>
+        @page { margin: 18mm 12mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; color: #1e293b; line-height: 1.4; margin: 0; }
+        .head { border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 14px; }
+        .head h1 { font-size: 18px; margin: 0 0 3px; }
+        .head .meta { color: #64748b; font-size: 11px; }
+        h2 { font-size: 13px; margin: 16px 0 6px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        thead th { text-align: left; font-weight: 700; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.4px; color: #475569; border-bottom: 1.5px solid #0f172a; padding: 5px 4px; }
+        tbody td { padding: 4px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        .num { text-align: right; white-space: nowrap; }
+        tr.zbroj td { font-weight: 800; border-top: 1.5px solid #0f172a; border-bottom: none; padding-top: 6px; }
+        .footer { margin-top: 16px; font-size: 9.5px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    </style>
+</head>
+<body>
+<%
+    var eur = function (v) { return (Number(v) || 0).toFixed(2).replace('.', ',') + ' EUR'; };
+    var uZagrebu = function (value, sVremenom) {
+        var dt = value instanceof Date ? value : new Date(value);
+        if (!value || isNaN(dt.getTime())) return '';
+        var d = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Zagreb',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hour12: false,
+        }).formatToParts(dt).reduce(function (acc, p) { if (p.type !== 'literal') acc[p.type] = p.value; return acc; }, {});
+        var datum = d.day + '.' + d.month + '.' + d.year + '.';
+        return sVremenom ? datum + ' ' + d.hour + ':' + d.minute : datum;
+    };
+    var oznaka = r.partner_invoice_code || (r.partner_invoice_no + '/' + r.invoice_year);
+%>
+<div class="head">
+    <h1>Detalji računa <%= oznaka %></h1>
+    <div class="meta">
+        <%= r.partner_name %> · razdoblje <%= uZagrebu(r.period_from) %> – <%= uZagrebu(r.period_to) %> ·
+        <%= r.tickets_count %> karata · za naplatu <%= eur(r.net_amount) %>
+    </div>
+</div>
+
+<h2>Rezime po polascima</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Polazak</th><th>Linija</th><th>Relacija</th>
+            <th class="num">Karte</th><th class="num">Bruto</th>
+            <th class="num">Provizija</th><th class="num">Osnovica za PDV</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% polasci.forEach(function (p) { %>
+        <tr>
+            <td><%= p.departure || '—' %></td>
+            <td><%= p.line %></td>
+            <td><%= p.relation %></td>
+            <td class="num"><%= p.count %></td>
+            <td class="num"><%= eur(p.gross) %></td>
+            <td class="num"><%= eur(p.commission) %></td>
+            <td class="num"><%= eur(p.net) %></td>
+        </tr>
+        <% }); %>
+        <tr class="zbroj">
+            <td colspan="3">Ukupno (<%= polasci.length %> polazaka)</td>
+            <td class="num"><%= zbrojPolazaka.count %></td>
+            <td class="num"><%= eur(zbrojPolazaka.gross) %></td>
+            <td class="num"><%= eur(zbrojPolazaka.commission) %></td>
+            <td class="num"><%= eur(zbrojPolazaka.net) %></td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Analitika po korisniku</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Korisnik</th>
+            <th class="num">Prodaja</th><th class="num">Karte</th>
+            <th>Prva prodaja</th><th>Zadnja prodaja</th>
+            <th class="num">Bruto</th><th class="num">Provizija</th><th class="num">Osnovica za PDV</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% korisnici.forEach(function (k) { %>
+        <tr>
+            <td><%= k.korisnik %></td>
+            <td class="num"><%= k.prodaja %></td>
+            <td class="num"><%= k.karte %></td>
+            <td><%= uZagrebu(k.prva, true) %></td>
+            <td><%= uZagrebu(k.zadnja, true) %></td>
+            <td class="num"><%= eur(k.gross) %></td>
+            <td class="num"><%= eur(k.commission) %></td>
+            <td class="num"><%= eur(k.net) %></td>
+        </tr>
+        <% }); %>
+        <tr class="zbroj">
+            <td>Ukupno</td>
+            <td class="num"><%= zbrojKorisnika.prodaja %></td>
+            <td class="num"><%= zbrojKorisnika.karte %></td>
+            <td colspan="2"></td>
+            <td class="num"><%= eur(zbrojKorisnika.gross) %></td>
+            <td class="num"><%= eur(zbrojKorisnika.commission) %></td>
+            <td class="num"><%= eur(zbrojKorisnika.net) %></td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="footer">
+    <%= r.company_name || '' %> · detalji uz račun <%= oznaka %>
+</div>
+</body>
+</html>

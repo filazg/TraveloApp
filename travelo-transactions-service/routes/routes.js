@@ -4,6 +4,7 @@ const { createPartnerSaleController, listTicketsForOrderController } = require('
 const { renderTicketsPdfController } = require('../controllers/dataControllers/ticketPdfController');
 const { finalizeWebSaleController } = require('../controllers/dataControllers/finalizeWebSaleController');
 const { renderInvoicePdfController } = require('../controllers/dataControllers/invoicePdfController');
+const { renderPartnerInvoicePdfController, renderPartnerInvoiceDetailsPdfController } = require('../controllers/dataControllers/partnerInvoicePdfController');
 const { listInvoicesController } = require('../controllers/dataControllers/invoicesListController');
 const { backfillInvoicesFiscalController } = require('../controllers/dataControllers/invoicesBackfillController');
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
@@ -78,6 +79,16 @@ router
 router
     .route('/partner_invoices')
     .get(listPartnerInvoicesController)
+
+// Racun i detalji u PDF-u: racun se salje partneru i ide u knjigovodstvo, a
+// detalji su podloga uz njega.
+router
+    .route('/partner_invoice_pdf/:partner_invoice_uuid')
+    .get(renderPartnerInvoicePdfController)
+
+router
+    .route('/partner_invoice_details_pdf/:partner_invoice_uuid')
+    .get(renderPartnerInvoiceDetailsPdfController)
 
 router
     .route('/partner_invoice/:partner_invoice_uuid')

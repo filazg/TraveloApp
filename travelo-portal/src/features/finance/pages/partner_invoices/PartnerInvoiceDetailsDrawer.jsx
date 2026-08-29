@@ -11,6 +11,8 @@ import {
     Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import { preuzmiPartnerRacunPdf } from "../../financeSlice";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 // Polazak je tekst "DD.MM.YYYY. HH:mm"; new Date() ga ne parsira, pa se za
@@ -47,7 +49,17 @@ export default function PartnerInvoiceDetailsDrawer({ invoice, items = [], onClo
                         {invoice.partner_name} · {invoice.tickets_count} karata
                     </Typography>
                 </Box>
-                <Button onClick={onClose} startIcon={<CloseIcon />}>Zatvori</Button>
+                <Stack direction="row" spacing={1}>
+                    {/* Ista razrada kao na ekranu, u obliku koji se salje dalje. */}
+                    <Button
+                        variant="outlined"
+                        startIcon={<PictureAsPdfIcon />}
+                        onClick={() => preuzmiPartnerRacunPdf(invoice.partner_invoice_uuid, { detalji: true })}
+                    >
+                        PDF
+                    </Button>
+                    <Button onClick={onClose} startIcon={<CloseIcon />}>Zatvori</Button>
+                </Stack>
             </Stack>
 
             <RouteSummarySection items={items} />

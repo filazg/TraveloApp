@@ -992,6 +992,24 @@ export const downloadInvoicePdf = async (invoice_uuid, filename) => {
     setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
 };
 
+// Partnerski račun i razrada uz njega u PDF-u. Račun se šalje partneru i ide u
+// knjigovodstvo, pa mora postojati kao dokument, ne samo kao prikaz.
+export const preuzmiPartnerRacunPdf = async (partner_invoice_uuid, { detalji = false, naziv } = {}) => {
+    const put = detalji ? "partner_invoice_details_pdf" : "partner_invoice_pdf";
+    const resp = await api.get(`/portal/transactions/${put}/${partner_invoice_uuid}`, {
+        responseType: "blob",
+    });
+    const blob = new Blob([resp.data], { type: "application/pdf" });
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = naziv || `partner-racun-${partner_invoice_uuid.slice(0, 8)}${detalji ? "-detalji" : ""}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+};
+
 // Obračun lučkih naknada u PDF-u. Bez `region` preuzima se zbirni izvještaj za
 // sve uprave, s njim samo ta uprava — svakoj se predaje njezin obračun. Ime
 // datoteke slaže backend, pa se ovdje čita iz content-disposition.
