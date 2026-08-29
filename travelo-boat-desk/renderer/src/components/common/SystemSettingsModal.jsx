@@ -14,6 +14,8 @@ import {
   FormControlLabel,
   Switch,
 } from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import BrandMark from "./BrandMark";
 import { allAppData, setStateData } from "../../store/appSlice";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -99,59 +101,82 @@ export default function SystemSettingsModal() {
     return (hour + day + dow) * month;
   }
 
+  const [pogresanKod, setPogresanKod] = useState(false)
+
   const handleCalculate = () => {
     const expected = calcValueFromNow();
-
-    console.log("code:", code);
-    console.log("expected:", expected);
-
     if (Number(code) === expected) {
-        setCalculated(true);
+      setPogresanKod(false)
+      setCalculated(true);
+      return
     }
+    // Prije se kod tiho odbijao — polje je ostajalo puno, a nista se nije
+    // dogodilo, pa je izgledalo kao da gumb ne radi.
+    setPogresanKod(true)
+    setCode('')
   };
 
+  // Kod se mijenja svaki sat i zna ga samo podrska — ovo je brana, ne prijava,
+  // pa zaslon govori zasto je zakljucano i sto uciniti, umjesto golog polja.
   function codeForm() {
       return(
       <>
-          <Typography
-              sx={{mb:2}}
-          >
-              UNESI KOD
-          </Typography>
-              <TextField
-                  name="code"
-                  label="code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                  />
-          <Button sx={{ height: 75 }} onClick={handleCalculate} fullWidth variant="contained">POTVRDI</Button>   
+        <DialogContent sx={{ px: 4, py: 5 }}>
+          <Stack spacing={3} alignItems="center" textAlign="center">
+            <Box
+              sx={{
+                width: 64, height: 64, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                bgcolor: "primary.main", color: "primary.contrastText",
+              }}
+            >
+              <LockOutlinedIcon sx={{ fontSize: 32 }} />
+            </Box>
+
+            <Box>
+              <Typography variant="h6" fontWeight={800}>
+                Postavke sustava
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Zaključano — unesi pristupni kod koji ti daje podrška.
+              </Typography>
+            </Box>
+
+            <TextField
+              name="code"
+              label="Pristupni kod"
+              value={code}
+              autoFocus
+              onChange={(e) => { setCode(e.target.value.replace(/\D/g, "")); setPogresanKod(false) }}
+              // Kod je brojcan i unosi se na blagajni, cesto na tipkovnici bez
+              // numerickog dijela; Enter potvrduje da se ne mora traziti gumb.
+              onKeyDown={(e) => { if (e.key === "Enter" && code) handleCalculate() }}
+              error={pogresanKod}
+              helperText={pogresanKod ? "Kod nije točan — zatraži novi od podrške." : " "}
+              inputProps={{ inputMode: "numeric", style: { textAlign: "center", fontSize: 28, letterSpacing: 8, fontWeight: 700 } }}
+              fullWidth
+            />
+
+            <Stack direction="row" spacing={1.5} sx={{ width: "100%" }}>
+              <Button onClick={handleClose} variant="outlined" fullWidth sx={{ height: 52 }}>
+                Odustani
+              </Button>
+              <Button
+                onClick={handleCalculate}
+                variant="contained"
+                fullWidth
+                disabled={!code}
+                sx={{ height: 52, fontWeight: 800 }}
+              >
+                Otključaj
+              </Button>
+            </Stack>
+
+            <BrandMark variant="caption" sx={{ opacity: 0.6 }} />
+          </Stack>
+        </DialogContent>
       </>
       )
-    }
-
-
-     const handleSubmit = async()=>{
-        //dispatch(setLoading({value:true}))
-        console.log('SUBMIT ', settingsData)
-        const setData = await window.api.app.setSystemSettingsDataIpc(settingsData);
-        const basicData = await window.api.app.getLocalBasicDataIpc()
-
-        await dispatch(setStateData({path:'basicData', value: basicData.data}));
-        // Osvježi prikaz brojača — nakon spremanja početka numeracije mora se
-        // vidjeti koji će broj sljedeći račun stvarno dobiti.
-        try {
-          const res = await window.api.app.getNextInvoiceNumbersIPC()
-          if (res?.ok) setBrojevi(res.data)
-        } catch (e) {
-          console.log('getNextInvoiceNumbersIPC nije uspio:', e?.message || e)
-        }
-        
-        //const getSettingsData = await window.api.e_setInitialSettingsData();
-      
-        //dispatch(setStateData({path:'showSettingsModal', value: false}))
-        //dispatch(setLoading({value:false}))
     }
 
   function settingsForm() {
