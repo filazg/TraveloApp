@@ -150,10 +150,6 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                             </TableBody>
                         </Table>
                     </TableContainer>
-                    <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1.5 }}>
-                        Karte koje je partner prodao kroz partnersku prodaju. Njih naplaćuje od putnika, a
-                        provizija mu se odbija na zbirnom računu — zato se ne isplaćuju kroz ovaj obračun.
-                    </Typography>
                 </Box>
             ) : null}
         </Paper>
