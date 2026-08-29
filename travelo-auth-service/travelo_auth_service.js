@@ -31,6 +31,18 @@ const syncData = ()=>{
     syncPartnersApiUsersDataController()
 }
 
+// Kopija korisnika se osvjezava i sama, ne samo na event iz backofficea.
+// Event putuje preko brokera i zna se izgubiti — broker padne, poruku pokupi
+// drugi stack — a tada se promjena (npr. dodana uloga) ne vidi do sljedeceg
+// restarta servisa. Korisnika je malo i mijenjaju se rijetko, pa je ovo jeftino.
+const RAZMAK_OSVJEZAVANJA_MS = 5 * 60 * 1000
+const pokreniPeriodicnoOsvjezavanje = () => {
+    setInterval(() => {
+        syncPartnersWebUsersDataController()
+        syncPartnersApiUsersDataController()
+    }, RAZMAK_OSVJEZAVANJA_MS).unref()
+}
+
 const startService = async ()=>{
     try {
         await syncMainServiceConfigData()
@@ -47,6 +59,7 @@ const startService = async ()=>{
         app.use('/', router);
         travelo_subscriber('travelo_auth_service')
         syncData()
+        pokreniPeriodicnoOsvjezavanje()
         app.listen(config.services.auth.port, console.log('AUTH SERVICE started on port ' + config.services.auth.port));
     } catch (error) {
         console.log(error)
