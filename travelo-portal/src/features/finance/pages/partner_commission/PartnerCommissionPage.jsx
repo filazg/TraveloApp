@@ -49,6 +49,8 @@ export default function PartnerCommissionPage() {
     // kao podloga za isplatu: iznos nije konacan jer se prodaja jos dogadja.
     const otvoreno = finance.partnerCommissionOpen || {};
     const otvoreniPartner = (otvoreno.partners || [])[0] || null;
+    // Partnerova vlastita prodaja gleda se u istom, otvorenom razdoblju.
+    const kanalPartnera = otvoreno.partner_channel || null;
 
     // Kartica u Financijama pali zaslon učitavanja prije nego preda stranicu, pa
     // ga stranica mora ugasiti — inače prekrivač ostane preko svega i izgleda
@@ -143,6 +145,39 @@ export default function PartnerCommissionPage() {
                     ovog partnera, i pada li prodaja u to razdoblje — obračunava se zadnje zaokruženo
                     razdoblje, ne ono koje traje.
                 </Alert>
+            ) : null}
+
+            {partnerUuid && kanalPartnera ? (
+                <Paper variant="outlined" sx={{ mb: 2 }}>
+                    <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={2}
+                        sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
+                    >
+                        <Typography sx={{ fontWeight: 800, flex: 1 }}>
+                            Vlastita prodaja partnera{otvoreno.from && otvoreno.to
+                                ? ` · ${hrDatum(otvoreno.from)} – ${hrDatum(otvoreno.to)}` : ""}
+                        </Typography>
+                        <Chip size="small" label="obračunava se na zbirnom računu" />
+                    </Stack>
+                    <Box sx={{ px: 2, py: 1.5 }}>
+                        <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap>
+                            <Typography>Karata: <b>{kanalPartnera.tickets}</b></Typography>
+                            <Typography>Promet: <b>{fmtEUR(kanalPartnera.gross)}</b></Typography>
+                            <Typography>Osnovica: <b>{fmtEUR(kanalPartnera.base)}</b></Typography>
+                            <Typography>Provizija: <b>{fmtEUR(kanalPartnera.commission)}</b></Typography>
+                            <Typography color="text.secondary">
+                                na zbirnom računu: {kanalPartnera.invoiced}/{kanalPartnera.tickets}
+                            </Typography>
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            Karte koje je partner prodao kroz partnersku prodaju. Njih naplaćuje od putnika,
+                            a nama duguje promet umanjen za proviziju — zato se ne isplaćuju kroz ovaj obračun
+                            nego se odbijaju na zbirnom partnerskom računu.
+                        </Typography>
+                    </Box>
+                </Paper>
             ) : null}
 
             {partnerUuid && otvoreniPartner ? (

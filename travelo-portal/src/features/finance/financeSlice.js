@@ -89,6 +89,9 @@ export const fetchPartnerCommissionThunk = createAsyncThunk(
             const payload = unwrapBff(resp);
             return {
                 partners: payload?.partners || [],
+                // Partnerova vlastita prodaja (partnerska prodaja) — prikazuje se
+                // odvojeno, jer se ondje provizija odbija na zbirnom racunu.
+                partner_channel: payload?.partner_channel || null,
                 totals: payload?.totals || { tickets: 0, gross: 0, base: 0, commission: 0 },
                 from: payload?.from || params.from || "",
                 to: payload?.to || params.to || "",

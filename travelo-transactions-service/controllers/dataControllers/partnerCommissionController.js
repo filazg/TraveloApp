@@ -274,6 +274,48 @@ const partnerCommissionController = async (req, res) => {
             };
         }).sort((a, b) => String(a.partner_name).localeCompare(String(b.partner_name), "hr"));
 
+        // Partnerova vlastita prodaja — karte prodane kroz partnersku prodaju.
+        // Njih partner naplacuje od putnika, a nama duguje bruto umanjen za
+        // proviziju, sto se obracunava na zbirnom partnerskom racunu. Zato NE
+        // ulaze u iznos za isplatu, ali se prikazuju: bez njih partner u
+        // obracunu ne vidi dio svoje zarade i cini mu se da prodaja nedostaje.
+        let vlastitaProdaja = null;
+        if (partner_uuid) {
+            const partner = partneri.find((p) => p.uuid === partner_uuid);
+            const pct = Number(partner?.commission_pct) || 0;
+            const karteKanala = await TicketsModel.findAll({
+                where: {
+                    partner_uuid,
+                    [Op.or]: [{ is_canceled: false }, { is_canceled: null }],
+                    createdAt: { [Op.between]: [od, doo] },
+                },
+            });
+            if (karteKanala.length) {
+                let bruto = 0;
+                let osnovica = 0;
+                let obracunato = 0;
+                for (const red of karteKanala) {
+                    const k = red.dataValues || red;
+                    const i = neto(k.single_price);
+                    bruto += i.bruto;
+                    osnovica += i.osnovica;
+                    if (k.partner_invoice_uuid) obracunato += 1;
+                }
+                const base = +osnovica.toFixed(2);
+                vlastitaProdaja = {
+                    partner_uuid,
+                    partner_name: partner?.partner_name || "",
+                    commission_pct: pct,
+                    tickets: karteKanala.length,
+                    gross: +bruto.toFixed(2),
+                    base,
+                    commission: +((base * pct) / 100).toFixed(2),
+                    // Koliko ih je vec uslo u zbirni partnerski racun.
+                    invoiced: obracunato,
+                };
+            }
+        }
+
         const totals = partnersOut.reduce((z, p) => ({
             tickets: z.tickets + p.tickets,
             gross: +(z.gross + p.gross).toFixed(2),
@@ -281,7 +323,7 @@ const partnerCommissionController = async (req, res) => {
             commission: +(z.commission + p.commission).toFixed(2),
         }), { tickets: 0, gross: 0, base: 0, commission: 0 });
 
-        res.send({ status: 200, data: { from, to, period: razdoblje, partners: partnersOut, totals } });
+        res.send({ status: 200, data: { from, to, period: razdoblje, partners: partnersOut, partner_channel: vlastitaProdaja, totals } });
     } catch (error) {
         console.log("partnerCommissionController error:", error?.message || error);
         res.status(500).json({ status: 500, data: { message: error.message } });
