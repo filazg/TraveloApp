@@ -88,6 +88,12 @@ export default function PartnerInvoicePreviewDrawer({ invoice, onClose }) {
                     <Typography variant="h6">{fmtEUR(head.gross_amount)}</Typography>
                 </Box>
                 <Box>
+                    {/* Pristojba se fakturira u cijelosti: nije naš prihod nego se
+                        prosljeđuje luci, pa se ne umanjuje za proviziju. */}
+                    <Typography variant="subtitle2" color="text.secondary">Lučka pristojba (u cijelosti)</Typography>
+                    <Typography variant="h6">{fmtEUR(head.harbor_tax_amount)}</Typography>
+                </Box>
+                <Box>
                     {/* Bez osnovice se postotak i iznos provizije ne mogu složiti:
                         na bruto iznos ne daju taj rezultat. */}
                     <Typography variant="subtitle2" color="text.secondary">Osnovica za proviziju</Typography>

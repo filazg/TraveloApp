@@ -112,6 +112,14 @@ function TabRacuniZaProvizije() {
                 valueFormatter: (v) => fmtEUR(v),
             },
             {
+                field: "harbor_tax_amount",
+                headerName: "Pristojba",
+                width: 110,
+                align: "right",
+                headerAlign: "right",
+                valueFormatter: (v) => fmtEUR(v),
+            },
+            {
                 field: "commission_base",
                 headerName: "Osnovica",
                 width: 120,

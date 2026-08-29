@@ -88,14 +88,21 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
 
         let gross = 0;
         let commissionBase = 0;
+        let harborTax = 0;
         const ticketItems = tickets.map((t) => {
             const g = parseFloat(t.single_price) || 0;
             const i = neto(g);
             gross += g;
             commissionBase += i.osnovica;
-            return { ticket: t, gross: g, base: i.osnovica };
+            harborTax += i.pristojba;
+            return { ticket: t, gross: g, base: i.osnovica, harborTax: i.pristojba };
         });
         gross = +gross.toFixed(2);
+        // Lučka pristojba se partneru fakturira u cijelosti i ne umanjuje se za
+        // proviziju: nije naš prihod nego se prosljeđuje luci, pa na njoj nema
+        // sto dijeliti. Stoji izdvojeno da se na racunu vidi koliko je od
+        // naplacenog iznosa tuda stavka.
+        harborTax = +harborTax.toFixed(2);
         // Provizija ide na osnovicu — bez lučke pristojbe i bez PDV-a. Prije se
         // računala na naplaćeni iznos, pa je partneru išlo i na tuđi novac:
         // pristojba je prolazna stavka, PDV je državin.
@@ -106,9 +113,9 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
         const vatAmount = vatRate > 0 ? +((netAmount * vatRate) / (100 + vatRate)).toFixed(2) : 0;
         const vatBase = +(netAmount - vatAmount).toFixed(2);
 
-        const items = ticketItems.map(({ ticket, gross: g, base }) => {
+        const items = ticketItems.map(({ ticket, gross: g, base, harborTax: hp }) => {
             const itemCommission = provizijaOd(base, commissionPct);
-            return { ticket, gross: g, base, commission: itemCommission, net: +(g - itemCommission).toFixed(2) };
+            return { ticket, gross: g, base, harborTax: hp, commission: itemCommission, net: +(g - itemCommission).toFixed(2) };
         });
         // Zbroj stavaka mora dati iznos u zaglavlju: provizija se računa na
         // zbroj osnovice, pa se ostatak zaokruživanja pripisuje zadnjoj stavci —
@@ -151,6 +158,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                     gross_amount: gross,
                     commission_pct: commissionPct,
                     commission_base: commissionBase,
+                    harbor_tax_amount: harborTax,
                     commission_amount: commissionAmount,
                     net_amount: netAmount,
                     vat_rate: vatRate,
@@ -170,7 +178,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 { transaction: tx }
             );
 
-            const itemsPayload = items.map(({ ticket, gross: g, base, commission, net }) => ({
+            const itemsPayload = items.map(({ ticket, gross: g, base, harborTax: hp, commission, net }) => ({
                 partner_invoice_uuid: invoiceUuid,
                 ticket_uuid: ticket.ticket_uuid,
                 order_uuid: ticket.order_uuid,
@@ -186,6 +194,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 departure: ticket.departure,
                 gross_amount: g,
                 commission_base: base,
+                harbor_tax_amount: hp,
                 commission_amount: commission,
                 net_amount: net,
             }));
@@ -209,6 +218,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 gross_amount: gross,
                 commission_pct: commissionPct,
                 commission_base: commissionBase,
+                harbor_tax_amount: harborTax,
                 commission_amount: commissionAmount,
                 net_amount: netAmount,
                 vat_rate: vatRate,

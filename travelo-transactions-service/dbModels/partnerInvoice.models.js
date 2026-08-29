@@ -88,6 +88,14 @@ module.exports = (sequelize) => {
                 allowNull: false,
                 defaultValue: 0,
             },
+            // Lučka pristojba sadržana u naplaćenom iznosu. Partneru se
+            // fakturira u cijelosti i ne umanjuje se za proviziju — nije naš
+            // prihod nego se prosljeđuje luci.
+            harbor_tax_amount: {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0,
+            },
             commission_amount: {
                 type: DataTypes.DECIMAL(12, 2),
                 allowNull: false,
@@ -252,6 +260,12 @@ module.exports = (sequelize) => {
             },
             // Osnovica te karte — bez lučke pristojbe i bez PDV-a.
             commission_base: {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0,
+            },
+            // Lučka pristojba sadržana u cijeni te karte.
+            harbor_tax_amount: {
                 type: DataTypes.DECIMAL(12, 2),
                 allowNull: false,
                 defaultValue: 0,
