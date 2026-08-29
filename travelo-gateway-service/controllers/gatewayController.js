@@ -57,6 +57,11 @@ const gatewayController = async (req, res) => {
                         }else{
                             const serviceUrl = registryData.services[req.params.servis].url + '/' + req.params.module + '/' + req.params.path + (req.params.subpath ? '/' + req.params.subpath : '');
                             try {
+                                // Odgovor se uzima kao tok pa se tek onda odlucuje:
+                                // otvorena veza (SSE) mora teci prema uredaju, a
+                                // sve ostalo se skupi kao i dosad. S 'arraybuffer'
+                                // gateway je cekao kraj odgovora, pa otvorena veza
+                                // nikad ne bi stigla do uredaja.
                                 const respo = await axios({
                                     method: req.method,
                                     url: serviceUrl,
@@ -65,12 +70,34 @@ const gatewayController = async (req, res) => {
                                         body: req.body,
                                     },
                                     params: req.query,
-                                    responseType: 'arraybuffer',
+                                    responseType: 'stream',
                                     validateStatus: () => true,
                                 });
                                 const ctype = respo.headers['content-type'] || 'application/octet-stream';
+
+                                if (ctype.includes('text/event-stream')) {
+                                    res.status(respo.status);
+                                    res.setHeader('content-type', ctype);
+                                    res.setHeader('cache-control', 'no-cache, no-transform');
+                                    res.setHeader('connection', 'keep-alive');
+                                    // Nginx inace skuplja odgovor i uredaj ne dobije nista.
+                                    res.setHeader('x-accel-buffering', 'no');
+                                    res.flushHeaders?.();
+                                    respo.data.pipe(res);
+                                    // Kad uredaj prekine vezu, treba prekinuti i onu
+                                    // prema servisu, inace ostaje viseti.
+                                    const prekini = () => { try { respo.data.destroy(); } catch (e) { /* vec zatvoreno */ } };
+                                    req.on('close', prekini);
+                                    res.on('close', prekini);
+                                    return;
+                                }
+
+                                const dijelovi = [];
+                                for await (const dio of respo.data) dijelovi.push(dio);
+                                const tijelo = Buffer.concat(dijelovi);
+
                                 if (ctype.includes('application/json')) {
-                                    const parsed = JSON.parse(Buffer.from(respo.data).toString('utf-8'));
+                                    const parsed = JSON.parse(tijelo.toString('utf-8'));
                                     const status = parsed?.status ?? respo.status;
                                     const body = parsed?.data !== undefined ? parsed.data : parsed;
                                     return res.status(status).json(body);
@@ -81,7 +108,7 @@ const gatewayController = async (req, res) => {
                                 if (respo.headers['content-disposition']) {
                                     res.setHeader('content-disposition', respo.headers['content-disposition']);
                                 }
-                                return res.send(Buffer.from(respo.data));
+                                return res.send(tijelo);
                             } catch (err) {
                                 console.log('CHANNEL GATEWAY ERROR:', err?.message || err);
                                 return res.status(500).json({ msg: 'gateway_error' });

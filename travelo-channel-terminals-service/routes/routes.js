@@ -9,6 +9,7 @@ const { handleCheckIslandCardFeature, handleCancelTicketsFeature } = require('..
 const { handleUpsertTerminalShiftFeature, handleListShiftsFeature } = require('../features/deskTerminals/shiftDataFeature');
 const { handleExternalTicketFeature } = require('../features/deskTerminals/externalTicketFeature');
 const { handleGetSyncSignalsFeature } = require('../features/deskTerminals/syncSignalFeature');
+const { handleSyncStreamFeature } = require('../features/deskTerminals/syncStreamFeature');
 const router = express.Router();
 
 router
@@ -18,6 +19,11 @@ router
 router
     .route('/terminal/sync_signals')
     .get(handleGetSyncSignalsFeature)
+
+// Otvorena veza: posluzitelj javlja uredaju cim se sto promijeni.
+router
+    .route('/terminal/sync_stream')
+    .get(handleSyncStreamFeature)
 
 router
     .route('/terminal/transport_data')
