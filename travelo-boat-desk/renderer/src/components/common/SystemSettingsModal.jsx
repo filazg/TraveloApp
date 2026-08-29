@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Dialog,
@@ -177,6 +177,21 @@ export default function SystemSettingsModal() {
         </DialogContent>
       </>
       )
+    }
+
+     const handleSubmit = async()=>{
+        await window.api.app.setSystemSettingsDataIpc(settingsData);
+        const basicData = await window.api.app.getLocalBasicDataIpc()
+
+        await dispatch(setStateData({path:'basicData', value: basicData.data}));
+        // Osvježi prikaz brojača — nakon spremanja početka numeracije mora se
+        // vidjeti koji će broj sljedeći račun stvarno dobiti.
+        try {
+          const res = await window.api.app.getNextInvoiceNumbersIPC()
+          if (res?.ok) setBrojevi(res.data)
+        } catch (e) {
+          console.log('getNextInvoiceNumbersIPC nije uspio:', e?.message || e)
+        }
     }
 
   function settingsForm() {
