@@ -437,6 +437,13 @@ const partnerCommissionDetailsController = async (req, res) => {
             return {
                 ...izvor,
                 sold_at: k.issued_at || k.createdAt,
+                // Jedna prodaja zna nositi vise karata; kod partnerove vlastite
+                // prodaje se izvjestaj cita po prodaji, a ne po karti, pa uz
+                // kartu ide i cime je vezana — narudzba, kupac i napomena.
+                order_uuid: k.order_uuid || "",
+                order_number: k.order_number || "",
+                order_note: k.order_note || "",
+                passanger_name: k.passanger_name || "",
                 ticket_code: k.ticket_code,
                 ticket_type_name: k.ticket_type_name,
                 line_name: k.line_name,
