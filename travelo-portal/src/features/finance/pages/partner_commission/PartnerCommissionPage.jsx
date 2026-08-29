@@ -18,12 +18,10 @@ import {
     Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import DownloadIcon from "@mui/icons-material/Download";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import { IconButton, Tooltip } from "@mui/material";
 import { dohvatiDetaljeProvizije, fetchPartnerCommissionThunk, fetchPartnersListThunk, financeSliceData } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
-import { izveziObracunProvizije } from "./provizijaExcel";
 import { izveziDetaljeProvizije, pripadaRetku } from "./detaljiExcel";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
@@ -209,14 +207,9 @@ export default function PartnerCommissionPage() {
 
     const [partnerUuid, setPartnerUuid] = useState("");
 
+    // Razdoblje i zbrojevi dolaze s poslužitelja i prikazuju se u samim
+    // karticama; stranica ih ne treba držati zasebno.
     const obracun = finance.partnerCommission || {};
-    const partneri = obracun.partners || [];
-    const totals = obracun.totals || { tickets: 0, gross: 0, base: 0, commission: 0 };
-    // Razdoblje dolazi s poslužitelja, iz dinamike naplate partnera — ne bira se
-    // ovdje; spominje se u poruci kad nema prodaje, da se vidi za što je obračun
-    // bio prazan.
-    const from = obracun.from || "";
-    const to = obracun.to || "";
 
     // Otvoreno razdoblje — ono koje još traje. Stoji uz obračun kao stanje, ne
     // kao podloga za isplatu: iznos nije konačan jer se prodaja još događa.
@@ -306,14 +299,6 @@ export default function PartnerCommissionPage() {
                         disabled={finance.partnerCommissionLoading || !partnerUuid}
                     >
                         Prikaži
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={<DownloadIcon />}
-                        onClick={() => izveziObracunProvizije({ partneri, totals, from, to, partner: odabraniPartner })}
-                        disabled={!partneri.length}
-                    >
-                        Excel
                     </Button>
                 </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
