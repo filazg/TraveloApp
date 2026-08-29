@@ -398,33 +398,29 @@ const partnerCommissionController = async (req, res) => {
 // Vraća se cijelo razdoblje odjednom, s oznakom izvora na svakom retku
 // (prodajno mjesto, uređaj, operater, odnosno korisnik partnera), pa isti popis
 // služi i za preuzimanje svega i za pojedini redak razrade.
-const partnerCommissionDetailsController = async (req, res) => {
-    const { TicketsModel, InvoiceModel } = req.app.locals.models;
-    try {
-        const { partner_uuid, period } = req.query || {};
-        let { from, to } = req.query || {};
-        if (!partner_uuid) {
-            return res.status(400).json({ status: 400, data: { message: "partner_uuid je obavezan" } });
-        }
+// Prikupljanje stoji odvojeno od odgovora, jer isti podaci sluze i za JSON
+// (portal) i za PDF (izvjestaj koji partner dobiva u ruke).
+const prikupiDetalje = async ({ TicketsModel, InvoiceModel, partner_uuid, period, from, to }) => {
+    if (!partner_uuid) throw Object.assign(new Error("partner_uuid je obavezan"), { status: 400 });
 
-        const [prostoriPodaci, partneriPodaci] = await Promise.all([
-            dohvatiIzBackofficea("/business_premises"),
-            dohvatiIzBackofficea("/partners"),
-        ]);
-        const partneri = partneriPodaci.partners || [];
-        const partner = partneri.find((p) => p.uuid === partner_uuid) || null;
-        const pct = Number(partner?.commission_pct) || 0;
+    const [prostoriPodaci, partneriPodaci, tvrtkaPodaci] = await Promise.all([
+        dohvatiIzBackofficea("/business_premises"),
+        dohvatiIzBackofficea("/partners"),
+        dohvatiIzBackofficea("/company"),
+    ]);
+    const partneri = partneriPodaci.partners || [];
+    const partner = partneri.find((p) => p.uuid === partner_uuid) || null;
+    const pct = Number(partner?.commission_pct) || 0;
 
-        if (!from || !to) {
-            const razdoblje = razdobljePoDinamici(partner, new Date(), String(period) === "current");
-            from = razdoblje.from;
-            to = razdoblje.to;
-        }
-        const od = pocetakDana(from);
-        const doo = krajDana(to);
-        if (!od || !doo) {
-            return res.status(400).json({ status: 400, data: { message: "razdoblje se ne da odrediti" } });
-        }
+    if (!from || !to) {
+        const razdoblje = razdobljePoDinamici(partner, new Date(), String(period) === "current");
+        from = razdoblje.from;
+        to = razdoblje.to;
+    }
+    const od = pocetakDana(from);
+    const doo = krajDana(to);
+    if (!od || !doo) throw Object.assign(new Error("razdoblje se ne da odrediti"), { status: 400 });
+    {
 
         const redci = [];
         const uRedak = (k, izvor) => {
@@ -441,6 +437,9 @@ const partnerCommissionDetailsController = async (req, res) => {
                 passanger_name: k.passanger_name || "",
                 ticket_code: k.ticket_code,
                 ticket_type_name: k.ticket_type_name,
+                // Polazak kao cjelina — po njemu se razrada grupira; sam tekst
+                // vremena nije dovoljan jer dvije linije mogu kretati istovremeno.
+                route_uuid: k.route_uuid,
                 line_name: k.line_name,
                 departure_harbor_name: k.departure_harbor_name,
                 arrival_harbor_name: k.arrival_harbor_name,
@@ -520,21 +519,30 @@ const partnerCommissionDetailsController = async (req, res) => {
             }));
         }
 
-        res.send({
-            status: 200,
-            data: {
-                from,
-                to,
-                partner_uuid,
-                partner_name: partner?.partner_name || "",
-                commission_pct: pct,
-                rows: redci,
-            },
-        });
-    } catch (error) {
-        console.log("partnerCommissionDetailsController error:", error?.message || error);
-        res.status(500).json({ status: 500, data: { message: error.message } });
+        return {
+            from,
+            to,
+            partner_uuid,
+            partner,
+            partner_name: partner?.partner_name || "",
+            partner_legal_id: partner?.partner_legal_id || null,
+            company_name: tvrtkaPodaci?.company?.name || "",
+            commission_pct: pct,
+            rows: redci,
+        };
     }
 };
 
-module.exports = { partnerCommissionController, partnerCommissionDetailsController };
+const partnerCommissionDetailsController = async (req, res) => {
+    const { TicketsModel, InvoiceModel } = req.app.locals.models;
+    try {
+        const { partner_uuid, period, from, to } = req.query || {};
+        const podaci = await prikupiDetalje({ TicketsModel, InvoiceModel, partner_uuid, period, from, to });
+        res.send({ status: 200, data: podaci });
+    } catch (error) {
+        console.log("partnerCommissionDetailsController error:", error?.message || error);
+        res.status(error.status || 500).json({ status: error.status || 500, data: { message: error.message } });
+    }
+};
+
+module.exports = { partnerCommissionController, partnerCommissionDetailsController, prikupiDetalje };

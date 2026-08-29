@@ -4,6 +4,7 @@ import {
     Box,
     Button,
     Chip,
+    Drawer,
     Paper,
     Stack,
     Table,
@@ -17,7 +18,10 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
-import { dohvatiDetaljeProvizije } from "../../financeSlice";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
+import { dohvatiDetaljeProvizije, preuzmiIzvjestajProvizijePdf } from "../../financeSlice";
+import CommissionReportDetailsDrawer from "./CommissionReportDetailsDrawer";
 import { setAuthData } from "../../../auth/authSlice";
 import { izveziObracunProvizije } from "../partner_commission/provizijaExcel";
 import { izveziDetaljeProvizije, pripadaRetku } from "../partner_commission/detaljiExcel";
@@ -44,8 +48,23 @@ const DocStyles = {
 export default function CommissionReportDrawer({ partner, from, to, nazivTvrtke, onClose }) {
     const dispatch = useDispatch();
     const [uTijeku, setUTijeku] = useState("");
+    const [detaljiOtvoreni, setDetaljiOtvoreni] = useState(false);
+    // Razrada se dohvaća tek na klik: popis zna imati stotine karata, a većina
+    // pogleda na izvještaj ih ne treba.
+    const [redci, setRedci] = useState([]);
 
     if (!partner) return null;
+
+    const otvoriDetalje = async () => {
+        setUTijeku("detalji");
+        try {
+            const svi = await dohvatiDetaljeProvizije({ partner_uuid: partner.partner_uuid, from, to });
+            setRedci(svi.filter((r) => pripadaRetku(r, { scope: "company" })));
+            setDetaljiOtvoreni(true);
+        } finally {
+            setUTijeku("");
+        }
+    };
 
     const preuzmiIzvjestaj = () => {
         izveziObracunProvizije({
@@ -200,10 +219,35 @@ export default function CommissionReportDrawer({ partner, from, to, nazivTvrtke,
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                     <Button
                         variant="outlined"
+                        startIcon={<PictureAsPdfIcon />}
+                        onClick={() => preuzmiIzvjestajProvizijePdf({ partner_uuid: partner.partner_uuid, from, to })}
+                    >
+                        Izvještaj PDF
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<PictureAsPdfIcon />}
+                        onClick={() => preuzmiIzvjestajProvizijePdf(
+                            { partner_uuid: partner.partner_uuid, from, to },
+                            { detalji: true }
+                        )}
+                    >
+                        Detalji PDF
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<ListAltOutlinedIcon />}
+                        onClick={otvoriDetalje}
+                        disabled={!!uTijeku}
+                    >
+                        {uTijeku === "detalji" ? "Priprema…" : "Detalji"}
+                    </Button>
+                    <Button
+                        variant="outlined"
                         startIcon={<ReceiptLongOutlinedIcon />}
                         onClick={preuzmiIzvjestaj}
                     >
-                        Preuzmi izvještaj
+                        Izvještaj Excel
                     </Button>
                     <Button
                         variant="contained"
@@ -215,6 +259,21 @@ export default function CommissionReportDrawer({ partner, from, to, nazivTvrtke,
                     </Button>
                 </Stack>
             </Box>
+
+            <Drawer
+                anchor="right"
+                open={detaljiOtvoreni}
+                onClose={() => setDetaljiOtvoreni(false)}
+                PaperProps={{ sx: { width: { xs: "100vw", sm: 900, md: 1150 }, maxWidth: "100vw" } }}
+            >
+                <CommissionReportDetailsDrawer
+                    partner={partner}
+                    from={from}
+                    to={to}
+                    redci={redci}
+                    onClose={() => setDetaljiOtvoreni(false)}
+                />
+            </Drawer>
         </Box>
     );
 }

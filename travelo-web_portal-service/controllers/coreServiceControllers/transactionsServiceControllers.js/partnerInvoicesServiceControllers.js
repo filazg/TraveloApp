@@ -69,7 +69,19 @@ const getPartnerInvoicePdfController = async (partner_invoice_uuid, detalji) => 
     );
 };
 
+// Izvjestaj za proviziju kao dokument; prosljeduje se kao sirovi buffer.
+const getCommissionReportPdfController = async (params = {}, detalji) => {
+    const coreConfigData = await getCoreServiceConfigData();
+    const put = detalji ? '/partner_commission_report_details_pdf' : '/partner_commission_report_pdf';
+    return axios.get(coreConfigData.services.transactions.url + put, {
+        params,
+        responseType: 'arraybuffer',
+        validateStatus: () => true,
+    });
+};
+
 module.exports = {
+    getCommissionReportPdfController,
     getPartnerInvoicePdfController,
     getPartnerInvoicesController,
     getPartnerInvoiceDetailsController,

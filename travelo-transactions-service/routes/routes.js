@@ -5,6 +5,7 @@ const { renderTicketsPdfController } = require('../controllers/dataControllers/t
 const { finalizeWebSaleController } = require('../controllers/dataControllers/finalizeWebSaleController');
 const { renderInvoicePdfController } = require('../controllers/dataControllers/invoicePdfController');
 const { renderPartnerInvoicePdfController, renderPartnerInvoiceDetailsPdfController } = require('../controllers/dataControllers/partnerInvoicePdfController');
+const { renderCommissionReportPdfController, renderCommissionReportDetailsPdfController } = require('../controllers/dataControllers/commissionReportPdfController');
 const { listInvoicesController } = require('../controllers/dataControllers/invoicesListController');
 const { backfillInvoicesFiscalController } = require('../controllers/dataControllers/invoicesBackfillController');
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
@@ -101,6 +102,15 @@ router
     .get(partnerCommissionController)
 
 // Detalji obracuna — karta po karta, podloga za provjeru iznosa.
+// Izvjestaj za proviziju kao dokument, i razrada uz njega.
+router
+    .route('/partner_commission_report_pdf')
+    .get(renderCommissionReportPdfController)
+
+router
+    .route('/partner_commission_report_details_pdf')
+    .get(renderCommissionReportDetailsPdfController)
+
 router
     .route('/partner_commission_details')
     .get(partnerCommissionDetailsController)

@@ -21,7 +21,7 @@ const { handleGetAccountsFeature, handleAddAccountFeature, handleUpdateAccountFe
 const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature, handleGetDailyRealizationDemoFeature, handleSendDailyRealizationDemoToErpFeature } = require('../features/transactions/dailyRealizationHandlers');
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
-const { handleGetPartnerInvoicePdfFeature, handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
+const { handleGetCommissionReportPdfFeature, handleGetPartnerInvoicePdfFeature, handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
 const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleTransferTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
 const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
@@ -237,6 +237,14 @@ router
 router
     .route('/transactions/partner_commission')
     .get(handleGetPartnerCommissionFeature)
+
+router
+    .route('/transactions/partner_commission_report_pdf')
+    .get(handleGetCommissionReportPdfFeature(false))
+
+router
+    .route('/transactions/partner_commission_report_details_pdf')
+    .get(handleGetCommissionReportPdfFeature(true))
 
 router
     .route('/transactions/partner_commission_details')

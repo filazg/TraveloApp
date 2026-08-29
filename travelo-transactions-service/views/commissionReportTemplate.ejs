@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="utf-8" />
+    <title>Izvještaj za proviziju — <%= p.partner_name %></title>
+    <style>
+        @page { margin: 20mm 15mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; line-height: 1.4; margin: 0; }
+        .header { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        .header td { vertical-align: top; width: 50%; padding: 0 8px; }
+        .header td + td { border-left: 1px solid #e2e8f0; }
+        .header .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 4px; }
+        .header .party { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+        .title { text-align: center; margin: 8px 0 14px; padding: 10px 0; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; }
+        .title h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: 0.5px; }
+        .title .muted { color: #64748b; font-size: 11px; }
+        table.items { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        table.items thead th { text-align: left; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; border-bottom: 1.5px solid #0f172a; padding: 6px 4px; }
+        table.items tbody td { padding: 5px 4px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        table.items .num { text-align: right; white-space: nowrap; }
+        .totals { width: 48%; margin-left: 52%; border-collapse: collapse; margin-bottom: 14px; }
+        .totals th { text-align: left; font-weight: 600; padding: 4px 8px; color: #475569; }
+        .totals td { text-align: right; padding: 4px 8px; white-space: nowrap; }
+        .totals .total th, .totals .total td { font-size: 14px; font-weight: 800; color: #0f172a; border-top: 1.5px solid #0f172a; padding-top: 6px; padding-bottom: 6px; }
+        .remark { font-size: 10px; color: #64748b; margin-top: 10px; line-height: 1.5; }
+        .footer { margin-top: 20px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+    </style>
+</head>
+<body>
+<%
+    var eur = function (v) { return (Number(v) || 0).toFixed(2).replace('.', ',') + ' EUR'; };
+    var hrDatum = function (v) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ''));
+        return m ? (m[3] + '.' + m[2] + '.' + m[1] + '.') : String(v || '');
+    };
+%>
+<table class="header">
+    <tr>
+        <td>
+            <div class="label">Prodavatelj u naše ime</div>
+            <div class="party"><%= p.partner_name %></div>
+            <% if (p.partner_legal_id) { %>OIB: <%= p.partner_legal_id %><% } %>
+        </td>
+        <td>
+            <div class="label">Podaci</div>
+            razdoblje: <b><%= hrDatum(p.from) %> – <%= hrDatum(p.to) %></b><br />
+            prodano u ime i za račun: <%= p.company_name || '—' %><br />
+            provizija: <b><%= (Number(p.commission_pct) || 0).toFixed(2) %> %</b><br />
+            karata: <%= zbroj.tickets %>
+        </td>
+    </tr>
+</table>
+
+<div class="title">
+    <h1>Izvještaj za proviziju</h1>
+    <div class="muted">podloga za račun koji partner ispostavlja nama</div>
+</div>
+
+<table class="items">
+    <thead>
+        <tr>
+            <th>Prodajno mjesto</th>
+            <th>Naplatni uređaj</th>
+            <th>Operater</th>
+            <th class="num">Karata</th>
+            <th class="num">Promet</th>
+            <th class="num">Osnovica</th>
+            <th class="num">Provizija</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% redci.forEach(function (r) { %>
+        <tr>
+            <td><%= r.business_premise_name || '—' %></td>
+            <td><%= r.billing_device || '—' %></td>
+            <td><%= r.operator || '—' %></td>
+            <td class="num"><%= r.tickets %></td>
+            <td class="num"><%= eur(r.gross) %></td>
+            <td class="num"><%= eur(r.base) %></td>
+            <td class="num"><%= eur(r.commission) %></td>
+        </tr>
+        <% }); %>
+        <% if (!redci.length) { %>
+        <tr><td colspan="7">U razdoblju nema prodaje za naš račun.</td></tr>
+        <% } %>
+    </tbody>
+</table>
+
+<table class="totals">
+    <tr><th>Karata:</th><td><%= zbroj.tickets %></td></tr>
+    <tr><th>Promet:</th><td><%= eur(zbroj.gross) %></td></tr>
+    <tr><th>Osnovica:</th><td><%= eur(zbroj.base) %></td></tr>
+    <tr class="total"><th>Ukupno za fakturirati:</th><td><%= eur(zbroj.commission) %></td></tr>
+</table>
+
+<div class="remark">
+    Osnovica je promet bez lučke pristojbe i bez PDV-a. Provizija se računa na zbroj osnovice, a ne
+    po karti — zaokruživanje po karti bi na većem broju karata odstupilo od iznosa koji se stvarno
+    plaća.
+</div>
+
+<div class="footer">
+    <%= p.company_name || '' %> · izvještaj za proviziju · <%= hrDatum(p.from) %> – <%= hrDatum(p.to) %>
+</div>
+</body>
+</html>
