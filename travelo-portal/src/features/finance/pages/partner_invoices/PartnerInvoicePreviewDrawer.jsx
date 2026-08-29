@@ -82,29 +82,38 @@ export default function PartnerInvoicePreviewDrawer({ invoice, onClose }) {
 
             <Divider sx={{ my: 2 }} />
 
-            <Stack direction="row" spacing={4} sx={{ mb: 2 }}>
+            {/* Račun se čita odozgo prema dolje: od naplaćenog se odbije provizija,
+                na ostatak ide PDV, a lučka pristojba se dodaje cijela i bez PDV-a
+                jer je prolazna stavka. */}
+            <Stack direction="row" spacing={4} sx={{ mb: 2, flexWrap: "wrap", rowGap: 2 }}>
                 <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Bruto</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">Naplaćeno (bruto)</Typography>
                     <Typography variant="h6">{fmtEUR(head.gross_amount)}</Typography>
                 </Box>
                 <Box>
-                    {/* Pristojba se fakturira u cijelosti: nije naš prihod nego se
-                        prosljeđuje luci, pa se ne umanjuje za proviziju. */}
-                    <Typography variant="subtitle2" color="text.secondary">Lučka pristojba (u cijelosti)</Typography>
-                    <Typography variant="h6">{fmtEUR(head.harbor_tax_amount)}</Typography>
-                </Box>
-                <Box>
-                    {/* Bez osnovice se postotak i iznos provizije ne mogu složiti:
-                        na bruto iznos ne daju taj rezultat. */}
-                    <Typography variant="subtitle2" color="text.secondary">Osnovica za proviziju</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">Osnovica</Typography>
                     <Typography variant="h6">{fmtEUR(head.commission_base)}</Typography>
                 </Box>
                 <Box>
                     <Typography variant="subtitle2" color="text.secondary">Provizija ({Number(head.commission_pct || 0).toFixed(2)}%)</Typography>
-                    <Typography variant="h6">{fmtEUR(head.commission_amount)}</Typography>
+                    <Typography variant="h6">− {fmtEUR(head.commission_amount)}</Typography>
                 </Box>
                 <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Neto za isplatu</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">Osnovica za PDV</Typography>
+                    <Typography variant="h6">{fmtEUR(head.vat_base)}</Typography>
+                </Box>
+                <Box>
+                    <Typography variant="subtitle2" color="text.secondary">PDV ({Number(head.vat_rate || 0).toFixed(2)}%)</Typography>
+                    <Typography variant="h6">{fmtEUR(head.vat_amount)}</Typography>
+                </Box>
+                <Box>
+                    {/* Pristojba nije naš prihod nego se prosljeđuje luci: fakturira
+                        se cijela, ne umanjuje za proviziju i ne ulazi u PDV. */}
+                    <Typography variant="subtitle2" color="text.secondary">Lučka pristojba (bez PDV-a)</Typography>
+                    <Typography variant="h6">{fmtEUR(head.harbor_tax_amount)}</Typography>
+                </Box>
+                <Box>
+                    <Typography variant="subtitle2" color="text.secondary">Za naplatu</Typography>
                     <Typography variant="h6" color="primary" fontWeight={800}>
                         {fmtEUR(head.net_amount)}
                     </Typography>
@@ -155,7 +164,7 @@ function RouteSummarySection({ items }) {
                             <TableCell align="right">Karte</TableCell>
                             <TableCell align="right">Bruto</TableCell>
                             <TableCell align="right">Provizija</TableCell>
-                            <TableCell align="right">Neto</TableCell>
+                            <TableCell align="right">Osnovica za PDV</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -225,7 +234,7 @@ function OrderBreakdownSection({ items }) {
                                     <Typography fontWeight={700}>{fmtEUR(o.commission)}</Typography>
                                 </Box>
                                 <Box>
-                                    <Typography variant="caption" color="text.secondary">Neto</Typography>
+                                    <Typography variant="caption" color="text.secondary">Osnovica za PDV</Typography>
                                     <Typography fontWeight={700} color="primary">{fmtEUR(o.net)}</Typography>
                                 </Box>
                             </Stack>
@@ -248,7 +257,7 @@ function OrderBreakdownSection({ items }) {
                                             <TableCell>Polazak</TableCell>
                                             <TableCell align="right">Bruto</TableCell>
                                             <TableCell align="right">Provizija</TableCell>
-                                            <TableCell align="right">Neto</TableCell>
+                                            <TableCell align="right">Osnovica za PDV</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>

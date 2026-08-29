@@ -108,14 +108,22 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
         // pristojba je prolazna stavka, PDV je državin.
         commissionBase = +commissionBase.toFixed(2);
         const commissionAmount = provizijaOd(commissionBase, commissionPct);
-        const netAmount = +(gross - commissionAmount).toFixed(2);
-        // option (b): net_amount includes VAT; extract VAT out of it
-        const vatAmount = vatRate > 0 ? +((netAmount * vatRate) / (100 + vatRate)).toFixed(2) : 0;
-        const vatBase = +(netAmount - vatAmount).toFixed(2);
 
+        // Račun se slaže ovako: osnovica umanjena za proviziju je ono što nam
+        // partner duguje od vožnje, na to ide PDV, a lučka pristojba se dodaje
+        // cijela i bez PDV-a — prolazna je stavka i nije predmet oporezivanja.
+        // Prije se PDV vadio iz cijelog naplaćenog iznosa, pa se obračunavao i
+        // na proviziju i na pristojbu.
+        const vatBase = +(commissionBase - commissionAmount).toFixed(2);
+        const vatAmount = vatRate > 0 ? +((vatBase * vatRate) / 100).toFixed(2) : 0;
+        const netAmount = +(vatBase + vatAmount + harborTax).toFixed(2);
+
+        // Stavka nosi svoj udio u osnovici za PDV: cijena karte bez pristojbe i
+        // bez PDV-a, umanjena za proviziju. PDV se ne razbija po karti nego ide
+        // na zbroj — zaokruživanje po karti bi odstupilo od iznosa računa.
         const items = ticketItems.map(({ ticket, gross: g, base, harborTax: hp }) => {
             const itemCommission = provizijaOd(base, commissionPct);
-            return { ticket, gross: g, base, harborTax: hp, commission: itemCommission, net: +(g - itemCommission).toFixed(2) };
+            return { ticket, gross: g, base, harborTax: hp, commission: itemCommission, net: +(base - itemCommission).toFixed(2) };
         });
         // Zbroj stavaka mora dati iznos u zaglavlju: provizija se računa na
         // zbroj osnovice, pa se ostatak zaokruživanja pripisuje zadnjoj stavci —
@@ -126,8 +134,9 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
             if (razlika !== 0) {
                 const zadnja = items[items.length - 1];
                 zadnja.commission = +(zadnja.commission + razlika).toFixed(2);
-                zadnja.net = +(zadnja.gross - zadnja.commission).toFixed(2);
             }
+            const zadnja = items[items.length - 1];
+            zadnja.net = +(zadnja.base - zadnja.commission).toFixed(2);
         }
 
         const periodFrom = tickets[0].createdAt;

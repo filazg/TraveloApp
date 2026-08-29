@@ -145,7 +145,8 @@ function TabRacuniZaProvizije() {
             },
             {
                 field: "net_amount",
-                headerName: "Neto za isplatu",
+                // Iznos računa: osnovica bez provizije + PDV + cijela pristojba.
+                headerName: "Za naplatu",
                 width: 150,
                 align: "right",
                 headerAlign: "right",
