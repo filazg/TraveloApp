@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
 import {
     Box,
     Button,
@@ -16,15 +15,11 @@ import {
     Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import { dohvatiDetaljeProvizije, preuzmiIzvjestajProvizijePdf } from "../../financeSlice";
 import CommissionReportDetailsDrawer from "./CommissionReportDetailsDrawer";
-import { setAuthData } from "../../../auth/authSlice";
-import { izveziObracunProvizije } from "../partner_commission/provizijaExcel";
-import { izveziDetaljeProvizije, pripadaRetku } from "../partner_commission/detaljiExcel";
+import { pripadaRetku } from "../partner_commission/detaljiExcel";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} EUR`;
 const hrDatum = (iso) => {
@@ -46,7 +41,6 @@ const DocStyles = {
 };
 
 export default function CommissionReportDrawer({ partner, from, to, nazivTvrtke, onClose }) {
-    const dispatch = useDispatch();
     const [uTijeku, setUTijeku] = useState("");
     const [detaljiOtvoreni, setDetaljiOtvoreni] = useState(false);
     // Razrada se dohvaća tek na klik: popis zna imati stotine karata, a većina
@@ -63,42 +57,6 @@ export default function CommissionReportDrawer({ partner, from, to, nazivTvrtke,
             setDetaljiOtvoreni(true);
         } finally {
             setUTijeku("");
-        }
-    };
-
-    const preuzmiIzvjestaj = () => {
-        izveziObracunProvizije({
-            partneri: [partner],
-            totals: {
-                tickets: partner.tickets,
-                gross: partner.gross,
-                base: partner.base,
-                commission: partner.commission,
-            },
-            from,
-            to,
-            partner: { partner_name: partner.partner_name },
-        });
-    };
-
-    // Karte iza iznosa — partner ih traži kad usklađuje svoj račun s našim
-    // izvještajem. Dohvaćaju se tek na klik, popis zna imati stotine redaka.
-    const preuzmiKarte = async () => {
-        setUTijeku("karte");
-        dispatch(setAuthData({ path: "loadingMessage", value: "Priprema detalja…" }));
-        dispatch(setAuthData({ path: "loading", value: true }));
-        try {
-            const svi = await dohvatiDetaljeProvizije({ partner_uuid: partner.partner_uuid, from, to });
-            izveziDetaljeProvizije({
-                redci: svi.filter((r) => pripadaRetku(r, { scope: "company" })),
-                partner: partner.partner_name,
-                from,
-                to,
-                opis: "podloga za račun provizije",
-            });
-        } finally {
-            setUTijeku("");
-            dispatch(setAuthData({ path: "loading", value: false }));
         }
     };
 
@@ -241,21 +199,6 @@ export default function CommissionReportDrawer({ partner, from, to, nazivTvrtke,
                         disabled={!!uTijeku}
                     >
                         {uTijeku === "detalji" ? "Priprema…" : "Detalji"}
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={<ReceiptLongOutlinedIcon />}
-                        onClick={preuzmiIzvjestaj}
-                    >
-                        Izvještaj Excel
-                    </Button>
-                    <Button
-                        variant="contained"
-                        startIcon={<FileDownloadOutlinedIcon />}
-                        onClick={preuzmiKarte}
-                        disabled={!!uTijeku}
-                    >
-                        {uTijeku === "karte" ? "Priprema…" : "Preuzmi karte"}
                     </Button>
                 </Stack>
             </Box>
