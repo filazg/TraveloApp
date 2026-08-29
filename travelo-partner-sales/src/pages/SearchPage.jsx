@@ -83,7 +83,7 @@ export default function SearchPage() {
         Pretraga polazaka
       </Typography>
 
-      <Paper sx={{ p: 3, mb: 3 }} component="form" onSubmit={onSearch}>
+      <Paper variant="outlined" sx={{ p: 3, mb: 3 }} component="form" onSubmit={onSearch}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
           <TextField
             select
@@ -142,7 +142,7 @@ export default function SearchPage() {
       />
 
       {submitted && (
-        <Paper>
+        <Paper variant="outlined">
           <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle1" fontWeight={700}>
               Rezultati: {results.length}

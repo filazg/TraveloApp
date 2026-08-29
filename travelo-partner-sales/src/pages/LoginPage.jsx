@@ -17,7 +17,7 @@ import {
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { login } from '../features/auth/authSlice'
-import loginImg from '../assets/TraveloAppIcon.png'
+import BrandMark from '../layout/BrandMark'
 
 export default function LoginPage() {
   const dispatch = useDispatch()
@@ -59,17 +59,30 @@ export default function LoginPage() {
           boxShadow: '0 30px 80px rgba(15,23,42,0.18)',
         }}
       >
-        {/* LEFT – IMAGE */}
+        {/* LEFT – ZNAK */}
+        {/* Ista ploca kao na prijavi u portal: puna brand plava i tekstualni
+            znak, umjesto slike s ukosenim natpisom. Tako logo stoji na jednom
+            mjestu i prati font aplikacije. */}
         <Grid
           size={{ xs: 0, md: 7 }}
           sx={{
             display: { xs: 'none', md: 'flex' },
             position: 'relative',
-            backgroundImage: `url(${loginImg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'primary.main',
           }}
         >
+          <BrandMark
+            variant="h1"
+            onPrimary
+            sx={{
+              textAlign: 'center',
+              px: 4,
+              fontSize: { md: 64, lg: 88 },
+              whiteSpace: 'nowrap',
+            }}
+          />
           <Box
             sx={{
               position: 'absolute',
@@ -105,10 +118,10 @@ export default function LoginPage() {
           <Box sx={{ width: '100%', maxWidth: 460 }}>
             <Stack spacing={1} sx={{ mb: 3 }}>
               <Typography variant="h5" fontWeight={900}>
-                Partnerska prodaja
+                Prijava
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Unesi svoje pristupne podatke
+                <BrandMark /> - partnerska prodaja. Unesi svoje pristupne podatke.
               </Typography>
             </Stack>
             <Box component="form" onSubmit={handleSubmit} noValidate>

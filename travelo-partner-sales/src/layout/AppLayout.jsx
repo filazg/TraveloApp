@@ -5,6 +5,7 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import { useDispatch, useSelector } from 'react-redux'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { logoutRemote } from '../features/auth/authSlice'
+import BrandMark from './BrandMark'
 
 const NAV_ITEMS = [
   { path: '/search', label: 'Prodaja', icon: <SearchIcon fontSize="small" /> },
@@ -25,18 +26,20 @@ export default function AppLayout() {
   const activeTab = NAV_ITEMS.find((i) => location.pathname.startsWith(i.path))?.path || false
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f6f8' }}>
-      <AppBar position="static" color="default" elevation={1}>
+    // Podloga i traka dolaze iz teme, kao u portalu: siva podloga #F3F6FB i
+    // traka u brand plavoj, umjesto zatecene bijele.
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+      <AppBar position="static" elevation={1}>
         <Toolbar sx={{ gap: 4 }}>
-          <Typography variant="h6" fontWeight={900} sx={{ flexGrow: 0, whiteSpace: 'nowrap' }}>
-            Travelo · Partnerska prodaja
+          <Typography variant="h6" fontWeight={800} sx={{ flexGrow: 0, whiteSpace: 'nowrap' }}>
+            <BrandMark onPrimary /> - Partnerska prodaja
           </Typography>
 
           <Tabs
             value={activeTab}
             onChange={(_, v) => v && navigate(v)}
-            textColor="primary"
-            indicatorColor="primary"
+            textColor="inherit"
+            indicatorColor="secondary"
             sx={{ minHeight: 48 }}
           >
             {NAV_ITEMS.map((item) => (
@@ -60,12 +63,12 @@ export default function AppLayout() {
                 <Typography variant="body2" fontWeight={700}>
                   {partner.name}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ opacity: 0.8 }}>
                   {user?.username}
                 </Typography>
               </Stack>
             )}
-            <Button onClick={onLogout} variant="outlined" size="small" startIcon={<LogoutIcon />}>
+            <Button onClick={onLogout} variant="outlined" color="inherit" size="small" startIcon={<LogoutIcon />}>
               Odjava
             </Button>
           </Stack>
