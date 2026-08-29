@@ -13,6 +13,14 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
+// Polazak je tekst "DD.MM.YYYY. HH:mm"; new Date() ga ne parsira, pa se za
+// redoslijed slaže ručno. Nepoznat oblik ide na kraj, da ne poremeti niz.
+const uSekunde = (s) => {
+    const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?\s*(\d{1,2}):(\d{2})/.exec(String(s || ""));
+    if (!m) return Number.MAX_SAFE_INTEGER;
+    return new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]).getTime();
+};
+
 const fmtDateTime = (s) => {
     if (!s) return "";
     const d = new Date(s);
@@ -49,6 +57,9 @@ export default function PartnerInvoiceDetailsDrawer({ invoice, items = [], onClo
     );
 }
 
+// Rezime po polascima — jedan redak po vožnji, jer se račun najčešće provjerava
+// tako da se pita "koliko je prodano za koji polazak". Jedan polazak je jedan
+// route_uuid, pa se po njemu i grupira.
 function RouteSummarySection({ items }) {
     const groups = groupBy(items, (it) => it.route_uuid || "—");
     const rows = Object.entries(groups).map(([route_uuid, arr]) => {
@@ -59,18 +70,21 @@ function RouteSummarySection({ items }) {
         const gross = arr.reduce((s, x) => s + Number(x.gross_amount || 0), 0);
         const commission = arr.reduce((s, x) => s + Number(x.commission_amount || 0), 0);
         const net = arr.reduce((s, x) => s + Number(x.net_amount || 0), 0);
-        return { route_uuid, line, relation, count, gross, commission, net };
-    });
+        return { route_uuid, departure: first.departure, line, relation, count, gross, commission, net };
+    }).sort((a, b) => uSekunde(a.departure) - uSekunde(b.departure));
+
+    const zbroj = (k) => rows.reduce((s, r) => s + r[k], 0);
 
     return (
         <>
             <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-                Agregat po relaciji
+                Rezime po polascima
             </Typography>
             <TableContainer>
                 <Table size="small">
                     <TableHead>
                         <TableRow>
+                            <TableCell>Polazak</TableCell>
                             <TableCell>Linija</TableCell>
                             <TableCell>Relacija</TableCell>
                             <TableCell align="right">Karte</TableCell>
@@ -81,7 +95,8 @@ function RouteSummarySection({ items }) {
                     </TableHead>
                     <TableBody>
                         {rows.map((r) => (
-                            <TableRow key={r.route_uuid}>
+                            <TableRow key={r.route_uuid} hover>
+                                <TableCell>{r.departure || "—"}</TableCell>
                                 <TableCell>{r.line}</TableCell>
                                 <TableCell>{r.relation}</TableCell>
                                 <TableCell align="right">{r.count}</TableCell>
@@ -92,9 +107,20 @@ function RouteSummarySection({ items }) {
                         ))}
                         {rows.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} align="center">
+                                <TableCell colSpan={7} align="center">
                                     <Typography variant="body2" color="text.secondary">Nema stavki</Typography>
                                 </TableCell>
+                            </TableRow>
+                        )}
+                        {rows.length > 0 && (
+                            <TableRow>
+                                <TableCell colSpan={3} sx={{ fontWeight: 800 }}>
+                                    Ukupno ({rows.length} {rows.length === 1 ? "polazak" : "polazaka"})
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 800 }}>{zbroj("count")}</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(zbroj("gross"))}</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(zbroj("commission"))}</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(zbroj("net"))}</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
