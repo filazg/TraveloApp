@@ -3,8 +3,9 @@ const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { reserveBookings, releaseBookings } = require("../../helpers/bookingClient");
-// API partner narucuje po nasoj cijeni bez PDV-a; karta nosi prodajnu cijenu.
+// API partner moze narucivati po nasoj cijeni bez PDV-a; karta nosi prodajnu.
 const { izCijeneBezPdv } = require("../../helpers/provizija");
+const { saljeBezPdva } = require("../../helpers/partneri");
 
 const randomTicketCode = () => crypto.randomBytes(8).toString("hex");
 
@@ -123,6 +124,12 @@ const apiConfirmOrderController = async (req, res) => {
             throw err;
         }
 
+        // Ako partneru saljemo cijene bez PDV-a, narucio je po njima, pa se
+        // primljeni iznos vraca na prodajnu cijenu — po njoj se obracunava
+        // provizija i izdaje racun. Partneru koji dobiva cijene s PDV-om iznos
+        // se ne dira.
+        const bezPdva = await saljeBezPdva(order.partner_uuid);
+
         const ticketsToCreate = [];
         const responseTickets = [];
         for (const item of items) {
@@ -139,9 +146,9 @@ const apiConfirmOrderController = async (req, res) => {
                     ticket_group_uuid: item.ticket_type_uuid,
                     ticket_type_uuid: item.ticket_type_uuid,
                     ticket_type_name: item.ticket_type_name,
-                    // Partner je narucio po cijeni bez PDV-a, karta nosi prodajnu:
-                    // po njoj se obracunava provizija i izdaje mu racun.
-                    single_price: izCijeneBezPdv(item.single_item_price),
+                    single_price: bezPdva
+                        ? izCijeneBezPdv(item.single_item_price)
+                        : item.single_item_price,
                     is_active: true,
                     is_canceled: false,
                     route_uuid: item.trip_uuid,

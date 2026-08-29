@@ -17,13 +17,15 @@ const isFutureTrip = (trip) => {
     }
 };
 
-const searchTripsHandler = async (body) => {
+const searchTripsHandler = async (body, partnerUuid) => {
     const { travel_from, travel_to, travel_date } = body;
     const [year, month, day] = travel_date.split("-");
     const formattedTravelDate = `${day}/${month}/${year}`;
 
     const routesData = await getRoutesController();
-    const pricesData = await getPricesController();
+    // Cijene se traze za tog partnera: salje li mu se s PDV-om ili bez, odlucuje
+    // zastavica na njemu.
+    const pricesData = await getPricesController(partnerUuid);
 
     const tripsForSearch = (routesData?.data?.routes || []).filter(
         (route) =>

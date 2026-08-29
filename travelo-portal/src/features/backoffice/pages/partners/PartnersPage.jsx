@@ -766,6 +766,25 @@ export default function PartnersPage (){
                         }
                         label={t('backoffice.partners.partner_f2_required')}
                     />
+                    {/* Vrijedi samo kad partner prodaje za svoj račun (partner-sale,
+                        T4B API). Prodaja u naše ime, na partnerskom prodajnom mjestu
+                        s našom blagajnom, uvijek ide po prodajnoj cijeni. */}
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={editedData.prices_with_vat !== false}
+                                onChange={(e) =>
+                                    setEditedData({ ...editedData, prices_with_vat: e.target.checked })
+                                }
+                                name="prices_with_vat"
+                            />
+                        }
+                        label="Cijene s PDV-om (prodaja za vlastiti račun)"
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                        Isključeno: partneru se šalje naša cijena prema njemu — bez PDV-a, s lučkom
+                        pristojbom u sebi.
+                    </Typography>
                     <Stack direction='row' justifyContent= "space-between" sx={{mt:1}} >
                         <Typography>{t('backoffice.partners.web_user_title')}</Typography>
                         <Button onClick={() => setAddWebModal(true)}>

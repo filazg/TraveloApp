@@ -42,6 +42,7 @@ const getPartnersDataController = async(req,res)=>{
                 commission_pct:partner.commission_pct,
                 vat_rate:partner.vat_rate,
                 f2_required:partner.f2_required,
+                prices_with_vat:partner.prices_with_vat,
                 billing_cycle:partner.billing_cycle,
                 billing_weekday:partner.billing_weekday,
                 is_active:partner.is_active,
@@ -98,6 +99,8 @@ const addPartnerDataController = async(req,res)=>{
                     commission_pct:data.commission_pct ?? 0,
                     vat_rate:data.vat_rate ?? 25,
                     f2_required:data.f2_required ?? false,
+                    // Vrijedi samo za partnerovu prodaju za svoj racun.
+                    prices_with_vat:data.prices_with_vat ?? true,
                     // Dinamika naplate je podloga za obracun provizije. Dan u
                     // tjednu ima smisla samo uz tjednu dinamiku, pa se inace ne
                     // pamti — da zaostali odabir ne odredjuje razdoblje.
@@ -149,6 +152,8 @@ const updatePartnerDataController = async(req,res)=>{
                     commission_pct:data.commission_pct ?? 0,
                     vat_rate:data.vat_rate ?? 25,
                     f2_required:data.f2_required ?? false,
+                    // Vrijedi samo za partnerovu prodaju za svoj racun.
+                    prices_with_vat:data.prices_with_vat ?? true,
                     // Dinamika naplate je podloga za obracun provizije. Dan u
                     // tjednu ima smisla samo uz tjednu dinamiku, pa se inace ne
                     // pamti — da zaostali odabir ne odredjuje razdoblje.

@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { bezPdv, zaSvojRacun } = require("../../helpers/cijene");
+const { bezPdv, saljeBezPdva } = require("../../helpers/cijene");
 const axios = require("axios");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { isSaleOpen, saleClosedMessage } = require("../../helpers/departureCutoff");
@@ -84,7 +84,8 @@ const createOrderController = async (req, res) => {
         // Karte i dalje nose prodajnu cijenu, s PDV-om — po njoj se obracunava
         // provizija i izdaje racun. Partneru koji prodaje u svoje ime iskazuje
         // se nasa cijena prema njemu: bez PDV-a, s luckom pristojbom u sebi.
-        const iznosPremaPartneru = zaSvojRacun(channel)
+        const bezPdva = await saljeBezPdva(channel, body.partner_uuid);
+        const iznosPremaPartneru = bezPdva
             ? +pricedItems.reduce((z, s) => z + bezPdv(s.unit_price) * s.qty, 0).toFixed(2)
             : +total.toFixed(2);
         // Web sales are finalized only after Monri confirms the payment, so the
@@ -159,7 +160,7 @@ const createOrderController = async (req, res) => {
                         ticketsResult = resp.data?.data || resp.data;
                         // Karta u bazi nosi prodajnu cijenu, ali partneru se i u
                         // potvrdi iskazuje ona po kojoj je narucio — bez PDV-a.
-                        if (zaSvojRacun(channel) && Array.isArray(ticketsResult?.tickets)) {
+                        if (bezPdva && Array.isArray(ticketsResult?.tickets)) {
                             ticketsResult = {
                                 ...ticketsResult,
                                 tickets: ticketsResult.tickets.map((k) => ({

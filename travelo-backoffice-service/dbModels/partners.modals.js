@@ -67,6 +67,20 @@ module.exports =  (sequelize) =>{
             allowNull:false,
             defaultValue:25
         },
+        // Kako partneru komuniciramo cijenu kad prodaje za SVOJ racun
+        // (partner-sale i T4B API). Kod prodaje u nase ime, na partnerskom
+        // prodajnom mjestu s nasom blagajnom, ovo ne vrijedi — ondje se prodaje
+        // po prodajnoj cijeni kao i svugdje.
+        //
+        // Ukljuceno: salje se prodajna cijena s PDV-om. Iskljuceno: salje se
+        // nasa cijena prema njemu, bez PDV-a ali s luckom pristojbom u sebi.
+        // Podrazumijevano je ukljuceno, da vec integriranim partnerima cijene
+        // ne odu drugacije bez dogovora.
+        prices_with_vat:{
+            type:DataTypes.BOOLEAN,
+            allowNull:false,
+            defaultValue:true
+        },
         f2_required:{
             type:DataTypes.BOOLEAN,
             allowNull:false,

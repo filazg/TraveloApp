@@ -1,5 +1,5 @@
 const { getSequelize } = require("../../config/database");
-const { bezPdv, zaSvojRacun } = require("../../helpers/cijene");
+const { bezPdv, saljeBezPdva } = require("../../helpers/cijene");
 
 const getPricesDataController = async (req, res) => {
     const sequelize = getSequelize();
@@ -13,7 +13,7 @@ const getPricesDataController = async (req, res) => {
             // Partneru koji prodaje u svoje ime saljemo nasu cijenu prema
             // njemu: bez PDV-a, s luckom pristojbom u sebi. Koliko ce on
             // naplatiti putniku ne znamo — to je njegova cijena, ne nasa.
-            const zaSlanje = zaSvojRacun(req.query.channel)
+            const zaSlanje = await saljeBezPdva(req.query.channel, req.query.partner_uuid)
                 ? pricesData.map((p) => ({ ...p.dataValues || p, price: bezPdv(p.price) }))
                 : pricesData;
             res.send({

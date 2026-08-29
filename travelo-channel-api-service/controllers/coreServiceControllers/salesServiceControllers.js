@@ -33,14 +33,14 @@ const getRoutesController = async()=>{
     }
 }
 
-const getPricesController = async()=>{
+const getPricesController = async(partnerUuid)=>{
     try {
         const coreConfigData = await getCoreServiceConfigData() 
         // API partner prodaje u svoje ime, pa mu se komunicira nasa cijena prema
         // njemu: bez PDV-a, s luckom pristojbom u sebi. Koliko ce naplatiti
         // putniku njegova je stvar i mi to ne znamo.
         const response = await axios.get(coreConfigData.services.sales.url + '/prices', {
-            params: { channel: 'partner_web' },
+            params: { channel: 'partner_web', partner_uuid: partnerUuid || undefined },
         })
         return (response.data)
     } catch (error) {

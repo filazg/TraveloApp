@@ -41,8 +41,8 @@ export default function ReservationDialog({ open, route, onClose }) {
   const [note, setNote] = useState('')
 
   useEffect(() => {
-    if (open && !prices.length) dispatch(fetchPrices())
-  }, [open, prices.length, dispatch])
+    if (open && !prices.length) dispatch(fetchPrices(partner?.uuid))
+  }, [open, prices.length, partner?.uuid, dispatch])
 
   useEffect(() => {
     if (!open) {
@@ -138,7 +138,7 @@ export default function ReservationDialog({ open, route, onClose }) {
                       <TableRow>
                         <TableCell>Broj karte</TableCell>
                         <TableCell>Tip</TableCell>
-                        <TableCell align="right">Cijena (bez PDV-a)</TableCell>
+                        <TableCell align="right">Cijena</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -251,9 +251,6 @@ export default function ReservationDialog({ open, route, onClose }) {
           {!lastOrder && (
             <Typography variant="subtitle1" fontWeight={900}>
               Ukupno: {fmtPrice(total)} · {totalQty} kom
-              <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1, fontWeight: 400 }}>
-                (bez PDV-a)
-              </Typography>
             </Typography>
           )}
         </Box>
