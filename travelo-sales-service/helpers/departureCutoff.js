@@ -61,6 +61,20 @@ const saleClosedMessage = (actualDeparture, language = 'hr') => {
     return `Sales for the ${when} departure are closed. Tickets are sold up to ${minutes} min before departure.`;
 };
 
+// Otkazan polazak se ne prodaje. Pretraga ga vise ne nudi, ali kupac moze
+// sjediti na sazetku ili partner drzati otvoren dijalog kad dispecer otkaze
+// plovidbu — bez ove provjere bi karta bila naplacena za brod koji ne ide.
+const isSailingCanceled = (route) =>
+    String(route?.sale_status || '').toUpperCase() === 'CANCELED' || route?.is_active === false;
+
+const sailingCanceledMessage = (actualDeparture, language = 'hr') => {
+    const when = String(actualDeparture || '').trim();
+    if (language === 'hr') {
+        return `Polazak ${when} je otkazan i karte za njega nije moguce kupiti.`;
+    }
+    return `The ${when} departure has been canceled and tickets are no longer available.`;
+};
+
 module.exports = {
     TZ,
     cutoffMinutes,
@@ -68,4 +82,6 @@ module.exports = {
     nowInZagreb,
     isSaleOpen,
     saleClosedMessage,
+    isSailingCanceled,
+    sailingCanceledMessage,
 };

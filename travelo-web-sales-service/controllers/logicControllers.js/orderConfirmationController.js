@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { getCoreServiceConfigData } = require('../configSyncController');
-const { isSaleOpen, saleClosedMessage } = require('../../helpers/departureCutoff');
+const { isSaleOpen, saleClosedMessage, isSailingCanceled, sailingCanceledMessage } = require('../../helpers/departureCutoff');
 
 const createOrderConfirmationController = async (req, res) => {
     try {
@@ -36,6 +36,21 @@ const createOrderConfirmationController = async (req, res) => {
                 where: { uuid: route.sales_route_uuid },
             });
             if (!routeData) continue;
+            // Otkazan polazak se ne prodaje. Pretraga ga vise ne nudi, ali kupac
+            // moze sjediti na sazetku dok dispecer otkazuje plovidbu — bez ovoga
+            // bi karta bila naplacena za brod koji ne ide.
+            if (isSailingCanceled(routeData)) {
+                console.log('order_confirmation odbijen — polazak otkazan:', routeData.actual_departure);
+                return res.status(409).json({
+                    status: 409,
+                    data: {
+                        message: sailingCanceledMessage(routeData.actual_departure, language),
+                        sales_route_uuid: route.sales_route_uuid,
+                        actual_departure: routeData.actual_departure,
+                        canceled: true,
+                    },
+                });
+            }
             if (!isSaleOpen(routeData.actual_departure)) {
                 console.log('order_confirmation odbijen — prodaja zatvorena za', routeData.actual_departure);
                 return res.status(409).json({

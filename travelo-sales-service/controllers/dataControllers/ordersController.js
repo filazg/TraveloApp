@@ -14,7 +14,7 @@ const krajDana = (v) => {
 const { bezPdv, saljeBezPdva } = require("../../helpers/cijene");
 const axios = require("axios");
 const { getCoreServiceConfigData } = require("../configSyncController");
-const { isSaleOpen, saleClosedMessage } = require("../../helpers/departureCutoff");
+const { isSaleOpen, saleClosedMessage, isSailingCanceled, sailingCanceledMessage } = require("../../helpers/departureCutoff");
 
 const createOrderController = async (req, res) => {
     const { OrdersModel, RoutesModel, TimetablePricesModel } = req.app.locals.models;
@@ -35,6 +35,21 @@ const createOrderController = async (req, res) => {
         // i partnerska i web prodaja, pa je ovo zadnja brana — prodajno sučelje
         // takav polazak više ne nudi, ali korisnik može sjediti na njemu dok
         // cutoff prođe.
+        // Otkazan polazak se ne prodaje ni ovdje: dijalog rezervacije zna
+        // stajati otvoren, a karta bi zavrsila na plovidbi koje nema.
+        if (isSailingCanceled(route)) {
+            console.log("createOrderController odbijen — polazak otkazan:", route.actual_departure);
+            return res.status(409).json({
+                status: 409,
+                data: {
+                    message: sailingCanceledMessage(route.actual_departure, body.language),
+                    route_uuid: body.route_uuid,
+                    actual_departure: route.actual_departure,
+                    canceled: true,
+                },
+            });
+        }
+
         if (!isSaleOpen(route.actual_departure)) {
             console.log("createOrderController odbijen — prodaja zatvorena za", route.actual_departure);
             return res.status(409).json({
