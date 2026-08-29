@@ -36,7 +36,12 @@ const getRoutesController = async()=>{
 const getPricesController = async()=>{
     try {
         const coreConfigData = await getCoreServiceConfigData() 
-        const response = await axios.get(coreConfigData.services.sales.url + '/prices')
+        // API partner prodaje u svoje ime, pa mu se komunicira nasa cijena prema
+        // njemu: bez PDV-a, s luckom pristojbom u sebi. Koliko ce naplatiti
+        // putniku njegova je stvar i mi to ne znamo.
+        const response = await axios.get(coreConfigData.services.sales.url + '/prices', {
+            params: { channel: 'partner_web' },
+        })
         return (response.data)
     } catch (error) {
         console.log(error)

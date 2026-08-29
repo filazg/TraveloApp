@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { bezPdv, zaSvojRacun } = require("../../helpers/cijene");
 const axios = require("axios");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { isSaleOpen, saleClosedMessage } = require("../../helpers/departureCutoff");
@@ -80,6 +81,12 @@ const createOrderController = async (req, res) => {
         }
 
         const channel = body.channel || "partner_web";
+        // Karte i dalje nose prodajnu cijenu, s PDV-om — po njoj se obracunava
+        // provizija i izdaje racun. Partneru koji prodaje u svoje ime iskazuje
+        // se nasa cijena prema njemu: bez PDV-a, s luckom pristojbom u sebi.
+        const iznosPremaPartneru = zaSvojRacun(channel)
+            ? +pricedItems.reduce((z, s) => z + bezPdv(s.unit_price) * s.qty, 0).toFixed(2)
+            : +total.toFixed(2);
         // Web sales are finalized only after Monri confirms the payment, so the
         // order lands in a pending state; partner web-sales are paid on credit
         // and stay immediately confirmed.
@@ -105,7 +112,7 @@ const createOrderController = async (req, res) => {
             departure_time: route.departure_time,
             arrival_planned: route.arrival || route.actual_arrival || null,
             items: pricedItems,
-            total_amount: +total.toFixed(2),
+            total_amount: iznosPremaPartneru,
             customer_name: body.customer_name || null,
             customer_email: body.customer_email || null,
             customer_phone: body.customer_phone || null,
@@ -150,6 +157,17 @@ const createOrderController = async (req, res) => {
                     }, { timeout: 8000, validateStatus: () => true });
                     if (resp.status === 200) {
                         ticketsResult = resp.data?.data || resp.data;
+                        // Karta u bazi nosi prodajnu cijenu, ali partneru se i u
+                        // potvrdi iskazuje ona po kojoj je narucio — bez PDV-a.
+                        if (zaSvojRacun(channel) && Array.isArray(ticketsResult?.tickets)) {
+                            ticketsResult = {
+                                ...ticketsResult,
+                                tickets: ticketsResult.tickets.map((k) => ({
+                                    ...k,
+                                    single_price: bezPdv(k.single_price),
+                                })),
+                            };
+                        }
                         await order.update({ status: "confirmed" });
                     } else {
                         console.log("transactions /partner_sale returned", resp.status, resp.data);

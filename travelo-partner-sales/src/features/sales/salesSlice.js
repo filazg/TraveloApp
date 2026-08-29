@@ -21,7 +21,10 @@ export const fetchRoutes = createAsyncThunk('sales/fetchRoutes', async (_, { rej
 
 export const fetchPrices = createAsyncThunk('sales/fetchPrices', async (_, { rejectWithValue }) => {
   try {
-    const res = await api.get('/sales/prices')
+    // Partner prodaje u svoje ime, pa mu se prikazuje nasa cijena prema njemu:
+    // bez PDV-a, s luckom pristojbom u sebi. Po cemu ce on prodati putniku
+    // njegova je stvar.
+    const res = await api.get('/sales/prices', { params: { channel: 'partner_web' } })
     return res.data.prices || []
   } catch (err) {
     return rejectWithValue(err.response?.data || { message: err.message })

@@ -21,4 +21,13 @@ const neto = (iznos) => {
 const provizijaOd = (osnovica, postotak) =>
     +((Number(osnovica) || 0) * (Number(postotak) || 0) / 100).toFixed(2);
 
-module.exports = { HARBOR_RATE, VAT_RATE, neto, provizijaOd };
+// Partner koji prodaje u svoje ime dobiva nasu cijenu bez PDV-a (s luckom
+// pristojbom u sebi) i po njoj naruc uje. Karta i dalje nosi prodajnu cijenu s
+// PDV-om, jer se po njoj obracunava provizija i izdaje racun, pa se primljeni
+// iznos vraca natrag na prodajnu cijenu.
+//   20,30 -> 25,00
+const FAKTOR_BEZ_PDV = HARBOR_RATE + (1 - HARBOR_RATE) / (1 + VAT_RATE);
+const izCijeneBezPdv = (cijenaBezPdv) =>
+    +((Number(cijenaBezPdv) || 0) / FAKTOR_BEZ_PDV).toFixed(2);
+
+module.exports = { HARBOR_RATE, VAT_RATE, neto, provizijaOd, izCijeneBezPdv };

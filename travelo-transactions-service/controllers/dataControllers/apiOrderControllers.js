@@ -3,6 +3,8 @@ const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { reserveBookings, releaseBookings } = require("../../helpers/bookingClient");
+// API partner narucuje po nasoj cijeni bez PDV-a; karta nosi prodajnu cijenu.
+const { izCijeneBezPdv } = require("../../helpers/provizija");
 
 const randomTicketCode = () => crypto.randomBytes(8).toString("hex");
 
@@ -137,7 +139,9 @@ const apiConfirmOrderController = async (req, res) => {
                     ticket_group_uuid: item.ticket_type_uuid,
                     ticket_type_uuid: item.ticket_type_uuid,
                     ticket_type_name: item.ticket_type_name,
-                    single_price: item.single_item_price,
+                    // Partner je narucio po cijeni bez PDV-a, karta nosi prodajnu:
+                    // po njoj se obracunava provizija i izdaje mu racun.
+                    single_price: izCijeneBezPdv(item.single_item_price),
                     is_active: true,
                     is_canceled: false,
                     route_uuid: item.trip_uuid,
