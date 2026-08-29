@@ -133,6 +133,13 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Tko je kartu prodao kroz partnersku prodaju. Partner ima vise
+            // korisnika, a obracun im razraduje promet po osobi — bez ovoga se
+            // zna samo da je prodao "partner".
+            sold_by_username:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             partner_invoice_uuid:{
                 type: DataTypes.STRING,
                 allowNull: true

@@ -26,6 +26,9 @@ const createPartnerSaleController = async (req, res) => {
             customer_name,
             customer_email,
             partner_uuid,
+            // Korisnik partnera koji je kartu prodao. Partner ima vise ljudi, a
+            // obracun provizije razraduje promet po osobi.
+            sold_by_username,
             note,
         } = body;
 
@@ -84,6 +87,7 @@ const createPartnerSaleController = async (req, res) => {
                     passanger_email: customer_email || null,
                     passanger_name: customer_name || null,
                     partner_uuid: partner_uuid || null,
+                    sold_by_username: sold_by_username || null,
                     partner_invoice_uuid: null,
                     order_note: note || null,
                 });

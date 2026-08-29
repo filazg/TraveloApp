@@ -87,6 +87,9 @@ export default function ReservationDialog({ open, route, onClose }) {
           .map((p) => ({ ticket_type_uuid: p.ticket_type_uuid, qty: qty[p.ticket_type_uuid] || 0 }))
           .filter((i) => i.qty > 0),
         partner_uuid: partner?.uuid || null,
+        // Tko prodaje — obracun provizije razraduje promet po korisniku
+        // partnera, pa se korisnicko ime salje uz narudzbu.
+        sold_by_username: user?.username || null,
         partner_name: partner?.name || null,
         partner_web_user_uuid: user?.uuid || null,
         partner_web_user_username: user?.username || null,

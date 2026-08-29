@@ -114,10 +114,14 @@ const partnerCommissionController = async (req, res) => {
         const { partner_uuid, period } = req.query || {};
         let { from, to } = req.query || {};
 
-        const [prostoriPodaci, partneriPodaci] = await Promise.all([
+        const [prostoriPodaci, partneriPodaci, tvrtkaPodaci] = await Promise.all([
             dohvatiIzBackofficea("/business_premises"),
             dohvatiIzBackofficea("/partners"),
+            // Naziv tvrtke stoji u zaglavlju prvog dijela obracuna: te su karte
+            // prodane za nas racun, pa se vidi na ciji racun ide promet.
+            dohvatiIzBackofficea("/company"),
         ]);
+        const nazivTvrtke = tvrtkaPodaci?.company?.name || "";
         const partneri = partneriPodaci.partners || [];
 
         // Bez izričitog raspona razdoblje se računa iz dinamike naplate. Kod
@@ -148,7 +152,7 @@ const partnerCommissionController = async (req, res) => {
         if (!partnerskiProstori.length) {
             return res.send({
                 status: 200,
-                data: { from, to, period: razdoblje, partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
+                data: { from, to, period: razdoblje, company_name: nazivTvrtke, partners: [], partner_channel: null, totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
             });
         }
 
@@ -162,24 +166,38 @@ const partnerCommissionController = async (req, res) => {
                 invoice_business_premise_uuid: { [Op.in]: partnerskiProstori.map((p) => p.uuid) },
                 createdAt: { [Op.between]: [od, doo] },
             },
-            attributes: ["invoice_uuid", "order_uuid", "invoice_business_premise_uuid"],
+            attributes: [
+                "invoice_uuid", "order_uuid", "invoice_business_premise_uuid",
+                "invoice_business_premise_name", "invoice_billing_device_fiscal_mark",
+                "invoice_operator_name",
+            ],
         });
 
         if (!racuni.length) {
             return res.send({
                 status: 200,
-                data: { from, to, period: razdoblje, partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
+                data: { from, to, period: razdoblje, company_name: nazivTvrtke, partners: [], partner_channel: null, totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
             });
         }
 
         // Karta se veže na račun preko invoice_uuid; web prodaja nema
         // invoice_uuid na karti nego order_uuid, pa se hvata i tim putem.
         const prostorPoRacunu = new Map();
+        // Uz prodajno mjesto se pamti i naplatni uredaj i operater — obracun se
+        // razraduje do osobe koja je prodala, ne samo do mjesta.
+        const izvorPoRacunu = new Map();
         const narudzbe = [];
         for (const r of racuni) {
+            const izvor = {
+                business_premise_name: r.invoice_business_premise_name || "",
+                billing_device: r.invoice_billing_device_fiscal_mark || "",
+                operator: r.invoice_operator_name || "",
+            };
             prostorPoRacunu.set(r.invoice_uuid, r.invoice_business_premise_uuid);
+            izvorPoRacunu.set(r.invoice_uuid, izvor);
             for (const o of String(r.order_uuid || "").split(",").map((x) => x.trim()).filter(Boolean)) {
                 prostorPoRacunu.set(o, r.invoice_business_premise_uuid);
+                izvorPoRacunu.set(o, izvor);
                 narudzbe.push(o);
             }
         }
@@ -243,6 +261,23 @@ const partnerCommissionController = async (req, res) => {
             poMjestu.tickets += 1;
             poMjestu.gross += iznosi.bruto;
             poMjestu.base += iznosi.osnovica;
+
+            // Razrada unutar mjesta: naplatni uredaj i operater. Partner tako
+            // vidi tko je prodavao, a ne samo koliko je mjesto prodalo.
+            const izvor = izvorPoRacunu.get(k.invoice_uuid) || izvorPoRacunu.get(k.order_uuid) || {};
+            const kljucIzvora = `${izvor.billing_device || "-"}|${izvor.operator || "-"}`;
+            if (!poMjestu.rows) poMjestu.rows = new Map();
+            if (!poMjestu.rows.has(kljucIzvora)) {
+                poMjestu.rows.set(kljucIzvora, {
+                    billing_device: izvor.billing_device || "",
+                    operator: izvor.operator || "",
+                    tickets: 0, gross: 0, base: 0,
+                });
+            }
+            const redIzvora = poMjestu.rows.get(kljucIzvora);
+            redIzvora.tickets += 1;
+            redIzvora.gross += iznosi.bruto;
+            redIzvora.base += iznosi.osnovica;
         }
 
         // Provizija se računa na zbroj osnovice, ne po karti — zaokruživanje po
@@ -252,8 +287,18 @@ const partnerCommissionController = async (req, res) => {
             const commission = +((base * z.commission_pct) / 100).toFixed(2);
             const premises = [...z.premises.values()].map((m) => {
                 const mBase = +m.base.toFixed(2);
+                const rows = [...(m.rows ? m.rows.values() : [])].map((r) => {
+                    const rBase = +r.base.toFixed(2);
+                    return {
+                        ...r,
+                        gross: +r.gross.toFixed(2),
+                        base: rBase,
+                        commission: +((rBase * z.commission_pct) / 100).toFixed(2),
+                    };
+                });
                 return {
                     ...m,
+                    rows,
                     gross: +m.gross.toFixed(2),
                     base: mBase,
                     commission: +((mBase * z.commission_pct) / 100).toFixed(2),
@@ -294,12 +339,24 @@ const partnerCommissionController = async (req, res) => {
                 let bruto = 0;
                 let osnovica = 0;
                 let obracunato = 0;
+                // Razrada po korisniku partnera — tko je od njegovih ljudi
+                // prodao. Starije karte nemaju upisanog korisnika, pa idu pod
+                // "nepoznato" umjesto da nestanu iz razrade.
+                const poKorisniku = new Map();
                 for (const red of karteKanala) {
                     const k = red.dataValues || red;
                     const i = neto(k.single_price);
                     bruto += i.bruto;
                     osnovica += i.osnovica;
                     if (k.partner_invoice_uuid) obracunato += 1;
+                    const korisnik = k.sold_by_username || "—";
+                    if (!poKorisniku.has(korisnik)) {
+                        poKorisniku.set(korisnik, { username: korisnik, tickets: 0, gross: 0, base: 0 });
+                    }
+                    const redK = poKorisniku.get(korisnik);
+                    redK.tickets += 1;
+                    redK.gross += i.bruto;
+                    redK.base += i.osnovica;
                 }
                 const base = +osnovica.toFixed(2);
                 vlastitaProdaja = {
@@ -312,6 +369,15 @@ const partnerCommissionController = async (req, res) => {
                     commission: +((base * pct) / 100).toFixed(2),
                     // Koliko ih je vec uslo u zbirni partnerski racun.
                     invoiced: obracunato,
+                    rows: [...poKorisniku.values()].map((r) => {
+                        const rBase = +r.base.toFixed(2);
+                        return {
+                            ...r,
+                            gross: +r.gross.toFixed(2),
+                            base: rBase,
+                            commission: +((rBase * pct) / 100).toFixed(2),
+                        };
+                    }).sort((a, b) => String(a.username).localeCompare(String(b.username), "hr")),
                 };
             }
         }
@@ -323,7 +389,7 @@ const partnerCommissionController = async (req, res) => {
             commission: +(z.commission + p.commission).toFixed(2),
         }), { tickets: 0, gross: 0, base: 0, commission: 0 });
 
-        res.send({ status: 200, data: { from, to, period: razdoblje, partners: partnersOut, partner_channel: vlastitaProdaja, totals } });
+        res.send({ status: 200, data: { from, to, period: razdoblje, company_name: nazivTvrtke, partners: partnersOut, partner_channel: vlastitaProdaja, totals } });
     } catch (error) {
         console.log("partnerCommissionController error:", error?.message || error);
         res.status(500).json({ status: 500, data: { message: error.message } });

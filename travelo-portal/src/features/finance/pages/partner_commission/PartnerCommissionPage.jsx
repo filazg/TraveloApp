@@ -30,6 +30,136 @@ const hrDatum = (isoDatum) => {
     return m ? `${m[3]}.${m[2]}.${m[1]}.` : String(isoDatum || "");
 };
 
+// Jedna kartica po razdoblju, a unutar nje dvije razrade, jer partneru promet
+// dolazi iz dva izvora i taj se novac ne obračunava isto:
+//
+//  1. za naš račun — karte prodane u naše ime, na partnerskom prodajnom mjestu.
+//     Novac je naš, partneru dugujemo proviziju. Razrada ide do naplatnog
+//     uređaja i operatera, jer su to njegovi ljudi na našoj opremi.
+//  2. za vlastiti račun — karte prodane kroz partnersku prodaju. Njih partner
+//     naplaćuje sam, a provizija mu se odbija na zbirnom računu. Razrada ide po
+//     njegovim korisnicima.
+function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istaknuto }) {
+    const partner = (podaci.partners || [])[0] || null;
+    const kanal = podaci.partner_channel || null;
+    if (!partner && !kanal) return null;
+
+    return (
+        <Paper
+            variant="outlined"
+            sx={{ mb: 2, ...(istaknuto ? { borderColor: "warning.main" } : null) }}
+        >
+            <Stack
+                direction="row"
+                alignItems="center"
+                spacing={2}
+                sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
+            >
+                <Typography sx={{ fontWeight: 800, flex: 1 }}>
+                    {naslov}
+                    {podaci.from && podaci.to ? ` · ${hrDatum(podaci.from)} – ${hrDatum(podaci.to)}` : ""}
+                </Typography>
+                {oznaka ? <Chip size="small" color={oznakaBoja} label={oznaka} /> : null}
+            </Stack>
+
+            {/* ---- 1. ZA NAŠ RAČUN ---- */}
+            {partner ? (
+                <Box>
+                    <Typography sx={{ px: 2, pt: 2, pb: 1, fontWeight: 700 }}>
+                        Za račun {nazivTvrtke || "tvrtke"}
+                    </Typography>
+                    <TableContainer sx={{ overflowX: "auto" }}>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Prodajno mjesto</TableCell>
+                                    <TableCell>Naplatni uređaj</TableCell>
+                                    <TableCell>Operater</TableCell>
+                                    <TableCell align="right">Karata</TableCell>
+                                    <TableCell align="right">Promet</TableCell>
+                                    <TableCell align="right">Osnovica</TableCell>
+                                    <TableCell align="right">Provizija</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {(partner.premises || []).map((m) => (
+                                    (m.rows || []).map((r, i) => (
+                                        <TableRow key={`${m.business_premise_uuid}-${r.billing_device}-${r.operator}`} hover>
+                                            {/* Naziv mjesta stoji samo uz prvi redak, da se ne ponavlja
+                                                niz cijeli stupac. */}
+                                            <TableCell>{i === 0 ? m.business_premise_name : ""}</TableCell>
+                                            <TableCell>{r.billing_device || "—"}</TableCell>
+                                            <TableCell>{r.operator || "—"}</TableCell>
+                                            <TableCell align="right">{r.tickets}</TableCell>
+                                            <TableCell align="right">{fmtEUR(r.gross)}</TableCell>
+                                            <TableCell align="right">{fmtEUR(r.base)}</TableCell>
+                                            <TableCell align="right">{fmtEUR(r.commission)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ))}
+                                <TableRow>
+                                    <TableCell colSpan={3} sx={{ fontWeight: 800 }}>Ukupno za naš račun</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{partner.tickets}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(partner.gross)}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(partner.base)}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 900 }}>{fmtEUR(partner.commission)}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Box>
+            ) : null}
+
+            {/* ---- 2. ZA VLASTITI RAČUN PARTNERA ---- */}
+            {kanal ? (
+                <Box sx={{ mt: partner ? 2 : 0 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2, pt: 2, pb: 1 }}>
+                        <Typography sx={{ fontWeight: 700, flex: 1 }}>
+                            Za vlastiti račun partnera
+                        </Typography>
+                        <Chip size="small" label={`na zbirnom računu: ${kanal.invoiced}/${kanal.tickets}`} />
+                    </Stack>
+                    <TableContainer sx={{ overflowX: "auto" }}>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Korisnik</TableCell>
+                                    <TableCell align="right">Karata</TableCell>
+                                    <TableCell align="right">Promet</TableCell>
+                                    <TableCell align="right">Osnovica</TableCell>
+                                    <TableCell align="right">Provizija</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {(kanal.rows || []).map((r) => (
+                                    <TableRow key={`kanal-${r.username}`} hover>
+                                        <TableCell>{r.username}</TableCell>
+                                        <TableCell align="right">{r.tickets}</TableCell>
+                                        <TableCell align="right">{fmtEUR(r.gross)}</TableCell>
+                                        <TableCell align="right">{fmtEUR(r.base)}</TableCell>
+                                        <TableCell align="right">{fmtEUR(r.commission)}</TableCell>
+                                    </TableRow>
+                                ))}
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 800 }}>Ukupno za vlastiti račun</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{kanal.tickets}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(kanal.gross)}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(kanal.base)}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 900 }}>{fmtEUR(kanal.commission)}</TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                    <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1.5 }}>
+                        Karte koje je partner prodao kroz partnersku prodaju. Njih naplaćuje od putnika, a
+                        provizija mu se odbija na zbirnom računu — zato se ne isplaćuju kroz ovaj obračun.
+                    </Typography>
+                </Box>
+            ) : null}
+        </Paper>
+    );
+}
+
 export default function PartnerCommissionPage() {
     const dispatch = useDispatch();
     const finance = useSelector(financeSliceData);
@@ -40,17 +170,20 @@ export default function PartnerCommissionPage() {
     const partneri = obracun.partners || [];
     const totals = obracun.totals || { tickets: 0, gross: 0, base: 0, commission: 0 };
     // Razdoblje dolazi s poslužitelja, iz dinamike naplate partnera — ne bira se
-    // ovdje i ne prikazuje se uz tablicu; spominje se samo kad nema prodaje, da
-    // se vidi za što je obračun bio prazan.
+    // ovdje; spominje se u poruci kad nema prodaje, da se vidi za što je obračun
+    // bio prazan.
     const from = obracun.from || "";
     const to = obracun.to || "";
 
-    // Otvoreno razdoblje — ono koje jos traje. Stoji uz obracun kao stanje, ne
-    // kao podloga za isplatu: iznos nije konacan jer se prodaja jos dogadja.
+    // Otvoreno razdoblje — ono koje još traje. Stoji uz obračun kao stanje, ne
+    // kao podloga za isplatu: iznos nije konačan jer se prodaja još događa.
     const otvoreno = finance.partnerCommissionOpen || {};
-    const otvoreniPartner = (otvoreno.partners || [])[0] || null;
-    // Partnerova vlastita prodaja gleda se u istom, otvorenom razdoblju.
-    const kanalPartnera = otvoreno.partner_channel || null;
+
+    const nazivTvrtke = obracun.company_name || otvoreno.company_name || "";
+    const odabraniPartner = useMemo(
+        () => (finance.partnersList || []).find((p) => p.uuid === partnerUuid) || null,
+        [finance.partnersList, partnerUuid]
+    );
 
     // Kartica u Financijama pali zaslon učitavanja prije nego preda stranicu, pa
     // ga stranica mora ugasiti — inače prekrivač ostane preko svega i izgleda
@@ -68,7 +201,7 @@ export default function PartnerCommissionPage() {
         if (!partnerUuid) return;
         dispatch(setAuthData({ path: "loadingMessage", value: "Obračun provizije…" }));
         dispatch(setAuthData({ path: "loading", value: true }));
-        // Dva razdoblja idu usporedno: zaokruzeno (za isplatu) i otvoreno (stanje).
+        // Dva razdoblja idu usporedno: zaokruženo (za isplatu) i otvoreno (stanje).
         await Promise.all([
             dispatch(fetchPartnerCommissionThunk({ partner_uuid: partnerUuid })),
             dispatch(fetchPartnerCommissionThunk({ partner_uuid: partnerUuid, period: "current" })),
@@ -76,10 +209,7 @@ export default function PartnerCommissionPage() {
         dispatch(setAuthData({ path: "loading", value: false }));
     };
 
-    const partnerZaIzvoz = useMemo(
-        () => (finance.partnersList || []).find((p) => p.uuid === partnerUuid) || null,
-        [finance.partnersList, partnerUuid]
-    );
+    const nemaNista = !partneri.length && !obracun.partner_channel;
 
     return (
         // Puna sirina kao i ostali prikazi u Financijama.
@@ -114,15 +244,14 @@ export default function PartnerCommissionPage() {
                     <Button
                         variant="outlined"
                         startIcon={<DownloadIcon />}
-                        onClick={() => izveziObracunProvizije({ partneri, totals, from, to, partner: partnerZaIzvoz })}
+                        onClick={() => izveziObracunProvizije({ partneri, totals, from, to, partner: odabraniPartner })}
                         disabled={!partneri.length}
                     >
                         Excel
                     </Button>
                 </Stack>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                    Razdoblje se određuje iz dinamike naplate partnera. Obuhvaćena je prodaja s prodajnih
-                    mjesta označenih kao partnerska, po datumu izdavanja karte. Provizija se računa na neto
+                    Razdoblje se određuje iz dinamike naplate partnera. Provizija se računa na neto
                     osnovicu — bez lučke pristojbe i bez PDV-a.
                 </Typography>
             </Paper>
@@ -138,149 +267,32 @@ export default function PartnerCommissionPage() {
                 </Alert>
             ) : null}
 
-            {partnerUuid && !partneri.length && !finance.partnerCommissionLoading ? (
+            {partnerUuid ? (
+                <>
+                    <ObracunKartica
+                        naslov="Obračun"
+                        oznaka="za isplatu"
+                        oznakaBoja="primary"
+                        podaci={obracun}
+                        nazivTvrtke={nazivTvrtke}
+                    />
+                    <ObracunKartica
+                        naslov="Otvoreno razdoblje"
+                        oznaka="u tijeku — nije za isplatu"
+                        oznakaBoja="warning"
+                        podaci={otvoreno}
+                        nazivTvrtke={nazivTvrtke}
+                        istaknuto
+                    />
+                </>
+            ) : null}
+
+            {partnerUuid && nemaNista && !finance.partnerCommissionLoading ? (
                 <Alert severity="info">
                     Nema prodaje u obračunskom razdoblju{from && to ? ` (${hrDatum(from)} – ${hrDatum(to)})` : ""}.
-                    Provjeri je li prodajno mjesto u Administraciji označeno kao partnersko i vezano na
-                    ovog partnera, i pada li prodaja u to razdoblje — obračunava se zadnje zaokruženo
-                    razdoblje, ne ono koje traje.
+                    Obračunava se zadnje zaokruženo razdoblje, ne ono koje traje.
                 </Alert>
             ) : null}
-
-            {partnerUuid && kanalPartnera ? (
-                <Paper variant="outlined" sx={{ mb: 2 }}>
-                    <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={2}
-                        sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
-                    >
-                        <Typography sx={{ fontWeight: 800, flex: 1 }}>
-                            Vlastita prodaja partnera{otvoreno.from && otvoreno.to
-                                ? ` · ${hrDatum(otvoreno.from)} – ${hrDatum(otvoreno.to)}` : ""}
-                        </Typography>
-                        <Chip size="small" label="obračunava se na zbirnom računu" />
-                    </Stack>
-                    <Box sx={{ px: 2, py: 1.5 }}>
-                        <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap>
-                            <Typography>Karata: <b>{kanalPartnera.tickets}</b></Typography>
-                            <Typography>Promet: <b>{fmtEUR(kanalPartnera.gross)}</b></Typography>
-                            <Typography>Osnovica: <b>{fmtEUR(kanalPartnera.base)}</b></Typography>
-                            <Typography>Provizija: <b>{fmtEUR(kanalPartnera.commission)}</b></Typography>
-                            <Typography color="text.secondary">
-                                na zbirnom računu: {kanalPartnera.invoiced}/{kanalPartnera.tickets}
-                            </Typography>
-                        </Stack>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            Karte koje je partner prodao kroz partnersku prodaju. Njih naplaćuje od putnika,
-                            a nama duguje promet umanjen za proviziju — zato se ne isplaćuju kroz ovaj obračun
-                            nego se odbijaju na zbirnom partnerskom računu.
-                        </Typography>
-                    </Box>
-                </Paper>
-            ) : null}
-
-            {partnerUuid && otvoreniPartner ? (
-                <Paper variant="outlined" sx={{ mb: 2, borderColor: "warning.main" }}>
-                    <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={2}
-                        sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
-                    >
-                        <Typography sx={{ fontWeight: 800, flex: 1 }}>
-                            Otvoreno razdoblje{otvoreno.from && otvoreno.to
-                                ? ` · ${hrDatum(otvoreno.from)} – ${hrDatum(otvoreno.to)}` : ""}
-                        </Typography>
-                        <Chip size="small" color="warning" label="u tijeku — nije za isplatu" />
-                    </Stack>
-                    <TableContainer sx={{ overflowX: "auto" }}>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Prodajno mjesto</TableCell>
-                                    <TableCell align="right">Karata</TableCell>
-                                    <TableCell align="right">Promet</TableCell>
-                                    <TableCell align="right">Osnovica</TableCell>
-                                    <TableCell align="right">Provizija</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {(otvoreniPartner.premises || []).map((m) => (
-                                    <TableRow key={`open-${m.business_premise_uuid}`} hover>
-                                        <TableCell>{m.business_premise_name}</TableCell>
-                                        <TableCell align="right">{m.tickets}</TableCell>
-                                        <TableCell align="right">{fmtEUR(m.gross)}</TableCell>
-                                        <TableCell align="right">{fmtEUR(m.base)}</TableCell>
-                                        <TableCell align="right">{fmtEUR(m.commission)}</TableCell>
-                                    </TableRow>
-                                ))}
-                                <TableRow>
-                                    <TableCell sx={{ fontWeight: 800 }}>Dosad u ovom razdoblju</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{otvoreniPartner.tickets}</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(otvoreniPartner.gross)}</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(otvoreniPartner.base)}</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 900 }}>{fmtEUR(otvoreniPartner.commission)}</TableCell>
-                                </TableRow>
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Paper>
-            ) : null}
-
-            {partneri.length ? (
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
-                    Obračun{from && to ? ` · ${hrDatum(from)} – ${hrDatum(to)}` : ""}
-                </Typography>
-            ) : null}
-
-            {partneri.map((p) => (
-                <Paper key={p.partner_uuid} variant="outlined" sx={{ mb: 2 }}>
-                    <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={2}
-                        sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
-                    >
-                        <Typography sx={{ fontWeight: 800, flex: 1 }}>{p.partner_name}</Typography>
-                        {p.partner_legal_id ? <Chip size="small" label={`OIB ${p.partner_legal_id}`} /> : null}
-                        <Chip size="small" color="primary" label={`provizija ${Number(p.commission_pct)} %`} />
-                    </Stack>
-
-                    <TableContainer sx={{ overflowX: "auto" }}>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Prodajno mjesto</TableCell>
-                                    <TableCell align="right">Karata</TableCell>
-                                    <TableCell align="right">Promet</TableCell>
-                                    <TableCell align="right">Osnovica</TableCell>
-                                    <TableCell align="right">Provizija</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {(p.premises || []).map((m) => (
-                                    <TableRow key={m.business_premise_uuid} hover>
-                                        <TableCell>{m.business_premise_name}</TableCell>
-                                        <TableCell align="right">{m.tickets}</TableCell>
-                                        <TableCell align="right">{fmtEUR(m.gross)}</TableCell>
-                                        <TableCell align="right">{fmtEUR(m.base)}</TableCell>
-                                        <TableCell align="right">{fmtEUR(m.commission)}</TableCell>
-                                    </TableRow>
-                                ))}
-                                <TableRow>
-                                    <TableCell sx={{ fontWeight: 800 }}>Ukupno za partnera</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{p.tickets}</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(p.gross)}</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 800 }}>{fmtEUR(p.base)}</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 900 }}>{fmtEUR(p.commission)}</TableCell>
-                                </TableRow>
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Paper>
-            ))}
-
         </Box>
     );
 }
