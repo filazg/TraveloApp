@@ -267,6 +267,13 @@ module.exports = (sequelize) => {
                 type: DataTypes.DATE,
                 allowNull: true,
             },
+            // Tko je kartu prodao: korisnik partnerske prodaje ili TID terminala
+            // kod API prodaje. Bez toga se na racunu ne vidi tko je od
+            // partnerovih ljudi koliko prodao.
+            sold_by_username: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
             ticket_code: {
                 type: DataTypes.STRING,
                 allowNull: true,

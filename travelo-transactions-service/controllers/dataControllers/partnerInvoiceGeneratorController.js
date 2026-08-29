@@ -248,6 +248,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 order_uuid: ticket.order_uuid,
                 order_note: ticket.order_note,
                 sale_datetime: ticket.createdAt,
+                sold_by_username: ticket.sold_by_username,
                 ticket_code: ticket.ticket_code,
                 ticket_type_name: ticket.ticket_type_name,
                 route_uuid: ticket.route_uuid,
