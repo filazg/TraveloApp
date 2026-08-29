@@ -7,6 +7,7 @@ const { registerIpcHandlers } = require("./ipc/index.cjs");
 const { pairingDataModel } = require("./db/models/Pairing.cjs");
 const { systemSettingsDataModel } = require("./db/models/Settings.cjs");
 const { syncPendingInvoicesService } = require("./services/invoiceDataService.cjs");
+const { startSyncStreamService } = require("./services/syncStreamService.cjs");
 const { syncPendingShiftsService, autoCloseShiftsService } = require("./services/shiftsDataService.cjs");
 const { syncBasicDataService, syncTransportDataService } = require("./services/backendDataService.cjs");
 
@@ -222,6 +223,11 @@ app.whenReady().then(async () => {
 
   // Pending-invoice + pending-shift sync. Jednom 5s nakon starta (DB + pairing
   // ready), pa svakih 60s. Backend je idempotentan po uuid-u pa retry je siguran.
+  // Otvorena veza prema posluzitelju: kad se polazak otkaze ili pomakne, javi se
+  // sam, pa blagajna ne prodaje polazak kojeg vise nema. Kasni start, da baza i
+  // uparivanje budu spremni.
+  setTimeout(() => { startSyncStreamService() }, 8000)
+
   setTimeout(() => { syncPendingInvoicesService().catch(() => {}) }, 5000)
   setTimeout(() => { syncPendingShiftsService().catch(() => {}) }, 6000)
   setInterval(() => { syncPendingInvoicesService().catch(() => {}) }, 60000)

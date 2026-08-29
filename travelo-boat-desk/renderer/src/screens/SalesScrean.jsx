@@ -49,6 +49,17 @@ export default function SalesScreen() {
   // Smjenu u 01:00 zatvara glavni proces. Kad se to dogodi, na ekranu bi inače
   // ostao prijavljen operater čija smjena više ne postoji — pa bi sljedeća
   // prodaja pala jer nema otvorene smjene. Zato se odjavljuje ovdje.
+  // Poslužitelj javlja kad se vozni red promijeni (otkaz ili pomak polaska), a
+  // glavni proces ga tiho povuče. Ovdje se samo osvježi ono što je na ekranu —
+  // bez prekrivanja i bez poruke, da se operatera ne prekida usred prodaje.
+  useEffect(() => {
+    const odjavi = window.api?.app?.onDataRefreshed?.(async () => {
+      const transportData = await window.api.app.getLocalTransportDataIpc();
+      dispatch(setStateData({ path: "transportData", value: transportData.data }));
+    });
+    return () => { if (typeof odjavi === "function") odjavi(); };
+  }, [dispatch]);
+
   useEffect(() => {
     const odjavi = window.api?.app?.onShiftAutoClosed?.(() => {
       dispatch(resetStateData({ path: "logedUser" }));

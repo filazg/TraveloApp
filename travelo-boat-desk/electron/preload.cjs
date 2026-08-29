@@ -42,6 +42,13 @@ contextBridge.exposeInMainWorld("api", {
     // Smjenu u 01:00 zatvara glavni proces, pa renderer o tome mora biti
     // obaviješten — inače bi ekran ostao na prijavljenom operateru čija smjena
     // više ne postoji.
+    // Posluzitelj javlja kad se podaci promijene (otkaz ili pomak polaska), pa
+    // ih glavni proces tiho povuce — renderer to mora saznati da prikaze nove.
+    onDataRefreshed: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on("app:dataRefreshed", handler);
+      return () => ipcRenderer.removeListener("app:dataRefreshed", handler);
+    },
     onShiftAutoClosed: (callback) => {
       const handler = (_event, payload) => callback(payload);
       ipcRenderer.on("app:shiftAutoClosed", handler);
