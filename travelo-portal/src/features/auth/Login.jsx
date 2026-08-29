@@ -117,16 +117,32 @@ export default function LoginPage (){
         >
           {/* Velicina ide preko fontSize, a ne preko varijante, jer se ploca na
               uzim ekranima suzava — na md je znak sirok skoro cijelu plocu. */}
-          <BrandMark
-            variant="h1"
-            onPrimary
-            sx={{
-              textAlign: "center",
-              px: 4,
-              fontSize: { md: 64, lg: 88 },
-              whiteSpace: "nowrap",
-            }}
-          />
+          {/* Znak i naziv aplikacije stoje zajedno: ista se ploca koristi i na
+              partnerskoj prodaji, pa se s ulaznog zaslona mora vidjeti gdje se
+              covjek prijavljuje. */}
+          <Box sx={{ textAlign: "center", px: 4 }}>
+            <BrandMark
+              variant="h1"
+              onPrimary
+              sx={{
+                textAlign: "center",
+                fontSize: { md: 64, lg: 88 },
+                whiteSpace: "nowrap",
+              }}
+            />
+            <Typography
+              sx={{
+                color: "white",
+                fontWeight: 700,
+                letterSpacing: { md: 6, lg: 8 },
+                fontSize: { md: 16, lg: 20 },
+                opacity: 0.9,
+                mt: 1,
+              }}
+            >
+              ADMIN PORTAL
+            </Typography>
+          </Box>
           {/* footer */}
           <Box
             sx={{

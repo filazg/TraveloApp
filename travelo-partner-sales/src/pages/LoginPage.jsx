@@ -73,16 +73,32 @@ export default function LoginPage() {
             bgcolor: 'primary.main',
           }}
         >
-          <BrandMark
-            variant="h1"
-            onPrimary
-            sx={{
-              textAlign: 'center',
-              px: 4,
-              fontSize: { md: 64, lg: 88 },
-              whiteSpace: 'nowrap',
-            }}
-          />
+          {/* Znak i naziv aplikacije stoje zajedno: ista se ploca koristi i na
+              admin portalu, pa se s ulaznog zaslona mora vidjeti gdje se covjek
+              prijavljuje. */}
+          <Box sx={{ textAlign: 'center', px: 4 }}>
+            <BrandMark
+              variant="h1"
+              onPrimary
+              sx={{
+                textAlign: 'center',
+                fontSize: { md: 64, lg: 88 },
+                whiteSpace: 'nowrap',
+              }}
+            />
+            <Typography
+              sx={{
+                color: 'white',
+                fontWeight: 700,
+                letterSpacing: { md: 6, lg: 8 },
+                fontSize: { md: 16, lg: 20 },
+                opacity: 0.9,
+                mt: 1,
+              }}
+            >
+              PARTNER SALE
+            </Typography>
+          </Box>
           <Box
             sx={{
               position: 'absolute',
