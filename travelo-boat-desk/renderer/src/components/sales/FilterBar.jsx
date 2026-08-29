@@ -168,7 +168,12 @@ export default function FilterBar() {
         }
         // Odvojene ovisnosti, ne `a || b || c` — taj izraz je jedna vrijednost, pa
         // dok je luka odabrana promjena datuma nije osvježavala popis polazaka.
-    }, [appData.searchData.selectedFromHarbor, appData.searchData.selectedLine, appData.searchData.travelDate]);
+        //
+        // Vozni red je u ovisnostima jer ga poslužitelj zna osvježiti sam (otkaz
+        // ili pomak polaska): bez toga bi na ekranu ostao popis polazaka od
+        // maloprije, pa bi blagajnik i dalje vidio polazak kojeg više nema —
+        // podaci su novi, ali ekran star.
+    }, [appData.searchData.selectedFromHarbor, appData.searchData.selectedLine, appData.searchData.travelDate, appData.transportData]);
 
     const updateBooking = async (data) => {
       const dataToSearch = {
