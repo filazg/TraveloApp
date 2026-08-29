@@ -150,7 +150,6 @@ function ObracunKartica({ naslov, oznaka, oznakaBoja, podaci, nazivTvrtke, istak
                         <Typography sx={{ fontWeight: 700, flex: 1 }}>
                             Za vlastiti račun partnera
                         </Typography>
-                        <Chip size="small" label={`na zbirnom računu: ${kanal.invoiced}/${kanal.tickets}`} />
                     </Stack>
                     <TableContainer sx={{ overflowX: "auto" }}>
                         <Table size="small">
