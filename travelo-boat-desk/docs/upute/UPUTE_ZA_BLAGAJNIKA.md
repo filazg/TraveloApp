@@ -79,6 +79,12 @@ U donjoj traci su dva popisa:
 - **RAČUNI** — svi računi ove blagajne. Otvaranjem računa dobiješ detalje, ispis kopije i storno.
 - **KARTE** — pojedinačne karte, s ispisom kopije i stornom jedne karte.
 
+![Popis računa sa statusima i radnjama](images/06-racuni.png)
+
+Zelena ikona otvara račun i pokazuje ga onako kako je ispisan.
+
+![Račun otvoren iz popisa](images/07-racun-detalji.png)
+
 Kopija se ispisuje s oznakom **KOPIJA** preko dokumenta, da se ne zamijeni s izvornikom.
 
 ### 6. Zaključak smjene
@@ -91,6 +97,8 @@ Pritisni **SMJENE** pa otvori pregled smjene. **Pregled smjene** pokazuje:
 - zasebno **Storno** i **Storno s drugih prodajnih mjesta**, ako ih je bilo.
 
 ![Popis smjena s gumbom za otvaranje nove](images/05-smjene.png)
+
+![Pregled smjene prije zaključenja](images/09-pregled-smjene.png)
 
 Provjeri iznose prije nego zaključiš. Zaključak se ispisuje sam, a kopiju možeš dobiti kasnije: otvori smjenu u popisu i pritisni **Ispiši kopiju zaključka**.
 
@@ -110,6 +118,8 @@ Postotke povrata postavlja ured u portalu (*Administracija → Postotci stornira
 
 Kad putnik donese kartu kupljenu drugdje — na webu, kod partnera ili na drugoj blagajni — koristi **Storno karte po oznaci**: upišeš oznaku karte, pritisneš **TRAŽI**, odabereš sredstvo povrata i **STORNIRAJ**.
 
+![Popis karata; pretraga po oznaci je na vrhu](images/08-karte.png)
+
 Takav storno ulazi u zaključak smjene zasebno, pod *Storno s drugih prodajnih mjesta*, jer prodaja nije bila tvoja.
 
 ### Funkcijske tipke
@@ -119,6 +129,8 @@ Izbornik operatera (ikona osobe gore desno) → **Funkcijske tipke**. Tipkama F1
 - Izdaj račun, Osvježi formu, R1 račun (adresar), Povlaštene kartice,
 - Pregled računa, Pregled karata, Smjene,
 - ili odabir pojedinog sredstva plaćanja.
+
+![Dodjela radnji funkcijskim tipkama](images/10-funkcijske-tipke.png)
 
 Dodijeljena tipka piše na samom gumbu, npr. *KARTICA (F2)*. Postavka je vezana uz operatera, pa svaki može imati svoju.
 
