@@ -15,12 +15,24 @@ const { cancelRoutesBatchController, rescheduleRoutesBatchController } = require
 const { checkIslandCardController } = require('../controllers/logicControllers.js/checkIslandCardController');
 const router = express.Router();
 
-const PARTNER_API_KEY = process.env.PARTNER_API_KEY;
+// Kljucevi za web stranicu i partnere. Vise njih se odvaja zarezom, da svaki
+// dobije svoj — zajednicki kljuc se ne moze povuci jednom korisniku bez da se
+// sruse svi ostali.
+const PARTNER_API_KEYS = String(process.env.PARTNER_API_KEY || '')
+  .split(',')
+  .map((k) => k.trim())
+  .filter(Boolean);
 
-const ALLOWED_ORIGINS = [
-  'https://partner-domena.hr',
-  'https://www.partner-domena.hr'
-];
+if (!PARTNER_API_KEYS.length) {
+  // Bez kljuca su web_page endpointi zatvoreni za sve. Bolje glasno nego da se
+  // otkrije tek kad stranica ostane bez podataka.
+  console.log('UPOZORENJE: PARTNER_API_KEY nije postavljen — /web_page_* endpointi odbijaju svaki zahtjev.');
+}
+
+const ALLOWED_ORIGINS = String(process.env.PARTNER_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 // ===== CORS =====
 const partnerCors = cors({
@@ -69,11 +81,18 @@ const webPdfLimiter = rateLimit({
 });
 
 // ===== MIDDLEWARE =====
+// Kljuc se ne ispisuje u log — ondje ga vidi svatko tko cita log, a rotacija
+// kljuca je puno skuplja od jedne poruke o gresci.
 function validatePartnerApiKey(req, res, next) {
   const apiKey = req.headers['x-api-key'];
-    console.log(apiKey)
-    console.log(PARTNER_API_KEY)
-  if (!apiKey || apiKey !== PARTNER_API_KEY) {
+
+  if (!apiKey) {
+    return res.status(401).json({
+      error: 'Missing x-api-key header'
+    });
+  }
+
+  if (!PARTNER_API_KEYS.includes(apiKey)) {
     return res.status(403).json({
       error: 'Unauthorized partner'
     });
@@ -179,24 +198,26 @@ router
 
 router
     .route('/web_page_harbors')
-    .get(webPublicLimiter, getWebPageHarborsDataController)
+    .get(partnerLimiter, validatePartnerApiKey, getWebPageHarborsDataController)
 
 router
     .route('/web_page_search_trips')
-    .post(webPublicLimiter, searchWebPageTripsController)
+    .post(partnerLimiter, validatePartnerApiKey, searchWebPageTripsController)
 
 router
     .route('/web_page_business_premises')
-    .get(webPublicLimiter, getBusinesPremisessData)
+    .get(partnerLimiter, validatePartnerApiKey, getBusinesPremisessData)
 
 router
     .route('/web_page_info')
-    .get(webPublicLimiter, getInfoData)
+    .get(partnerLimiter, validatePartnerApiKey, getInfoData)
 
 router
     .route('/web_page_documentations')
-    .get(webPublicLimiter, downloadWebPageApiDocumentation)
+    .get(partnerLimiter, validatePartnerApiKey, downloadWebPageApiDocumentation)
 
+// Otvoreno namjerno: ovo zove nasa web prodaja iz preglednika, nije dio
+// sucelja prema vanjskoj stranici.
 router
     .route('/check_island_card')
     .post(webPublicLimiter, checkIslandCardController)
