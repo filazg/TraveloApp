@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { DesktopDatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -107,6 +107,31 @@ export default function SearchComponent (){
         return returnDay;
     };
 
+    // Dolazak s partnerove stranice: ?from=HR479&to=HR364&date=2026-09-05.
+    // Popuni se pretraga, a postojeci ucinak nize sam pokrene trazenje polazaka.
+    // Radi se jednom, tek kad luke stignu — inace se sifra ne bi imala na sto
+    // preslikati, a kasnije bi gazilo putnikov odabir.
+    const parametriProcitani = useRef(false);
+    useEffect(() => {
+        if (parametriProcitani.current) return;
+        const luke = webSalesData?.transportData?.harbors;
+        if (!luke?.length) return;
+
+        const upit = new URLSearchParams(window.location.search);
+        const od = luke.find((h) => h.code === upit.get("from"));
+        const doo = luke.find((h) => h.code === upit.get("to"));
+        const datum = upit.get("date");
+        if (!od && !doo && !datum) return;
+
+        parametriProcitani.current = true;
+        if (od) dispatch(setWebSalesData({ path: "searchData/travel_from", value: od }));
+        if (doo) dispatch(setWebSalesData({ path: "searchData/travel_to", value: doo }));
+        if (datum && /^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+            dispatch(setWebSalesData({ path: "searchData/travel_date", value: `${datum} 00:00` }));
+            setFirstDay(new Date(`${datum}T00:00:00`));
+        }
+    }, [webSalesData?.transportData?.harbors]);
+
     const canSearch = [
         searchData.travel_from,
         searchData.travel_to,
@@ -149,6 +174,8 @@ export default function SearchComponent (){
                         id="travel_from"
                         options={filteredHarborsFrom || []}
                         getOptionLabel={(option) => option?.name || ""}
+                        value={searchData?.travel_from || null}
+                        isOptionEqualToValue={(option, value) => option?.uuid === value?.uuid}
                         fullwidth="true"
                         renderInput={(params) => (
                             <TextField
@@ -167,6 +194,8 @@ export default function SearchComponent (){
                         id="travel_to"
                         options={filteredHarborsTo || []}
                         getOptionLabel={(option) => option?.name || ""}
+                        value={searchData?.travel_to || null}
+                        isOptionEqualToValue={(option, value) => option?.uuid === value?.uuid}
                         fullwidth="true"
                         renderInput={(params) => (
                             <TextField

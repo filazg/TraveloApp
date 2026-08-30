@@ -29,6 +29,9 @@ if (!PARTNER_API_KEYS.length) {
   console.log('UPOZORENJE: PARTNER_API_KEY nije postavljen — /web_page_* endpointi odbijaju svaki zahtjev.');
 }
 
+// Adresa web prodaje na koju se posjetitelj salje s partnerove stranice.
+const WEB_SALES_PUBLIC_URL = process.env.WEB_SALES_PUBLIC_URL || 'https://bookingtest.krilo.hr';
+
 const ALLOWED_ORIGINS = String(process.env.PARTNER_ALLOWED_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
@@ -232,16 +235,20 @@ router
     (req, res) => {
       const { travel_from_code, travel_to_code, travel_date } = req.body;
 
-      const redirectUrlpravi =
-        `https://bookingtest/search` +
-        `?from=${encodeURIComponent(travel_from_code)}` +
-        `&to=${encodeURIComponent(travel_to_code)}` +
-        `&date=${encodeURIComponent(travel_date)}` +
-        `&partner=partner1`;
+      // Web prodaja nema zasebnu stranicu pretrage — pretraga je pocetna, pa
+      // parametri idu na korijen. Adresa dolazi iz okoline jer se test i
+      // produkcija razlikuju.
+      const url = new URL(WEB_SALES_PUBLIC_URL);
+      url.searchParams.set('from', travel_from_code);
+      url.searchParams.set('to', travel_to_code);
+      url.searchParams.set('date', travel_date);
+      // Oznaka posiljatelja je predmetak kljuca kojim je pozvano ("web_..." ->
+      // "web"), da se u prodaji vidi odakle je posjetitelj dosao bez zasebnog
+      // sifarnika.
+      const oznaka = String(req.headers['x-api-key'] || '').split('_')[0];
+      if (oznaka) url.searchParams.set('partner', oznaka);
 
-      const redirectUrl = 'https://index.hr'
-
-      return res.json({ redirectUrl });
+      return res.json({ redirectUrl: url.toString() });
     }
   );
 
