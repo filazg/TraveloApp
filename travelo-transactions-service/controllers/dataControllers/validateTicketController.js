@@ -1,3 +1,5 @@
+const { podigniSignal } = require("./syncSignalsController");
+
 // Validate (mark as boarded) a single ticket. Used by mobile gate scanner.
 // Idempotent: re-validating an already-validated ticket returns the existing
 // validate_data so the client can show "already used" without erroring.
@@ -39,6 +41,18 @@ const validateTicketController = async (req, res) => {
             status: "validated",
             validate_data: now,
         });
+
+        // Na istom polasku zna raditi vise uredaja: bez ovoga bi drugi jos drzao
+        // kartu nevalidiranom i pustio istu osobu drugi put.
+        try {
+            await podigniSignal({
+                SyncSignalsModel: req.app.locals.models.SyncSignalsModel,
+                kind: "tickets",
+                event: `validacija ${ticket.ticket_code || ticket.ticket_uuid}`,
+            });
+        } catch (e) {
+            console.log("signal za validaciju nije zapisan:", e?.message || e);
+        }
 
         return res.status(200).json({
             status: 200,

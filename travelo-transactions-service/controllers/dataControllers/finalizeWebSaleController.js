@@ -6,6 +6,7 @@ const { buildInvoicePdfBuffer } = require("./invoicePdfController");
 const { buildTicketsPdfBuffer } = require("./ticketPdfController");
 const { sendWebSaleEmail } = require("../../helpers/webSaleEmail");
 const { reserveBookings } = require("../../helpers/bookingClient");
+const { podigniSignal } = require("./syncSignalsController");
 
 const randomCode = () => crypto.randomBytes(5).toString("hex").toUpperCase();
 
@@ -410,6 +411,19 @@ const finalizeWebSaleController = async (req, res) => {
                 console.log("web-sale email failed:", mailErr?.message || mailErr);
             }
         })();
+
+        // Nove karte na polasku vidi i drugi uredaj koji ga validira: bez ovoga
+        // bi ih ondje nedostajalo dok se popis ne osvjezi rucno, pa bi putnika
+        // s valjanom kartom odbio kao nepoznatog.
+        try {
+            await podigniSignal({
+                SyncSignalsModel: req.app.locals.models.SyncSignalsModel,
+                kind: "tickets",
+                event: `web prodaja ${invoice_uuid}`,
+            });
+        } catch (e) {
+            console.log("signal za prodaju nije zapisan:", e?.message || e);
+        }
 
         res.status(200).json({
             status: 200,

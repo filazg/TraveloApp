@@ -84,16 +84,30 @@ export default function AppNavigator() {
     // polaska — pa uređaj povuče podatke odmah, umjesto da ih čeka do sljedećeg
     // ručnog osvježavanja. Do tada se stornirana karta mogla validirati, a
     // otkazan polazak prodavati.
+    // Karte se mijenjaju često — svaka prodaja, storno i validacija na bilo kojem
+    // uređaju javi promjenu. Povlačenje se zato skuplja: u špici bi inače svaka
+    // prodaja s druge blagajne značila novi dohvat cijelog polaska.
+    const kartePovlacenje = useRef(null);
     useEffect(() => {
         if (!auth.token) return undefined;
         startSyncStream((promjene) => {
             if (promjene.includes('transport')) dispatch(syncTransportDataThunk());
             // Karte se ne drže u zalihi nego se povlače po polasku; osvježi se
-            // ono što je trenutno otvoreno, pa storno s drugog uređaja odmah
-            // vrijedi i ovdje.
-            if (promjene.includes('tickets')) dispatch(refreshOpenVoyageTicketsThunk());
+            // ono što je trenutno otvoreno, pa prodaja, storno ili validacija s
+            // drugog uređaja odmah vrijede i ovdje.
+            if (promjene.includes('tickets')) {
+                if (kartePovlacenje.current) clearTimeout(kartePovlacenje.current);
+                kartePovlacenje.current = setTimeout(() => {
+                    kartePovlacenje.current = null;
+                    dispatch(refreshOpenVoyageTicketsThunk());
+                }, 5000);
+            }
         });
-        return () => stopSyncStream();
+        return () => {
+            if (kartePovlacenje.current) clearTimeout(kartePovlacenje.current);
+            kartePovlacenje.current = null;
+            stopSyncStream();
+        };
     }, [auth.token, dispatch]);
 
     // Load operator's open shift + recent shifts after operator login. Also push pending

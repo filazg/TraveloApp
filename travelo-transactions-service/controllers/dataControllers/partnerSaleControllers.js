@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { reserveBookings } = require("../../helpers/bookingClient");
+const { podigniSignal } = require("./syncSignalsController");
 
 const randomCode = () => {
     return crypto.randomBytes(5).toString("hex").toUpperCase();
@@ -95,6 +96,19 @@ const createPartnerSaleController = async (req, res) => {
         }
 
         const created = await TicketsModel.bulkCreate(ticketsToCreate);
+
+        // Nove karte na polasku vidi i drugi uredaj koji ga validira: bez ovoga
+        // bi ih ondje nedostajalo dok se popis ne osvjezi rucno, pa bi putnika
+        // s valjanom kartom odbio kao nepoznatog.
+        try {
+            await podigniSignal({
+                SyncSignalsModel: req.app.locals.models.SyncSignalsModel,
+                kind: "tickets",
+                event: `partnerska prodaja ${order_number || order_uuid}`,
+            });
+        } catch (e) {
+            console.log("signal za prodaju nije zapisan:", e?.message || e);
+        }
 
         res.status(200).json({
             status: 200,
