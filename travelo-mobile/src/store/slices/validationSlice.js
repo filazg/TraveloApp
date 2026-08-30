@@ -16,7 +16,16 @@ export const setVoyageTicketsCache = (tickets) => {
         if (t?.ticket_code) _voyageTicketsByUuid.set(t.ticket_code, t);
     }
 };
-export const getCachedTicket = (key) => _voyageTicketsByUuid.get(key) || null;
+// Oznaka karte se ne razlikuje po velicini slova: blagajna izdaje mala, mobilna
+// velika, a crtični kod stare karte dolazi kakav jest. Poslužitelj to vec tako
+// trazi, pa ni uređaj ne smije pasti na "nije pronađena" zbog velikog slova.
+export const getCachedTicket = (key) => {
+    const k = String(key || '');
+    return _voyageTicketsByUuid.get(k)
+        || _voyageTicketsByUuid.get(k.toUpperCase())
+        || _voyageTicketsByUuid.get(k.toLowerCase())
+        || null;
+};
 export const updateCachedTicket = (uuid, patch) => {
     const cur = _voyageTicketsByUuid.get(uuid);
     if (cur) _voyageTicketsByUuid.set(uuid, { ...cur, ...patch });
@@ -115,8 +124,16 @@ const sanitizeTicket = (t) => {
         status: toStr(t.status),
         validate_data: t.validate_data ? toStr(t.validate_data) : null,
         is_canceled: Boolean(t.is_canceled),
+        // Karta preuzeta iz starog sustava ("OLD"). Kod nas se samo validira —
+        // djelatnik to mora vidjeti, jer takva karta nema nasu prodaju iza sebe
+        // pa se o njoj ne moze nista drugo ni napraviti.
+        origin: toStr(t.origin),
+        passanger_name: toStr(t.passanger_name),
     };
 };
+
+// Karta iz starog sustava — prodana ondje, kod nas se samo validira.
+export const jeStaraKarta = (t) => String(t?.origin || '').toUpperCase() === 'OLD';
 
 // Pretvori "DD/MM/YYYY" u "YYYY-MM-DD" (backend filter podržava oba).
 const dmyToIso = (dmy) => {
@@ -223,25 +240,35 @@ export const syncPendingValidationsThunk = createAsyncThunk(
     }
 );
 
-// Dohvat jedne karte s poslužitelja, po uuid-u iz QR koda. Uređaj lokalno drži
-// samo karte svog polaska i svoje linije, pa karta s druge linije nije ni u
-// jednom cacheu — bez ovoga bi scan pao na "Karta nije pronađena" i djelatnik
-// ne bi imao što odobriti. Bez mreže vraća null, tj. ostaje kako je i bilo.
+// Dohvat jedne karte s poslužitelja, po onome što je skener pročitao. Uređaj
+// lokalno drži samo karte svog polaska i svoje linije, pa karta s druge linije
+// nije ni u jednom cacheu — bez ovoga bi scan pao na "Karta nije pronađena" i
+// djelatnik ne bi imao što odobriti. Bez mreže vraća null, tj. ostaje kako je
+// i bilo.
+//
+// Nase karte nose uuid u QR kodu, a karte preuzete iz starog sustava crtični
+// kod broja karte — pa se trazi po oba, jer se sa skenera ne vidi koje je koje.
+const jeUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+
 export const lookupTicketRemote = async (kljuc) => {
-    const uuid = String(kljuc || '').trim();
-    if (!uuid) return null;
-    try {
-        const resp = await api.get(ENDPOINTS.voyageTickets, {
-            params: { ticket_uuid: uuid, limit: 1 },
-            timeout: 8000,
-        });
-        const body = resp.data?.data ?? resp.data ?? {};
-        const nadjena = Array.isArray(body.tickets) ? body.tickets[0] : null;
-        return nadjena ? sanitizeTicket(nadjena) : null;
-    } catch (err) {
-        console.log('[lookupTicketRemote] nije uspio:', err?.message || err);
-        return null;
+    const kod = String(kljuc || '').trim();
+    if (!kod) return null;
+    const upiti = jeUuid(kod) ? [{ ticket_uuid: kod }] : [{ ticket_code: kod }, { ticket_uuid: kod }];
+    for (const upit of upiti) {
+        try {
+            const resp = await api.get(ENDPOINTS.voyageTickets, {
+                params: { ...upit, limit: 1 },
+                timeout: 8000,
+            });
+            const body = resp.data?.data ?? resp.data ?? {};
+            const nadjena = Array.isArray(body.tickets) ? body.tickets[0] : null;
+            if (nadjena) return sanitizeTicket(nadjena);
+        } catch (err) {
+            console.log('[lookupTicketRemote] nije uspio:', err?.message || err);
+            return null;
+        }
     }
+    return null;
 };
 
 // Učitaj karte iz lokalne baze za dane rute (offline-friendly).

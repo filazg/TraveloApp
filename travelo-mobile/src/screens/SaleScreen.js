@@ -20,7 +20,7 @@ import { finalizeSaleThunk, salesData, clearLastInvoice, syncPendingSalesThunk, 
 import {
     fetchVoyageTicketsThunk, validateScanThunk, validationData, clearScanResult,
     getCachedTicket, updateCachedTicket, findRelatedTickets, addTicketsToCache,
-    lookupTicketRemote,
+    lookupTicketRemote, jeStaraKarta,
     listCachedTickets, countCachedValidated, countCachedValid,
 } from '../store/slices/validationSlice';
 import api from '../api/client';
@@ -1545,6 +1545,13 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
                 >
                 <View style={overlayStyles.choiceHeader}>
                     <Text style={overlayStyles.choiceTitle}>{title}</Text>
+                    {/* Karta iz starog sustava: valjana je i validira se
+                        jednako, ali djelatnik mora znati da iza nje kod nas
+                        nema prodaje — pa se o njoj ne moze nista drugo ni
+                        napraviti. */}
+                    {jeStaraKarta(t) ? (
+                        <Text style={overlayStyles.oldBadge}>STARA KARTA · {String(t.passanger_name || 'Activa')}</Text>
+                    ) : null}
                     <Text style={overlayStyles.choiceBig}>{String(t.ticket_type_name || '')}</Text>
                     <Text style={overlayStyles.choiceCode}>{String(t.ticket_code || '')}</Text>
                 </View>
@@ -1659,6 +1666,9 @@ function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll
                 {result.kind === 'reject' && result.message ? (
                     <Text style={overlayStyles.line}>{String(result.message)}</Text>
                 ) : null}
+                {jeStaraKarta(t) ? (
+                    <Text style={overlayStyles.oldBadge}>STARA KARTA · {String(t.passanger_name || 'Activa')}</Text>
+                ) : null}
                 {t.ticket_type_name ? (
                     <Text style={overlayStyles.bigLine}>{String(t.ticket_type_name)}</Text>
                 ) : null}
@@ -1684,6 +1694,13 @@ const overlayStyles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
     },
     content: { alignItems: 'center', paddingHorizontal: 24 },
+    // Karta preuzeta iz starog sustava — istaknuto, ali bez boje upozorenja:
+    // karta je valjana, samo joj je podrijetlo drugo.
+    oldBadge: {
+        color: colors.textOnPrimary, fontSize: 14, fontWeight: '900', letterSpacing: 1,
+        backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 6,
+        paddingHorizontal: 12, paddingVertical: 5, marginBottom: 10, overflow: 'hidden',
+    },
     title: { color: colors.textOnPrimary, fontSize: 48, fontWeight: '900', marginBottom: 24, letterSpacing: 2, textAlign: 'center' },
     bigLine: { color: colors.textOnPrimary, fontSize: 28, fontWeight: '800', marginVertical: 8, textAlign: 'center' },
     line: { color: colors.textOnPrimary, fontSize: 22, marginVertical: 4, textAlign: 'center' },
@@ -1762,6 +1779,7 @@ function LocalValidationStatus({ result }) {
     return (
         <View style={[vs.statusBox, { backgroundColor: bg }]}>
             <Text style={vs.statusTitle}>{title}</Text>
+            {jeStaraKarta(t) ? <Text style={vs.statusText}>STARA KARTA · {String(t.passanger_name || 'Activa')}</Text> : null}
             {t.ticket_type_name ? <Text style={vs.statusText}>{String(t.ticket_type_name)}</Text> : null}
             {t.ticket_code ? <Text style={vs.statusText}>{String(t.ticket_code)}</Text> : null}
             {t.departure_harbor_name ? (
@@ -1904,6 +1922,7 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
                                     </Text>
                                     <Text style={[vs.ticketType, isCanceled && vs.ticketTextCanceled]}>
                                         {String(t.ticket_type_name || '')}
+                                        {jeStaraKarta(t) ? '  ·  STARA' : ''}
                                     </Text>
                                 </View>
                                 <Text style={[vs.ticketStatus, isCanceled && vs.ticketStatusCanceled]}>
