@@ -32,13 +32,30 @@ const OZNAKA = "OLD";
 // Naziv starog sustava; stoji na karti umjesto imena putnika.
 const PUTNIK = "Activa";
 
-// Nazivi luka iz Aktive prema nasim sifrma.
+// Nazivi luka iz Aktive prema nasim sifrma. Aktiva mjestimicno pise otok, a mi
+// luku ("BRAČ (MILNA)" je nasa Milna), pa se ne moze usporedivati po nazivu.
 const LUKE = {
     SPLIT: "HR479",
     "HVAR (MAIN PIER)": "HR364",
     HVAR: "HR364",
     "VIRA (HVAR)": "HR412",
     VIRA: "HR412",
+    "BRAČ (MILNA)": "HR391",
+    MILNA: "HR391",
+    VIS: "HR368",
+    KORČULA: "HR491",
+    "POMENA (NP MLJET)": "HR543",
+    POMENA: "HR543",
+    // Dubrovacka luka je kod nas Gruz.
+    DUBROVNIK: "HR489",
+    GRUŽ: "HR489",
+    PULA: "HR001",
+    ZADAR: "HR201",
+    SILBA: "HR206",
+    "MALI LOŠINJ": "HR058",
+    SUSAK: "HR103",
+    UNIJE: "HR107",
+    ILOVIK: "HR076",
 };
 
 // Vrste karata iz Aktive. Cijena se ne prenosi, pa je vazan samo naziv koji
