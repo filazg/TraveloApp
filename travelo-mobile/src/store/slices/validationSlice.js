@@ -41,16 +41,6 @@ export const addTicketsToCache = (tickets) => {
 // netaknute. Služe samo da terminal prepozna kartu koju putnik donese s drugog
 // polaska; bez toga scan padne na "Karta nije pronađena" jer uređaj o njoj nema
 // pojma. Sve mora biti lokalno — validacija radi i bez mreže.
-const _lineTicketsByUuid = new Map();
-export const setLineTicketsCache = (tickets) => {
-    _lineTicketsByUuid.clear();
-    for (const t of tickets || []) {
-        if (t?.ticket_uuid) _lineTicketsByUuid.set(t.ticket_uuid, t);
-        if (t?.ticket_code) _lineTicketsByUuid.set(t.ticket_code, t);
-    }
-};
-export const getCachedLineTicket = (key) => _lineTicketsByUuid.get(key) || null;
-
 // Lista karata polaska za validaciju (Map ima dupli zapis po uuid i code).
 //
 // Stornirane karte ostaju u popisu, ali označene. Skrivanje bi značilo da
@@ -178,36 +168,6 @@ export const refreshOpenVoyageTicketsThunk = createAsyncThunk(
         if (!upit?.date || !upit?.routeUuids) return { skipped: true };
         await dispatch(fetchVoyageTicketsThunk(upit));
         return { refreshed: true };
-    }
-);
-
-// Karte cijele linije za taj dan — puni zaseban cache za prepoznavanje karata s
-// drugih polazaka. Best-effort: ako ne uspije, validacija odabranog polaska i
-// dalje radi normalno.
-export const fetchLineTicketsThunk = createAsyncThunk(
-    'validation/fetchLineTickets',
-    async ({ date, lineCode }, { rejectWithValue }) => {
-        try {
-            if (!lineCode) return { count: 0 };
-            const resp = await api.get(ENDPOINTS.voyageTickets, {
-                params: {
-                    date: dmyToIso(date) || date,
-                    line_code: lineCode,
-                    limit: 5000,
-                },
-                timeout: 20000,
-            });
-            const body = resp.data?.data ?? resp.data ?? {};
-            const tickets = Array.isArray(body.tickets) ? body.tickets : [];
-            try { await upsertExternalTickets(tickets); } catch (e) {
-                console.log('[fetchLineTickets] SQLite upsert failed:', e?.message || e);
-            }
-            const sanitized = tickets.map(sanitizeTicket).filter(Boolean);
-            setLineTicketsCache(sanitized);
-            return { count: sanitized.length };
-        } catch (err) {
-            return rejectWithValue({ message: err?.message || 'Dohvat karata linije nije uspio' });
-        }
     }
 );
 

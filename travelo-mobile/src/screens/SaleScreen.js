@@ -18,8 +18,8 @@ import { voyageData, clearVoyage } from '../store/slices/voyageSlice';
 import { authData } from '../store/slices/authSlice';
 import { finalizeSaleThunk, salesData, clearLastInvoice, syncPendingSalesThunk, refreshPendingCountThunk } from '../store/slices/salesSlice';
 import {
-    fetchVoyageTicketsThunk, fetchLineTicketsThunk, validateScanThunk, validationData, clearScanResult,
-    getCachedTicket, getCachedLineTicket, updateCachedTicket, findRelatedTickets, addTicketsToCache,
+    fetchVoyageTicketsThunk, validateScanThunk, validationData, clearScanResult,
+    getCachedTicket, updateCachedTicket, findRelatedTickets, addTicketsToCache,
     lookupTicketRemote,
     listCachedTickets, countCachedValidated, countCachedValid,
 } from '../store/slices/validationSlice';
@@ -171,18 +171,10 @@ export default function SaleScreen() {
                     }
                 } catch (_) {}
             }
-            // Zadnja stanica: karte ostalih polazaka iste linije tog dana. Bez
-            // ovoga bi karta s drugog polaska pala na "nije pronađena" i djelatnik
-            // ne bi imao što odobriti.
-            if (!local) {
-                const lineTicket = getCachedLineTicket(ticketUuid);
-                if (lineTicket) local = lineTicket;
-            }
-            // Karta s druge linije nije ni u jednom lokalnom cacheu — uređaj
-            // povlači samo karte svog polaska i svoje linije. Zato se za tu
-            // jednu kartu pita poslužitelj. Bez mreže ostaje "nije pronađena",
-            // isto kao i dosad. Ne ide u cache polaska da ne pokvari brojače
-            // validiranih karata tog polaska.
+            // Karta s drugog polaska nije u lokalnom cacheu — uređaj drži samo
+            // karte polaska na kojem radi. Zato se za tu jednu kartu pita
+            // poslužitelj. Bez mreže ostaje "nije pronađena". Ne ide u cache
+            // polaska da ne pokvari brojače validiranih karata tog polaska.
             if (!local) {
                 local = await lookupTicketRemote(ticketUuid);
             }
@@ -352,13 +344,6 @@ export default function SaleScreen() {
         dispatch(fetchVoyageTicketsThunk({
             date: v.departure_date,
             routeUuids: voyageRouteUuids,
-        }));
-        // Uz karte ovog polaska povuci i ostale karte iste linije tog dana —
-        // treba ih da se prepozna putnik koji dođe s drugog polaska. Drže se u
-        // zasebnom cacheu i ne ulaze u listu karata polaska.
-        dispatch(fetchLineTicketsThunk({
-            date: v.departure_date,
-            lineCode: v.line_code,
         }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [v?.timetable_uuid, v?.sequence, v?.departure_date, v?.line_code]);
