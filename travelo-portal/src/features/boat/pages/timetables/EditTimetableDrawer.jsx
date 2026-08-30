@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  Checkbox,
-  FormControlLabel,
   Modal,
   Stack,
   Step,
@@ -37,10 +35,6 @@ export default function EditTimetableDrawer({ selectedRow, setSelectedRow }) {
     updateDeparture()
   },[rowsDepartures])
 
-   const samePriceBothWays = Boolean(
-      boatData.editData?.timetableData?.same_price_both_ways ?? selectedRow?.same_price_both_ways,
-   );
-
    const createPairsForPrices = async()=>{
       const uniqueHarbor = boatData.boatData?.timetable_details?.departures?.filter(
         (v, i, a) =>
@@ -51,7 +45,7 @@ export default function EditTimetableDrawer({ selectedRow, setSelectedRow }) {
       await dispatch(
         setBoatData({
           path: "editData/pairsForTimetable",
-          value: buildHarborPairs(uniqueHarbor, samePriceBothWays),
+          value: buildHarborPairs(uniqueHarbor),
         }),
       );}
       await dispatch(
@@ -66,27 +60,6 @@ export default function EditTimetableDrawer({ selectedRow, setSelectedRow }) {
       await createPairsForPrices()
   }
 
-  // Promjena zastavice odmah mijenja popis relacija za unos — inace bi se
-  // cijene unosile po starom pravilu, a spremile po novom.
-  const handleSamePriceChange = async (checked) => {
-    const timetableData = {
-      ...(boatData.editData?.timetableData || selectedRow || {}),
-      same_price_both_ways: checked,
-    };
-    await dispatch(setBoatData({ path: "editData/timetableData", value: timetableData }));
-    const uniqueHarbor = boatData.boatData?.timetable_details?.departures?.filter(
-      (v, i, a) =>
-        a.findIndex((t) => t.departure_harbor_id === v.departure_harbor_id) === i,
-    );
-    if (uniqueHarbor) {
-      await dispatch(
-        setBoatData({
-          path: "editData/pairsForTimetable",
-          value: buildHarborPairs(uniqueHarbor, checked),
-        }),
-      );
-    }
-  };
 
   useEffect(()=>{
     setEditData()
@@ -143,19 +116,6 @@ export default function EditTimetableDrawer({ selectedRow, setSelectedRow }) {
               {t("boat.timetables.close")}
             </Button>
           </Stack>
-          {/* Cijena se tada unosi jednom po relaciji; povratni smjer dobiva
-              istu cijenu pri spremanju. */}
-          <FormControlLabel
-            sx={{ mb: 2 }}
-            control={
-              <Checkbox
-                checked={samePriceBothWays}
-                onChange={(e) => handleSamePriceChange(e.target.checked)}
-                name="same_price_both_ways"
-              />
-            }
-            label="Cijena jednaka za oba smjera"
-          />
           <Stepper activeStep={activeStep} alternativeLabel>
             {steps.map((label) => (
               <Step key={label}>

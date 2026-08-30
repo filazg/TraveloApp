@@ -363,23 +363,6 @@ export default function AddTimetablesRoutesDrawer({newData, setNewData}){
                     />
                   </LocalizationProvider>
             </Grid>
-            <Grid container justifyContent='center' sx={{mt:3}}>
-                {/* Na vecini linija cijena je ista u oba smjera, pa se relacija
-                    unosi jednom — povratni smjer dobiva istu cijenu. */}
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={Boolean(newData.same_price_both_ways)}
-                      onChange={(e) =>
-                        setNewData({ ...newData, same_price_both_ways: e.target.checked })
-                      }
-                      name="same_price_both_ways"
-                    />
-                  }
-                  label="Cijena jednaka za oba smjera"
-                />
-            </Grid>
-
                 <Divider sx={{ my: 3 }} />
             <Grid container justifyContent='center' spacing={2} sx={{mt:3}}>
                 <TextField

@@ -205,8 +205,6 @@ export default function TimetablesPage() {
       line_uuid: newData.line.uuid,
       line_code: newData.line.code,
       line_name: newData.line.name,
-      // Cijena se unosi jednom i vrijedi u oba smjera.
-      same_price_both_ways: newData.same_price_both_ways === true,
       is_active: false,
     };
 
@@ -303,7 +301,7 @@ export default function TimetablesPage() {
         a.findIndex((t) => t.departure_harbor_id === v.departure_harbor_id) ===
         i,
     );
-    const pairs = buildHarborPairs(uniqueHarbor, newData.same_price_both_ways);
+    const pairs = buildHarborPairs(uniqueHarbor);
     await dispatch(
       setBoatData({ path: "newData/pairsForTimetable", value: pairs }),
     );
@@ -324,8 +322,6 @@ export default function TimetablesPage() {
       line_uuid: newData.line.uuid,
       line_code: newData.line.code,
       line_name: newData.line.name,
-      // Cijena se unosi jednom i vrijedi u oba smjera.
-      same_price_both_ways: newData.same_price_both_ways === true,
       is_active: false,
     };
     let departuresDataForAdd = [];
@@ -399,7 +395,7 @@ export default function TimetablesPage() {
       (v, i, a) =>
         a.findIndex((t) => t.departure_harbor_id === v.departure_harbor_id) === i,
     );
-    const pairs = buildHarborPairs(uniqueHarbor, newData.same_price_both_ways);
+    const pairs = buildHarborPairs(uniqueHarbor);
     await dispatch(
       setBoatData({ path: "newData/pairsForTimetable", value: pairs }),
     );

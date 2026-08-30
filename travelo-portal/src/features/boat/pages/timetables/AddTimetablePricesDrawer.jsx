@@ -1,9 +1,10 @@
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Drawer, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Checkbox, Drawer, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk, setBoatData } from "../../boatSlice";
 import { DataGrid } from "@mui/x-data-grid";
 import { use, useEffect, useMemo, useState } from "react";
 import { useT } from "../../../../i18n/useT";
+import { collapseHarborPairs } from "./harborPairs";
 
 const calcRow = (row) => {
         const price = Number(row.price ?? 0);
@@ -28,10 +29,25 @@ export default function AddTimetablesPricesDrawer(){
     const [openAdd, setOpenAdd] = useState(false);
     const [newData, setNewData] = useState({})
 
-    const pairs = boatData?.newData?.pairsForTimetable ?? [];
-    // Kad cijena vrijedi u oba smjera, relacija se prikazuje samo jednom, pa
-    // djelatnik mora znati zasto povratnog smjera nema u tablici.
+    const svisParovi = boatData?.newData?.pairsForTimetable ?? [];
+    // Zastavica stoji uz cijene jer se samo njih i tice: kad je ukljucena,
+    // relacija se unosi jednom i prikazuje jednom, a povratni smjer dobiva istu
+    // cijenu pri spremanju.
     const obaSmjera = Boolean(boatData?.newData?.timetableData?.same_price_both_ways);
+    // Popis mora zadrzati isti identitet izmedu iscrtavanja — inace se tablica
+    // cijena vrti u krug (novi popis -> novi unos -> novo iscrtavanje).
+    const pairs = useMemo(
+        () => (obaSmjera ? collapseHarborPairs(svisParovi) : svisParovi),
+        [svisParovi, obaSmjera],
+    );
+
+    const handleObaSmjera = async (checked) => {
+        const timetableData = {
+            ...(boatData?.newData?.timetableData || {}),
+            same_price_both_ways: checked,
+        };
+        await dispatch(setBoatData({ path: "newData/timetableData", value: timetableData }));
+    };
 
     useEffect(() => {
         setNewData({...newData,prices: pairs.map(calcRow)})
@@ -136,9 +152,20 @@ export default function AddTimetablesPricesDrawer(){
                                     ))}
                             </TextField>
                         </Box>
+                        <FormControlLabel
+                            sx={{ mb: 1, ml: 0 }}
+                            control={
+                                <Checkbox
+                                    checked={obaSmjera}
+                                    onChange={(e) => handleObaSmjera(e.target.checked)}
+                                    name="same_price_both_ways"
+                                />
+                            }
+                            label="Cijena jednaka za oba smjera"
+                        />
                         {obaSmjera ? (
                             <Typography variant="body2" sx={{ mb: 1, ml: 1, color: "text.secondary" }}>
-                                Cijena vrijedi i za povratni smjer — relacija se unosi jednom.
+                                Relacija se unosi jednom — povratni smjer dobiva istu cijenu.
                             </Typography>
                         ) : null}
                         <Box sx={{height:"70vh", minWidth: 900 }}>
@@ -180,7 +207,7 @@ export default function AddTimetablesPricesDrawer(){
                 </Typography>
                 <Box sx={{ height:"23vh", minWidth: 900 }}>
                     <DataGrid
-                        rows={price.prices}
+                        rows={obaSmjera ? collapseHarborPairs(price.prices) : price.prices}
                         columns={columns}
                     />
                 </Box>
