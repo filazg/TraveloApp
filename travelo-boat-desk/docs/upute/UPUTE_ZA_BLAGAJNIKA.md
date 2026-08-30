@@ -10,7 +10,7 @@ Prodaja karata na blagajni. Sve što treba za jednu smjenu, redom kojim se radi.
 
 ## Tijek smjene
 
-Koraci 1–6 idu ovim redom jer jedan ovisi o drugom: bez otvorene smjene nema prodaje. Blagajna je već uparena i postavljena — to je posao ureda, ne blagajnika.
+Koraci 1–6 idu ovim redom jer jedan ovisi o drugom: bez otvorene smjene nema prodaje. Blagajna je već uparena i postavljena — to je posao podrške, ne blagajnika.
 
 ### 1. Prijava operatera
 
@@ -18,11 +18,11 @@ Prijavljuješ se korisničkim imenom i lozinkom, istima koje koristiš i u porta
 
 ![Ekran prijave](images/01-prijava.png)
 
-Pri dnu ekrana piše verzija aplikacije. Reci je uredu kad prijavljuješ problem.
+Pri dnu ekrana piše verzija aplikacije. Reci je podršci kad prijavljuješ problem.
 
-Gumb **SINKRONIZACIJA** povlači operatere, cjenik i plovidbeni red s poslužitelja. Koristi ga kad ti je ured javio promjenu — novog operatera, novu cijenu ili izmijenjen plovidbeni red. Pričekaj da poruka o preuzimanju nestane; tek tada su svi podaci na blagajni.
+Gumb **SINKRONIZACIJA** povlači operatere, cjenik i plovidbeni red s poslužitelja. Koristi ga kad ti je podrška javila promjenu — novog operatera, novu cijenu ili izmijenjen plovidbeni red. Pričekaj da poruka o preuzimanju nestane; tek tada su svi podaci na blagajni.
 
-Gumb **POSTAVKE SUSTAVA** otvara postavke instalacije i zaključan je pristupnim kodom. To nije dio dnevnog rada — vidi poglavlje *Postavke sustava* na kraju.
+Gumb **POSTAVKE SUSTAVA** otvara postavke instalacije i zaključan je pristupnim kodom. Njih postavlja podrška — nisu dio dnevnog rada.
 
 ### 2. Otvaranje smjene
 
@@ -47,7 +47,7 @@ U traci iznad radne plohe biraš, slijeva nadesno:
 
 Gumb **OSVJEŽI FORMU** briše odabir i vraća praznu formu — najbrži način da počneš iznova bez odjave.
 
-Ne vidiš neku liniju? Svaki naplatni uređaj ima popis linija koje smije prodavati, a postavlja ga ured u portalu. Ako linije nema ni nakon sinkronizacije, javi uredu.
+Ne vidiš neku liniju? Svaki naplatni uređaj ima popis linija koje smije prodavati, a postavlja ga podrška u portalu. Ako linije nema ni nakon sinkronizacije, javi podršci.
 
 ### 4. Prodaja karata
 
@@ -55,9 +55,9 @@ Radna ploha ima četiri stupca i radi se slijeva nadesno:
 
 | Stupac | Što radiš |
 | --- | --- |
-| **Odredišta** | odabir odredišta i broj putnika, kaveza i bicikala |
-| **Karte** | odabir vrste karte i cijene; gumb **DODAJ ODABRANO** stavlja ih u košaricu |
-| **Košarica** | pregled po vrsti karte — količina, cijena, iznos; **UKLONI** briše redak |
+| **Odredišta** | odabir odredišta i uvid u raspoložive kapacitete — putnici, kavezi, bicikli |
+| **Karte** | odabir vrste karte i količine; gumb **DODAJ ODABRANO** stavlja ih u košaricu |
+| **Košarica** | pregled po polasku i vrsti karata — količina, cijena, iznos; **UKLONI** briše redak |
 | **Plaćanje** | odabir sredstva plaćanja |
 
 ![Odabran polazak, dvije karte u košarici](images/04-kosarica.png)
@@ -110,7 +110,7 @@ Provjeri iznose prije nego zaključiš. Zaključak se ispisuje sam, a kopiju mo�
 
 Otvori račun u popisu **RAČUNI** i pritisni **Storniraj račun**. Odabereš **postotak povrata** i sredstvo kojim vraćaš novac, pa provedeš storno. Storno račun se ispisuje odmah.
 
-Postotke povrata postavlja ured u portalu (*Administracija → Postotci storniranja*). Ako ih nema, blagajna to javi i storno se ne može provesti dok ne stignu.
+Postotke povrata postavlja podrška u portalu (*Administracija → Postotci storniranja*). Ako ih nema, blagajna to javi i storno se ne može provesti dok ne stignu.
 
 Što se **ne može** stornirati: storno račun, već stornirani račun i karta koja je već stornirana.
 
@@ -136,7 +136,7 @@ Dodijeljena tipka piše na samom gumbu, npr. *KARTICA (F2)*. Postavka je vezana 
 
 ### Obavijesti s poslužitelja
 
-Kad ured otkaže polazak ili ga pomakne, blagajna to dozna sama i prikaže obavijest koju zatvaraš s **×**. Popis polazaka se osvježi bez tvog zahvata — nema potrebe za odjavom ni ponovnom sinkronizacijom.
+Kad se polazak otkaže ili pomakne, blagajna to dozna sama i prikaže obavijest koju zatvaraš s **×**. Popis polazaka se osvježi bez tvog zahvata — nema potrebe za odjavom ni ponovnom sinkronizacijom.
 
 ---
 
@@ -146,32 +146,7 @@ Blagajna radi i bez mreže. Cjenik, plovidbeni red i operateri stoje na računal
 
 Ikona mreže u zaglavlju pokazuje ima li veze. Ikona za sinkronizaciju uz nju povlači svježe podatke; dok se vrti, dohvat traje.
 
-Ako želiš poslati zaostale dokumente odmah, u postavkama sustava postoji **POŠALJI NEPOSLANE DOKUMENTE**.
-
----
-
-## Postavke sustava
-
-Otvaraju se s ekrana prijave, gumbom **POSTAVKE SUSTAVA**, i zaključane su pristupnim kodom koji daje podrška. Nisu dio dnevnog rada — mijenja ih se pri postavljanju blagajne ili kad se zamijeni oprema.
-
-![Postavke su zaključane pristupnim kodom](images/02-postavke-kod.png)
-
-| Postavka | Čemu služi |
-| --- | --- |
-| Adresa backend sustava | poslužitelj na koji se blagajna spaja |
-| Printer za ispis računa / karata | mogu biti isti ili dva različita printera |
-| Širina ispisa | širina papira u printeru |
-| Rez papira na printeru | reže li printer papir nakon ispisa |
-| Čitač kartica + **Prepoznaj spojene čitače** | čitač otočnih iskaznica; gumb sam ponudi ono što je spojeno |
-| EFTPOS port | port kartičnog terminala |
-| Automatska validacija karata | karta se pri prodaji odmah označi kao validirana — za blagajne na samom ukrcaju |
-| Ispis platnog slipa na blagajni | ispisuje li se slip kartične transakcije |
-| Ispis dodatnog slipa | drugi primjerak slipa |
-| Numeracija računa | sljedeći fiskalni i sljedeći redni broj računa |
-| POŠALJI NEPOSLANE DOKUMENTE | gura zaostale račune na poslužitelj |
-| UKLONI UPARIVANJE | odvezuje blagajnu s naplatnog uređaja; nakon toga se traži novo uparivanje (TID i OTP) |
-
-Numeraciju računa dirati samo po uputi ureda — brojevi računa moraju teći bez prekida.
+Ako zaostali dokumenti ne odu ni nakon što se mreža vrati, javi podršci — ona ih može gurnuti ručno.
 
 ---
 
@@ -180,17 +155,17 @@ Numeraciju računa dirati samo po uputi ureda — brojevi računa moraju teći b
 | Što vidiš | Što napraviti |
 | --- | --- |
 | Nema linija ili polazaka za odabrani dan | Pritisni ikonu sinkronizacije u zaglavlju. Ako i dalje nema, provjeri je li plovidbeni red za taj dan unesen i je li linija omogućena tvojoj blagajni. |
-| Nema cijene za odabranu relaciju | Za taj par luka nije unesen cjenik. Javi uredu; karta se ne može prodati dok cjenik ne stigne. |
+| Nema cijene za odabranu relaciju | Za taj par luka nije unesen cjenik. Javi podršci; karta se ne može prodati dok cjenik ne stigne. |
 | „Sinkronizacija nije prošla… Zadržani su zadnji spremljeni podaci." | Blagajna nije došla do poslužitelja. Provjeri mrežu. Radi se sa zadnjim spremljenim podacima, prodaja se ne zaustavlja. |
 | Novi operater se ne može prijaviti | Na ekranu prijave pritisni **SINKRONIZACIJA** — operateri se povlače s poslužitelja. |
 | Izmjena iz portala nije stigla | Sinkronizacija u zaglavlju povlači cjenik i plovidbeni red usred smjene, bez odjave. |
-| Račun se ne ispisuje | Provjeri printer i papir, pa u postavkama sustava provjeri je li odabran ispravan printer. Kopiju možeš ispisati iz popisa **RAČUNI**. |
+| Račun se ne ispisuje | Provjeri printer i papir. Kopiju možeš ispisati iz popisa **RAČUNI**; ako ni ona ne izađe, javi podršci. |
 | „Račun je već storniran" | Taj je račun već poništen; u popisu potraži pripadajući storno dokument. |
 | Kartično plaćanje ne prolazi | Terminal javlja razlog. Ništa nije izdano — pokušaj ponovno ili naplati drugim sredstvom. |
 | Smjena je automatski zatvorena | Smjena je prešla 01:00 i sustav ju je zaključio. Prijavi se i otvori novu. |
 
-Kad prijavljuješ problem uredu, reci **verziju aplikacije** — piše na dnu ekrana za prijavu.
+Kad prijavljuješ problem podršci, reci **verziju aplikacije** — piše na dnu ekrana za prijavu.
 
 ---
 
-Upute vrijede za TraveloAPP Boat Desk, verzija 1.0.23. Izgled pojedinih ekrana ovisi o postavkama blagajne u portalu — dopuštena sredstva plaćanja, linije i prava operatera postavlja ured.
+Upute vrijede za TraveloAPP Boat Desk, verzija 1.0.23. Izgled pojedinih ekrana ovisi o postavkama blagajne u portalu — dopuštena sredstva plaćanja, linije i prava operatera postavlja podrška.
