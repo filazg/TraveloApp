@@ -8,6 +8,7 @@ const { getUsersDataController, addUserDataController, updateUserDataController 
 const { getPartnersDataController, addPartnerDataController, updatePartnerDataController, getPartnersWebUsersDataController, getPartnersAPIUsersDataController } = require('../controllers/dataControllers/partnersDataControllers');
 const { getHolidaysDataController, addHolidayDataController, updateHolidayDataController } = require('../controllers/dataControllers/holidaysDataControllers');
 const { getStornoPercentagesDataController, addStornoPercentageDataController, updateStornoPercentageDataController } = require('../controllers/dataControllers/stornoPercentagesDataControllers');
+const { getWebNoticesDataController, getActiveWebNoticesDataController, addWebNoticeDataController, updateWebNoticeDataController } = require('../controllers/dataControllers/webNoticesDataControllers');
 const { getPaymentMethodsDataController, addPaymentMethodDataController, updatePaymentMethodDataController } = require('../controllers/dataControllers/paymentMethodsDataControllers');
 const { getPaymentTypesDataController } = require('../controllers/dataControllers/paymentTypeDataControllers');
 const { getAddressbookDataController, addAddressbookDataController, updateAddressbookDataController } = require('../controllers/dataControllers/addressbookDataControllers');
@@ -82,6 +83,17 @@ router
     .get(getHolidaysDataController)
     .post(addHolidayDataController)
     .patch(updateHolidayDataController)
+
+router
+    .route('/web_notices')
+    .get(getWebNoticesDataController)
+    .post(addWebNoticeDataController)
+    .patch(updateWebNoticeDataController)
+
+// Samo one koje se trenutno prikazuju — cita ih web-sales za stranicu.
+router
+    .route('/web_notices/active')
+    .get(getActiveWebNoticesDataController)
 
 router
     .route('/storno_percentages')

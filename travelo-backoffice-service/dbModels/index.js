@@ -13,6 +13,7 @@ const accountsModelsFactory = require("./accounts.models");
 const deviceSerialNumbersModelsFactory = require("./deviceSerialNumbers.models");
 const channelSettingsModelsFactory = require("./channelSettings.models");
 const stornoPercentagesModelsFactory = require("./stornoPercentages.models");
+const webNoticesModelsFactory = require("./webNotices.models");
 
 let models = null;
 
@@ -35,6 +36,7 @@ function initModels() {
       ...deviceSerialNumbersModelsFactory(sequelize),
       ...channelSettingsModelsFactory(sequelize),
       ...stornoPercentagesModelsFactory(sequelize),
+      ...webNoticesModelsFactory(sequelize),
     };
   }
 

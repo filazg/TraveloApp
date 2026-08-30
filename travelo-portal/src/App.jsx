@@ -21,6 +21,7 @@ import TicketsTypesPage from './features/boat/pages/ticketTypes/TicketsTypesPage
 import PartnersPage from './features/backoffice/pages/partners/PartnersPage';
 import AddressbookPage from './features/backoffice/pages/addressbook/AddressbookPage';
 import HolidaysPage from './features/backoffice/pages/holidays/HolidaysPage';
+import WebNoticesPage from './features/boat/pages/notices/WebNoticesPage';
 import StornoPercentagesPage from './features/backoffice/pages/storno_percentages/StornoPercentagesPage';
 import InvoicesPage from './features/finance/pages/invoices/InvoicesPage';
 import FinanceInvoicesPage from './features/finance/FinanceInvoicesPage';
@@ -71,6 +72,7 @@ function App() {
                 <Route path='backoffice/payment_methods' element={<PaymentMethodsPage/>}></Route>
                 <Route path='backoffice/partners' element={<PartnersPage/>}></Route>
                 <Route path='backoffice/addressbook' element={<AddressbookPage/>}></Route>
+                <Route path='boat/notices' element={<WebNoticesPage/>}></Route>
                 <Route path='backoffice/holidays' element={<HolidaysPage/>}></Route>
                 <Route path='backoffice/storno_percentages' element={<StornoPercentagesPage/>}></Route>
                 <Route path='backoffice/countries' element={<CountriesPage/>}></Route>

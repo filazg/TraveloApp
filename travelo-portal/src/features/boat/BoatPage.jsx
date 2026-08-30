@@ -6,6 +6,7 @@ import DirectionsBoatIcon from '@mui/icons-material/DirectionsBoat';
 import RecentActorsIcon from '@mui/icons-material/RecentActors';
 import SailingIcon from '@mui/icons-material/Sailing';
 import AnchorIcon from '@mui/icons-material/Anchor';
+import CampaignIcon from '@mui/icons-material/Campaign';
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "../auth/authSlice";
@@ -87,6 +88,7 @@ export default function BoatPage() {
         { title: t("boat.tickets_types.title"), subtitle: "Tipovi karata", icon: RecentActorsIcon, path: "/boat/tickets_types" },
         { title: t("boat.harbors.title"), subtitle: "Popis luka", icon: SailingIcon, path: "/boat/harbors" },
         { title: t("boat.regions.title"), subtitle: "Šifarnik lučkih uprava", icon: AnchorIcon, path: "/boat/regions" },
+        { title: "Obavijesti", subtitle: "Obavijesti na web stranici", icon: CampaignIcon, path: "/boat/notices" },
     ];
 
     return (

@@ -14,6 +14,7 @@ const { handleGetTicketTypesFeature, handleAddTicketTypesFeature, handleUpdateTi
 const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrFeature } = require('../features/backoffice/partnersHandlers');
 const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
 const { handleGetHolidaysFeature, handleAddHolidaysFeature, handleUpdateHolidaysFeature } = require('../features/backoffice/holidaysHandlers');
+const { handleGetWebNoticesFeature, handleAddWebNoticeFeature, handleUpdateWebNoticeFeature } = require('../features/backoffice/webNoticesHandlers');
 const { handleGetStornoPercentagesFeature, handleAddStornoPercentageFeature, handleUpdateStornoPercentageFeature } = require('../features/backoffice/stornoPercentagesHandlers');
 const { handleGetCountriesFeature, handleAddCountryFeature, handleUpdateCountryFeature } = require('../features/backoffice/countriesHandlers');
 const { handleGetChannelSettingsFeature, handleGetChannelSettingFeature, handleUpsertChannelSettingFeature } = require('../features/backoffice/channelSettingsHandlers');
@@ -133,6 +134,13 @@ router
     .get(handleGetHolidaysFeature)
     .post(handleAddHolidaysFeature)
     .patch(handleUpdateHolidaysFeature)
+
+// Obavijesti za web stranicu — stoje pod boat modulom, gdje se i uredjuju.
+router
+    .route('/boat/web_notices')
+    .get(handleGetWebNoticesFeature)
+    .post(handleAddWebNoticeFeature)
+    .patch(handleUpdateWebNoticeFeature)
 
 router
     .route('/backoffice/storno_percentages')
