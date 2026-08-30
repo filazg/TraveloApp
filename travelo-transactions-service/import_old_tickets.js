@@ -29,6 +29,8 @@ const {
 } = require("./controllers/configSyncController");
 
 const OZNAKA = "OLD";
+// Naziv starog sustava; stoji na karti umjesto imena putnika.
+const PUTNIK = "Activa";
 
 // Nazivi luka iz Aktive prema nasim sifrma.
 const LUKE = {
@@ -171,6 +173,10 @@ const procitajExcel = (putanja) => {
                 deactivate: false,
                 status: "created",
                 origin: OZNAKA,
+                // Stari sustav ne salje ime putnika. Umjesto prazne rubrike
+                // stoji njegov naziv, pa djelatnik pri validaciji odmah vidi
+                // odakle karta dolazi.
+                passanger_name: PUTNIK,
                 order_note: `Preuzeto iz starog sustava (racun ${k.racun || "—"})`,
             });
         }
