@@ -7,7 +7,7 @@ import { syncBasicDataThunk, syncTransportDataThunk, syncAllThunk, syncData, hyd
 import { startSyncStream, stopSyncStream } from '../api/syncStream';
 import { autoCloseStaleShiftThunk, loadCurrentOpenThunk, loadRecentShiftsThunk, shiftsData, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
 import { syncPendingSalesThunk } from '../store/slices/salesSlice';
-import { refreshOpenVoyageTicketsThunk } from '../store/slices/validationSlice';
+import { refreshOpenVoyageTicketsThunk, syncPendingValidationsThunk } from '../store/slices/validationSlice';
 import { openDb } from '../db/db';
 import { voyageData } from '../store/slices/voyageSlice';
 import { navData } from '../store/slices/navSlice';
@@ -84,6 +84,23 @@ export default function AppNavigator() {
     // polaska — pa uređaj povuče podatke odmah, umjesto da ih čeka do sljedećeg
     // ručnog osvježavanja. Do tada se stornirana karta mogla validirati, a
     // otkazan polazak prodavati.
+    // Validacije napravljene bez mreže guraju se čim je ima: pri pokretanju,
+    // periodično i pri povratku u prvi plan. Djelatnik na vratima ne čeka ništa —
+    // karta je već propuštena, ovo samo dostiže poslužitelja.
+    useEffect(() => {
+        if (!auth.token) return undefined;
+        const gurni = () => dispatch(syncPendingValidationsThunk());
+        gurni();
+        const sat = setInterval(gurni, 60000);
+        const pretplata = AppState.addEventListener('change', (stanje) => {
+            if (stanje === 'active') gurni();
+        });
+        return () => {
+            clearInterval(sat);
+            pretplata?.remove?.();
+        };
+    }, [auth.token, dispatch]);
+
     // Karte se mijenjaju često — svaka prodaja, storno i validacija na bilo kojem
     // uređaju javi promjenu. Povlačenje se zato skuplja: u špici bi inače svaka
     // prodaja s druge blagajne značila novi dohvat cijelog polaska.

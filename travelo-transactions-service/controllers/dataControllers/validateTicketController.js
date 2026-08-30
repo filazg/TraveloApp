@@ -7,7 +7,7 @@ const validateTicketController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
         const body = req.body?.body || req.body || {};
-        const { ticket_uuid, ticket_code, terminal_uuid, operator } = body;
+        const { ticket_uuid, ticket_code, terminal_uuid, operator, validated_at } = body;
 
         if (!ticket_uuid && !ticket_code) {
             return res.status(400).json({ status: 400, data: { message: "ticket_uuid or ticket_code required" } });
@@ -36,7 +36,15 @@ const validateTicketController = async (req, res) => {
             });
         }
 
-        const now = new Date();
+        // Uredaj validira i bez mreze, pa javljanje zna stici satima kasnije. Tada
+        // vrijedi vrijeme ukrcaja s uredaja, ne trenutak kad je mreza proradila —
+        // inace izvjestaj pokazuje da su svi usli u isti tren.
+        const sUredaja = validated_at ? new Date(validated_at) : null;
+        const prihvatljivo = sUredaja
+            && !Number.isNaN(sUredaja.getTime())
+            && sUredaja <= new Date(Date.now() + 60 * 1000)
+            && sUredaja > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const now = prihvatljivo ? sUredaja : new Date();
         await ticket.update({
             status: "validated",
             validate_data: now,

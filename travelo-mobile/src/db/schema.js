@@ -137,4 +137,21 @@ export const SCHEMA = [
         synced INTEGER DEFAULT 0
     );`,
     `CREATE INDEX IF NOT EXISTS idx_shifts_open ON shifts(closed_at);`,
+
+    // Validacije koje jos nisu stigle do posluzitelja.
+    //
+    // Uredaj validira i bez mreze — karta se oznaci lokalno i putnik prolazi.
+    // Bez ovog reda javljanje bi se izgubilo: u sustavu bi putnik ostao
+    // neukrcan, a druga mobilna bi istu kartu mogla validirati jos jednom.
+    //
+    // Zaseban red, ne oznaka na karti: karte se pri svakom osvjezavanju polaska
+    // prepisuju, pa bi oznaka nestala zajedno sa starim zapisom.
+    `CREATE TABLE IF NOT EXISTS pending_validations (
+        ticket_uuid TEXT PRIMARY KEY,
+        validated_at TEXT NOT NULL,
+        terminal_uuid TEXT,
+        operator TEXT,
+        created_at TEXT NOT NULL
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_pending_validations_created ON pending_validations(created_at);`,
 ];

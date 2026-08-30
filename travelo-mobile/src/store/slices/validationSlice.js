@@ -1,7 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
-import { upsertExternalTickets, loadTicketsForRoutes, markTicketValidatedLocal, findTicketByUuidOrCode } from '../../db/repo';
+import { upsertExternalTickets, loadTicketsForRoutes, markTicketValidatedLocal, findTicketByUuidOrCode,
+    savePendingValidation, loadPendingValidations, deletePendingValidation, countPendingValidations,
+} from '../../db/repo';
 
 // Karte polaska — module-level Map, IZVAN Redux-a. SerializableStateInvariantMiddleware
 // inače serijalizira cijeli state na svaki dispatch što s nekoliko stotina karata
@@ -171,6 +173,56 @@ export const refreshOpenVoyageTicketsThunk = createAsyncThunk(
     }
 );
 
+// Gurni validacije koje nisu stigle do posluzitelja.
+//
+// Posluzitelj je na ponovljeno javljanje otporan: druga validacija iste karte
+// vraca zatecno vrijeme, pa je ponavljanje sigurno. Zapis se brise tek kad
+// posluzitelj potvrdi — sve ostalo ostaje u redu za sljedecu priliku.
+export const syncPendingValidationsThunk = createAsyncThunk(
+    'validation/syncPendingValidations',
+    async (_, { rejectWithValue }) => {
+        try {
+            const red = await loadPendingValidations();
+            if (!red.length) return { poslano: 0, ostalo: 0 };
+            let poslano = 0;
+            for (const v of red) {
+                try {
+                    await api.post(
+                        ENDPOINTS.validateTicket,
+                        {
+                            ticket_uuid: v.ticket_uuid,
+                            terminal_uuid: v.terminal_uuid,
+                            operator: v.operator,
+                            validated_at: v.validated_at,
+                        },
+                        { timeout: 10000 }
+                    );
+                    await deletePendingValidation(v.ticket_uuid);
+                    poslano += 1;
+                } catch (e) {
+                    const status = e?.response?.status;
+                    if (status && status !== 429 && status < 500) {
+                        // Posluzitelj je odgovorio i odbio: karta je stornirana,
+                        // ne postoji ili je vec obradena. Ponavljanje nikad nece
+                        // proci, a zapis bi zauvijek blokirao red.
+                        console.log('[validacije] posluzitelj odbio', v.ticket_uuid, status);
+                        await deletePendingValidation(v.ticket_uuid);
+                        continue;
+                    }
+                    // Mreze nema ili posluzitelj ne odgovara — ostatak reda ide u
+                    // sljedecem krugu.
+                    break;
+                }
+            }
+            const ostalo = await countPendingValidations();
+            if (poslano) console.log(`[validacije] poslano ${poslano}, ostalo ${ostalo}`);
+            return { poslano, ostalo };
+        } catch (err) {
+            return rejectWithValue({ message: err?.message || 'Slanje validacija nije uspjelo' });
+        }
+    }
+);
+
 // Dohvat jedne karte s poslužitelja, po uuid-u iz QR koda. Uređaj lokalno drži
 // samo karte svog polaska i svoje linije, pa karta s druge linije nije ni u
 // jednom cacheu — bez ovoga bi scan pao na "Karta nije pronađena" i djelatnik
@@ -233,17 +285,31 @@ export const validateScanThunk = createAsyncThunk(
             }
 
             const now = new Date().toISOString();
-            // Backend POST — POTPUNO non-blocking (fire-and-forget). Sve handlere u
-            // .then/.catch da iznimka iz axiosa NIKAD ne propada do thunka.
-            console.log('[validateScan] POST to backend (fire-and-forget)');
+            // Validacija se prvo upisuje u red neposlanih, pa se salje. Prije se
+            // slalo "ispali i zaboravi": kad je uredaj bio bez mreze, javljanje se
+            // gubilo — u sustavu bi putnik ostao neukrcan, a druga mobilna bi istu
+            // kartu mogla validirati jos jednom.
+            try {
+                await savePendingValidation({
+                    ticketUuid: local.ticket_uuid,
+                    validatedAt: now,
+                    terminalUuid,
+                    operator,
+                });
+            } catch (e) {
+                console.log('[validateScan] red neposlanih nije zapisan:', e?.message || e);
+            }
+
+            // Slanje ne smije zadrzavati djelatnika na vratima: ide u pozadini, a
+            // ako padne, ostaje u redu i gura se kasnije.
             try {
                 api.post(
                     ENDPOINTS.validateTicket,
                     { ticket_uuid: local.ticket_uuid, terminal_uuid: terminalUuid, operator },
                     { timeout: 8000 }
                 )
-                    .then(() => console.log('[validateScan] backend OK'))
-                    .catch((e) => console.log('[validateScan] backend POST failed:', e?.message || e));
+                    .then(() => deletePendingValidation(local.ticket_uuid).catch(() => {}))
+                    .catch((e) => console.log('[validateScan] slanje validacije nije proslo, ostaje u redu:', e?.message || e));
             } catch (e) {
                 console.log('[validateScan] POST sync error:', e?.message || e);
             }
@@ -287,6 +353,8 @@ const slice = createSlice({
         // Zadnji dohvaceni polazak — po njemu se karte osvjezavaju kad
         // posluzitelj javi storno.
         lastQuery: null,
+        // Koliko validacija ceka na mrezu — prikazuje se djelatniku.
+        pendingValidations: 0,
         scanResult: null,    // { ok, already, ticket, message, validated_at }
         scanError: null,     // { message, code, ticket? }
     },
@@ -294,6 +362,7 @@ const slice = createSlice({
         clearScanResult(state) { state.scanResult = null; state.scanError = null; },
     },
     extraReducers: (b) => {
+        b.addCase(syncPendingValidationsThunk.fulfilled, (s, a) => { s.pendingValidations = a.payload?.ostalo ?? s.pendingValidations; });
         b.addCase(fetchVoyageTicketsThunk.pending, (s) => { s.loading = true; });
         b.addCase(fetchVoyageTicketsThunk.fulfilled, (s, a) => {
             s.loading = false;

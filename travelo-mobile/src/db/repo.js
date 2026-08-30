@@ -337,6 +337,39 @@ export async function countPendingInvoices() {
     return r?.c || 0;
 }
 
+// ---------- RED NEPOSLANIH VALIDACIJA ----------
+// Uredaj validira i bez mreze; ovdje ceka ono sto nije stiglo do posluzitelja,
+// dok ga sinkronizacija ne progura. Posluzitelj je na ponovljeno javljanje
+// otporan — druga validacija iste karte vraca zatecno vrijeme.
+export async function savePendingValidation({ ticketUuid, validatedAt, terminalUuid, operator }) {
+    if (!ticketUuid) return false;
+    await exec(
+        `INSERT OR REPLACE INTO pending_validations
+         (ticket_uuid, validated_at, terminal_uuid, operator, created_at)
+         VALUES (?, ?, ?, ?, ?);`,
+        [ticketUuid, validatedAt, terminalUuid || null, operator || null, new Date().toISOString()]
+    );
+    return true;
+}
+
+export async function loadPendingValidations(limit = 200) {
+    return queryAll(
+        `SELECT ticket_uuid, validated_at, terminal_uuid, operator
+           FROM pending_validations ORDER BY created_at ASC LIMIT ?;`,
+        [limit]
+    );
+}
+
+export async function deletePendingValidation(ticketUuid) {
+    await exec(`DELETE FROM pending_validations WHERE ticket_uuid = ?;`, [ticketUuid]);
+    return true;
+}
+
+export async function countPendingValidations() {
+    const r = await queryOne(`SELECT COUNT(*) AS c FROM pending_validations;`);
+    return r?.c || 0;
+}
+
 // ---------- ADRESAR (BUYERS) ----------
 // Spremaju se podaci R1 kupaca nakon uspješne prodaje — za brzi izbor idući put.
 export async function saveBuyer(buyer) {
