@@ -315,6 +315,18 @@ export default function ImportTimetableExcelDrawer({ newData, setNewData }) {
             name="code"
             sx={{ width: 380 }}
           />
+          <TextField
+            type="text"
+            variant="outlined"
+            label="Napomena (nije obavezna)"
+            placeholder="npr. vrijedi dok traje remont"
+            value={newData.note || ""}
+            onChange={handleNewDataChange}
+            name="note"
+            multiline
+            minRows={2}
+            sx={{ width: 776 }}
+          />
         </Grid>
 
 

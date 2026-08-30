@@ -193,6 +193,22 @@ export default function AddTimetablesRoutesDrawer({newData, setNewData}){
                 <TextField
                     type="text"
                     variant="outlined"
+                    label="Napomena (nije obavezna)"
+                    placeholder="npr. vrijedi dok traje remont"
+                    value={newData?.note || ""}
+                    onChange={handleChange}
+                    name="note"
+                    multiline
+                    minRows={2}
+                    sx={{
+                    width: 770,
+                    }}
+                />
+            </Grid>
+            <Grid container justifyContent='center' spacing={2} sx={{mt:3}}>
+                <TextField
+                    type="text"
+                    variant="outlined"
                     fullWidth
                     label="Odaberi liniju"
                     placeholder="Odaberi liniju"

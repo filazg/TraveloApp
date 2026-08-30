@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Modal,
+  TextField,
   Stack,
   Step,
   StepLabel,
@@ -116,6 +117,29 @@ export default function EditTimetableDrawer({ selectedRow, setSelectedRow }) {
               {t("boat.timetables.close")}
             </Button>
           </Stack>
+          {/* Napomena nije obavezna — sluzi ljudima koji rade s redovima i vidi
+              se u pregledu. */}
+          <TextField
+            fullWidth
+            variant="outlined"
+            label="Napomena (nije obavezna)"
+            placeholder="npr. vrijedi dok traje remont"
+            value={boatData.editData?.timetableData?.note || ""}
+            onChange={(e) =>
+              dispatch(
+                setBoatData({
+                  path: "editData/timetableData",
+                  value: {
+                    ...(boatData.editData?.timetableData || selectedRow || {}),
+                    note: e.target.value,
+                  },
+                }),
+              )
+            }
+            multiline
+            minRows={2}
+            sx={{ mb: 3 }}
+          />
           <Stepper activeStep={activeStep} alternativeLabel>
             {steps.map((label) => (
               <Step key={label}>

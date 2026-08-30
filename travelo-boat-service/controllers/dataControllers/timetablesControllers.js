@@ -205,6 +205,7 @@ const addTimetableDataController = async (req, res) => {
                     line_uuid: data.timetableData.line_uuid,
                     line_code: data.timetableData.line_code,
                     line_name: data.timetableData.line_name,
+                    note: data.timetableData.note || null,
                     same_price_both_ways: data.timetableData.same_price_both_ways === true,
                     is_active: false,
                     updated_by_uuid:user.uuid,
@@ -221,6 +222,9 @@ const addTimetableDataController = async (req, res) => {
                         ...(data.timetableData.same_price_both_ways === undefined
                             ? {}
                             : { same_price_both_ways: data.timetableData.same_price_both_ways === true }),
+                        ...(data.timetableData.note === undefined
+                            ? {}
+                            : { note: data.timetableData.note || null }),
                         updated_by_uuid:user.uuid,
                         updated_by_username:user.username
                     },{

@@ -41,6 +41,13 @@ module.exports =  (sequelize) =>{
             type: DataTypes.STRING,
             allowNull: true
         },
+        // Slobodna napomena uz plovidbeni red — nije obavezna. Sluzi ljudima
+        // koji rade s redovima (npr. "vrijedi samo dok traje remont"), pa se
+        // vidi u pregledu.
+        note:{
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
         // Cijena vrijedi jednako u oba smjera (Split–Hvar kao i Hvar–Split).
         // Tada se u portalu unosi jednom, a suprotni smjer dobiva istu cijenu
         // pri spremanju — prodaja i dalje trazi cijenu po smjeru, pa u bazi

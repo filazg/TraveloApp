@@ -125,6 +125,27 @@ export default function TimetablesPage() {
     { field: "code", headerName: t("boat.timetables.timetable_code"), flex: 3 },
     { field: "name", headerName: t("boat.timetables.timetable_name"), flex: 3 },
     {
+      // Napomena nije obavezna, pa je prazna celija normalno stanje, a ne
+      // manjak podatka — zato bez zamjenskog teksta.
+      field: "note",
+      headerName: "Napomena",
+      flex: 4,
+      renderCell: (params) => (
+        <Box
+          title={params.value || ""}
+          sx={{
+            width: "100%",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "text.secondary",
+          }}
+        >
+          {params.value || ""}
+        </Box>
+      ),
+    },
+    {
       field: "is_active",
       headerName: t("boat.timetables.timetable_is_active"),
       flex: 3,
@@ -205,6 +226,7 @@ export default function TimetablesPage() {
       line_uuid: newData.line.uuid,
       line_code: newData.line.code,
       line_name: newData.line.name,
+      note: newData.note || null,
       is_active: false,
     };
 
@@ -322,6 +344,7 @@ export default function TimetablesPage() {
       line_uuid: newData.line.uuid,
       line_code: newData.line.code,
       line_name: newData.line.name,
+      note: newData.note || null,
       is_active: false,
     };
     let departuresDataForAdd = [];
