@@ -1,4 +1,4 @@
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Checkbox, Drawer, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Drawer, MenuItem, Paper, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk, setBoatData } from "../../boatSlice";
 import { DataGrid } from "@mui/x-data-grid";
@@ -106,9 +106,45 @@ export default function EditTimetablePricesDrawer(){
 
     return(
     <>
-        <Button sx={{width:300}} onClick={()=>setOpenAdd(true)} variant="contained" >
-            Dodaj cijene
-        </Button>
+        <Stack direction={{ xs: "column", md: "row" }} alignItems={{ md: "center" }} spacing={2}>
+            <Button sx={{width:300}} onClick={()=>setOpenAdd(true)} variant="contained" >
+                Dodaj cijene
+            </Button>
+            {/* Zastavica se tice samo cijena, pa stoji uz njih: kad je
+                ukljucena, relacija se unosi i prikazuje jednom, a povratni
+                smjer dobiva istu cijenu pri spremanju. Ukljucena se i vidi kao
+                ukljucena — inace se u tablici od dvadesetak relacija ne bi
+                znalo zasto ih je upola manje. */}
+            <Paper
+                elevation={0}
+                onClick={() => handleObaSmjera(!obaSmjera)}
+                sx={{
+                    px: 2, py: 1.25, borderRadius: 2, cursor: "pointer",
+                    border: "1px solid",
+                    borderColor: obaSmjera ? "primary.main" : "divider",
+                    bgcolor: obaSmjera ? "rgba(23, 91, 208, 0.06)" : "transparent",
+                    transition: "background-color .15s, border-color .15s",
+                }}
+            >
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Box onClick={(e) => e.stopPropagation()} sx={{ display: "flex" }}>
+                        <Switch
+                            checked={obaSmjera}
+                            onChange={(e) => handleObaSmjera(e.target.checked)}
+                            name="same_price_both_ways"
+                        />
+                    </Box>
+                    <Box>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+                            Cijena jednaka za oba smjera
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Relacija se unosi jednom — povratni smjer dobiva istu cijenu.
+                        </Typography>
+                    </Box>
+                </Stack>
+            </Paper>
+        </Stack>
         <Drawer
             anchor="right"
             open={openAdd}
@@ -154,20 +190,16 @@ export default function EditTimetablePricesDrawer(){
                                     ))}
                             </TextField>
                         </Box>
-                        <FormControlLabel
-                            sx={{ mb: 1, ml: 0 }}
-                            control={
-                                <Checkbox
-                                    checked={obaSmjera}
-                                    onChange={(e) => handleObaSmjera(e.target.checked)}
-                                    name="same_price_both_ways"
-                                />
-                            }
-                            label="Cijena jednaka za oba smjera"
-                        />
                         {obaSmjera ? (
-                            <Typography variant="body2" sx={{ mb: 1, ml: 1, color: "text.secondary" }}>
-                                Relacija se unosi jednom — povratni smjer dobiva istu cijenu.
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    mb: 1.5, px: 1.5, py: 1, borderRadius: 1.5,
+                                    bgcolor: "rgba(23, 91, 208, 0.06)", color: "primary.main",
+                                    borderLeft: "3px solid", borderColor: "primary.main",
+                                }}
+                            >
+                                Cijena vrijedi u oba smjera — relacija se unosi jednom, povratni smjer dobiva istu cijenu.
                             </Typography>
                         ) : null}
                         <Box sx={{height:"70vh", minWidth: 900 }}>
