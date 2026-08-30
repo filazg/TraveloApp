@@ -43,6 +43,8 @@ U traci iznad radne plohe biraš, slijeva nadesno:
 | **Odaberi luku** | luka ukrcaja |
 | **Odaberi polazak i smjer** | konkretan polazak (smjer A ili B) |
 
+![Radna ploha prije odabira polaska](images/03-radna-ploha.png)
+
 Gumb **OSVJEŽI FORMU** briše odabir i vraća praznu formu — najbrži način da počneš iznova bez odjave.
 
 Ne vidiš neku liniju? Svaki naplatni uređaj ima popis linija koje smije prodavati, a postavlja ga ured u portalu. Ako linije nema ni nakon sinkronizacije, javi uredu.
@@ -57,6 +59,8 @@ Radna ploha ima četiri stupca i radi se slijeva nadesno:
 | **Karte** | odabir vrste karte i cijene; gumb **DODAJ ODABRANO** stavlja ih u košaricu |
 | **Košarica** | pregled po vrsti karte — količina, cijena, iznos; **UKLONI** briše redak |
 | **Plaćanje** | odabir sredstva plaćanja |
+
+![Odabran polazak, dvije karte u košarici](images/04-kosarica.png)
 
 Kad je košarica složena i sredstvo plaćanja odabrano, izdaješ račun iz donje trake.
 
@@ -85,6 +89,8 @@ Pritisni **SMJENE** pa otvori pregled smjene. **Pregled smjene** pokazuje:
 - promet po sredstvu plaćanja,
 - PDV osnovicu, PDV, lučku pristojbu i ukupno,
 - zasebno **Storno** i **Storno s drugih prodajnih mjesta**, ako ih je bilo.
+
+![Popis smjena s gumbom za otvaranje nove](images/05-smjene.png)
 
 Provjeri iznose prije nego zaključiš. Zaključak se ispisuje sam, a kopiju možeš dobiti kasnije: otvori smjenu u popisu i pritisni **Ispiši kopiju zaključka**.
 
