@@ -144,6 +144,14 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Odakle karta dolazi. Prazno je nasa prodaja; "OLD" su karte
+            // preuzete iz starog sustava pri zamjeni: njih se samo validira, ne
+            // prodaje se i ne stornira, a u izvjestajima prometa ne smiju se
+            // mijesati s nasom prodajom.
+            origin:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             order_note:{
                 type: DataTypes.STRING,
                 allowNull: true

@@ -171,6 +171,20 @@ const cancelTicketsController = async (req, res) => {
             vidjeni.add(t.ticket_uuid);
             karteZaPovrat.push(t);
         }
+        // Karta iz starog sustava kod nas nema prodaju: novac je naplacen ondje,
+        // cijena joj je nula. Storno bi joj izdao racun na 0 € i uknjizio povrat
+        // koji nitko nije platio — takva se karta kod nas samo validira.
+        const stareKarte = tickets.filter((t) => String(t.origin || "").toUpperCase() === "OLD");
+        if (stareKarte.length) {
+            return res.status(409).json({
+                status: 409,
+                data: {
+                    message: "karta je preuzeta iz starog sustava — storno se radi ondje, kod nas se samo validira",
+                    old_ticket_codes: stareKarte.map((t) => t.ticket_code),
+                },
+            });
+        }
+
         // Karta otkazanog putovanja nosi `is_canceled`, ali NIJE stornirana —
         // putnik nije dobio novac natrag. Njoj storno tek treba, pa se ovdje
         // odbijaju samo one koje su stvarno već stornirane ili prebačene na
@@ -412,7 +426,7 @@ const cancelTicketsController = async (req, res) => {
             await podigniSignal({
                 SyncSignalsModel: models.SyncSignalsModel,
                 kind: "tickets",
-                event: `storno ${invoice_code || invoice_uuid}`,
+                event: `storno ${finalInvoiceCode || invoice_uuid}`,
             });
         } catch (e) {
             // Storno je vec izdan i ne smije pasti zbog signala; uredaj ce

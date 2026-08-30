@@ -16,6 +16,11 @@ const jePrebaciva = (t) => {
     // Karta otkazanog putovanja nosi `is_canceled`, ali nije stornirana — nju
     // se smije prebaciti; provjeru statusa niže obavlja popis dopuštenih.
     if (t.is_canceled && !jeOtkazanoPutovanje(t)) return { ok: false, razlog: "karta je stornirana" };
+    // Karta iz starog sustava nema kod nas ni prodaju ni cijenu, pa nema ni
+    // razlike koju bi promjena polaska proizvela — kod nas se samo validira.
+    if (String(t.origin || "").toUpperCase() === "OLD") {
+        return { ok: false, razlog: "karta je preuzeta iz starog sustava — promjena ide ondje" };
+    }
     // Partnerske karte se ne prebacuju. One se ne naplaćuju po prodaji nego
     // zbirnim računom partneru, pa promjena ovdje ne bi imala gdje proizvesti
     // razliku — rješava se kroz partnerski obračun.
