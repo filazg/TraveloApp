@@ -35,6 +35,7 @@ import { v4 as uuid } from "uuid";
 import EditTimetableDrawer from "./EditTimetableDrawer";
 import GridHint from "../../../../helpers/GridHint";
 import { inactiveRowClass } from "../../../../helpers/gridRowActions";
+import { buildHarborPairs } from "./harborPairs";
 
 export default function TimetablesPage() {
   const dispatch = useDispatch();
@@ -204,6 +205,8 @@ export default function TimetablesPage() {
       line_uuid: newData.line.uuid,
       line_code: newData.line.code,
       line_name: newData.line.name,
+      // Cijena se unosi jednom i vrijedi u oba smjera.
+      same_price_both_ways: newData.same_price_both_ways === true,
       is_active: false,
     };
 
@@ -300,28 +303,7 @@ export default function TimetablesPage() {
         a.findIndex((t) => t.departure_harbor_id === v.departure_harbor_id) ===
         i,
     );
-    let pairs = [];
-    let counter = 0;
-    for (const har of uniqueHarbor) {
-      for (const other of uniqueHarbor) {
-        if (other.departure_harbor_id === har.departure_harbor_id) continue;
-        counter = counter + 1;
-        pairs = [
-          ...pairs,
-          {
-            id: counter,
-            harbor_from: har.departure_harbor_name,
-            harbor_from_code: har.departure_harbor_id,
-            harbor_to: other.departure_harbor_name,
-            harbor_to_code: other.departure_harbor_id,
-            vat_base: 0,
-            vat_amount: 0,
-            port_tax: 0,
-            price: 0,
-          },
-        ];
-      }
-    }
+    const pairs = buildHarborPairs(uniqueHarbor, newData.same_price_both_ways);
     await dispatch(
       setBoatData({ path: "newData/pairsForTimetable", value: pairs }),
     );
@@ -342,6 +324,8 @@ export default function TimetablesPage() {
       line_uuid: newData.line.uuid,
       line_code: newData.line.code,
       line_name: newData.line.name,
+      // Cijena se unosi jednom i vrijedi u oba smjera.
+      same_price_both_ways: newData.same_price_both_ways === true,
       is_active: false,
     };
     let departuresDataForAdd = [];
@@ -415,28 +399,7 @@ export default function TimetablesPage() {
       (v, i, a) =>
         a.findIndex((t) => t.departure_harbor_id === v.departure_harbor_id) === i,
     );
-    let pairs = [];
-    let counter = 0;
-    for (const har of uniqueHarbor) {
-      for (const other of uniqueHarbor) {
-        if (other.departure_harbor_id === har.departure_harbor_id) continue;
-        counter = counter + 1;
-        pairs = [
-          ...pairs,
-          {
-            id: counter,
-            harbor_from: har.departure_harbor_name,
-            harbor_from_code: har.departure_harbor_id,
-            harbor_to: other.departure_harbor_name,
-            harbor_to_code: other.departure_harbor_id,
-            vat_base: 0,
-            vat_amount: 0,
-            port_tax: 0,
-            price: 0,
-          },
-        ];
-      }
-    }
+    const pairs = buildHarborPairs(uniqueHarbor, newData.same_price_both_ways);
     await dispatch(
       setBoatData({ path: "newData/pairsForTimetable", value: pairs }),
     );

@@ -5,8 +5,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Drawer,
+  FormControlLabel,
   Grid,
   MenuItem,
   Paper,
@@ -314,6 +316,23 @@ export default function ImportTimetableExcelDrawer({ newData, setNewData }) {
             onChange={handleNewDataChange}
             name="code"
             sx={{ width: 380 }}
+          />
+        </Grid>
+
+        <Grid container justifyContent="center" sx={{ mt: 2 }}>
+          {/* Na vecini linija cijena je ista u oba smjera, pa se relacija unosi
+              jednom — povratni smjer dobiva istu cijenu. */}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={Boolean(newData.same_price_both_ways)}
+                onChange={(e) =>
+                  setNewData({ ...newData, same_price_both_ways: e.target.checked })
+                }
+                name="same_price_both_ways"
+              />
+            }
+            label="Cijena jednaka za oba smjera"
           />
         </Grid>
 

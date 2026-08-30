@@ -29,6 +29,9 @@ export default function EditTimetablePricesDrawer(){
     const [newData, setNewData] = useState({})
 
     const pairs = boatData?.editData?.pairsForTimetable ?? [];
+    // Kad cijena vrijedi u oba smjera, relacija se prikazuje samo jednom, pa
+    // djelatnik mora znati zasto povratnog smjera nema u tablici.
+    const obaSmjera = Boolean(boatData?.editData?.timetableData?.same_price_both_ways);
 
     useEffect(() => {
         setNewData({...newData,prices: pairs.map(calcRow)})
@@ -135,6 +138,11 @@ export default function EditTimetablePricesDrawer(){
                                     ))}
                             </TextField>
                         </Box>
+                        {obaSmjera ? (
+                            <Typography variant="body2" sx={{ mb: 1, ml: 1, color: "text.secondary" }}>
+                                Cijena vrijedi i za povratni smjer — relacija se unosi jednom.
+                            </Typography>
+                        ) : null}
                         <Box sx={{height:"70vh", minWidth: 900 }}>
                             <DataGrid
                                 rows={newData.prices || []}

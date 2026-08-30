@@ -205,16 +205,22 @@ const addTimetableDataController = async (req, res) => {
                     line_uuid: data.timetableData.line_uuid,
                     line_code: data.timetableData.line_code,
                     line_name: data.timetableData.line_name,
+                    same_price_both_ways: data.timetableData.same_price_both_ways === true,
                     is_active: false,
                     updated_by_uuid:user.uuid,
                     updated_by_username:user.username
-                }); 
-                timetableData = addTimetable;  
+                });
+                timetableData = addTimetable;
             }else{
                 console.log('POSTOJI TIMETABLE')
                 const updateTimetable = await TimetablesModel.update(
                     {
                         is_active: data.timetableData.is_active,
+                        // Zastavica dolazi samo kad je posiljatelj zna — aktiviranje
+                        // reda salje samo redak iz tablice, pa se inace ne dira.
+                        ...(data.timetableData.same_price_both_ways === undefined
+                            ? {}
+                            : { same_price_both_ways: data.timetableData.same_price_both_ways === true }),
                         updated_by_uuid:user.uuid,
                         updated_by_username:user.username
                     },{
@@ -319,6 +325,33 @@ const addTimetableDataController = async (req, res) => {
                     pricesToAdd = [...pricesToAdd, priceToAdd];
                     }
                 }
+
+                // Cijena jednaka za oba smjera: unosi se jednom, a povratna
+                // relacija dobiva istu cijenu ovdje. Prodaja cijenu i dalje
+                // trazi po smjeru, pa u bazi moraju stajati oba zapisa —
+                // suprotni smjer bez cijene ne bi se mogao prodati.
+                if (timetableData.same_price_both_ways) {
+                    const kljuc = (p) => `${p.ticket_type_uuid}|${p.harbor_from_code}|${p.harbor_to_code}`;
+                    const postoji = new Set(pricesToAdd.map(kljuc));
+                    const obrnute = [];
+                    for (const p of pricesToAdd) {
+                        const obrnuta = {
+                            ...p,
+                            uuid: crypto.randomUUID(16),
+                            harbor_from: p.harbor_to,
+                            harbor_from_code: p.harbor_to_code,
+                            harbor_from_uuid: p.harbor_to_uuid,
+                            harbor_to: p.harbor_from,
+                            harbor_to_code: p.harbor_from_code,
+                            harbor_to_uuid: p.harbor_from_uuid,
+                        };
+                        if (postoji.has(kljuc(obrnuta))) continue;
+                        postoji.add(kljuc(obrnuta));
+                        obrnute.push(obrnuta);
+                    }
+                    pricesToAdd = [...pricesToAdd, ...obrnute];
+                }
+
                 await TimetablePricesModel.update(
                     {
                         is_active: false,

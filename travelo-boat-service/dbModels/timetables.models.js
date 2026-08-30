@@ -41,6 +41,15 @@ module.exports =  (sequelize) =>{
             type: DataTypes.STRING,
             allowNull: true
         },
+        // Cijena vrijedi jednako u oba smjera (Split–Hvar kao i Hvar–Split).
+        // Tada se u portalu unosi jednom, a suprotni smjer dobiva istu cijenu
+        // pri spremanju — prodaja i dalje trazi cijenu po smjeru, pa u bazi
+        // moraju stajati oba zapisa.
+        same_price_both_ways:{
+            type: DataTypes.BOOLEAN,
+            allowNull: true,
+            defaultValue: false
+        },
         is_active:{
             type: DataTypes.BOOLEAN,
             allowNull:false
