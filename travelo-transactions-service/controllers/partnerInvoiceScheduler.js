@@ -1,7 +1,11 @@
 const cron = require("node-cron");
 const { generatePartnerInvoices } = require("./dataControllers/partnerInvoiceGeneratorController");
 
-const CRON_EXPR = "*/10 * * * *";
+// Racun se radi tek kad razdoblje po dinamici partnera zatvori, pa svakih deset
+// minuta nema sto raditi — generator bi samo preskakao. Ide jednom nocu, u isti
+// termin kao izvjestaji za proviziju, da racun i izvjestaj pokrivaju isto
+// razdoblje i nastaju zajedno.
+const CRON_EXPR = "0 1 * * *";
 const CRON_TZ = "Europe/Zagreb";
 
 function startPartnerInvoiceScheduler() {

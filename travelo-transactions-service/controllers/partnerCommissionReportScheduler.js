@@ -7,9 +7,11 @@ const {
 // rade jednom nocu. Cesce nema smisla: generator ionako preskace razdoblje koje
 // je vec obradeno, a dok se tekuce ne zatvori nema sto novo zapisati.
 //
-// 00:05 a ne 00:00 — da prodaja s kraja dana sigurno legne prije nego se
-// razdoblje zakljuci.
-const CRON_EXPR = "5 0 * * *";
+// Vrijeme pokretanja ne pomice granicu razdoblja. Ono sto ulazi u izvjestaj
+// odreduje datum prodaje, a ne trenutak prolaza: krajDana(period_to) je uvijek
+// 23:59:59.999 zadnjeg dana razdoblja. Prodaja izmedu ponoci i pokretanja zato
+// pada u sljedece razdoblje, ne u ono koje se upravo zakljucuje.
+const CRON_EXPR = "0 1 * * *";
 const CRON_TZ = "Europe/Zagreb";
 
 function startPartnerCommissionReportScheduler() {

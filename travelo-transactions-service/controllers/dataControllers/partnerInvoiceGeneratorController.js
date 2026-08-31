@@ -8,6 +8,21 @@ const { getCoreServiceConfigData } = require("../configSyncController");
 // Osnovica i provizija po istom pravilu kao u obračunu provizije: izvještaj koji
 // partner dobije i račun koji mu izdamo moraju pokazivati isti iznos.
 const { neto, provizijaOd } = require("../../helpers/provizija");
+// Dinamika naplate je ista ona po kojoj se rade izvjestaji za proviziju —
+// racun i izvjestaj moraju pokrivati isto razdoblje.
+const { razdobljePoDinamici } = require("./partnerCommissionController");
+
+// Granice razdoblja su datumi (YYYY-MM-DD); pretvaraju se u pocetak odnosno
+// kraj tog dana po lokalnom vremenu, jednako kao u obracunu provizije.
+const pocetakDanaRazdoblja = (v) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || "").trim());
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], 0, 0, 0, 0) : null;
+};
+const krajRazdoblja = (v) => {
+    const d = pocetakDanaRazdoblja(v);
+    if (d) d.setHours(23, 59, 59, 999);
+    return d;
+};
 
 async function fetchPartnersFromBackoffice() {
     const coreConfig = await getCoreServiceConfigData();
@@ -100,12 +115,40 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
     let nextFiskalNo = (Number.isFinite(maxFiskal) ? maxFiskal : 0) + 1;
 
     for (const partner of partnersToProcess) {
+        // Razdoblje dolazi iz dinamike na partneru, ne iz trenutka pokretanja.
+        // razdobljePoDinamici vraca zadnje ZATVORENO razdoblje, pa se racun radi
+        // tek kad razdoblje prode — kod MONTHLY prvog u mjesecu za prethodni.
+        const razdoblje = razdobljePoDinamici(partner, now, false);
+        const granica = krajRazdoblja(razdoblje.to);
+        const oznakaRazdoblja = `${razdoblje.from} – ${razdoblje.to}`;
+
+        // Isto razdoblje se ne fakturira dvaput. Bez ove provjere bi svaki
+        // prolaz ponovno izdao racun cim se pojavi ijedna neobracunata karta.
+        const vecPostoji = await PartnerInvoiceModel.findOne({
+            where: {
+                partner_uuid: partner.uuid,
+                period_to: granica,
+            },
+        });
+        if (vecPostoji) {
+            result.partners_skipped.push({
+                partner_uuid: partner.uuid,
+                partner_name: partner.partner_name,
+                reason: `vec fakturirano za ${oznakaRazdoblja}`,
+            });
+            continue;
+        }
+
+        // Sve neobracunato zakljucno s krajem razdoblja. Granica je datum
+        // prodaje, a ne trenutak prolaza: prodaja nastala izmedu ponoci i
+        // pokretanja pada u sljedece razdoblje. Karte zaostale iz ranijih
+        // razdoblja se pokupe ovdje, da ne ostanu vjecno nefakturirane.
         const tickets = await TicketsModel.findAll({
             where: {
                 partner_uuid: partner.uuid,
                 partner_invoice_uuid: null,
                 [Op.or]: [{ is_canceled: false }, { is_canceled: null }],
-                createdAt: { [Op.lte]: now },
+                createdAt: { [Op.lte]: granica },
             },
             order: [["createdAt", "ASC"]],
         });
@@ -114,7 +157,7 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
             result.partners_skipped.push({
                 partner_uuid: partner.uuid,
                 partner_name: partner.partner_name,
-                reason: "no unbilled tickets",
+                reason: `nema neobracunatih karata u razdoblju ${oznakaRazdoblja}`,
             });
             continue;
         }
@@ -177,8 +220,13 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
             zadnja.net = +(zadnja.base - zadnja.commission).toFixed(2);
         }
 
-        const periodFrom = tickets[0].createdAt;
-        const periodTo = now;
+        // Pocetak razdoblja se rasteze unatrag ako su pokupljene zaostale karte
+        // iz ranijih razdoblja — inace bi racun tvrdio da pokriva uze razdoblje
+        // nego sto stvarno pokriva.
+        const prvaKarta = tickets[0].createdAt;
+        const pocetakRazdoblja = pocetakDanaRazdoblja(razdoblje.from);
+        const periodFrom = prvaKarta < pocetakRazdoblja ? prvaKarta : pocetakRazdoblja;
+        const periodTo = granica;
 
         const invoiceUuid = crypto.randomUUID();
         const invoiceNo = nextNo;
