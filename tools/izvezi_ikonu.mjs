@@ -9,44 +9,13 @@
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import { ponovnoStisni } from './png_ponovno.mjs'
 
 const require = createRequire('file:///C:/Tech4beeZ/Projekti/TraveloApp/travelo-transactions-service/x.js')
 const puppeteer = require('puppeteer')
 
 const PLAVA = '#175BD0'
-const SVIJETLA = '#96D1F2'
 const IZLAZ = 'C:/Tech4beeZ/Projekti/TraveloApp/tools/ikona'
-
-// Znak za trgovine: isto plavo slovo kao u aplikaciji, na svijetlom preljevu.
-//
-// Plosnata inacica na 512 px zauzme oko 2 kB — jednobojne plohe se stisnu gotovo
-// u nista — pa je alati koji traze minimalnu velicinu datoteke odbijaju kao
-// preslabu. Preljev daje stvarnu razliku medu pikselima (oko 70 kB na 512 px),
-// a slovo ostaje brand plavo; podloga je toliko svijetla da se znak cita jednako
-// kao na bijelom.
-const stranicaTrgovina = (velicina) => `
-<!doctype html>
-<html><head><meta charset="utf-8" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@800&display=swap" rel="stylesheet">
-<style>
-  html, body { margin: 0; padding: 0; }
-  body {
-    width: ${velicina}px; height: ${velicina}px;
-    background: linear-gradient(145deg, #FFFFFF 0%, #DCEBFA 50%, ${SVIJETLA} 100%);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .t {
-    font-family: Inter, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
-    font-weight: 800;
-    color: ${PLAVA};
-    font-size: ${Math.round(velicina * 0.84 * 0.98)}px;
-    line-height: 1;
-    transform: translateY(${Math.round(velicina * 0.02)}px);
-  }
-</style></head>
-<body><div class="t">T</div></body></html>`
 
 const stranica = (velicina, padding, podloga) => `
 <!doctype html>
@@ -121,18 +90,12 @@ console.log('bijela podloga (trgovine ne primaju prozirnost):')
 zapisi('travelo-ikona-512-bijela.png', await nacrtaj(512, { podloga: '#FFFFFF' }))
 zapisi('travelo-ikona-1024-bijela.png', await nacrtaj(1024, { podloga: '#FFFFFF' }))
 
-console.log('trgovine (plavo slovo na svijetlom preljevu, bez prozirnosti):')
-const nacrtajTrgovina = async (velicina) => {
-    const page = await browser.newPage()
-    await page.setViewport({ width: velicina, height: velicina, deviceScaleFactor: 1 })
-    await page.setContent(stranicaTrgovina(velicina), { waitUntil: 'networkidle0', timeout: 20000 })
-    await page.evaluate(() => document.fonts.ready)
-    const slika = await page.screenshot({ type: 'png' })
-    await page.close()
-    return Buffer.isBuffer(slika) ? slika : Buffer.from(slika)
-}
-zapisi('travelo-ikona-512-trgovina.png', await nacrtajTrgovina(512))
-zapisi('travelo-ikona-1024-trgovina.png', await nacrtajTrgovina(1024))
+// Neki alati odbijaju datoteku ispod 10 kB. Plosnat znak — bijela ploha i jedno
+// slovo — stisne se na oko 2 kB, pa se za te slucajeve isti pikseli spremaju s
+// manjom razinom kompresije. Slika je ista, samo zapis nije stisnut do kraja.
+console.log('za alate koji traze vecu datoteku (isti izgled, slabije stisnuto):')
+zapisi('travelo-ikona-1024-bijela-velika.png', ponovnoStisni(await nacrtaj(1024, { podloga: '#FFFFFF' }), 1))
+zapisi('travelo-ikona-1024-velika.png', ponovnoStisni(await nacrtaj(1024), 1))
 
 console.log('Windows:')
 const icoSlike = []
