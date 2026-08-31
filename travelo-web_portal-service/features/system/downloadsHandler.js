@@ -9,6 +9,19 @@ const DOWNLOADS_DIR = path.join(__dirname, '..', '..', 'downloads');
 const MANIFEST = path.join(DOWNLOADS_DIR, 'downloads.json');
 const DEFAULT_CATEGORY = 'Ostalo';
 
+// Datoteka koje nema u manifestu svejedno se prikaze — svrstava se po nastavku.
+// Bez toga bi svako novo izdanje instalacije, dok se manifest ne dopuni,
+// zavrsilo pod "Ostalo" i na dnu popisa, iako je ocito aplikacija.
+const PO_NASTAVKU = {
+    '.exe': { category: 'Aplikacije', category_order: 10 },
+    '.msi': { category: 'Aplikacije', category_order: 10 },
+    '.apk': { category: 'Aplikacije', category_order: 10 },
+    '.pdf': { category: 'Upute', category_order: 20 },
+    '.docx': { category: 'Upute', category_order: 20 },
+};
+
+const poNastavku = (naziv) => PO_NASTAVKU[path.extname(naziv).toLowerCase()] || {};
+
 const readManifest = () => {
     try {
         if (!fs.existsSync(MANIFEST)) return [];
@@ -42,19 +55,22 @@ const handleGetDownloadsFeature = async (req, res) => {
             .filter((name) => byFile.get(name)?.hidden !== true)
             .map((name) => {
                 const meta = byFile.get(name) || {};
+                const zadano = poNastavku(name);
                 const stat = fs.statSync(path.join(DOWNLOADS_DIR, name));
                 return {
                     file: name,
                     title: meta.title || name,
                     description: meta.description || '',
-                    category: meta.category || DEFAULT_CATEGORY,
+                    category: meta.category || zadano.category || DEFAULT_CATEGORY,
                     version: meta.version || '',
                     size: stat.size,
                     updated_at: stat.mtime,
                     order: Number.isFinite(meta.order) ? meta.order : 100,
                     // Redoslijed kategorija se zadaje, ne izvodi iz naziva —
                     // abecedno bi upute dosle prije aplikacija.
-                    category_order: Number.isFinite(meta.category_order) ? meta.category_order : 100,
+                    category_order: Number.isFinite(meta.category_order)
+                        ? meta.category_order
+                        : (Number.isFinite(zadano.category_order) ? zadano.category_order : 100),
                 };
             });
         // Kategorija se poredava po najmanjem `category_order` medu svojim
