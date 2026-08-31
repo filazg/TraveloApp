@@ -96,6 +96,9 @@ zapisi('travelo-ikona-1024-bijela.png', await nacrtaj(1024, { podloga: '#FFFFFF'
 console.log('za alate koji traze vecu datoteku (isti izgled, slabije stisnuto):')
 zapisi('travelo-ikona-1024-bijela-velika.png', ponovnoStisni(await nacrtaj(1024, { podloga: '#FFFFFF' }), 1))
 zapisi('travelo-ikona-1024-velika.png', ponovnoStisni(await nacrtaj(1024), 1))
+// Na 512 px ni slabija kompresija ne prelazi 10 kB, pa se za tu velicinu zapisuje
+// posve nestisnuto — razina 0 znaci da se pikseli spremaju kakvi jesu.
+zapisi('travelo-ikona-512-bijela-nestisnuto.png', ponovnoStisni(await nacrtaj(512, { podloga: '#FFFFFF' }), 0))
 
 console.log('Windows:')
 const icoSlike = []
