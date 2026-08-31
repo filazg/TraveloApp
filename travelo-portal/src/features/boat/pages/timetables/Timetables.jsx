@@ -602,7 +602,7 @@ export default function TimetablesPage() {
 
             {boatData.boatData?.lines?.map((line) => (
               <MenuItem key={line.code} value={line.code}>
-                {line.name}
+                {line.code} {line.name}
               </MenuItem>
             ))}
           </TextField>

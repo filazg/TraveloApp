@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from "react";
+import React, { use, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { boatSliceData } from "../../boatSlice";
 import {
@@ -24,6 +24,16 @@ import dayjs from "dayjs";
 
 export default function AddTimetablesRoutesDrawer({newData, setNewData}){
     const boatsData = useSelector(boatSliceData)
+
+    // Luke u padajucim izbornicima idu abecedno. Redoslijed iz baze je po
+    // unosu, pa je popis bio nepregledan kad luka ima puno.
+    const sortedHarbors = useMemo(
+      () =>
+        [...(boatsData.boatData?.harbors || [])].sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "", "hr")
+        ),
+      [boatsData.boatData?.harbors]
+    );
 
     const [departures, setDepartures] = useState({});
     const [selectedRow, setSelectedRow] = useState(null);
@@ -222,7 +232,7 @@ export default function AddTimetablesRoutesDrawer({newData, setNewData}){
                 >
                     {boatsData.boatData?.lines?.map((line) => (
                         <MenuItem key={line.id} value={line}>
-                        {line.name}
+                        {line.code} {line.name}
                         </MenuItem>
                     ))}
                 </TextField>
@@ -395,7 +405,7 @@ export default function AddTimetablesRoutesDrawer({newData, setNewData}){
                             width: 350,
                         }}
                         >
-                            {boatsData.boatData?.harbors?.map((harbor) => (
+                            {sortedHarbors.map((harbor) => (
                                 <MenuItem key={harbor.id} value={harbor}>
                                     {harbor.name}
                                 </MenuItem>
@@ -416,7 +426,7 @@ export default function AddTimetablesRoutesDrawer({newData, setNewData}){
                             ml:1
                         }}
                         >
-                            {boatsData.boatData?.harbors?.map((harbor) => (
+                            {sortedHarbors.map((harbor) => (
                                 <MenuItem key={harbor.id} value={harbor}>
                                 {harbor.name}
                                 </MenuItem>
