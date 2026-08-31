@@ -124,6 +124,25 @@ export const fetchPartnerCommissionReportsThunk = createAsyncThunk(
     }
 );
 
+// Generirani izvjestaji za proviziju — ono sto je nocni prolaz zamrznuo. Za
+// razliku od gornjeg thunka, ovdje se nista ne racuna u trenutku dohvata:
+// vracaju se dokumenti kakvi jesu, s razdobljem koje im je odredila dinamika.
+export const fetchGeneratedCommissionReportsThunk = createAsyncThunk(
+    "finance/fetchGeneratedCommissionReports",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/partner_commission_reports", { params });
+            const payload = unwrapBff(resp);
+            return {
+                reports: payload?.reports || [],
+                totals: payload?.totals || { tickets: 0, gross: 0, base: 0, commission: 0 },
+            };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
 // Detalji obracuna se ne drze u stanju: dohvacaju se u trenutku preuzimanja i
 // odmah zavrse u datoteci, pa nema smisla puniti store s nekoliko tisuca redaka.
 export const dohvatiDetaljeProvizije = async (params = {}) => {
@@ -562,6 +581,11 @@ const financeSlice = createSlice({
         partnerCommissionReports: { partners: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 }, company_name: "", from: "", to: "" },
         partnerCommissionReportsLoading: false,
         partnerCommissionReportsError: null,
+        // Generirani izvjestaji — zamrznute snimke koje nocni prolaz radi po
+        // dinamici partnera. Drzi se odvojeno od zivog pregleda iznad: to su
+        // dva razlicita podatka i ne smiju se pregaziti jedan drugim.
+        partnerCommissionGenerated: { reports: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } },
+        partnerCommissionGeneratedLoading: false,
         partnerInvoiceDetails: null,
         partnerInvoiceDetailsLoading: false,
         partnersList: [],
@@ -788,6 +812,17 @@ const financeSlice = createSlice({
             .addCase(fetchPartnerCommissionReportsThunk.rejected, (s, a) => {
                 s.partnerCommissionReportsLoading = false;
                 s.partnerCommissionReportsError = a.payload?.message || "Greška pri dohvatu izvještaja";
+            })
+            .addCase(fetchGeneratedCommissionReportsThunk.pending, (s) => {
+                s.partnerCommissionGeneratedLoading = true;
+            })
+            .addCase(fetchGeneratedCommissionReportsThunk.fulfilled, (s, a) => {
+                s.partnerCommissionGeneratedLoading = false;
+                s.partnerCommissionGenerated = a.payload;
+            })
+            .addCase(fetchGeneratedCommissionReportsThunk.rejected, (s) => {
+                s.partnerCommissionGeneratedLoading = false;
+                s.partnerCommissionGenerated = { reports: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } };
             })
             .addCase(fetchPartnerInvoiceDetailsThunk.pending, (s) => {
                 s.partnerInvoiceDetailsLoading = true;

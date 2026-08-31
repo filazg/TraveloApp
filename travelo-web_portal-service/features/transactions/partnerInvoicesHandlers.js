@@ -5,6 +5,8 @@ const {
     getPartnerCommissionDetailsController,
     getPartnerInvoicePdfController,
     getCommissionReportPdfController,
+    getPartnerCommissionReportsController,
+    getPartnerCommissionReportDetailsController,
 } = require('../../controllers/coreServiceControllers/transactionsServiceControllers.js/partnerInvoicesServiceControllers');
 
 const handleGetPartnerInvoicesFeature = async (req, res) => {
@@ -106,7 +108,37 @@ const handleGetCommissionReportPdfFeature = (detalji) => async (req, res) => {
     }
 };
 
+// Generirani izvjestaji za proviziju — lista i pojedinacni sa stavkama.
+const handleGetPartnerCommissionReportsFeature = async (req, res) => {
+    try {
+        const raw = await getPartnerCommissionReportsController(req.query || {});
+        const payload = raw?.data || { reports: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } };
+        res.send({
+            status: 200,
+            data: {
+                path1: 'financeData',
+                path2: 'partnerCommissionGenerated',
+                data: payload,
+            },
+        });
+    } catch (error) {
+        res.status(500).send({ status: 500, error: error.message });
+    }
+};
+
+const handleGetPartnerCommissionReportDetailsFeature = async (req, res) => {
+    try {
+        const raw = await getPartnerCommissionReportDetailsController(req.params.report_uuid);
+        if (!raw) return res.status(404).send({ status: 404, error: 'izvjestaj nije pronaden' });
+        res.send({ status: 200, data: raw.data });
+    } catch (error) {
+        res.status(500).send({ status: 500, error: error.message });
+    }
+};
+
 module.exports = {
+    handleGetPartnerCommissionReportsFeature,
+    handleGetPartnerCommissionReportDetailsFeature,
     handleGetCommissionReportPdfFeature,
     handleGetPartnerInvoicePdfFeature,
     handleGetPartnerInvoicesFeature,

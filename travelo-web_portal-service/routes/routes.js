@@ -22,7 +22,7 @@ const { handleGetAccountsFeature, handleAddAccountFeature, handleUpdateAccountFe
 const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature, handleGetDailyRealizationDemoFeature, handleSendDailyRealizationDemoToErpFeature } = require('../features/transactions/dailyRealizationHandlers');
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
-const { handleGetCommissionReportPdfFeature, handleGetPartnerInvoicePdfFeature, handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
+const { handleGetCommissionReportPdfFeature, handleGetPartnerInvoicePdfFeature, handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature, handleGetPartnerCommissionReportsFeature, handleGetPartnerCommissionReportDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
 const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleTransferTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
 const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
@@ -257,6 +257,16 @@ router
 router
     .route('/transactions/partner_commission_details')
     .get(handleGetPartnerCommissionDetailsFeature)
+
+// Generirani izvjestaji za proviziju — ono sto je nocni prolaz zamrznuo po
+// dinamici partnera, za razliku od /partner_commission koji racuna zivu sliku.
+router
+    .route('/transactions/partner_commission_reports')
+    .get(handleGetPartnerCommissionReportsFeature)
+
+router
+    .route('/transactions/partner_commission_report/:report_uuid')
+    .get(handleGetPartnerCommissionReportDetailsFeature)
 
 router
     .route('/transactions/tickets_search')

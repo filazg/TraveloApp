@@ -80,7 +80,38 @@ const getCommissionReportPdfController = async (params = {}, detalji) => {
     });
 };
 
+// Generirani izvjestaji za proviziju — zamrznute snimke koje nocni prolaz radi
+// po dinamici partnera. Odvojeno od /partner_commission, koji racuna zivu sliku.
+const getPartnerCommissionReportsController = async (params = {}) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(
+            coreConfigData.services.transactions.url + '/partner_commission_reports',
+            { params }
+        );
+        return response.data;
+    } catch (error) {
+        console.log('getPartnerCommissionReportsController error:', error?.message || error);
+        return { data: { reports: [], totals: { tickets: 0, gross: 0, base: 0, commission: 0 } } };
+    }
+};
+
+const getPartnerCommissionReportDetailsController = async (report_uuid) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(
+            coreConfigData.services.transactions.url + '/partner_commission_report/' + report_uuid
+        );
+        return response.data;
+    } catch (error) {
+        console.log('getPartnerCommissionReportDetailsController error:', error?.message || error);
+        return null;
+    }
+};
+
 module.exports = {
+    getPartnerCommissionReportsController,
+    getPartnerCommissionReportDetailsController,
     getCommissionReportPdfController,
     getPartnerInvoicePdfController,
     getPartnerInvoicesController,
