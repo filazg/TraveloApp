@@ -35,23 +35,42 @@ const handleGetDownloadsFeature = async (req, res) => {
     try {
         const manifest = readManifest();
         const byFile = new Map(manifest.map((m) => [m.file, m]));
-        const items = listFiles().map((name) => {
-            const meta = byFile.get(name) || {};
-            const stat = fs.statSync(path.join(DOWNLOADS_DIR, name));
-            return {
-                file: name,
-                title: meta.title || name,
-                description: meta.description || '',
-                category: meta.category || DEFAULT_CATEGORY,
-                version: meta.version || '',
-                size: stat.size,
-                updated_at: stat.mtime,
-                order: Number.isFinite(meta.order) ? meta.order : 100,
-            };
+        const items = listFiles()
+            // `hidden` u manifestu skriva datoteku s popisa, ali je ostavlja na
+            // posluzitelju — za izdanja koja se dijele drugim kanalom, a i dalje
+            // moraju biti dohvatljiva izravnom poveznicom.
+            .filter((name) => byFile.get(name)?.hidden !== true)
+            .map((name) => {
+                const meta = byFile.get(name) || {};
+                const stat = fs.statSync(path.join(DOWNLOADS_DIR, name));
+                return {
+                    file: name,
+                    title: meta.title || name,
+                    description: meta.description || '',
+                    category: meta.category || DEFAULT_CATEGORY,
+                    version: meta.version || '',
+                    size: stat.size,
+                    updated_at: stat.mtime,
+                    order: Number.isFinite(meta.order) ? meta.order : 100,
+                    // Redoslijed kategorija se zadaje, ne izvodi iz naziva —
+                    // abecedno bi upute dosle prije aplikacija.
+                    category_order: Number.isFinite(meta.category_order) ? meta.category_order : 100,
+                };
+            });
+        // Kategorija se poredava po najmanjem `category_order` medu svojim
+        // stavkama, da cijela grupa ostane na okupu.
+        const redKategorije = new Map();
+        for (const i of items) {
+            const dosad = redKategorije.get(i.category);
+            if (dosad === undefined || i.category_order < dosad) redKategorije.set(i.category, i.category_order);
+        }
+        items.sort((a, b) => {
+            if (a.category !== b.category) {
+                return (redKategorije.get(a.category) - redKategorije.get(b.category))
+                    || a.category.localeCompare(b.category, 'hr');
+            }
+            return (a.order - b.order) || a.title.localeCompare(b.title, 'hr');
         });
-        items.sort((a, b) => (a.category === b.category
-            ? (a.order - b.order) || a.title.localeCompare(b.title, 'hr')
-            : a.category.localeCompare(b.category, 'hr')));
         return res.send({ status: 200, data: { downloads: items } });
     } catch (error) {
         console.log('handleGetDownloadsFeature error:', error?.message || error);
