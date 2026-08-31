@@ -65,9 +65,24 @@ const dio = (oznaka, podaci) => {
 // slika i na razini 1 padne ispod 10 kB, a razina 0 skoci na 769 kB. Strategija
 // RLE gleda samo ponavljanje susjednih bajtova, pa istu sliku zapise oko 42 kB —
 // izmedu trazenih granica, bez ijednog promijenjenog piksela.
+// `bezAlfe: true` zapisuje sliku bez prozirnog kanala (PNG tip 2). Neke
+// trgovine odbijaju ikonu s alfa kanalom i kad je posve neprozirna, pa se
+// prozirnost prije zapisa slozi preko bijele.
 export const ponovnoStisni = (png, postavke = {}) => {
-    const opcije = typeof postavke === 'number' ? { level: postavke } : postavke
-    const { sirina, visina, kanala, piksel } = raspakiraj(png)
+    const { bezAlfe = false, ...opcije0 } = typeof postavke === 'number' ? { level: postavke } : postavke
+    const opcije = opcije0
+    let { sirina, visina, kanala, piksel } = raspakiraj(png)
+    if (bezAlfe && kanala === 4) {
+        const bez = Buffer.alloc(sirina * visina * 3)
+        for (let i = 0, j = 0; i < piksel.length; i += 4, j += 3) {
+            const a = piksel[i + 3] / 255
+            bez[j] = Math.round(piksel[i] * a + 255 * (1 - a))
+            bez[j + 1] = Math.round(piksel[i + 1] * a + 255 * (1 - a))
+            bez[j + 2] = Math.round(piksel[i + 2] * a + 255 * (1 - a))
+        }
+        piksel = bez
+        kanala = 3
+    }
     const redak = sirina * kanala
     const sirovo = Buffer.alloc(visina * (redak + 1))
     for (let y = 0; y < visina; y++) {
