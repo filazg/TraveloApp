@@ -61,7 +61,12 @@ const dio = (oznaka, podaci) => {
     return Buffer.concat([duljina, tijelo, kontrola])
 }
 
-export const ponovnoStisni = (png, razina) => {
+// `postavke` su opcije zlib deflate-a. Razina sama ne pomaze uvijek: plosnata
+// slika i na razini 1 padne ispod 10 kB, a razina 0 skoci na 769 kB. Strategija
+// RLE gleda samo ponavljanje susjednih bajtova, pa istu sliku zapise oko 42 kB —
+// izmedu trazenih granica, bez ijednog promijenjenog piksela.
+export const ponovnoStisni = (png, postavke = {}) => {
+    const opcije = typeof postavke === 'number' ? { level: postavke } : postavke
     const { sirina, visina, kanala, piksel } = raspakiraj(png)
     const redak = sirina * kanala
     const sirovo = Buffer.alloc(visina * (redak + 1))
@@ -75,7 +80,7 @@ export const ponovnoStisni = (png, razina) => {
     return Buffer.concat([
         Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
         dio('IHDR', ihdr),
-        dio('IDAT', zlib.deflateSync(sirovo, { level: razina })),
+        dio('IDAT', zlib.deflateSync(sirovo, opcije)),
         dio('IEND', Buffer.alloc(0)),
     ])
 }

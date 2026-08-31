@@ -9,6 +9,7 @@
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import zlib from 'node:zlib'
 import { ponovnoStisni } from './png_ponovno.mjs'
 
 const require = createRequire('file:///C:/Tech4beeZ/Projekti/TraveloApp/travelo-transactions-service/x.js')
@@ -94,11 +95,14 @@ zapisi('travelo-ikona-1024-bijela.png', await nacrtaj(1024, { podloga: '#FFFFFF'
 // slovo — stisne se na oko 2 kB, pa se za te slucajeve isti pikseli spremaju s
 // manjom razinom kompresije. Slika je ista, samo zapis nije stisnut do kraja.
 console.log('za alate koji traze vecu datoteku (isti izgled, slabije stisnuto):')
-zapisi('travelo-ikona-1024-bijela-velika.png', ponovnoStisni(await nacrtaj(1024, { podloga: '#FFFFFF' }), 1))
-zapisi('travelo-ikona-1024-velika.png', ponovnoStisni(await nacrtaj(1024), 1))
-// Na 512 px ni slabija kompresija ne prelazi 10 kB, pa se za tu velicinu zapisuje
-// posve nestisnuto — razina 0 znaci da se pikseli spremaju kakvi jesu.
-zapisi('travelo-ikona-512-bijela-nestisnuto.png', ponovnoStisni(await nacrtaj(512, { podloga: '#FFFFFF' }), 0))
+zapisi('travelo-ikona-1024-bijela-velika.png', ponovnoStisni(await nacrtaj(1024, { podloga: '#FFFFFF' }), { level: 1 }))
+zapisi('travelo-ikona-1024-velika.png', ponovnoStisni(await nacrtaj(1024), { level: 1 }))
+// Na 512 px razina kompresije ne pomaze: i najslabija padne ispod 10 kB, a
+// nestisnuto skoci na 769 kB. RLE strategija gleda samo ponavljanje susjednih
+// bajtova pa istu sliku zapise oko 42 kB — unutar trazenih granica.
+const RLE = { level: 1, strategy: zlib.constants.Z_RLE, memLevel: 1 }
+zapisi('travelo-ikona-512-bijela-velika.png', ponovnoStisni(await nacrtaj(512, { podloga: '#FFFFFF' }), RLE))
+zapisi('travelo-ikona-512-velika.png', ponovnoStisni(await nacrtaj(512), RLE))
 
 console.log('Windows:')
 const icoSlike = []
