@@ -26,7 +26,6 @@ import {
 import axios from 'axios'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined'
-import ScienceIcon from '@mui/icons-material/Science'
 import { HeaderSmall } from '../../../components/Headers'
 import { useT } from '../../../i18n/useT'
 import {
@@ -237,32 +236,6 @@ export default function SelectedTicketsSummaryComponent() {
       setSubmitting(false)
     }
   }
-
-  // DEV only — skip Monri (no HTTPS on localhost) and finalize directly.
-  const handleSimulate = async () => {
-    setSubmitting(true)
-    dispatch(setGlobalLoading({ active: true, message: 'Simulacija plaćanja u tijeku…' }))
-    const uuidOrder = uuid()
-    dispatch(setOrderNumber({ value: uuidOrder }))
-    console.log('simulate: starting with uuidOrder', uuidOrder)
-    try {
-      await createOrderOnBackend(uuidOrder)
-      dispatch(setGlobalLoading({ active: true, message: 'Generiramo karte i račun…' }))
-      const simResp = await axios.post(`${url}/simulate_payment`, {
-        payment_reference: uuidOrder,
-        status: 'approved',
-      })
-      console.log('simulate_payment ←', simResp.data)
-      window.location.href = `/download?order_number=${encodeURIComponent(uuidOrder)}&status=approved`
-    } catch (err) {
-      console.error('simulate error:', err?.response?.data || err.message)
-      dispatch(setGlobalLoading({ active: false }))
-      alert(`Simulacija nije uspjela: ${err?.response?.data?.data?.message || err.message}`)
-      setSubmitting(false)
-    }
-  }
-
-  const devMode = typeof import.meta !== 'undefined' && import.meta.env?.DEV
 
   return (
     <Grid size={12}>
@@ -482,19 +455,6 @@ export default function SelectedTicketsSummaryComponent() {
               {submitting ? (t('summary.processing')) : (t('summary.pay'))} {total.toFixed(2)} EUR
             </Typography>
           </Button>
-          {devMode && (
-            <Button
-              fullWidth
-              color="warning"
-              variant="outlined"
-              disabled={!statuses.validateBuyerData || submitting || total === 0}
-              startIcon={<ScienceIcon />}
-              sx={{ mt: 1, height: 44, borderStyle: 'dashed' }}
-              onClick={handleSimulate}
-            >
-              DEV: simuliraj plaćanje (bez Monrija)
-            </Button>
-          )}
         </Grid>
 
         <Grid

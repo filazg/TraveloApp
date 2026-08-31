@@ -14,7 +14,7 @@ const AUTHENTICITY_TOKEN = 'cec50256766ed9ba50fc88d7787326494f3f06fe'
 // stranica se tada samo vrti na "pripremamo karte".
 //
 // Monri traži https za success_url_override, pa lokalni razvoj (http) pada na
-// testnu adresu; tamo se ionako koristi simulacija plaćanja.
+// testnu adresu.
 const FALLBACK_HTTPS_URL = 'https://webbookingtest.krilo.hr/download'
 const defaultSuccessUrl = () => {
   if (typeof window === 'undefined') return FALLBACK_HTTPS_URL
