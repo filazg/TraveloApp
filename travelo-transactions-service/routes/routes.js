@@ -12,6 +12,11 @@ const { backfillInvoicesFiscalController } = require('../controllers/dataControl
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
 const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
 const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
+const {
+    listPartnerCommissionReportsController,
+    getPartnerCommissionReportDetailsController,
+    generatePartnerCommissionReportsController,
+} = require('../controllers/dataControllers/partnerCommissionReportsController');
 const { listTicketsController } = require('../controllers/dataControllers/ticketsSearchController');
 const { cancelTicketsController } = require('../controllers/dataControllers/cancelTicketsController');
 const { harborTaxReportController } = require('../controllers/dataControllers/harborTaxReportController');
@@ -115,6 +120,17 @@ router
 router
     .route('/partner_commission_details')
     .get(partnerCommissionDetailsController)
+
+// Generirani izvjestaji — zamrznute snimke po dinamici partnera. Cron ih radi
+// nocu; POST je isti posao rucno, za provjeru ili ako je nocni prolaz propusten.
+router
+    .route('/partner_commission_reports')
+    .get(listPartnerCommissionReportsController)
+    .post(generatePartnerCommissionReportsController)
+
+router
+    .route('/partner_commission_report/:report_uuid')
+    .get(getPartnerCommissionReportDetailsController)
 
 router
     .route('/tickets_search')

@@ -545,4 +545,4 @@ const partnerCommissionDetailsController = async (req, res) => {
     }
 };
 
-module.exports = { partnerCommissionController, partnerCommissionDetailsController, prikupiDetalje };
+module.exports = { partnerCommissionController, partnerCommissionDetailsController, prikupiDetalje, razdobljePoDinamici };

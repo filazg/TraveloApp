@@ -3,6 +3,7 @@ const invoiceModelsFactory = require("./invoice.models");
 const ticketsModelsFactory = require("./tickets.models");
 const bookingModelsFactory = require("./booking.models");
 const partnerInvoiceModelsFactory = require("./partnerInvoice.models");
+const partnerCommissionReportModelsFactory = require("./partnerCommissionReport.models");
 const shiftModelsFactory = require("./shift.models");
 const apiOrdersModelsFactory = require("./apiOrders.models");
 const paymentOrdersModelsFactory = require("./paymentOrders.models");
@@ -19,6 +20,7 @@ function initModels() {
       ...ticketsModelsFactory(sequelize),
       ...bookingModelsFactory(sequelize),
       ...partnerInvoiceModelsFactory(sequelize),
+      ...partnerCommissionReportModelsFactory(sequelize),
       ...shiftModelsFactory(sequelize),
       ...apiOrdersModelsFactory(sequelize),
       ...paymentOrdersModelsFactory(sequelize),
