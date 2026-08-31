@@ -17,12 +17,13 @@ const PLAVA = '#175BD0'
 const SVIJETLA = '#96D1F2'
 const IZLAZ = 'C:/Tech4beeZ/Projekti/TraveloApp/tools/ikona'
 
-// Znak za trgovine: bijelo slovo na brand preljevu, preko cijele plohe.
+// Znak za trgovine: isto plavo slovo kao u aplikaciji, na svijetlom preljevu.
 //
 // Plosnata inacica na 512 px zauzme oko 2 kB — jednobojne plohe se stisnu gotovo
-// u nista — pa je trgovine i alati koji traze "pravu" sliku znaju odbiti kao
-// preslabu. Preljev daje stvarnu razliku medu pikselima, pa datoteka izlazi
-// oko 85 kB, a znak izgleda kao ikona aplikacije a ne kao slovo na papiru.
+// u nista — pa je alati koji traze minimalnu velicinu datoteke odbijaju kao
+// preslabu. Preljev daje stvarnu razliku medu pikselima (oko 70 kB na 512 px),
+// a slovo ostaje brand plavo; podloga je toliko svijetla da se znak cita jednako
+// kao na bijelom.
 const stranicaTrgovina = (velicina) => `
 <!doctype html>
 <html><head><meta charset="utf-8" />
@@ -33,13 +34,13 @@ const stranicaTrgovina = (velicina) => `
   html, body { margin: 0; padding: 0; }
   body {
     width: ${velicina}px; height: ${velicina}px;
-    background: linear-gradient(145deg, ${PLAVA} 0%, #2E7BE0 45%, ${SVIJETLA} 100%);
+    background: linear-gradient(145deg, #FFFFFF 0%, #DCEBFA 50%, ${SVIJETLA} 100%);
     display: flex; align-items: center; justify-content: center;
   }
   .t {
     font-family: Inter, system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
     font-weight: 800;
-    color: #FFFFFF;
+    color: ${PLAVA};
     font-size: ${Math.round(velicina * 0.84 * 0.98)}px;
     line-height: 1;
     transform: translateY(${Math.round(velicina * 0.02)}px);
@@ -120,7 +121,7 @@ console.log('bijela podloga (trgovine ne primaju prozirnost):')
 zapisi('travelo-ikona-512-bijela.png', await nacrtaj(512, { podloga: '#FFFFFF' }))
 zapisi('travelo-ikona-1024-bijela.png', await nacrtaj(1024, { podloga: '#FFFFFF' }))
 
-console.log('trgovine (bijelo slovo na preljevu, bez prozirnosti):')
+console.log('trgovine (plavo slovo na svijetlom preljevu, bez prozirnosti):')
 const nacrtajTrgovina = async (velicina) => {
     const page = await browser.newPage()
     await page.setViewport({ width: velicina, height: velicina, deviceScaleFactor: 1 })
