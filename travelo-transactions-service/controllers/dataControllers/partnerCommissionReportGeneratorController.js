@@ -89,12 +89,23 @@ const generatePartnerCommissionReports = async ({ asOfDate = new Date(), partner
             continue;
         }
 
-        const redci = detalji.rows || [];
+        // Izvjestaj za proviziju pokriva samo prodaju u nase ime — karte koje je
+        // partner prodao za nas racun na svom prodajnom mjestu (scope
+        // "company"). Njih partner nama fakturira, a mi mu placamo proviziju.
+        //
+        // prikupiDetalje uz njih vraca i partnerovu vlastitu prodaju (scope
+        // "channel"), koja ide obrnutim smjerom: partner ju naplacuje od
+        // putnika, a nama duguje bruto umanjen za proviziju, sto se obracunava
+        // na zbirnom partnerskom racunu. Ako te retke pustimo u zbroj, partner
+        // istu proviziju dobije dvaput — jednom kao odbitak na racunu, drugi
+        // put kao iznos za isplatu. Zivi obracun ih zato drzi u zasebnom
+        // kljucu partner_channel, izvan totals; zamrznuti izvjestaj ih ne nosi.
+        const redci = (detalji.rows || []).filter((r) => r.scope === "company");
         if (!redci.length) {
             result.partners_skipped.push({
                 partner_uuid: partner.uuid,
                 partner_name: partner.partner_name,
-                reason: `nema prodaje u razdoblju ${oznakaRazdoblja}`,
+                reason: `nema prodaje u nase ime u razdoblju ${oznakaRazdoblja}`,
             });
             continue;
         }
