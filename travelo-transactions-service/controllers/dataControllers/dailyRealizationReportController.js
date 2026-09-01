@@ -7,8 +7,15 @@
 //   - Stavke karte koje se "koriste" na dan D (departure::date == D) a račun je
 //     iz prijašnjeg mjeseca → reklasifikacija (debit 2250 / credit 7514) s
 //     istom AdvancePeriod analitikom.
-// VAT i lučka pristojba se priznaju na datum računa (ne deferiraju se).
-// Plaćanje se rasporedi po (cc, payment_method, clerk).
+//   - Lučka pristojba prati istu podjelu kao i prihod: dio koji pripada kartama
+//     za tekući mjesec ide na HARBOR_TAX, a dio za buduće razdoblje na
+//     PREDUJAM_HARBOR_TAX, uz istu AdvancePeriod analitiku i istu
+//     reklasifikaciju na dan polaska. Pristojba se naplaćuje zajedno s kartom,
+//     pa bi priznavanje cijelog iznosa odmah preteglo mjesec u kojem je karta
+//     samo prodana.
+// VAT se priznaje na datum računa (ne deferira se).
+// Plaćanje se rasporedi po (cc, payment_method, clerk) — osim R1 i F2 računa
+// plaćenih virmanom, koji idu svaki u svoj redak i nose OIB kupca.
 const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
@@ -123,8 +130,12 @@ const emptyBucket = (cost_center, billing_device_name) => ({
     lines: new Map(),
     // Per (pm_uuid, clerk_id) → amount for the debit side
     byPaymentClerk: new Map(),
+    // R1 i F2 računi plaćeni virmanom. Ne ulaze u zbroj gore: knjigovodstvo ih
+    // mora vidjeti pojedinačno da ih može upariti s izvodom i s kupcem, pa
+    // svaki dobiva vlastiti redak i nosi OIB.
+    virmanInvoices: [],
     // Reklasifikacije: items čiji je departure dan D ali račun je iz starijeg mjeseca
-    // { [line_code|src_period]: { line_code, line_name, saop_cost_bearer, src_period, vat_base } }
+    // { [line_code|src_period]: { line_code, line_name, saop_cost_bearer, src_period, vat_base, harbor_tax } }
     reclassifications: new Map(),
 });
 
@@ -138,8 +149,12 @@ const ensureLine = (bucket, item, refs) => {
             saop_cost_bearer: line?.saop_cost_bearer || null,
             vat_base_current: 0,
             vat: 0,
+            // harbor_tax je zbroj tekućeg i budućeg — služi prikazu ukupnog
+            // iznosa po liniji; knjiženje ide iz razdvojenih polja ispod.
             harbor_tax: 0,
+            harbor_tax_current: 0,
             vat_base_future: new Map(), // YYYY-MM → vat_base
+            harbor_tax_future: new Map(), // YYYY-MM → lučka pristojba
             item_count: 0,
         });
     }
@@ -160,6 +175,25 @@ const buildJournalEntries = (day, bucket, refs) => {
     const accHARBOR = accFor("HARBOR_TAX");
     const accNET = accFor("NET_REVENUE");
     const accPRED = accFor("PREDUJAM");
+    // Predujam za lučke naknade traži se tek kad postoji karta za buduće
+    // razdoblje. Da dan bez takvih karata ne javlja upozorenje za mapiranje koje
+    // mu ne treba, konto se dohvaća lijeno i pamti.
+    let accPredHarborCached;
+    const accPredHarbor = () => {
+        if (accPredHarborCached === undefined) accPredHarborCached = accFor("PREDUJAM_HARBOR_TAX");
+        return accPredHarborCached;
+    };
+
+    // Dijeljenje lučke pristojbe ima smisla samo ako ima karata za buduće
+    // razdoblje; tek tada se traži konto predujma i tek tada se javlja ako ga
+    // nema. Dan bez takvih karata ne dobiva upozorenje za mapiranje koje mu ne
+    // treba, a i ne mijenja ponašanje.
+    const imaBuducuLucku =
+        [...bucket.lines.values()].some((l) =>
+            [...l.harbor_tax_future.values()].some((a) => Math.abs(a) > 0.005),
+        ) ||
+        [...bucket.reclassifications.values()].some((r) => Math.abs(r.harbor_tax || 0) > 0.005);
+    const dijeliLucku = imaBuducuLucku && !!accPredHarbor();
 
     // Per-line revenue side
     for (const [, lineBucket] of bucket.lines) {
@@ -180,18 +214,39 @@ const buildJournalEntries = (day, bucket, refs) => {
                 Analytics: { ...analyticsBase },
             });
         }
-        // Lučka pristojba per line
-        if (accHARBOR && Math.abs(lineBucket.harbor_tax) > 0.005) {
+        // Lučka pristojba. Dok konto predujma nije mapiran, cijeli iznos ide na
+        // HARBOR_TAX kao i prije — inače bi dio pristojbe ispao iz knjiženja i
+        // dan ne bi štimao. Upozorenje iz accFor kaže da mapiranje nedostaje.
+        const harborCurrent = dijeliLucku
+            ? lineBucket.harbor_tax_current
+            : lineBucket.harbor_tax;
+        if (accHARBOR && Math.abs(harborCurrent) > 0.005) {
             entries.push({
                 JournalEntryDate: day,
                 JournalEntryDescription: `Lučka pristojba ${day} — ${lineBucket.line_name}`,
                 Account: accHARBOR.code,
                 DebitAmountInDomesticCurrency: 0,
-                CreditAmountInDomesticCurrency: Number(lineBucket.harbor_tax.toFixed(2)),
+                CreditAmountInDomesticCurrency: Number(harborCurrent.toFixed(2)),
                 JournalType: "IRA",
                 ReferenceDocument: ref,
                 Analytics: { ...analyticsBase },
             });
+        }
+        // Lučka pristojba za karte budućeg razdoblja — predujam, po razdoblju
+        if (dijeliLucku) {
+            for (const [period, amt] of lineBucket.harbor_tax_future) {
+                if (Math.abs(amt) < 0.005) continue;
+                entries.push({
+                    JournalEntryDate: day,
+                    JournalEntryDescription: `Predujam za lučke naknade ${day} — ${lineBucket.line_name} (razd. ${period})`,
+                    Account: accPredHarbor().code,
+                    DebitAmountInDomesticCurrency: 0,
+                    CreditAmountInDomesticCurrency: Number(amt.toFixed(2)),
+                    JournalType: "IRA",
+                    ReferenceDocument: ref,
+                    Analytics: { ...analyticsBase, AdvancePeriod: period },
+                });
+            }
         }
         // Netto prihod (current period) per line
         if (accNET && Math.abs(lineBucket.vat_base_current) > 0.005) {
@@ -245,6 +300,38 @@ const buildJournalEntries = (day, bucket, refs) => {
         }
     }
 
+    // R1 i F2 računi plaćeni virmanom — svaki u vlastitom retku. Uz redak ide
+    // OIB kupca (VATIdentificationNumber je naziv koji SAOP koristi za porezni
+    // broj stranke), da se knjiženje može upariti s kupcem bez traženja po
+    // broju računa.
+    for (const v of bucket.virmanInvoices) {
+        if (Math.abs(v.amount) < 0.005) continue;
+        const acc = accFor(`PAYMENT:${v.payment_method_uuid}`);
+        if (!acc) continue;
+        const oznaka = v.invoice_code || v.invoice_uuid;
+        entries.push({
+            JournalEntryDate: day,
+            JournalEntryDescription:
+                `Naplata virmanom ${day} — ${v.doc_type} ${oznaka}` +
+                (v.buyer_name ? ` · ${v.buyer_name}` : ""),
+            Account: acc.code,
+            DebitAmountInDomesticCurrency: Number(v.amount.toFixed(2)),
+            CreditAmountInDomesticCurrency: 0,
+            JournalType: "IRA",
+            ReferenceDocument: ref,
+            Document: oznaka,
+            CustomerName: v.buyer_name || "",
+            VATIdentificationNumber: v.buyer_oib || "",
+            Analytics: {
+                CostCentre: bucket.cost_center || "",
+                Referent: v.saop_clerk_id || "",
+            },
+        });
+        if (!v.buyer_oib) {
+            warnings.push(`${v.doc_type} račun ${oznaka} plaćen virmanom nema OIB kupca`);
+        }
+    }
+
     // Reklasifikacije: debit 2250 / credit 7514 po liniji + src_period
     if (bucket.reclassifications.size > 0) {
         for (const [, r] of bucket.reclassifications) {
@@ -273,6 +360,42 @@ const buildJournalEntries = (day, bucket, refs) => {
                     Account: accNET.code,
                     DebitAmountInDomesticCurrency: 0,
                     CreditAmountInDomesticCurrency: Number(r.vat_base.toFixed(2)),
+                    JournalType: "IRA",
+                    ReferenceDocument: ref,
+                    Analytics: { ...analyticsBase },
+                });
+            }
+        }
+
+        // Ista reklasifikacija za lučku pristojbu — bez nje bi predujam za
+        // lučke naknade rastao i nikad se ne bi zatvorio. Preskače se dok konto
+        // predujma nije mapiran, jer tada pristojba nikad nije ni odgođena.
+        for (const [, r] of dijeliLucku ? bucket.reclassifications : []) {
+            if (Math.abs(r.harbor_tax || 0) < 0.005) continue;
+            const analyticsBase = {
+                CostCentre: bucket.cost_center || "",
+                CostBearer: r.saop_cost_bearer || "",
+                AdvancePeriod: r.src_period,
+            };
+            {
+                entries.push({
+                    JournalEntryDate: day,
+                    JournalEntryDescription: `Reklasifikacija predujam→lučka naknada ${day} — ${r.line_name} (razd. ${r.src_period})`,
+                    Account: accPredHarbor().code,
+                    DebitAmountInDomesticCurrency: Number(r.harbor_tax.toFixed(2)),
+                    CreditAmountInDomesticCurrency: 0,
+                    JournalType: "IRA",
+                    ReferenceDocument: ref,
+                    Analytics: { ...analyticsBase },
+                });
+            }
+            if (accHARBOR) {
+                entries.push({
+                    JournalEntryDate: day,
+                    JournalEntryDescription: `Reklasifikacija predujam→lučka naknada ${day} — ${r.line_name} (razd. ${r.src_period})`,
+                    Account: accHARBOR.code,
+                    DebitAmountInDomesticCurrency: 0,
+                    CreditAmountInDomesticCurrency: Number(r.harbor_tax.toFixed(2)),
                     JournalType: "IRA",
                     ReferenceDocument: ref,
                     Analytics: { ...analyticsBase },
@@ -373,29 +496,60 @@ const dailyRealizationReportController = async (req, res) => {
                     refs.usersByMark.get(String(inv.operater_name || "").toLowerCase());
                 const clerkId = user?.saop_clerk_id || "";
                 const pmUuid = inv.invoice_payment_method_uuid || "";
-                if (!bucket.byPaymentClerk.has(pmUuid))
-                    bucket.byPaymentClerk.set(pmUuid, new Map());
-                const m = bucket.byPaymentClerk.get(pmUuid);
-                m.set(clerkId, (m.get(clerkId) || 0) + Number(inv.invoice_amount || 0));
+
+                // Virman se prepoznaje po vrsti sredstva plaćanja ("T" —
+                // transakcijski račun), ne po nazivu: naziv je slobodan tekst i
+                // po klijentima se razlikuje.
+                const pm = refs.paymentMethods.get(pmUuid);
+                const isVirman = String(pm?.payment_type_acr || "").toUpperCase() === "T";
+                // F2 ima prednost nad R1: račun koji traži fiskalizaciju je F2 i
+                // kad uz njega stoji OIB kupca.
+                const docType = inv.fiskal_required ? "F2" : (inv.buyer_oib ? "R1" : null);
+
+                if (isVirman && docType) {
+                    bucket.virmanInvoices.push({
+                        invoice_uuid: inv.invoice_uuid,
+                        invoice_code: inv.invoice_code || "",
+                        doc_type: docType,
+                        payment_method_uuid: pmUuid,
+                        payment_method_name: pm?.name || "",
+                        saop_clerk_id: clerkId,
+                        buyer_name: inv.buyer_company_name || inv.buyer_name || "",
+                        buyer_oib: inv.buyer_oib || "",
+                        amount: Number(inv.invoice_amount || 0),
+                    });
+                } else {
+                    if (!bucket.byPaymentClerk.has(pmUuid))
+                        bucket.byPaymentClerk.set(pmUuid, new Map());
+                    const m = bucket.byPaymentClerk.get(pmUuid);
+                    m.set(clerkId, (m.get(clerkId) || 0) + Number(inv.invoice_amount || 0));
+                }
             }
 
             // Per-line accumulate
             const lineBucket = ensureLine(bucket, item, refs);
             lineBucket.item_count += 1;
             lineBucket.vat += Number(item.item_vat || 0);
-            lineBucket.harbor_tax += Number(item.item_harbor_fee || 0);
 
-            // Predujam logika: gdje ide vat_base?
+            // Predujam logika: gdje ide osnovica, a gdje lučka pristojba?
+            // Obje prate polazak karte, ne datum računa.
             const dep = parseDate(item.departure);
             const invMonth = toMonthKey(inv.invoice_date);
             const depMonth = dep ? toMonthKey(dep) : invMonth;
             const itemNet = Number(item.item_vat_base || 0);
+            const itemHarbor = Number(item.item_harbor_fee || 0);
+            lineBucket.harbor_tax += itemHarbor;
             if (depMonth === invMonth) {
                 lineBucket.vat_base_current += itemNet;
+                lineBucket.harbor_tax_current += itemHarbor;
             } else {
                 lineBucket.vat_base_future.set(
                     depMonth,
                     (lineBucket.vat_base_future.get(depMonth) || 0) + itemNet,
+                );
+                lineBucket.harbor_tax_future.set(
+                    depMonth,
+                    (lineBucket.harbor_tax_future.get(depMonth) || 0) + itemHarbor,
                 );
             }
         }
@@ -426,10 +580,12 @@ const dailyRealizationReportController = async (req, res) => {
                     saop_cost_bearer: line?.saop_cost_bearer || null,
                     src_period: invMonth,
                     vat_base: 0,
+                    harbor_tax: 0,
                 });
             }
-            bucket.reclassifications.get(reclassKey).vat_base +=
-                Number(row.item_vat_base || 0);
+            const rec = bucket.reclassifications.get(reclassKey);
+            rec.vat_base += Number(row.item_vat_base || 0);
+            rec.harbor_tax += Number(row.item_harbor_fee || 0);
         }
 
         // === Output ===
@@ -450,6 +606,11 @@ const dailyRealizationReportController = async (req, res) => {
                     })),
                     vat: Number(l.vat.toFixed(2)),
                     harbor_tax: Number(l.harbor_tax.toFixed(2)),
+                    harbor_tax_current: Number(l.harbor_tax_current.toFixed(2)),
+                    harbor_tax_future: [...l.harbor_tax_future.entries()].map(([p, a]) => ({
+                        period: p,
+                        amount: Number(a.toFixed(2)),
+                    })),
                 }));
                 const reclassifications = [...bucket.reclassifications.values()].map((r) => ({
                     line_code: r.line_code,
@@ -457,6 +618,7 @@ const dailyRealizationReportController = async (req, res) => {
                     saop_cost_bearer: r.saop_cost_bearer,
                     src_period: r.src_period,
                     vat_base: Number(r.vat_base.toFixed(2)),
+                    harbor_tax: Number((r.harbor_tax || 0).toFixed(2)),
                 }));
                 costCenters.push({
                     cost_center: bucket.cost_center,
@@ -485,6 +647,12 @@ const dailyRealizationReportController = async (req, res) => {
                     ),
                     lineBreakdown,
                     reclassifications,
+                    virmanInvoices: bucket.virmanInvoices.map((v) => ({
+                        ...v,
+                        amount: Number(v.amount.toFixed(2)),
+                        account_code:
+                            resolveAccount(`PAYMENT:${v.payment_method_uuid}`, refs.mappings, refs.accounts)?.code || null,
+                    })),
                     journalEntries: entries,
                     warnings,
                 });

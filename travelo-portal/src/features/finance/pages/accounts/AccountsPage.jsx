@@ -28,6 +28,10 @@ const ORG_MAPPINGS = [
     { key: "HARBOR_TAX", label: "Lučka pristojba (prihod)", direction: "credit" },
     { key: "NET_REVENUE", label: "Prihod od karata (netto)", direction: "credit" },
     { key: "PREDUJAM", label: "Predujam (buduće obr. razdoblje)", direction: "credit" },
+    // Lučka pristojba se dijeli jednako kao i prihod: naplaćuje se s kartom, a
+    // pripada mjesecu polaska. Bez zasebnog konta cijeli bi iznos pao u mjesec
+    // prodaje.
+    { key: "PREDUJAM_HARBOR_TAX", label: "Predujam za lučke naknade", direction: "credit" },
 ];
 
 export default function AccountsPage() {

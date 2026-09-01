@@ -38,6 +38,22 @@ import { setAuthData } from "../../../auth/authSlice";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
+// Osnovica i lučka pristojba za buduća razdoblja dolaze u dvije liste. Isto
+// razdoblje se pojavi u obje, pa se spajaju u jedan redak — inače bi predujam za
+// isti mjesec bio prikazan dvaput, jednom s iznosom a jednom bez.
+const futurePeriods = (line) => {
+    const m = new Map();
+    for (const f of line.vat_base_future || []) {
+        m.set(f.period, { period: f.period, vat_base: f.amount, harbor_tax: 0 });
+    }
+    for (const f of line.harbor_tax_future || []) {
+        const row = m.get(f.period) || { period: f.period, vat_base: 0, harbor_tax: 0 };
+        row.harbor_tax = f.amount;
+        m.set(f.period, row);
+    }
+    return [...m.values()].sort((a, b) => a.period.localeCompare(b.period));
+};
+
 export default function DailyRealizationPage({ demo = false }) {
     const dispatch = useDispatch();
     const f = useSelector(financeSliceData);
@@ -296,6 +312,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                 const journalKey = `${day.date}|${cc.cost_center || idx}`;
                 const lineBreakdown = cc.lineBreakdown || [];
                 const reclassifications = cc.reclassifications || [];
+                const virmanInvoices = cc.virmanInvoices || [];
                 return (
                     <Paper key={journalKey} variant="outlined" sx={{ p: 2 }}>
                         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
@@ -348,23 +365,66 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                                                     <TableCell align="right">{l.item_count}</TableCell>
                                                     <TableCell align="right">{fmtEUR(l.vat_base_current)}</TableCell>
                                                     <TableCell align="right">{fmtEUR(l.vat)}</TableCell>
-                                                    <TableCell align="right">{fmtEUR(l.harbor_tax)}</TableCell>
+                                                    <TableCell align="right">
+                                                        {fmtEUR(l.harbor_tax_current ?? l.harbor_tax)}
+                                                    </TableCell>
                                                 </TableRow>
-                                                {/* Predujam ide u vlastiti redak po budućem razdoblju — iznos
-                                                    nije prihod tekućeg mjeseca pa ne pripada retku linije. */}
-                                                {(l.vat_base_future || []).map((f) => (
+                                                {/* Predujam ide u vlastiti redak po budućem razdoblju — ni
+                                                    osnovica ni lučka pristojba nisu prihod tekućeg mjeseca,
+                                                    pa ne pripadaju retku linije. Razdoblja se spajaju da
+                                                    isto razdoblje ne da dva retka. */}
+                                                {futurePeriods(l).map((f) => (
                                                     <TableRow key={`${l.line_code}-${f.period}`}>
                                                         <TableCell colSpan={2} sx={{ pl: 4, color: "text.secondary", fontStyle: "italic" }}>
                                                             ↳ Predujam · razdoblje {f.period}
                                                         </TableCell>
                                                         <TableCell />
                                                         <TableCell align="right" sx={{ color: "text.secondary", fontStyle: "italic" }}>
-                                                            {fmtEUR(f.amount)}
+                                                            {f.vat_base ? fmtEUR(f.vat_base) : ""}
                                                         </TableCell>
-                                                        <TableCell colSpan={2} />
+                                                        <TableCell />
+                                                        <TableCell align="right" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                                                            {f.harbor_tax ? fmtEUR(f.harbor_tax) : ""}
+                                                        </TableCell>
                                                     </TableRow>
                                                 ))}
                                             </Fragment>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </>
+                        )}
+
+                        {virmanInvoices.length > 0 && (
+                            <>
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                    R1 i F2 računi plaćeni virmanom (zaseban redak po računu)
+                                </Typography>
+                                <Table size="small" sx={{ mb: 2 }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Vrsta</TableCell>
+                                            <TableCell>Račun</TableCell>
+                                            <TableCell>Kupac</TableCell>
+                                            <TableCell>OIB / porezni broj</TableCell>
+                                            <TableCell>Konto</TableCell>
+                                            <TableCell align="right">Iznos</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {virmanInvoices.map((v) => (
+                                            <TableRow key={v.invoice_uuid}>
+                                                <TableCell>{v.doc_type}</TableCell>
+                                                <TableCell>{v.invoice_code || "—"}</TableCell>
+                                                <TableCell>{v.buyer_name || "—"}</TableCell>
+                                                <TableCell>
+                                                    {v.buyer_oib || (
+                                                        <span style={{ color: "#b91c1c" }}>nedostaje</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>{v.account_code || "—"}</TableCell>
+                                                <TableCell align="right">{fmtEUR(v.amount)}</TableCell>
+                                            </TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
@@ -383,6 +443,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                                             <TableCell>Nositelj troška</TableCell>
                                             <TableCell>Razdoblje računa</TableCell>
                                             <TableCell align="right">Iznos (netto)</TableCell>
+                                            <TableCell align="right">Lučka</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -392,6 +453,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                                                 <TableCell>{r.saop_cost_bearer || "—"}</TableCell>
                                                 <TableCell>{r.src_period}</TableCell>
                                                 <TableCell align="right">{fmtEUR(r.vat_base)}</TableCell>
+                                                <TableCell align="right">{fmtEUR(r.harbor_tax)}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -446,6 +508,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                                             <TableCell>Nositelj troška</TableCell>
                                             <TableCell>Referent</TableCell>
                                             <TableCell>Razdoblje</TableCell>
+                                            <TableCell>OIB kupca</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -468,6 +531,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                                                 <TableCell>{j.Analytics?.CostBearer || ""}</TableCell>
                                                 <TableCell>{j.Analytics?.Referent || ""}</TableCell>
                                                 <TableCell>{j.Analytics?.AdvancePeriod || ""}</TableCell>
+                                                <TableCell>{j.VATIdentificationNumber || ""}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
