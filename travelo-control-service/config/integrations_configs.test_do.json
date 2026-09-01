@@ -26,7 +26,7 @@
         }
     },
     "sevenpay": {
-        "_comment": "7pay SoftPOS na mobilnim terminalima. Kredencijali NE idu u repo — popuniti na posluzitelju.",
+        "_comment": "7pay SoftPOS na mobilnim terminalima. Kredencijali NE idu u repo — popuniti na posluzitelju. sender_app_id prazan = terminal se predstavlja vlastitim packageom; popuniti samo ako 7pay trazi tudu oznaku.",
         "package_name": "com.sevenpay.tnp_test",
         "api_key": "",
         "email": "",

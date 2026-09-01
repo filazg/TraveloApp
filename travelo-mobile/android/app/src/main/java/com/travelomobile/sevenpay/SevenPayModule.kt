@@ -63,6 +63,12 @@ class SevenPayModule(reactContext: ReactApplicationContext) :
 
     override fun getName(): String = "SevenPay"
 
+    // Vlastiti package izlozen JS-u. Zahtjev se salje na dva mjesta — u JSON-u i
+    // u intent extri — pa JS mora znati istu vrijednost koju bi nativni dio
+    // uzeo, inace jedno ode prazno a drugo popunjeno.
+    override fun getConstants(): MutableMap<String, Any> =
+        hashMapOf("appPackage" to ctx.packageName)
+
     // Je li 7pay aplikacija uopće instalirana — da prodajni ekran može ranije
     // javiti problem, umjesto da padne tek na naplati.
     @ReactMethod

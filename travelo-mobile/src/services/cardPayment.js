@@ -48,11 +48,13 @@ export const TX_REFUND = 3;
 
 const softPosPackage = (cfg) => cfg?.package_name || DEFAULT_PACKAGE;
 
-// Oznaka pod kojom se predstavljamo 7pay-u. Terminal je kod njih prijavljen pod
-// starom aplikacijom (com.t4bc_m_terminal), a nas package je zbog TapLinx kljuca
-// hr.koris.roko — da se to ne razide, salje se ista vrijednost i u zahtjevu i u
-// intent extri. Prazno znaci "koristi vlastiti package", sto radi nativni modul.
-const senderAppId = (cfg) => cfg?.sender_app_id || '';
+// Oznaka pod kojom se predstavljamo 7pay-u. Salje se na dva mjesta — u JSON
+// zahtjevu i u intent extri — pa mora biti ista; stara terminalska aplikacija je
+// tu slala svoj package i to je bilo usklađeno.
+//
+// Bez postavke ide nas vlastiti package (danas hr.koris.roko, zbog TapLinx
+// kljuca). Postavlja se samo ako 7pay traži da se predstavimo tudom oznakom.
+const senderAppId = (cfg) => cfg?.sender_app_id || SevenPay?.appPackage || '';
 
 // OIB trgovca kojim se terminal predstavlja 7pay-u. Stara aplikacija ga je imala
 // zakovanog; ovdje dolazi iz konfiguracije, a ako je nema pada na OIB klijenta
