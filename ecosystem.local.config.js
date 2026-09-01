@@ -19,6 +19,13 @@
 // Bez env vara → default profil (potpuno backward kompatibilno).
 const PROFILE = process.env.TRAVELO_PROFILE || '';
 
+// TRAVELO_SCHEDULERS: lokalni stack NE okida nocne prolaze. Dev i test VM dijele
+// iste baze, pa bi oba stacka radila isti posao — dedupe po razdoblju spasava od
+// duplikata, ali brojevi izvjestaja i partnerskih racuna idu iz max(...)+1 bez
+// zakljucavanja, pa istovremeni prolaz zna dati isti broj. Cronove vrti VM.
+// Rucno pokretanje preko POST ruta radi i lokalno, bez obzira na ovu zastavicu;
+// za lokalni test cronova pokreni servis bez pm2-a ili privremeno stavi 'on'.
+
 const node = (name, entry) => ({
   name,
   cwd: `./${name}`,
@@ -28,7 +35,7 @@ const node = (name, entry) => ({
   restart_delay: 3000,
   max_restarts: 20,
   watch: false,
-  env: { NODE_ENV: 'development', TRAVELO_PROFILE: PROFILE },
+  env: { NODE_ENV: 'development', TRAVELO_PROFILE: PROFILE, TRAVELO_SCHEDULERS: 'off' },
 });
 
 const vite = (name, port) => ({

@@ -13,6 +13,15 @@ const { startPartnerCommissionReportScheduler } = require('./controllers/partner
 app.use(express.json({ limit: "10mb" }))
 app.use(bodyParser.json({ limit: "10mb" }))
 
+// Nocni prolazi pisu u bazu, a lokalni dev i test VM dijele istu. Kad oba
+// stacka vrte iste cronove, isti posao se radi dvaput: dedupe po razdoblju
+// spasava od duplikata, ali brojevi izvjestaja i partnerskih racuna dodjeljuju
+// se iz max(...)+1 bez zakljucavanja, pa istovremeni prolaz zna dati isti broj.
+// Servis koji drzi podatke je VM; lokalno se cronovi gase preko
+// TRAVELO_SCHEDULERS=off (postavljeno u ecosystem.local.config.js).
+// Rucno pokretanje preko POST ruta radi i dalje, bez obzira na ovu zastavicu.
+const SCHEDULERS_ON = String(process.env.TRAVELO_SCHEDULERS || "on").toLowerCase() !== "off";
+
 const startService = async ()=>{
     try {
         await syncCoreServiceConfigData()
@@ -28,9 +37,13 @@ const startService = async ()=>{
         const router = require('./routes/routes');
         app.use('/', router);
         travelo_subscriber('travelo_transactions_service')
-        startPartnerInvoiceScheduler();
-        startYescorStatusScheduler();
-        startPartnerCommissionReportScheduler();
+        if (SCHEDULERS_ON) {
+            startPartnerInvoiceScheduler();
+            startYescorStatusScheduler();
+            startPartnerCommissionReportScheduler();
+        } else {
+            console.log("[schedulers] iskljuceni (TRAVELO_SCHEDULERS=off) — nocni prolazi se ovdje ne okidaju");
+        }
         app.listen(config.services.transactions.port, console.log('TRANSACTIONS SERVICE started on port ' + config.services.transactions.port));
     } catch (error) {
         console.log(error)
