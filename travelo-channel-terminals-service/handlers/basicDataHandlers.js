@@ -111,6 +111,10 @@ const getTerminalBasicDataHandler = async(data)=>{
                 password: sevenPayConfig.password,
                 partner_id: sevenPayConfig.partner_id,
                 sender_app_id: sevenPayConfig.sender_app_id,
+                // OIB trgovca kojim se terminal predstavlja 7pay-u. Nije nuzno
+                // OIB klijenta: 7pay ga vezuje uz registriranog trgovca, pa ide
+                // iz konfiguracije. Prazno -> mobilna pada na client_legal_id.
+                merchant_tax_id: sevenPayConfig.merchant_tax_id || null,
                 version: sevenPayConfig.version || '2.1',
                 ecr_id: sevenPayConfig.ecr_id || 1234,
             } : null

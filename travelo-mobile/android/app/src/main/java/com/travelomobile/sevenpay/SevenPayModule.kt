@@ -20,6 +20,10 @@ import com.facebook.react.bridge.ReactMethod
 // (com.sevenpay.tnp_test) i produkcijska (com.sevenpay.tnp_prod) varijanta, pa
 // izbor ide iz konfiguracije umjesto da bude zakovan u kodu. Oba paketa moraju
 // biti navedena u <queries> u AndroidManifestu, inače ih Android 11+ ne vidi.
+//
+// Isto vrijedi i za oznaku pošiljatelja: stara terminalska aplikacija se zvala
+// com.t4bc_m_terminal i pod tim je imenom prijavljena kod 7pay-a, pa se i mi
+// predstavljamo tako iako nam je package drugi.
 class SevenPayModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 
@@ -71,8 +75,12 @@ class SevenPayModule(reactContext: ReactApplicationContext) :
         }
     }
 
+    // senderAppId je oznaka pod kojom se predstavljamo 7pay-u. Nije nuzno nas
+    // vlastiti package: 7pay ima registriranu aplikaciju pod kojom je terminal
+    // prijavljen, a nasa je zbog TapLinx kljuca preimenovana u hr.koris.roko.
+    // Zato vrijednost dolazi iz konfiguracije; prazno znaci "koristi vlastiti".
     @ReactMethod
-    fun startPayment(packageName: String, requestJson: String, promise: Promise) {
+    fun startPayment(packageName: String, requestJson: String, senderAppId: String?, promise: Promise) {
         if (paymentPromise != null) {
             promise.reject("PAYMENT_IN_PROGRESS", "Kartično plaćanje je već u tijeku")
             return
@@ -92,7 +100,7 @@ class SevenPayModule(reactContext: ReactApplicationContext) :
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
             intent.putExtra("activity_for_result", 2)
             intent.putExtra(EXTRA_ECR, requestJson)
-            intent.putExtra("senderAppID", ctx.packageName)
+            intent.putExtra("senderAppID", if (senderAppId.isNullOrBlank()) ctx.packageName else senderAppId)
             current.startActivityForResult(intent, SOFTPOS_REQUEST)
         } catch (e: Exception) {
             paymentPromise = null

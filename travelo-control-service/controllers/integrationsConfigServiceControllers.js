@@ -10,6 +10,7 @@ const SEVENPAY_ENV = {
     password: "SEVENPAY_PASSWORD",
     partner_id: "SEVENPAY_PARTNER_ID",
     sender_app_id: "SEVENPAY_SENDER_APP_ID",
+    merchant_tax_id: "SEVENPAY_MERCHANT_TAX_ID",
     version: "SEVENPAY_VERSION",
     ecr_id: "SEVENPAY_ECR_ID",
 };

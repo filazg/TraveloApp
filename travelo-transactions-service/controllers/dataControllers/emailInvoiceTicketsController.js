@@ -2,7 +2,7 @@ const { Resend } = require("resend");
 const { buildInvoicePdfBuffer } = require("./invoicePdfController");
 const { buildTicketsPdfBuffer } = require("./ticketPdfController");
 
-const API_KEY = process.env.RESEND_API_KEY || "re_eMiQgU7N_71D28aQsG3w1nSpD71CzuwCp";
+const API_KEY = process.env.RESEND_API_KEY || "";
 const FROM = process.env.RESEND_FROM || "Kapetan Luka <noreply@tech4beez.com>";
 
 const textToHtml = (text) => {

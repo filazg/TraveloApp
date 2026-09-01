@@ -48,6 +48,17 @@ export const TX_REFUND = 3;
 
 const softPosPackage = (cfg) => cfg?.package_name || DEFAULT_PACKAGE;
 
+// Oznaka pod kojom se predstavljamo 7pay-u. Terminal je kod njih prijavljen pod
+// starom aplikacijom (com.t4bc_m_terminal), a nas package je zbog TapLinx kljuca
+// hr.koris.roko — da se to ne razide, salje se ista vrijednost i u zahtjevu i u
+// intent extri. Prazno znaci "koristi vlastiti package", sto radi nativni modul.
+const senderAppId = (cfg) => cfg?.sender_app_id || '';
+
+// OIB trgovca kojim se terminal predstavlja 7pay-u. Stara aplikacija ga je imala
+// zakovanog; ovdje dolazi iz konfiguracije, a ako je nema pada na OIB klijenta
+// iz basicData — isto sto se slalo prije.
+const merchantTax = (cfg, fallback) => String(cfg?.merchant_tax_id || fallback || '');
+
 /** Firebase idToken za 7pay — kratkotrajan, dobavlja se pri svakom plaćanju. */
 async function getFirebaseIdToken(cfg) {
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${cfg.api_key}`;
@@ -115,8 +126,8 @@ export async function payByCard({
 
     const request = {
         partnerID: paymentCfg.partner_id || paymentCfg.partenr_id,
-        merchantTaxID: String(merchantTaxID || ''),
-        senderAppID: paymentCfg.sender_app_id,
+        merchantTaxID: merchantTax(paymentCfg, merchantTaxID),
+        senderAppID: senderAppId(paymentCfg),
         version: paymentCfg.version || '2.1',
         ecrID: paymentCfg.ecr_id || 1234,
         sequenceNumber,
@@ -131,7 +142,11 @@ export async function payByCard({
 
     let result;
     try {
-        const raw = await SevenPay.startPayment(softPosPackage(paymentCfg), JSON.stringify(request));
+        const raw = await SevenPay.startPayment(
+            softPosPackage(paymentCfg),
+            JSON.stringify(request),
+            senderAppId(paymentCfg),
+        );
         result = JSON.parse(raw);
     } catch (e) {
         // Nativni reject nosi JSON string u messageu kad ga 7pay vrati.

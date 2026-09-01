@@ -33,6 +33,7 @@
         "password": "",
         "partner_id": "",
         "sender_app_id": "",
+        "merchant_tax_id": "",
         "version": "2.1",
         "ecr_id": 1234
     }
