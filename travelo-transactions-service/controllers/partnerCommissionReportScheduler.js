@@ -11,7 +11,7 @@ const {
 // odreduje datum prodaje, a ne trenutak prolaza: krajDana(period_to) je uvijek
 // 23:59:59.999 zadnjeg dana razdoblja. Prodaja izmedu ponoci i pokretanja zato
 // pada u sljedece razdoblje, ne u ono koje se upravo zakljucuje.
-const CRON_EXPR = "0 1 * * *";
+const CRON_EXPR = "0 3 * * *";
 const CRON_TZ = "Europe/Zagreb";
 
 function startPartnerCommissionReportScheduler() {

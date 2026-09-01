@@ -5,7 +5,7 @@ const { generatePartnerInvoices } = require("./dataControllers/partnerInvoiceGen
 // minuta nema sto raditi — generator bi samo preskakao. Ide jednom nocu, u isti
 // termin kao izvjestaji za proviziju, da racun i izvjestaj pokrivaju isto
 // razdoblje i nastaju zajedno.
-const CRON_EXPR = "0 1 * * *";
+const CRON_EXPR = "0 3 * * *";
 const CRON_TZ = "Europe/Zagreb";
 
 function startPartnerInvoiceScheduler() {

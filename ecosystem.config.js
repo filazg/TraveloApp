@@ -30,6 +30,13 @@ const node = (name, entry, extraEnv = {}) => ({
     NODE_ENV: 'production',
     APP_ENV: 'test_do',
     CONTROL_URL,
+    // Kod racuna s lokalnim vremenom: fiskalni datumi, granice smjena, razdoblja
+    // izvjestaja i filtri po datumu svi idu kroz new Date(y, m, d) i .setHours().
+    // VM je po defaultu u UTC-u, pa bi ista pretraga tamo i ovdje vratila
+    // razlicit skup zapisa, a nocni prolaz bi u 03:00 po Zagrebu (01:00 UTC)
+    // vidio jos jucerasnji datum i obracunao pretprosli mjesec. TZ se zato
+    // postavlja izrijekom i ne oslanja se na sistemsku postavku posluzitelja.
+    TZ: 'Europe/Zagreb',
     // DB_PASS prolazi iz shell env-a na VM-u — control-service ga injektira
     // u response na /database_services_config. Ne hardkodirati ovdje.
     DB_PASS: process.env.DB_PASS,

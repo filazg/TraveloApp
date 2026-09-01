@@ -24,6 +24,22 @@ export DB_PASS='<paste-pass-here>'   # iz DO panela / password managera
 
 Ili dodaj u `~/.bashrc` (ili `/etc/environment`) da preživi reboot. pm2 prosljeđuje `DB_PASS` kroz `ecosystem.config.js` u sve servise; control-service ga injektira u `/database_services_config` response.
 
+## Vremenska zona
+
+Kod svugdje racuna s lokalnim vremenom (`new Date(y, m, d)`, `.setHours()`) —
+fiskalni datumi, granice smjena, razdoblja obracuna, filtri po datumu. VM je po
+defaultu u UTC-u, pa bi bez ovoga isti upit vratio drugaciji skup zapisa nego
+lokalno, a nocni prolaz u 03:00 po Zagrebu (01:00 UTC) vidio bi jos jucerasnji
+datum i obracunao pretprosli mjesec.
+
+`ecosystem.config.js` zato postavlja `TZ: 'Europe/Zagreb'` svim node servisima.
+Postavi i sistemsku zonu, da se isto vidi i u logovima i u cron-u izvan pm2-a:
+
+```bash
+sudo timedatectl set-timezone Europe/Zagreb
+date            # mora pokazati CEST/CET, ne UTC
+```
+
 ## Prvi put na VM-u
 
 ```bash
