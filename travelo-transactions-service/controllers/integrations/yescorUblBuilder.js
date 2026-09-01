@@ -84,19 +84,45 @@ const customerBlock = (c) => {
     </cac:AccountingCustomerParty>`;
 };
 
-const taxTotalBlock = ({ taxable, tax, taxPercent }) => `
-    <cac:TaxTotal>
-      <cbc:TaxAmount currencyID="EUR">${n2(tax)}</cbc:TaxAmount>
+// Redoslijed djece TaxCategory je propisan UBL shemom: ID, Name, Percent,
+// TaxExemptionReason, TaxScheme. Zamjena mjesta obara validaciju.
+// Name nosi HR oznaku kategorije PDV-a (HR-BT-12, npr. "HR:PDV25", "HR:CL33"),
+// TaxExemptionReason razlog oslobodenja (HR-BT-13) — oboje obavezno za svaku
+// stavku koja ne podlijeze PDV-u ili je oslobodena.
+// Ekstenzija ima svoja imena elemenata (HRTaxCategory / HRTaxScheme), pa se
+// isti blok gradi s drugim omotacima; sadrzaj je jednak.
+const taxCategoryBlock = (st, indent, el = 'cac:TaxCategory', schemeEl = 'cac:TaxScheme') => `${indent}<${el}>
+${indent}  <cbc:ID>${xmlEscape(st.category || 'S')}</cbc:ID>
+${indent}  ${st.category_name ? tag('cbc:Name', st.category_name) : ''}
+${indent}  <cbc:Percent>${n2(st.percent)}</cbc:Percent>
+${indent}  ${st.exemption_reason ? tag('cbc:TaxExemptionReason', st.exemption_reason) : ''}
+${indent}  <${schemeEl}><cbc:ID>${xmlEscape(st.tax_scheme || 'VAT')}</cbc:ID></${schemeEl}>
+${indent}</${el}>`;
+
+const taxSubtotalBlock = (st) => `
       <cac:TaxSubtotal>
-        <cbc:TaxableAmount currencyID="EUR">${n2(taxable)}</cbc:TaxableAmount>
-        <cbc:TaxAmount currencyID="EUR">${n2(tax)}</cbc:TaxAmount>
-        <cac:TaxCategory>
-          <cbc:ID>S</cbc:ID>
-          <cbc:Percent>${n2(taxPercent)}</cbc:Percent>
-          <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
-        </cac:TaxCategory>
-      </cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="EUR">${n2(st.taxable)}</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="EUR">${n2(st.tax)}</cbc:TaxAmount>
+${taxCategoryBlock(st, '        ')}
+      </cac:TaxSubtotal>`;
+
+// Racun s vise poreznih tretmana treba po jedan TaxSubtotal za svaki. Partnerski
+// racun je takav: usluga prijevoza je oporeziva, a lucka pristojba je prolazna
+// stavka oslobodena PDV-a, pa se ne smije zbrojiti u istu osnovicu.
+//
+// subtotals se prosljeduje samo kad ih ima vise; bez njega ostaje jedan blok,
+// tocno kakav je bio — racuni s blagajne i weba ne mijenjaju svoj XML.
+const taxTotalBlock = ({ taxable, tax, taxPercent, subtotals }) => {
+    const redci = Array.isArray(subtotals) && subtotals.length
+        ? subtotals
+        : [{ taxable, tax, percent: taxPercent, category: 'S' }];
+    const ukupno = redci.reduce((z, r) => z + (Number(r.tax) || 0), 0);
+    return `
+    <cac:TaxTotal>
+      <cbc:TaxAmount currencyID="EUR">${n2(ukupno)}</cbc:TaxAmount>
+${redci.map(taxSubtotalBlock).join('')}
     </cac:TaxTotal>`;
+};
 
 const invoiceLineBlock = (l, index) => `
     <cac:InvoiceLine>
@@ -109,9 +135,11 @@ const invoiceLineBlock = (l, index) => `
           <cbc:ItemClassificationCode listID="CG">${xmlEscape(l.cpa_code || '50.10.11')}</cbc:ItemClassificationCode>
         </cac:CommodityClassification>
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>S</cbc:ID>
+          <cbc:ID>${xmlEscape(l.tax_category || 'S')}</cbc:ID>
+          ${l.tax_category_name ? tag('cbc:Name', l.tax_category_name) : ''}
           <cbc:Percent>${n2(l.tax_percent)}</cbc:Percent>
-          <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+          ${l.tax_exemption_reason ? tag('cbc:TaxExemptionReason', l.tax_exemption_reason) : ''}
+          <cac:TaxScheme><cbc:ID>${xmlEscape(l.tax_scheme || 'VAT')}</cbc:ID></cac:TaxScheme>
         </cac:ClassifiedTaxCategory>
       </cac:Item>
       <cac:Price>
@@ -126,9 +154,12 @@ const invoiceLineBlock = (l, index) => `
  *   .invoice       { id, issue_date (YYYY-MM-DD), due_date, buyer_reference, note }
  *   .supplier      { oib, name, address, town, postal_code, country, email }
  *   .customer      { oib, name, address, town, postal_code, country }
- *   .payment       { means_code: '10' cash / '48' card / '30' transfer }
- *   .items         [{ name, quantity, unit_code, unit_price_net, line_total_net, tax_percent }]
- *   .totals        { line_total_net, tax_exclusive, tax, tax_inclusive, payable, tax_percent }
+ *   .payment       { means_code: '10' cash / '48' card / '30' transfer, iban? (obavezan uz '30') }
+ *   .hr_extension  { tax_subtotals?: [{ taxable, tax, percent, category, category_name, exemption_reason }],
+ *                    tax_exclusive_amount?, out_of_scope_amount? }
+ *   .items         [{ name, quantity, unit_code, unit_price_net, line_total_net, tax_percent, tax_category }]
+ *   .totals        { line_total_net, tax_exclusive, tax, tax_inclusive, payable, tax_percent,
+ *                    tax_subtotals?: [{ taxable, tax, percent, category, exemption_reason }] }
  */
 function buildUblInvoice(data) {
     const inv = data.invoice || {};
@@ -142,13 +173,38 @@ function buildUblInvoice(data) {
     // (nije za operator info — operator ide u supplier PartyIdentification).
     // Za sada prazan extension sa samo HRTaxTotal placeholder-om.
     const op = data.operator || {};
+    // HR raspodjela PDV (HR-BG-2) i HR ukupni iznosi (HR-BG-3). Traze se cim
+    // racun mijesa vise poreznih tretmana — npr. oporeziva usluga plus prolazna
+    // stavka. HRTaxExclusiveAmount je osnovica BEZ prolaznih stavaka, a
+    // OutOfScopeOfVATAmount njihov zbroj; bez njih racun tvrdi da je sve u
+    // osnovici i pada na HR-BR-26.
+    const hrx = data.hr_extension || {};
+    const hrSubtotals = Array.isArray(hrx.tax_subtotals) ? hrx.tax_subtotals : [];
+    // Shema trazi omotac HRTaxTotal oko podzbrojeva. Kategorija se u ekstenziji
+    // vodi HR oznakom (HRBT-18) koja se za prolazne stavke razlikuje od UNTDID
+    // oznake u standardnom dijelu: stavka je tamo E, ovdje O.
+    const hrUkupniPdv = hrSubtotals.reduce((z, st) => z + (Number(st.tax) || 0), 0);
+    const hrRaspodjela = hrSubtotals.length ? `
+          <hrextac:HRTaxTotal>
+            <cbc:TaxAmount currencyID="EUR">${n2(hrUkupniPdv)}</cbc:TaxAmount>${hrSubtotals.map((st) => `
+            <hrextac:HRTaxSubtotal>
+              <cbc:TaxableAmount currencyID="EUR">${n2(st.taxable)}</cbc:TaxableAmount>
+              <cbc:TaxAmount currencyID="EUR">${n2(st.tax)}</cbc:TaxAmount>
+${taxCategoryBlock({ ...st, category: st.hr_category || st.category }, '              ', 'hrextac:HRTaxCategory', 'hrextac:HRTaxScheme')}
+            </hrextac:HRTaxSubtotal>`).join('')}
+          </hrextac:HRTaxTotal>` : '';
+    const hrIznosi = (hrx.tax_exclusive_amount != null || hrx.out_of_scope_amount != null) ? `
+          <hrextac:HRLegalMonetaryTotal>
+            <cbc:TaxExclusiveAmount currencyID="EUR">${n2(hrx.tax_exclusive_amount)}</cbc:TaxExclusiveAmount>
+            <hrextac:OutOfScopeOfVATAmount currencyID="EUR">${n2(hrx.out_of_scope_amount)}</hrextac:OutOfScopeOfVATAmount>
+          </hrextac:HRLegalMonetaryTotal>` : '';
     const hrExtension = `
   <ext:UBLExtensions>
     <ext:UBLExtension>
       <ext:ExtensionURI>urn:mfin.gov.hr:ext-2025:1.0</ext:ExtensionURI>
       <ext:ExtensionContent>
         <hrextac:HRFISK20Data>
-          <hrextac:HRObracunPDVPoNaplati>false</hrextac:HRObracunPDVPoNaplati>
+          <hrextac:HRObracunPDVPoNaplati>false</hrextac:HRObracunPDVPoNaplati>${hrRaspodjela}${hrIznosi}
         </hrextac:HRFISK20Data>
       </ext:ExtensionContent>
     </ext:UBLExtension>
@@ -175,8 +231,9 @@ ${supplierBlock(sup, data.operator)}
 ${customerBlock(cus)}
     <cac:PaymentMeans>
       <cbc:PaymentMeansCode>${xmlEscape(pay.means_code || '10')}</cbc:PaymentMeansCode>
+      ${pay.iban ? `<cac:PayeeFinancialAccount>${tag('cbc:ID', pay.iban)}</cac:PayeeFinancialAccount>` : ''}
     </cac:PaymentMeans>
-${taxTotalBlock({ taxable: tot.tax_exclusive, tax: tot.tax, taxPercent: tot.tax_percent })}
+${taxTotalBlock({ taxable: tot.tax_exclusive, tax: tot.tax, taxPercent: tot.tax_percent, subtotals: tot.tax_subtotals })}
     <cac:LegalMonetaryTotal>
       <cbc:LineExtensionAmount currencyID="EUR">${n2(tot.line_total_net)}</cbc:LineExtensionAmount>
       <cbc:TaxExclusiveAmount currencyID="EUR">${n2(tot.tax_exclusive)}</cbc:TaxExclusiveAmount>

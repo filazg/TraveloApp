@@ -10,7 +10,7 @@ const { bumpSyncSignalController, getSyncSignalsController } = require('../contr
 const { listInvoicesController } = require('../controllers/dataControllers/invoicesListController');
 const { backfillInvoicesFiscalController } = require('../controllers/dataControllers/invoicesBackfillController');
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
-const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
+const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController, fiscalizePartnerInvoiceController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
 const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
 const {
     listPartnerCommissionReportsController,
@@ -100,6 +100,11 @@ router
 router
     .route('/partner_invoice/:partner_invoice_uuid')
     .get(getPartnerInvoiceDetailsController)
+
+// Ponovno slanje izdanog racuna u YesCor — kad nocni prolaz nije uspio poslati.
+router
+    .route('/partner_invoice_fiscalize/:partner_invoice_uuid')
+    .post(fiscalizePartnerInvoiceController)
 
 // Obracun provizije partnerima koji prodaju u nase ime, na partnerskom
 // prodajnom mjestu. Suprotan smjer od partnerskih racuna: mi placamo njima.

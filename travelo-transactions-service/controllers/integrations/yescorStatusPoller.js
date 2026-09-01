@@ -23,18 +23,20 @@ const TERMINAL_FISC_STATUS = new Set(['not_required', 'successful', 'error']);
 const isTerminal = (s, fs) =>
     TERMINAL_STATUS.has(s) && TERMINAL_FISC_STATUS.has(fs);
 
-const pollPendingInvoices = async (models) => {
-    const { InvoiceModel } = models;
-    // Dohvati kandidatate: imaju document_id, nisu terminalno završeni, i zadnji
-    // sync je stariji od 20s (ne bombardiraj API za tek poslano).
-    const pending = await InvoiceModel.findAll({
-        where: {
-            yescor_document_id: { [Op.ne]: null },
-            [Op.or]: [
-                { yescor_fiscalization_status: null },
-                { yescor_fiscalization_status: { [Op.notIn]: ['not_required', 'successful', 'error'] } },
-            ],
-        },
+// Kandidati su isti za obje vrste racuna: imaju document_id i fiskalizacija im
+// jos nije zavrsila.
+const UVJET = {
+    yescor_document_id: { [Op.ne]: null },
+    [Op.or]: [
+        { yescor_fiscalization_status: null },
+        { yescor_fiscalization_status: { [Op.notIn]: ['not_required', 'successful', 'error'] } },
+    ],
+};
+
+const pollModel = async (model, oznakaReda) => {
+    if (!model) return { checked: 0, updated: 0 };
+    const pending = await model.findAll({
+        where: UVJET,
         limit: 50,
         order: [['yescor_last_sync_at', 'ASC']],
     });
@@ -42,6 +44,7 @@ const pollPendingInvoices = async (models) => {
 
     let updated = 0;
     for (const inv of pending) {
+        const oznaka = oznakaReda(inv);
         try {
             const r = await getDocumentStatus(inv.yescor_document_id);
             if (r.status !== 200) {
@@ -60,14 +63,23 @@ const pollPendingInvoices = async (models) => {
             });
             updated += 1;
             if (isTerminal(status, fiscStatus)) {
-                console.log(`[yescor-poller] invoice ${inv.invoice_no} DONE status=${status} fisc=${fiscStatus}`);
+                console.log(`[yescor-poller] ${oznaka} DONE status=${status} fisc=${fiscStatus}`);
             }
         } catch (e) {
-            console.log(`[yescor-poller] invoice ${inv.invoice_no} poll error:`, e?.message || e);
+            console.log(`[yescor-poller] ${oznaka} poll error:`, e?.message || e);
             try { await inv.update({ yescor_last_sync_at: new Date() }); } catch (_) {}
         }
     }
     return { checked: pending.length, updated };
+};
+
+// Prati se i zbirni partnerski racun: i on ide u YesCor kad je F2, pa bi bez
+// ovoga ostao zauvijek na "submitted" i nikad ne bi pokazao je li fiskaliziran.
+const pollPendingInvoices = async (models) => {
+    const { InvoiceModel, PartnerInvoiceModel } = models;
+    const a = await pollModel(InvoiceModel, (inv) => `invoice ${inv.invoice_no}`);
+    const b = await pollModel(PartnerInvoiceModel, (inv) => `partner invoice ${inv.partner_invoice_code || inv.partner_invoice_no}`);
+    return { checked: a.checked + b.checked, updated: a.updated + b.updated };
 };
 
 module.exports = { pollPendingInvoices };

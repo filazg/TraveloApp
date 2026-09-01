@@ -81,6 +81,41 @@ const randomInvoiceCodeF2 = () => {
 const buildInvoiceCode = (isF2, fiskalNo, bpMark, bdMark) =>
     isF2 ? randomInvoiceCodeF2() : ((fiskalNo && bpMark && bdMark) ? `${fiskalNo}/${bpMark}/${bdMark}` : null);
 
+// F2 fiskalizacija zbirnog racuna. Racun postoji bez obzira na ishod slanja —
+// izdan je i nosi broj; YesCor stanje se vodi uz njega i moze se ponoviti.
+// Ne baca: neuspjelo slanje ne smije srusiti generiranje ostalih racuna.
+async function fiskalizirajRacun(red, company) {
+    const oznaka = red.partner_invoice_code || red.partner_invoice_no;
+    try {
+        const { sendPartnerInvoiceToYescor } = require("../integrations/sendPartnerInvoiceToYescor");
+        const rezultat = await sendPartnerInvoiceToYescor({
+            invoice: red.dataValues || red,
+            company: company || {},
+        });
+        const data = rezultat.response?.data;
+        const docId = typeof data === "string" ? data : data?.data;
+        const ok = rezultat.response?.status >= 200 && rezultat.response?.status < 300;
+        await red.update({
+            yescor_document_id: ok ? (docId || null) : null,
+            yescor_status: ok ? "submitted" : "failed",
+            yescor_error_message: ok ? null : JSON.stringify(data?.error || data || {}).slice(0, 1000),
+            yescor_last_sync_at: new Date(),
+        });
+        console.log(`[partner-invoice-yescor] ${oznaka} ${ok ? "submitted" : "FAILED"} status=${rezultat.response?.status} doc=${docId || "-"}`);
+        return { ok, document_id: docId || null, status: rezultat.response?.status, data };
+    } catch (err) {
+        console.log(`[partner-invoice-yescor] ${oznaka} FAILED:`, err?.message || err);
+        try {
+            await red.update({
+                yescor_status: "failed",
+                yescor_error_message: String(err?.message || err).slice(0, 1000),
+                yescor_last_sync_at: new Date(),
+            });
+        } catch (_) { /* ignore */ }
+        return { ok: false, error: err?.message || String(err) };
+    }
+}
+
 async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
     const now = asOfDate ? new Date(asOfDate) : new Date();
     const currentYear = now.getFullYear();
@@ -323,6 +358,14 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
             nextNo += 1;
             if (!fiskalRequired) nextFiskalNo += 1;
 
+            // Slanje tek nakon commita: dok transakcija nije zatvorena, racuna
+            // jos nema, a YesCor odgovor se upisuje na taj isti red.
+            let yescor = null;
+            if (fiskalRequired) {
+                const red = await PartnerInvoiceModel.findOne({ where: { partner_invoice_uuid: invoiceUuid } });
+                if (red) yescor = await fiskalizirajRacun(red, company);
+            }
+
             result.invoices.push({
                 partner_uuid: partner.uuid,
                 partner_name: partner.partner_name,
@@ -342,6 +385,8 @@ async function generatePartnerInvoices({ asOfDate, onlyPartnerUuid } = {}) {
                 vat_base: vatBase,
                 vat_amount: vatAmount,
                 fiskal_required: fiskalRequired,
+                yescor_status: yescor ? (yescor.ok ? "submitted" : "failed") : null,
+                yescor_document_id: yescor?.document_id || null,
             });
         } catch (err) {
             try { await tx.rollback(); } catch (_) {}
@@ -427,8 +472,59 @@ const getPartnerInvoiceDetailsController = async (req, res) => {
     }
 };
 
+// Ponovno slanje u YesCor. Racun je vec izdan i broj se ne mijenja — salje se
+// isti dokument. Sluzi kad je nocni prolaz prosao dok YesCor nije bio dostupan,
+// i za racune izdane prije nego je slanje uopce bilo ugradeno.
+const fiscalizePartnerInvoiceController = async (req, res) => {
+    try {
+        const { PartnerInvoiceModel } = getModels();
+        const uuid = req.params.partner_invoice_uuid;
+        const red = await PartnerInvoiceModel.findOne({ where: { partner_invoice_uuid: uuid } });
+        if (!red) {
+            return res.status(404).json({ status: 404, data: { message: "racun nije nađen" } });
+        }
+        if (!red.fiskal_required) {
+            return res.status(400).json({
+                status: 400,
+                data: { message: "racun nije F2 — fiskalizacija se ne trazi" },
+            });
+        }
+        if (red.yescor_document_id && !req.body?.force) {
+            return res.status(409).json({
+                status: 409,
+                data: {
+                    message: "racun je vec poslan u YesCor; posalji force:true za ponovno slanje",
+                    yescor_document_id: red.yescor_document_id,
+                    yescor_status: red.yescor_status,
+                    yescor_fiscalization_status: red.yescor_fiscalization_status,
+                },
+            });
+        }
+        const company = await fetchCompanyFromBackoffice();
+        const rezultat = await fiskalizirajRacun(red, company);
+        await red.reload();
+        res.status(rezultat.ok ? 200 : 502).json({
+            status: rezultat.ok ? 200 : 502,
+            data: {
+                partner_invoice_uuid: uuid,
+                partner_invoice_code: red.partner_invoice_code,
+                yescor_document_id: red.yescor_document_id,
+                yescor_status: red.yescor_status,
+                yescor_fiscalization_status: red.yescor_fiscalization_status,
+                yescor_error_message: red.yescor_error_message,
+            },
+        });
+    } catch (error) {
+        console.log("fiscalizePartnerInvoiceController error:", error?.message || error);
+        res.status(500).json({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
     generatePartnerInvoices,
+    fiskalizirajRacun,
+    fetchCompanyFromBackoffice,
+    fiscalizePartnerInvoiceController,
     generatePartnerInvoicesController,
     listPartnerInvoicesController,
     getPartnerInvoiceDetailsController,
