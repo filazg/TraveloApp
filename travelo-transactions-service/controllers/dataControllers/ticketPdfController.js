@@ -1,26 +1,32 @@
 const QRCode = require("qrcode");
 const { renderTemplateToPdfBuffer } = require("../../helpers/pdfRenderer");
+const { brojZaIspis, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
-// QR payload mirrors the legacy template format.
+// QR payload mirrors the legacy template format. Sufiks koji razlikuje original
+// od kopije ide kao osmo polje — ako ga karta ima; starije karte ostaju sedmeročlane.
 const qrPayload = (t) =>
-    [
-        t.ticket_uuid,
-        t.line_code,
-        t.departure_harbor_name,
-        t.arrival_harbor_name,
-        t.departure_planed,
-        t.route_uuid,
-        t.ticket_type_uuid,
-    ]
-        .map((v) => (v == null ? "" : String(v)))
-        .join(";");
+    qrSaSuffixom(
+        [
+            t.ticket_uuid,
+            t.line_code,
+            t.departure_harbor_name,
+            t.arrival_harbor_name,
+            t.departure_planed,
+            t.route_uuid,
+            t.ticket_type_uuid,
+        ]
+            .map((v) => (v == null ? "" : String(v)))
+            .join(";"),
+        t.ticket_code_suffix,
+    );
 
 // Map TicketsModel row → fields the legacy EJS template expects.
 // Template uses `ticket_arrival_harbor_name`, `ticket_departure_planed`,
 // `sales_route_uuid` (prefixed aliases) and our pre-generated `qr_data_url`.
 const toTemplateTicket = async (t) => ({
     ticket_uuid: t.ticket_uuid,
-    ticket_code: t.ticket_code,
+    // Na ispisu broj karte nosi i tri znaka oznake; u bazi ostaju odvojeni.
+    ticket_code: brojZaIspis(t.ticket_code, t.ticket_code_suffix),
     ticket_type_uuid: t.ticket_type_uuid,
     ticket_type_name: t.ticket_type_name,
     departure: t.departure,

@@ -117,6 +117,15 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Tri znaka koja se dopisuju uz broj karte pri ispisu i idu u QR.
+            // Srednji znak razlikuje original od kopije (vidi
+            // helpers/ticketCopyMark.js). Stoji odvojeno od ticket_code-a da
+            // traženje i validacija po broju karte ostanu netaknuti — sufiks se
+            // nikad ne uspoređuje.
+            ticket_code_suffix:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             ticket_qr:{
                 type: DataTypes.STRING,
                 allowNull: true

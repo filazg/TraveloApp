@@ -6,6 +6,7 @@ const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
 const { podigniSignal } = require("./syncSignalsController");
 
 const randomCode = () => crypto.randomBytes(5).toString("hex").toUpperCase();
+const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — port tax 6%, VAT 25% on the rest (matches legacy + web-sale).
 const HARBOR_RATE = 0.06;
@@ -175,6 +176,7 @@ const finalizeTerminalSaleController = async (req, res) => {
                         tickets: karte.map((t) => ({
                             ticket_uuid: t.ticket_uuid,
                             ticket_code: t.ticket_code,
+                            ticket_code_suffix: t.ticket_code_suffix,
                             ticket_qr: t.ticket_qr,
                             order_uuid: t.order_uuid,
                             ticket_type_uuid: t.ticket_type_uuid,
@@ -313,9 +315,15 @@ const finalizeTerminalSaleController = async (req, res) => {
                     r.route_uuid || "",
                     it.ticket_type_uuid || "",
                 ].join(";");
-                const ticket_qr = ct?.ticket_qr || fallback_qr;
+                // Tri znaka koja razlikuju original od kopije. POS ih zna
+                // izračunati sam pa se poštuje ono što je poslao; inače se
+                // generiraju ovdje. Idu i u QR, kao osmo polje.
+                const ticket_code_suffix =
+                    ct?.ticket_code_suffix || suffixOriginala(ticket_uuid);
+                const ticket_qr = qrSaSuffixom(ct?.ticket_qr || fallback_qr, ticket_code_suffix);
                 ticketsToAdd.push({
                     ticket_uuid,
+                    ticket_code_suffix,
                     // Veza na račun — kanal prodaje i sredstvo plaćanja stoje
                     // ondje, pa se bez nje po njima ne može filtrirati.
                     invoice_uuid,
@@ -566,6 +574,7 @@ const finalizeTerminalSaleController = async (req, res) => {
                 tickets: ticketsToAdd.map((t) => ({
                     ticket_uuid: t.ticket_uuid,
                     ticket_code: t.ticket_code,
+                    ticket_code_suffix: t.ticket_code_suffix,
                     ticket_qr: t.ticket_qr,
                     order_uuid: t.order_uuid,
                     ticket_type_uuid: t.ticket_type_uuid,

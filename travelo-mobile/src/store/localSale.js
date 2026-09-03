@@ -3,6 +3,7 @@
 // UI/print code doesn't need to branch.
 import { getSetting, setSetting } from '../db/db';
 import { maxLocalInvoiceNoByType, maxLocalTotalInvoiceNo } from '../db/repo';
+import { suffixOriginala, qrSaSuffixom } from './ticketCopyMark';
 
 // Lokalni RFC 4122 v4 UUID generator — bez ovisnosti o `react-native-get-random-values`
 // (taj paket je TurboModule-only u v2.0+, naš RN bridge je classic). Math.random je
@@ -126,8 +127,11 @@ export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid
         const r = it.route || {};
         for (let i = 0; i < qty; i++) {
             const tuuid = uuidv4();
+            // Tri znaka koja razlikuju original od kopije. Idu uz broj karte na
+            // ispisu i kao osmo polje u QR — vidi ticketCopyMark.js.
+            const ticket_code_suffix = suffixOriginala(tuuid);
             // QR payload usklađen s portalom (transactions-service ticketPdfController.qrPayload).
-            const ticket_qr = [
+            const ticket_qr = qrSaSuffixom([
                 tuuid,
                 r.line_code || '',
                 r.departure_harbor_name || '',
@@ -135,10 +139,11 @@ export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid
                 r.departure_planned || '',
                 r.route_uuid || '',
                 it.ticket_type_uuid || '',
-            ].join(';');
+            ].join(';'), ticket_code_suffix);
             tickets.push({
                 ticket_uuid: tuuid,
                 ticket_code: randomCode(),
+                ticket_code_suffix,
                 ticket_qr,
                 ticket_type_uuid: it.ticket_type_uuid,
                 ticket_type_name: it.ticket_type_name,

@@ -6,6 +6,8 @@ const randomCode = () => {
     return crypto.randomBytes(5).toString("hex").toUpperCase();
 };
 
+const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
+
 const createPartnerSaleController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
@@ -60,9 +62,12 @@ const createPartnerSaleController = async (req, res) => {
             for (let i = 0; i < qty; i++) {
                 const ticket_uuid = crypto.randomUUID();
                 const ticket_code = randomCode();
+                // Tri znaka koja razlikuju original od kopije; idu i u QR.
+                const ticket_code_suffix = suffixOriginala(ticket_uuid);
                 ticketsToCreate.push({
                     ticket_uuid,
                     ticket_code,
+                    ticket_code_suffix,
                     order_uuid,
                     order_number: order_number || null,
                     ticket_group_uuid: item.ticket_type_uuid,
@@ -84,7 +89,7 @@ const createPartnerSaleController = async (req, res) => {
                     arrival_harbor_name,
                     deactivate: false,
                     status: "created",
-                    ticket_qr: ticket_uuid,
+                    ticket_qr: qrSaSuffixom(ticket_uuid, ticket_code_suffix),
                     passanger_email: customer_email || null,
                     passanger_name: customer_name || null,
                     partner_uuid: partner_uuid || null,

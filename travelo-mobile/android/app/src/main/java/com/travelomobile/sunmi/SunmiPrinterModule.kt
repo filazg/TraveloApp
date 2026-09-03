@@ -1141,7 +1141,13 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     if (qrData.isNotEmpty()) {
                         try { printRawQR(p, qrData, 5, 49) } catch (_: Exception) {}
                     }
-                    val ticketCode = safeString(t, "ticket_code")
+                    // Uz broj karte idu tri znaka koja razlikuju original od
+                    // kopije. Ispisuju se odvojeno razmakom da se vidi da nisu
+                    // dio broja — validacija i traženje ih ne koriste.
+                    val ticketSuffix = safeString(t, "ticket_code_suffix")
+                    val ticketCode = safeString(t, "ticket_code").let {
+                        if (it.isNotEmpty() && ticketSuffix.isNotEmpty()) "$it $ticketSuffix" else it
+                    }
                     if (ticketCode.isNotEmpty()) {
                         // Bold + double-strike + double-height — kod karte mora biti najuočljiviji.
                         try { p.sendRAWData(byteArrayOf(0x1B, 0x47, 0x01), null) } catch (_: Exception) {}

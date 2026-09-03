@@ -9,6 +9,7 @@ const { reserveBookings } = require("../../helpers/bookingClient");
 const { podigniSignal } = require("./syncSignalsController");
 
 const randomCode = () => crypto.randomBytes(5).toString("hex").toUpperCase();
+const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — matches the legacy template:
 //   port tax = 6% of amount
@@ -206,8 +207,11 @@ const finalizeWebSaleController = async (req, res) => {
                 const departurePlanned = `${order.departure_date || ""} ${order.departure_time || ""}`.trim();
                 for (let i = 0; i < qty; i++) {
                     const ticket_uuid = crypto.randomUUID();
+                    // Tri znaka koja razlikuju original od kopije; idu i u QR.
+                    const ticket_code_suffix = suffixOriginala(ticket_uuid);
                     ticketsToAdd.push({
                         ticket_uuid,
+                        ticket_code_suffix,
                         // Veza na račun — po njemu se čita kanal prodaje i
                         // sredstvo plaćanja u pregledu karata.
                         invoice_uuid,
@@ -235,7 +239,7 @@ const finalizeWebSaleController = async (req, res) => {
                         arrival_harbor_name: order.arrival_harbor_name,
                         deactivate: false,
                         status: "created",
-                        ticket_qr: ticket_uuid,
+                        ticket_qr: qrSaSuffixom(ticket_uuid, ticket_code_suffix),
                         passanger_email: buyer.summary_buyer_email || null,
                         passanger_name: buyer.summary_buyer_name || null,
                         // Otočna karta: SEOP podaci putuju s itemom kroz orders → finalize
