@@ -1,5 +1,6 @@
-import { Box, Fab } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Fab, TextField } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
 import { Save } from '@mui/icons-material';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import PrintIcon from '@mui/icons-material/Print';
@@ -8,6 +9,11 @@ import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
 export default function ShiftActions({params, rowId, setRowId}) {
     const dispatch = useDispatch()
     const appData = useSelector(allAppData);
+    // Napomena se upisuje prije zatvaranja. Ista je ona koja se upisuje pri
+    // otvaranju smjene — smjena nosi jednu napomenu, pa se polje puni zatečenom
+    // vrijednošću i blagajnik je dopunjava umjesto da je piše ispočetka.
+    const [pitajZaNapomenu, setPitajZaNapomenu] = useState(false);
+    const [napomena, setNapomena] = useState("");
 
     const handleSummary = async()=>{
         await dispatch(setStateData({path:'status', value:'loading'}))
@@ -37,11 +43,23 @@ export default function ShiftActions({params, rowId, setRowId}) {
         await dispatch(setStateData({path:'status', value:'ready'}))
     }
 
+    // Klik na zaključivanje prvo otvara upis napomene; zatvaranje se izvodi tek
+    // po potvrdi. Zatvaranje smjene je neopozivo, pa je i ovaj korak prilika da
+    // se pritisak u prolazu prekine.
+    const handleAskForNote = () => {
+        setNapomena(params.row?.remark || "");
+        setPitajZaNapomenu(true);
+    };
+
     const handleEndShift = async() => {
+        setPitajZaNapomenu(false);
         await dispatch(setStateData({path:'status', value:'loading'}))
         await dispatch(setStateData({path:'loadingText', value:'Zaključivanje smjene...'}))
         console.log(params.row)
-        const data = params.row
+        // Prazna napomena se ne šalje — servis tada ne dira zatečenu, pa se
+        // napomena s otvaranja ne briše time što je blagajnik polje ispraznio.
+        const upisana = String(napomena || "").trim();
+        const data = upisana ? { ...params.row, remark: upisana } : params.row;
         const closeShift = await window.api.app.closeShiftsDataIpc(data);
         // Bez korisničkog imena servis vraća smjene SVIH operatera, pa je
         // blagajnik nakon zatvaranja u listi vidio i tuđe smjene.
@@ -125,11 +143,40 @@ export default function ShiftActions({params, rowId, setRowId}) {
                     height: 40,
                 }}
                 disabled={!params.row.shift_open}
-                onClick={handleEndShift}
+                onClick={handleAskForNote}
+                title="Zaključi smjenu"
                 >
                 <Save />
             </Fab>
-        
+
+            <Dialog
+                open={pitajZaNapomenu}
+                onClose={() => setPitajZaNapomenu(false)}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle sx={{ fontWeight: 800 }}>Zaključivanje smjene</DialogTitle>
+                <DialogContent dividers>
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        label="Napomena"
+                        placeholder="napomena"
+                        value={napomena}
+                        onChange={(e) => setNapomena(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setPitajZaNapomenu(false)} variant="outlined">
+                        Odustani
+                    </Button>
+                    <Button onClick={handleEndShift} color="success" variant="contained">
+                        ZAKLJUČI SMJENU
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     )
 }
