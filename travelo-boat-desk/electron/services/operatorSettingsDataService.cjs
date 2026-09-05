@@ -2,19 +2,23 @@ const { operatorSettingsModel } = require("../db/models/OperatorSettings.cjs")
 
 const getOperatorSettingsService = async (operaterUsername) => {
     try {
-        if (!operaterUsername) return { shortcuts: {}, home_harbor_code: null }
+        if (!operaterUsername) return { shortcuts: {}, home_harbor_code: null, auto_select_first_arrival: false }
         const row = await operatorSettingsModel.findOne({
             where: { operater_username: operaterUsername },
             attributes: { exclude: ["createdAt", "updatedAt"] },
         })
-        return { shortcuts: row?.shortcuts || {}, home_harbor_code: row?.home_harbor_code || null }
+        return {
+            shortcuts: row?.shortcuts || {},
+            home_harbor_code: row?.home_harbor_code || null,
+            auto_select_first_arrival: !!row?.auto_select_first_arrival,
+        }
     } catch (error) {
         console.log('getOperatorSettingsService error:', error?.message || error)
-        return { shortcuts: {}, home_harbor_code: null }
+        return { shortcuts: {}, home_harbor_code: null, auto_select_first_arrival: false }
     }
 }
 
-const setOperatorSettingsService = async ({ operater_username, shortcuts, home_harbor_code }) => {
+const setOperatorSettingsService = async ({ operater_username, shortcuts, home_harbor_code, auto_select_first_arrival }) => {
     try {
         if (!operater_username) return { ok: false, reason: 'nema operatera' }
         // Jedan redak po operateru — upsert umjesto brisanja pa pisanja, da se
@@ -24,12 +28,13 @@ const setOperatorSettingsService = async ({ operater_username, shortcuts, home_h
         const izmjene = {}
         if (shortcuts !== undefined) izmjene.shortcuts = shortcuts || {}
         if (home_harbor_code !== undefined) izmjene.home_harbor_code = home_harbor_code || null
+        if (auto_select_first_arrival !== undefined) izmjene.auto_select_first_arrival = !!auto_select_first_arrival
 
         const postojeci = await operatorSettingsModel.findOne({ where: { operater_username } })
         if (postojeci) {
             await postojeci.update(izmjene)
         } else {
-            await operatorSettingsModel.create({ operater_username, shortcuts: {}, home_harbor_code: null, ...izmjene })
+            await operatorSettingsModel.create({ operater_username, shortcuts: {}, home_harbor_code: null, auto_select_first_arrival: false, ...izmjene })
         }
         return { ok: true }
     } catch (error) {

@@ -173,7 +173,9 @@ const initialState = {
   operatorSettings:{
     shortcuts:{},
     // Kod luke s koje blagajnik prodaje; postavlja se pri odabiru linije.
-    home_harbor_code:null
+    home_harbor_code:null,
+    // Uz polazak se odabire i prva ponuđena luka dolaska.
+    auto_select_first_arrival:false
   },
   // Zadnji pritisak dodijeljene funkcijske tipke: { action, ts, key }.
   // Komponenta koja tu radnju zna izvesti reagira na promjenu — vidi

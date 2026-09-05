@@ -25,6 +25,7 @@ export default function KeyboardShortcuts() {
                     // postavke operatera učita pri prijavi; FilterBar je treba
                     // već pri prvom odabiru linije.
                     dispatch(setStateData({ path: "operatorSettings/home_harbor_code", value: res.data?.home_harbor_code || null }));
+                    dispatch(setStateData({ path: "operatorSettings/auto_select_first_arrival", value: !!res.data?.auto_select_first_arrival }));
                 }
             } catch (e) {
                 console.log("getOperatorSettingsIPC nije uspio:", e?.message || e);

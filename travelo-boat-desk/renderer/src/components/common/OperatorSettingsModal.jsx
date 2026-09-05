@@ -3,6 +3,8 @@ import {
     Alert,
     Box,
     Button,
+    Checkbox,
+    FormControlLabel,
     Dialog,
     DialogActions,
     DialogContent,
@@ -28,6 +30,7 @@ export default function OperatorSettingsModal() {
 
     const [shortcuts, setShortcuts] = useState({});
     const [homeHarbor, setHomeHarbor] = useState("");
+    const [autoArrival, setAutoArrival] = useState(false);
 
     // Luke iz plovidbenog reda, abecedno. Nudi se cijeli popis, ne samo luke
     // jedne linije — postavka stoji neovisno o tome koja je linija odabrana.
@@ -44,6 +47,7 @@ export default function OperatorSettingsModal() {
                 if (!otkazano && res?.ok) {
                     setShortcuts(res.data?.shortcuts || {});
                     setHomeHarbor(res.data?.home_harbor_code || "");
+                    setAutoArrival(!!res.data?.auto_select_first_arrival);
                 }
             } catch (e) {
                 console.log("getOperatorSettingsIPC nije uspio:", e?.message || e);
@@ -79,12 +83,14 @@ export default function OperatorSettingsModal() {
                 operater_username: username,
                 shortcuts,
                 home_harbor_code: homeHarbor || null,
+                auto_select_first_arrival: autoArrival,
             });
             // Prečaci se čitaju iz store-a pri svakom pritisku tipke, pa se moraju
             // osvježiti odmah — bez ponovne prijave. Isto vrijedi za polaznu
             // luku: sljedeći odabir linije mora je već koristiti.
             await dispatch(setStateData({ path: "operatorSettings/shortcuts", value: shortcuts }));
             await dispatch(setStateData({ path: "operatorSettings/home_harbor_code", value: homeHarbor || null }));
+            await dispatch(setStateData({ path: "operatorSettings/auto_select_first_arrival", value: autoArrival }));
             // Spremanje je kraj posla — prozor se zatvara umjesto da čeka još
             // jedan klik na Zatvori. Rezultat se ionako odmah vidi na gumbima.
             handleClose();
@@ -128,6 +134,26 @@ export default function OperatorSettingsModal() {
                         <MenuItem key={h.code} value={h.code}>{h.name}</MenuItem>
                     ))}
                 </TextField>
+
+                <FormControlLabel
+                    sx={{ mb: 3, display: "block" }}
+                    control={
+                        <Checkbox
+                            checked={autoArrival}
+                            onChange={(e) => setAutoArrival(e.target.checked)}
+                        />
+                    }
+                    label={
+                        <Box>
+                            <Typography>Automatski odaberi prvu luku dolaska</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                Uz odabrani polazak odmah se uzima prva ponuđena relacija.
+                                Korisno na linijama s jednom uobičajenom relacijom; na
+                                razgranatima ostavite isključeno pa relaciju birate sami.
+                            </Typography>
+                        </Box>
+                    }
+                />
 
                 <Typography sx={{ fontWeight: 800, mb: 1 }}>Funkcijske tipke</Typography>
                 <Alert severity="info" sx={{ mb: 2 }}>

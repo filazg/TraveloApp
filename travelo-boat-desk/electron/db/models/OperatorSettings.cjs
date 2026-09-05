@@ -33,6 +33,14 @@ const operatorSettingsModel = sequelize.define('operator_settings', {
         type: Sequelize.STRING,
         allowNull: true
     },
+    // Kad je uključeno, uz polazak se odabire i prva ponuđena luka dolaska.
+    // Na linijama s jednom čestom relacijom to je klik manje; na razgranatima
+    // blagajnik radije bira sam, pa je isključeno dok se ne uključi.
+    auto_select_first_arrival: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true,
+        defaultValue: false
+    },
 }, {
     freezeTableName: true
 })

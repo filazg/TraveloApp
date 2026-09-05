@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
 import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
@@ -78,6 +79,31 @@ export default function TripsBar() {
         }
     };
 
+
+    // Postavka operatera: uz odabrani polazak odmah uzmi prvu ponuđenu relaciju.
+    // Bira se prva onako kako je i prikazana, da se poklapa s onim što blagajnik
+    // vidi na popisu.
+    //
+    // Ne dira odabir koji je blagajnik već napravio: ako odabrana relacija
+    // postoji u trenutnom popisu, ostaje. Odabire se samo kad popisa dotad nije
+    // bilo ili je odabrana relacija iz prethodnog polaska, pa više nije u njemu.
+    const relacije = appData.searchData?.harborsForSelectedDeparture;
+    const odabrana = appData.searchData?.selectedTrip;
+    const automatski = !!appData.operatorSettings?.auto_select_first_arrival;
+    useEffect(() => {
+        if (!automatski) return;
+        if (!relacije?.length) return;
+        const jeIzOvogPopisa = odabrana && relacije.some(
+            (r) => r.arrival_harbor_id === odabrana.arrival_harbor_id
+                && r.departure_harbor_id === odabrana.departure_harbor_id
+                && r.sequence === odabrana.sequence
+        );
+        if (jeIzOvogPopisa) return;
+        handleSelectTrip(relacije[0]);
+        // handleSelectTrip se stvara iznova pri svakom renderu i nije u
+        // ovisnostima namjerno — inače bi se učinak vrtio u krug.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [automatski, relacije, odabrana]);
 
     return(
         <>
