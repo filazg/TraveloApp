@@ -4,7 +4,8 @@ const { handleGetTransportDataDeskTerminalsFeature } = require('../features/desk
 const { handleAddInvoiceDataDeskTerminalFeature, handleGetInvoiceStatusFeature } = require('../features/deskTerminals/invoiceDataFeature');
 const { handleGetBookingDataDeskTerminalsFeature } = require('../features/deskTerminals/bookingDataFeature');
 const { handleFinalizeSaleFeature } = require('../features/deskTerminals/finalizeSaleFeature');
-const { handleVoyageTicketsFeature, handleValidateTicketFeature, handleBuyersListFeature } = require('../features/deskTerminals/voyageTicketsFeature');
+const { handleVoyageTicketsFeature, handleValidateTicketFeature,
+    handleTicketCopyPrintFeature, handleBuyersListFeature } = require('../features/deskTerminals/voyageTicketsFeature');
 const { handleCheckIslandCardFeature, handleCancelTicketsFeature } = require('../features/deskTerminals/akdFeature');
 const { handleUpsertTerminalShiftFeature, handleListShiftsFeature } = require('../features/deskTerminals/shiftDataFeature');
 const { handleExternalTicketFeature } = require('../features/deskTerminals/externalTicketFeature');
@@ -52,6 +53,11 @@ router
 router
     .route('/terminal/validate_ticket')
     .post(handleValidateTicketFeature)
+
+// Blagajna javlja ispis kopije karte i dobiva redni broj i sufiks za papir.
+router
+    .route('/terminal/ticket_copy_print')
+    .post(handleTicketCopyPrintFeature)
 
 router
     .route('/terminal/buyers')

@@ -49,6 +49,21 @@ const validateTicketController = async (data) => {
     }
 };
 
+// Blagajna javlja da je ispisala kopiju karte i natrag dobiva redni broj kopije
+// i tri znaka koja treba otisnuti. Broj dodjeljuje transactions servis, ne
+// uređaj — kopije iste karte znaju izaći s dva mjesta.
+const logTicketCopyPrintController = async (data) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const url = coreConfigData.services.transactions.url + '/ticket_copy_prints';
+        const response = await axios.post(url, data, { timeout: 15000, validateStatus: () => true });
+        return { status: response.status, body: response.data };
+    } catch (error) {
+        console.log('logTicketCopyPrintController error:', error?.message || error);
+        return { status: 500, body: { data: { message: error.message } } };
+    }
+};
+
 const listBuyersController = async (params) => {
     try {
         const coreConfigData = await getCoreServiceConfigData();
@@ -110,6 +125,7 @@ const listShiftsController = async (params) => {
 };
 
 module.exports = {
+    logTicketCopyPrintController,
     addTerminalSaleController,
     finalizeTerminalSaleController,
     listVoyageTicketsController,

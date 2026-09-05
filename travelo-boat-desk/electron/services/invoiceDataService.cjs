@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const axios = require('axios');
+const { suffixOriginala, suffixKopije, qrSaSuffixom, MAX_KOPIJA } = require("../helpers/ticketCopyMark.cjs");
 const https = require("https");
 const { Op } = require("sequelize");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
@@ -250,9 +251,14 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
         ticketsGroupData = [...ticketsGroupData, newGroup]
 
         for (let i = 0; i < ticketGroup.quantity; i++) {
+          const ticketUuid = crypto.randomBytes(16).toString("hex");
           const newTicket = {
-            ticket_uuid: crypto.randomBytes(16).toString("hex"),
+            ticket_uuid: ticketUuid,
             ticket_code: crypto.randomBytes(6).toString("hex"),
+            // Oznaka originala. Blagajna je izdaje sama i šalje je poslužitelju
+            // uz kartu — inače bi poslužitelj izdao svoju, pa bi otisnuti papir
+            // i zapis u bazi nosili različite znakove.
+            ticket_code_suffix: suffixOriginala(ticketUuid),
             ticket_group_uuid: ticketGroup.ticket_uuid,
             ticket_type_name: ticketGroup.ticket_type_name,
             ticket_type_uuid: ticketGroup.ticket_type_uuid,
@@ -735,6 +741,52 @@ const printInvoiceCopyService = async (data)=>{
   }
 }
 
+// Kopija se evidentira prije ispisa i tek onda dobiva svoja tri znaka. Redni
+// broj dodjeljuje poslužitelj jer kopije iste karte znaju izaći s dva mjesta.
+//
+// Kad mreže nema, ispis se ne zaustavlja — kopija izlazi bez sufiksa. Papir bez
+// oznake se čita kao original, što jest gubitak podatka, ali je manje štete
+// nego blagajnik koji putniku ne može ispisati kartu. Zapis se tada ne stvara.
+const oznaciKopije = async (tickets) => {
+    try {
+        const pairing = await pairingDataModel.findOne();
+        const settings = await systemSettingsDataModel.findOne();
+        const basic = await companyModel.findOne();
+        const backendUrl = settings?.backend_url;
+        if (!backendUrl || !tickets?.length) return tickets;
+
+        const copies = tickets.map((t) => ({
+            ticket_uuid: t.ticket_uuid,
+            ticket_code: t.ticket_code,
+            operator_name: t.operater_name || null,
+            billing_device_uuid: basic?.billing_device_uuid || null,
+            billing_device_name: basic?.billing_device_name || null,
+            business_premise_name: basic?.business_premise_name || null,
+            origin: 'desk',
+        }));
+
+        const odgovor = await axios.post(
+            backendUrl + '/terminals/terminal/ticket_copy_print',
+            { copies },
+            { headers: { Authorization: `Bearer ${pairing?.token}` }, timeout: 15000, validateStatus: () => true },
+        );
+        const dodijeljene = odgovor?.data?.data?.copies || [];
+        if (!dodijeljene.length) return tickets;
+
+        // Odgovor dolazi istim redoslijedom kojim je poslan, ali se veže po
+        // uuid-u — redoslijed nije nešto na što se treba oslanjati.
+        const poUuidu = new Map(dodijeljene.map((c) => [c.ticket_uuid, c]));
+        return tickets.map((t) => {
+            const c = poUuidu.get(t.ticket_uuid);
+            const red = t.toJSON ? t.toJSON() : { ...t };
+            return c ? { ...red, ticket_code_suffix: c.suffix || null } : red;
+        });
+    } catch (error) {
+        console.log('oznaciKopije nije uspio, kopija ide bez oznake:', error?.message || error);
+        return tickets;
+    }
+};
+
 const printAllTicketsCopyService = async(data)=>{
   try {
     const invoiceData = await invoicesModel.findOne({
@@ -757,7 +809,7 @@ const printAllTicketsCopyService = async(data)=>{
       return { printed: false, reason: 'storno' }
     }
     const dataToSend = {
-      tickets:zaIspis,
+      tickets: await oznaciKopije(zaIspis),
       copy:true
     }
     await copyAllTickets(dataToSend)
@@ -783,7 +835,7 @@ const printTicketCopyService = async(data)=>{
       return { printed: false, reason: 'storno' }
     }
     const dataToSend = {
-      tickets:zaIspis,
+      tickets: await oznaciKopije(zaIspis),
       copy:true
     }
     await copyAllTickets(dataToSend)

@@ -3,6 +3,7 @@ const { systemSettingsDataModel } = require('../../db/models/Settings.cjs');
 const { companyModel } = require('../../db/models/BasicData.cjs');
 
 const { runPrintJob, cutOrFeed } = require('./printJob.cjs');
+const { qrSaSuffixom, brojZaIspis } = require('../ticketCopyMark.cjs');
 
 // F2 (HRFISK20) račun se kupcu dostavlja kao e-račun — na blagajni se ne
 // ispisuje ni pri izdavanju ni pri kopiji, na papir idu samo karte. Isto
@@ -419,14 +420,21 @@ const printTickets = async ({ tickets,copy }) => {
                 printer.drawLine();
             }
             printer.alignCenter();
+            // Sufiks ide kao osmo polje QR-a i uz broj karte. Na kopiji nosi
+            // redni broj kopije, na originalu ne znači ništa — ali mora stajati
+            // i ondje, inače bi se po samom QR-u vidjelo koje su karte kopije.
+            const suffix = tickets[t].ticket_code_suffix || "";
             printer.printQR(
-                tickets[t].ticket_uuid
-                + ";" + tickets[t].line_code
-                + ";" + tickets[t].ticket_departure_harbor_name
-                + ";" + tickets[t].ticket_arrival_harbor_name
-                + ";" + tickets[t].ticket_departure_planed
-                + ";" + tickets[t].sales_route_uuid
-                + ";" + tickets[t].ticket_type_uuid
+                qrSaSuffixom(
+                    tickets[t].ticket_uuid
+                    + ";" + tickets[t].line_code
+                    + ";" + tickets[t].ticket_departure_harbor_name
+                    + ";" + tickets[t].ticket_arrival_harbor_name
+                    + ";" + tickets[t].ticket_departure_planed
+                    + ";" + tickets[t].sales_route_uuid
+                    + ";" + tickets[t].ticket_type_uuid,
+                    suffix,
+                )
                 , {
                     // Smanjen sa 7. QR nosi dosta podataka (uuid, linija, luke,
                     // vrijeme, ruta, tip karte) pa je bio velik dio karte.
@@ -434,7 +442,7 @@ const printTickets = async ({ tickets,copy }) => {
                     correction: 'M',
                     model: 2
                 });
-            printer.println(tickets[t].ticket_code)
+            printer.println(brojZaIspis(tickets[t].ticket_code, suffix))
             printer.alignLeft();
             printNapomena(printer, osnovniPodaci?.billing_device_ticket_footer);
             cutOrFeed(printer, settingsData.printer_cut);

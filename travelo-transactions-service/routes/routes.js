@@ -11,6 +11,7 @@ const { listInvoicesController } = require('../controllers/dataControllers/invoi
 const { backfillInvoicesFiscalController } = require('../controllers/dataControllers/invoicesBackfillController');
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
 const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController, fiscalizePartnerInvoiceController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
+const { logTicketCopyPrintController, listTicketCopyPrintsController } = require('../controllers/dataControllers/ticketCopyPrintController');
 const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
 const {
     listPartnerCommissionReportsController,
@@ -136,6 +137,13 @@ router
 router
     .route('/partner_commission_report/:report_uuid')
     .get(getPartnerCommissionReportDetailsController)
+
+// Evidencija ispisa kopija karata. POST javlja ispis i vraca redni broj i
+// sufiks koji ide na papir; GET sluzi pregledu.
+router
+    .route('/ticket_copy_prints')
+    .post(logTicketCopyPrintController)
+    .get(listTicketCopyPrintsController)
 
 router
     .route('/tickets_search')

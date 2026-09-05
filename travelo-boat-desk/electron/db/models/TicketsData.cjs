@@ -15,6 +15,13 @@ const ticketsModel = sequelize.define('tickets', {
         type: Sequelize.STRING,
         allowNull: true
     },
+    // Tri znaka koja se dopisuju uz broj karte pri ispisu i idu u QR. Srednji
+    // razlikuje original od kopije — vidi helpers/ticketCopyMark.cjs. Stoji
+    // odvojeno od ticket_code-a da traženje po broju karte ostane netaknuto.
+    ticket_code_suffix:{
+        type: Sequelize.STRING,
+        allowNull:true
+    },
     ticket_group_uuid:{
         type: Sequelize.STRING,
         allowNull: true
