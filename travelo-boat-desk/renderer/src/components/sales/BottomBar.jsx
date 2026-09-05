@@ -250,6 +250,12 @@ export default function BottomBar() {
         paymentData: paymentResponse
       };
       const invoiceResult = await window.api.app.createInvoiceIPC(dataToSend);
+      // Košarica se pamti prije brisanja — sljedeći putnik često traži isto, pa
+      // je gumb PONOVI KUPNJU vraća bez ponovnog klikanja. Pamti se samo popis
+      // karata; grupe se ionako preračunavaju iz njega.
+      if (appData.saleData?.addedTickets?.length) {
+        await dispatch(setStateData({ path:'lastSaleBasket', value: appData.saleData.addedTickets }))
+      }
       // Sredstvo plaćanja preživljava izdavanje računa — blagajna po cijeli dan
       // naplaćuje istim sredstvom, pa bi ga blagajnik nakon svake karte birao
       // ispočetka. Košarica i R1 kupac se brišu, oni pripadaju tom računu.

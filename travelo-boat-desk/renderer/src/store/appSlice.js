@@ -177,6 +177,11 @@ const initialState = {
     // Uz polazak se odabire i prva ponuđena luka dolaska.
     auto_select_first_arrival:false
   },
+  // Košarica zadnjeg izdanog računa, za gumb PONOVI KUPNJU. Stoji izvan
+  // saleData jer se saleData briše čim račun izađe — a upravo tada ovo nastaje.
+  // Ne preživljava zatvaranje aplikacije: "prethodna kupnja" je ona od maloprije,
+  // ne jučerašnja.
+  lastSaleBasket:null,
   // Zadnji pritisak dodijeljene funkcijske tipke: { action, ts, key }.
   // Komponenta koja tu radnju zna izvesti reagira na promjenu — vidi
   // components/common/shortcutActions.js.

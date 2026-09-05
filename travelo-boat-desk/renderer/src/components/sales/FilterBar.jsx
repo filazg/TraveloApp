@@ -1,11 +1,14 @@
 import { use, useEffect, useRef, useState } from "react";
 import { Box, Button, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import ReplayIcon from "@mui/icons-material/Replay";
 import Autocomplete from "@mui/material/Autocomplete";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+
+import { v4 as uuid } from "uuid";
 
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
@@ -109,6 +112,24 @@ export default function FilterBar() {
         await handleSetToday();
     };
 
+    // Ponovi zadnju kupnju: košarica se puni istim stavkama kao račun koji je
+    // upravo izdan. Sljedeći putnik na istom polasku najčešće traži isto, pa je
+    // ovo cijeli odabir u jednom kliku.
+    //
+    // Oznake karata se izdaju iznova. Bez toga bi nove karte nosile uuid-e i
+    // kodove već izdanih — dva računa s istim kartama, i validacija koja ne zna
+    // koja je koja.
+    const zadnjaKosarica = appData.lastSaleBasket;
+    const handleRepeatLastSale = async () => {
+        if (!zadnjaKosarica?.length) return;
+        const noveKarte = zadnjaKosarica.map((karta) => ({
+            ...karta,
+            ticket_group_uuid: uuid(),
+            tickets: (karta.tickets || []).map(() => ({ uuid: uuid(), code: uuid() })),
+        }));
+        await dispatch(setStateData({ path: 'saleData/addedTickets', value: noveKarte }));
+    };
+
     // Prečaci s tipkovnice — vidi KeyboardShortcuts. Ovdje su radnje koje žive
     // u traci pretrage.
     const shortcutSignal = appData.shortcutSignal;
@@ -196,25 +217,6 @@ export default function FilterBar() {
         appData.searchData?.selectedFromHarbor,
     ].every(Boolean);
 
-    useEffect(() => {
-        if(appData.searchData?.selectedFromHarbor && appData.searchData?.selectedLine && appData.searchData?.travelDate){
-            (async () => {
-                const polasci = await handleSetDepartures();
-                if (!postaviPrviPolazak.current) return;
-                postaviPrviPolazak.current = false;
-                const prvi = prviSljedeciPolazak(polasci, appData.searchData.travelDate);
-                if (prvi) await handleSelectDeparture({ target: { value: prvi } });
-            })();
-        }
-        // Odvojene ovisnosti, ne `a || b || c` — taj izraz je jedna vrijednost, pa
-        // dok je luka odabrana promjena datuma nije osvježavala popis polazaka.
-        //
-        // Plovidbeni red je u ovisnostima jer ga poslužitelj zna osvježiti sam (otkaz
-        // ili pomak polaska): bez toga bi na ekranu ostao popis polazaka od
-        // maloprije, pa bi blagajnik i dalje vidio polazak kojeg više nema —
-        // podaci su novi, ali ekran star.
-    }, [appData.searchData.selectedFromHarbor, appData.searchData.selectedLine, appData.searchData.travelDate, appData.transportData]);
-
     const updateBooking = async (data) => {
       const dataToSearch = {
         timetable_uuid: data.timetable_uuid,
@@ -241,6 +243,26 @@ export default function FilterBar() {
             await dispatch(setStateData({path:'searchData/harborsForSelectedDeparture', value: harborsForDeparture}));
         }
     }
+
+    useEffect(() => {
+        if(appData.searchData?.selectedFromHarbor && appData.searchData?.selectedLine && appData.searchData?.travelDate){
+            (async () => {
+                const polasci = await handleSetDepartures();
+                if (!postaviPrviPolazak.current) return;
+                postaviPrviPolazak.current = false;
+                const prvi = prviSljedeciPolazak(polasci, appData.searchData.travelDate);
+                if (prvi) await handleSelectDeparture({ target: { value: prvi } });
+            })();
+        }
+        // Odvojene ovisnosti, ne `a || b || c` — taj izraz je jedna vrijednost, pa
+        // dok je luka odabrana promjena datuma nije osvježavala popis polazaka.
+        //
+        // Plovidbeni red je u ovisnostima jer ga poslužitelj zna osvježiti sam (otkaz
+        // ili pomak polaska): bez toga bi na ekranu ostao popis polazaka od
+        // maloprije, pa bi blagajnik i dalje vidio polazak kojeg više nema —
+        // podaci su novi, ali ekran star.
+    }, [appData.searchData.selectedFromHarbor, appData.searchData.selectedLine, appData.searchData.travelDate, appData.transportData]);
+
 
     // Otočna karta postoji u cjeniku samo za određene relacije (is_island === true).
     // Gumb POVLAŠTENE KARTICE smije biti aktivan SAMO kad korisnik odabere konkretnu
@@ -278,8 +300,8 @@ export default function FilterBar() {
             gridTemplateColumns: "repeat(8, 1fr)",
             gap: 1,
             gridTemplateRows: "auto",
-            gridTemplateAreas: `"two two four four reset six seven eight"
-                        "two2 two2 four1 four1 reset six1 seven eight"`,
+            gridTemplateAreas: `"two two four four reset repeat seven eight"
+                        "two2 two2 four1 four1 reset repeat seven eight"`,
           }}
         >
             {/* Kontrolirano poljem iz searchData — dok je bilo nekontrolirano,
@@ -392,6 +414,23 @@ export default function FilterBar() {
             onClick={handleResetForm}
           >
             OSVJEŽI FORMU<ShortcutHint action="reset" />
+          </Button>
+          {/* Neaktivan dok nema izdanog računa u ovoj sjednici — inače bi
+              obećavao radnju koju ne može izvesti. */}
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={!zadnjaKosarica?.length}
+            startIcon={<ReplayIcon />}
+            sx={{
+              gridArea: "repeat",
+              height: "100%",
+              fontSize: "1.1rem",
+              lineHeight: 1.2,
+            }}
+            onClick={handleRepeatLastSale}
+          >
+            PONOVI KUPNJU
           </Button>
            <Button
             disabled={!canScan}
