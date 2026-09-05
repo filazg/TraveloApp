@@ -24,6 +24,15 @@ const operatorSettingsModel = sequelize.define('operator_settings', {
         type: Sequelize.JSON,
         allowNull: true
     },
+    // Luka s koje blagajnik najčešće prodaje. Kad odabere liniju, polazna luka
+    // se postavi na nju umjesto da ostane prazna — na jednoj se blagajni gotovo
+    // uvijek prodaje s iste luke, pa je to bio klik koji se ponavljao cijeli dan.
+    // Čuva se kod luke (harbor.code), ne uuid, jer se plovidbeni red i rute
+    // vežu po kodu.
+    home_harbor_code: {
+        type: Sequelize.STRING,
+        allowNull: true
+    },
 }, {
     freezeTableName: true
 })

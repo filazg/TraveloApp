@@ -169,9 +169,11 @@ const initialState = {
     showAddressBookModal:false,
     showOperatorSettingsModal:false
   },
-  // Osobne postavke prijavljenog operatera (prečaci na tipkovnici).
+  // Osobne postavke prijavljenog operatera (prečaci na tipkovnici, polazna luka).
   operatorSettings:{
-    shortcuts:{}
+    shortcuts:{},
+    // Kod luke s koje blagajnik prodaje; postavlja se pri odabiru linije.
+    home_harbor_code:null
   },
   // Zadnji pritisak dodijeljene funkcijske tipke: { action, ts, key }.
   // Komponenta koja tu radnju zna izvesti reagira na promjenu — vidi

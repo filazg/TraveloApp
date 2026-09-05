@@ -189,7 +189,7 @@ export default function SalesScreen() {
                   }}
                 >
                   <ListItemIcon><KeyboardIcon fontSize="small" /></ListItemIcon>
-                  Funkcijske tipke
+                  Osobne postavke
                 </MenuItem>
               </Menu>
 

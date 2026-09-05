@@ -1,4 +1,4 @@
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { Box, Button, Chip, Grid, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -23,11 +23,36 @@ const jePomaknut = (r) => !!(r?.departure && r?.actual_departure && r.departure 
 
 const vrijemePolaska = (r) => (jePomaknut(r) ? samoVrijeme(r.actual_departure) : (r?.departure_time || ""));
 
+const uMinute = (time) => {
+    const [h, m] = String(time || "").split(":");
+    return (Number(h) || 0) * 60 + (Number(m) || 0);
+};
+
+// Prvi polazak koji još nije prošao. Za današnji datum se gleda sat, za budući
+// je to prvi po redu — polasci su već sortirani po vremenu. Ako su svi za danas
+// prošli, vraća zadnji: blagajnik tada ionako prodaje za sutra ili stornira, a
+// prazno polje bi ga natjeralo na dodatni klik.
+//
+// Datum se uspoređuje u istom obliku u kojem ga applyTravelDate zapisuje —
+// "DD/MM/YYYY" (toLocaleDateString "en-GB"). S ISO oblikom usporedba nikad ne bi
+// bila istinita, pa bi se i za danas uvijek nudio prvi jutarnji polazak.
+const prviSljedeciPolazak = (polasci, datum) => {
+    if (!polasci?.length) return null;
+    const danas = new Date();
+    if (String(datum || "") !== danas.toLocaleDateString("en-GB")) return polasci[0];
+    const sada = danas.getHours() * 60 + danas.getMinutes();
+    return polasci.find((r) => uMinute(vrijemePolaska(r)) >= sada) || polasci[polasci.length - 1];
+};
+
 export default function FilterBar() {
     const dispatch = useDispatch();
     const appData = useSelector(allAppData);
     const transportData = appData.transportData;
     const [day, setDay] = useState();
+    // Podignuta kad odabir linije sam postavi polaznu luku. Polasci se računaju
+    // tek u učinku ispod, pa se prvi sljedeći bira ondje. Ručna promjena luke je
+    // ne diže — tada blagajnik bira polazak sam.
+    const postaviPrviPolazak = useRef(false);
 
     //Odabir linije
 
@@ -123,6 +148,19 @@ export default function FilterBar() {
             harborsForLine = [...harborsForLine, newHarbor];
         }
         await dispatch(setStateData({path:'searchData/lineHarbors', value: harborsForLine}));
+
+        // Polazna luka iz osobnih postavki operatera. Postavlja se samo ako
+        // linija u nju uopće pristaje — inače bi popis polazaka ostao prazan, a
+        // blagajnik ne bi znao zašto. Zastavica kaže sljedećem prolazu da uz
+        // luku treba odabrati i prvi sljedeći polazak.
+        const domacaLuka = appData.operatorSettings?.home_harbor_code;
+        const luka = domacaLuka
+            ? harborsForLine.find((h) => h?.code === domacaLuka)
+            : null;
+        if (luka) {
+            postaviPrviPolazak.current = true;
+            await dispatch(setStateData({path:'searchData/selectedFromHarbor', value: luka}));
+        }
     }
 
      const handleSetTravelFrom = async(e) => {
@@ -148,12 +186,9 @@ export default function FilterBar() {
         // Redoslijed je dolazio onakav kakav je stigao iz plovidbenog reda, pa su
         // popodnevni polasci znali stajati iznad jutarnjih. Sortira se po satu
         // polaska ("HH:mm" pretvoren u minute, da radi i ako sat nije dvoznamenkast).
-        const minutes = (time) => {
-            const [h, m] = String(time || '').split(':');
-            return (Number(h) || 0) * 60 + (Number(m) || 0);
-        };
-        uniqueDepartures.sort((a, b) => minutes(vrijemePolaska(a)) - minutes(vrijemePolaska(b)));
+        uniqueDepartures.sort((a, b) => uMinute(vrijemePolaska(a)) - uMinute(vrijemePolaska(b)));
         await dispatch(setStateData({path:'searchData/availableDepartures', value: uniqueDepartures}));
+        return uniqueDepartures;
     }
 
     const showDepartures = [
@@ -163,8 +198,13 @@ export default function FilterBar() {
 
     useEffect(() => {
         if(appData.searchData?.selectedFromHarbor && appData.searchData?.selectedLine && appData.searchData?.travelDate){
-            handleSetDepartures()
-            
+            (async () => {
+                const polasci = await handleSetDepartures();
+                if (!postaviPrviPolazak.current) return;
+                postaviPrviPolazak.current = false;
+                const prvi = prviSljedeciPolazak(polasci, appData.searchData.travelDate);
+                if (prvi) await handleSelectDeparture({ target: { value: prvi } });
+            })();
         }
         // Odvojene ovisnosti, ne `a || b || c` — taj izraz je jedna vrijednost, pa
         // dok je luka odabrana promjena datuma nije osvježavala popis polazaka.

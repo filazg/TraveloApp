@@ -27,6 +27,13 @@ export default function OperatorSettingsModal() {
     const paymentMethods = appData.basicData?.payment_methods || [];
 
     const [shortcuts, setShortcuts] = useState({});
+    const [homeHarbor, setHomeHarbor] = useState("");
+
+    // Luke iz plovidbenog reda, abecedno. Nudi se cijeli popis, ne samo luke
+    // jedne linije — postavka stoji neovisno o tome koja je linija odabrana.
+    const luke = [...(appData.transportData?.harbors || [])]
+        .filter((h) => h?.code)
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "hr"));
 
     useEffect(() => {
         if (!open) return;
@@ -34,7 +41,10 @@ export default function OperatorSettingsModal() {
         (async () => {
             try {
                 const res = await window.api.app.getOperatorSettingsIPC(username);
-                if (!otkazano && res?.ok) setShortcuts(res.data?.shortcuts || {});
+                if (!otkazano && res?.ok) {
+                    setShortcuts(res.data?.shortcuts || {});
+                    setHomeHarbor(res.data?.home_harbor_code || "");
+                }
             } catch (e) {
                 console.log("getOperatorSettingsIPC nije uspio:", e?.message || e);
             }
@@ -65,10 +75,16 @@ export default function OperatorSettingsModal() {
 
     const handleSave = async () => {
         try {
-            await window.api.app.setOperatorSettingsIPC({ operater_username: username, shortcuts });
+            await window.api.app.setOperatorSettingsIPC({
+                operater_username: username,
+                shortcuts,
+                home_harbor_code: homeHarbor || null,
+            });
             // Prečaci se čitaju iz store-a pri svakom pritisku tipke, pa se moraju
-            // osvježiti odmah — bez ponovne prijave.
+            // osvježiti odmah — bez ponovne prijave. Isto vrijedi za polaznu
+            // luku: sljedeći odabir linije mora je već koristiti.
             await dispatch(setStateData({ path: "operatorSettings/shortcuts", value: shortcuts }));
+            await dispatch(setStateData({ path: "operatorSettings/home_harbor_code", value: homeHarbor || null }));
             // Spremanje je kraj posla — prozor se zatvara umjesto da čeka još
             // jedan klik na Zatvori. Rezultat se ionako odmah vidi na gumbima.
             handleClose();
@@ -84,13 +100,36 @@ export default function OperatorSettingsModal() {
             {/* Naslov je ono što piše i u izborniku — svaka stavka izbornika
                 otvara svoj dijalog, pa unutarnji podnaslov više ne treba. */}
             <DialogTitle sx={{ fontWeight: 800 }}>
-                Funkcijske tipke
+                Osobne postavke
                 <Typography variant="body2" color="text.secondary">
                     {username || "—"}
                 </Typography>
             </DialogTitle>
 
             <DialogContent dividers>
+                <Typography sx={{ fontWeight: 800, mb: 1 }}>Polazna luka</Typography>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Kad odaberete liniju, polazna luka se postavi na ovu, a uz nju i prvi
+                    sljedeći polazak s te luke. Prazno znači da se luka bira ručno, kao
+                    dosad. Ako linija ne pristaje u odabranu luku, polje ostaje prazno.
+                </Alert>
+                <TextField
+                    select
+                    size="small"
+                    fullWidth
+                    value={homeHarbor}
+                    onChange={(e) => setHomeHarbor(e.target.value)}
+                    sx={{ mb: 3 }}
+                >
+                    <MenuItem value="">
+                        <em>— bez zadane luke —</em>
+                    </MenuItem>
+                    {luke.map((h) => (
+                        <MenuItem key={h.code} value={h.code}>{h.name}</MenuItem>
+                    ))}
+                </TextField>
+
+                <Typography sx={{ fontWeight: 800, mb: 1 }}>Funkcijske tipke</Typography>
                 <Alert severity="info" sx={{ mb: 2 }}>
                     Funkcijska tipka pokreće odabranu radnju na prodajnom ekranu. Prazno
                     znači da tipka nije dodijeljena. Ista radnja može stajati samo na

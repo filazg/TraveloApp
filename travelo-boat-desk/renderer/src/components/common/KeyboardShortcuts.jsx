@@ -21,6 +21,10 @@ export default function KeyboardShortcuts() {
                 const res = await window.api.app.getOperatorSettingsIPC(username);
                 if (!otkazano && res?.ok) {
                     dispatch(setStateData({ path: "operatorSettings/shortcuts", value: res.data?.shortcuts || {} }));
+                    // Polazna luka se čita ovdje jer je ovo jedino mjesto koje
+                    // postavke operatera učita pri prijavi; FilterBar je treba
+                    // već pri prvom odabiru linije.
+                    dispatch(setStateData({ path: "operatorSettings/home_harbor_code", value: res.data?.home_harbor_code || null }));
                 }
             } catch (e) {
                 console.log("getOperatorSettingsIPC nije uspio:", e?.message || e);
