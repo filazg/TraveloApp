@@ -33,9 +33,9 @@ const zapisiKopiju = async ({
         broj = (Number.isFinite(zadnji) ? zadnji : 0) + 1;
     }
 
-    // Iznad dvanaeste se redni broj ne da zapisati u dva znaka. Kopija se i
-    // dalje evidentira — ispis se dogodio i to je podatak — samo joj sufiks ne
-    // nosi broj, pa se na papiru vidi da je kopija ali ne i koja.
+    // Iznad dvadeset i cetvrte se redni broj ne da zapisati u dva hex znaka.
+    // Kopija se i dalje evidentira — ispis se dogodio i to je podatak — samo joj
+    // sufiks ne nosi broj, pa se na papiru vidi da je kopija ali ne i koja.
     const suffix = broj <= MAX_KOPIJA ? suffixKopije(ticket_uuid, broj) : null;
 
     const red = await TicketCopyPrintModel.create({

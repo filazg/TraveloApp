@@ -18,10 +18,14 @@
 const crypto = require("crypto");
 
 const HEX16 = "0123456789ABCDEF";
-// Redni broj kopije se kodira kao x + z − 6. Sa znamenkama 0-9 zbroj ide 0..18,
-// pa su zapisive kopije 1..12; iznad toga nema mjesta u dva znaka.
+// Redni broj kopije se kodira kao x + z − 6, gdje su x i z heksadecimalne
+// znamenke (0-F, vrijednosti 0..15). Zbroj ide 0..30, pa su zapisive kopije
+// 1..24; iznad toga nema mjesta u dva znaka.
+//
+// Kopije do dvanaeste stanu u same brojke, pa se sufiksi izdani prije prosirenja
+// citaju jednako — 9 je i dalje 9, bez obzira citalo se dekadski ili hex.
 const POMAK = 6;
-const MAX_KOPIJA = 12;
+const MAX_KOPIJA = 24;
 
 const nasumicni = (abeceda) => abeceda[crypto.randomInt(0, abeceda.length)];
 
@@ -49,10 +53,10 @@ const suffixKopije = (ticketUuid, copyNo) => {
     const n = Number(copyNo);
     if (!Number.isInteger(n) || n < 1 || n > MAX_KOPIJA) return null;
     const zbroj = n + POMAK;
-    const donja = Math.max(0, zbroj - 9);
-    const gornja = Math.min(9, zbroj);
+    const donja = Math.max(0, zbroj - 15);
+    const gornja = Math.min(15, zbroj);
     const x = crypto.randomInt(donja, gornja + 1);
-    return String(x) + marker + String(zbroj - x);
+    return HEX16[x] + marker + HEX16[zbroj - x];
 };
 
 // Čitanje sufiksa s papira ili iz QR-a.
@@ -68,9 +72,9 @@ const procitajSuffix = (ticketUuid, suffix) => {
     if (![...s].every((c) => HEX16.includes(c))) return null;
     const marker = markerZnak(ticketUuid);
     if (!marker || s[1] !== marker) return { isCopy: false, copyNo: null };
-    const x = Number(s[0]);
-    const z = Number(s[2]);
-    if (!Number.isInteger(x) || !Number.isInteger(z)) return { isCopy: true, copyNo: null };
+    const x = HEX16.indexOf(s[0]);
+    const z = HEX16.indexOf(s[2]);
+    if (x < 0 || z < 0) return { isCopy: true, copyNo: null };
     const n = x + z - POMAK;
     return { isCopy: true, copyNo: n >= 1 && n <= MAX_KOPIJA ? n : null };
 };
