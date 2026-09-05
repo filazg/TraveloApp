@@ -26,6 +26,16 @@ const jePomaknut = (r) => !!(r?.departure && r?.actual_departure && r.departure 
 
 const vrijemePolaska = (r) => (jePomaknut(r) ? samoVrijeme(r.actual_departure) : (r?.departure_time || ""));
 
+// Polazak se u ruti zapisuje kao "DD.MM.YYYY. HH:mm". new Date() taj oblik ne
+// zna pročitati i vrati Invalid Date, pa se rastavlja rukom. Vraća null kad
+// oblik nije prepoznat — tada se ne zaključuje da je polazak prošao.
+const trenutakPolaska = (v) => {
+    const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?\s+(\d{1,2}):(\d{2})/.exec(String(v || "").trim());
+    if (!m) return null;
+    const [, d, mo, y, hh, mm] = m;
+    return new Date(+y, +mo - 1, +d, +hh, +mm);
+};
+
 const uMinute = (time) => {
     const [h, m] = String(time || "").split(":");
     return (Number(h) || 0) * 60 + (Number(m) || 0);
@@ -122,12 +132,43 @@ export default function FilterBar() {
     const zadnjaKosarica = appData.lastSaleBasket;
     const handleRepeatLastSale = async () => {
         if (!zadnjaKosarica?.length) return;
-        const noveKarte = zadnjaKosarica.map((karta) => ({
+
+        // Polazak koji je u međuvremenu isplovio se izbacuje — inače bi se
+        // prodala karta za vožnju koje više nema. Vrijeme se uzima iz aktualne
+        // rute ako je još u plovidbenom redu, da pomaknut polazak uđe po novom
+        // vremenu; ako rute više nema, po onome što je zapisano u košarici.
+        const sada = new Date();
+        const zadrzane = [];
+        const izbacene = [];
+        for (const karta of zadnjaKosarica) {
+            const ruta = transportData?.routes?.find((r) => r.uuid === karta.sales_route_uuid);
+            const kada = trenutakPolaska(ruta?.actual_departure || ruta?.departure || karta.departure);
+            // Nepoznato vrijeme nije razlog za izbacivanje — bolje ponuditi
+            // kartu koju blagajnik može maknuti nego tiho progutati stavku.
+            if (kada && kada < sada) izbacene.push(karta);
+            else zadrzane.push(karta);
+        }
+
+        const noveKarte = zadrzane.map((karta) => ({
             ...karta,
             ticket_group_uuid: uuid(),
             tickets: (karta.tickets || []).map(() => ({ uuid: uuid(), code: uuid() })),
         }));
         await dispatch(setStateData({ path: 'saleData/addedTickets', value: noveKarte }));
+
+        if (izbacene.length) {
+            // Jedan polazak zna nositi vise stavaka (razni tipovi karata), pa se
+            // u poruci navodi svaki polazak jednom.
+            const opisi = [...new Set(izbacene.map((k) =>
+                `${k.departure_harbor_name || ""} → ${k.arrival_harbor_name || ""}, ${k.departure || ""}`.trim()
+            ))];
+            await dispatch(setStateData({ path: 'alertData', value: {
+                message: zadrzane.length
+                    ? `Polazak je prošao pa je izbačen iz košarice: ${opisi.join("; ")}`
+                    : `Košarica je ostala prazna — svi polasci iz prethodne kupnje su prošli: ${opisi.join("; ")}`,
+                severity: 'warning',
+            }}));
+        }
     };
 
     // Prečaci s tipkovnice — vidi KeyboardShortcuts. Ovdje su radnje koje žive
