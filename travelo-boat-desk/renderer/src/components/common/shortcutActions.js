@@ -15,6 +15,7 @@ export const FUNKCIJSKE_TIPKE = [
 export const FIKSNE_RADNJE = [
     { value: "issue",      label: "Izdaj račun" },
     { value: "reset",      label: "Osvježi formu" },
+    { value: "repeat",     label: "Ponovi kupnju" },
     { value: "r1",         label: "R1 račun (adresar)" },
     { value: "subsidised", label: "Povlaštene kartice" },
     { value: "invoices",   label: "Pregled računa" },

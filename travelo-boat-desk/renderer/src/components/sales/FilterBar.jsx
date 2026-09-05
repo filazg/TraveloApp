@@ -178,6 +178,11 @@ export default function FilterBar() {
         const akcija = shortcutSignal?.action;
         if (!akcija) return;
         if (akcija === 'reset') { handleResetForm(); return; }
+        if (akcija === 'repeat') {
+            // Isti uvjet kao na gumbu: bez izdanog računa nema što ponoviti.
+            if (zadnjaKosarica?.length) handleRepeatLastSale();
+            return;
+        }
         if (akcija === 'subsidised') {
             // Isti uvjet kao na gumbu: bez otočne cijene na odabranoj relaciji
             // modal nema cjenovni stavak i otvarati ga nema smisla.
@@ -471,7 +476,7 @@ export default function FilterBar() {
             }}
             onClick={handleRepeatLastSale}
           >
-            PONOVI KUPNJU
+            PONOVI KUPNJU<ShortcutHint action="repeat" />
           </Button>
            <Button
             disabled={!canScan}
