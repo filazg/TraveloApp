@@ -47,8 +47,13 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import AnchorIcon from "@mui/icons-material/Anchor";
 import DownloadIcon from "@mui/icons-material/Download";
+// Modul KONTROLA
+import VerifiedIcon from "@mui/icons-material/Verified";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 export const iconsMap = {
+  Verified: VerifiedIcon,
+  ContentCopy: ContentCopyIcon,
   DepartureBoard: DepartureBoardIcon,
   DisplaySettings: DisplaySettingsIcon,
   Dashboard: DashboardIcon,

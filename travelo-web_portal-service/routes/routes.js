@@ -23,6 +23,7 @@ const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
 const { handleGetCommissionReportPdfFeature, handleGetPartnerInvoicePdfFeature, handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature, handleGetPartnerCommissionReportsFeature, handleGetPartnerCommissionReportDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
+const { handleGetTicketCopyConflictsFeature, handleGetTicketValidationsFeature, handleGetTicketCopyPrintsFeature } = require('../features/transactions/ticketControlHandlers');
 const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleTransferTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
 const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
@@ -267,6 +268,20 @@ router
 router
     .route('/transactions/partner_commission_report/:report_uuid')
     .get(handleGetPartnerCommissionReportDetailsFeature)
+
+// Modul KONTROLA — kontrola kopija karata. Sukobi original/kopija, pokusaji
+// validacije i evidentirani ispisi kopija.
+router
+    .route('/transactions/ticket_copy_conflicts')
+    .get(handleGetTicketCopyConflictsFeature)
+
+router
+    .route('/transactions/ticket_validations')
+    .get(handleGetTicketValidationsFeature)
+
+router
+    .route('/transactions/ticket_copy_prints')
+    .get(handleGetTicketCopyPrintsFeature)
 
 router
     .route('/transactions/tickets_search')

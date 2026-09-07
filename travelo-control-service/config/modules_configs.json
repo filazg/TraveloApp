@@ -626,6 +626,52 @@
                 "web_portal-service"
             ],
             "groups": []
+        },
+        {
+            "key": "KONTROLA",
+            "acr": "KONT",
+            "kind": "shared",
+            "always_on": true,
+            "order": 55,
+            "title": {
+                "hr": "Kontrola",
+                "en": "Control"
+            },
+            "subtitle": {
+                "hr": "Kontrola karata i zloupotreba",
+                "en": "Ticket control and abuse"
+            },
+            "icon": "Verified",
+            "color": "#B3261E",
+            "iconColor": "white",
+            "path": "/kontrola",
+            "services": [
+                "transactions-service"
+            ],
+            "groups": [
+                {
+                    "label": {
+                        "hr": "Kontrola karata",
+                        "en": "Ticket control"
+                    },
+                    "icon": "Verified",
+                    "items": [
+                        {
+                            "key": "TICKET_COPY_CONTROL",
+                            "label": {
+                                "hr": "Kontrola kopija karata",
+                                "en": "Ticket copy control"
+                            },
+                            "subtitle": {
+                                "hr": "Sukobi original/kopija i ispisane kopije",
+                                "en": "Original/copy conflicts and printed copies"
+                            },
+                            "path": "/kontrola/kopije_karata",
+                            "icon": "ContentCopy"
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }

@@ -7,6 +7,7 @@ import salesReducer from "/src/features/sales/salesSlice.js"
 import dispatcherReducer from "/src/features/dispatcher/dispatcherSlice.js"
 import bookingReducer from "/src/features/booking/bookingSlice.js"
 import sailingReducer from "/src/features/sailing/sailingSlice.js"
+import kontrolaReducer from "/src/features/kontrola/kontrolaSlice.js"
 
 export const store = configureStore({
   reducer: {
@@ -18,5 +19,6 @@ export const store = configureStore({
     dispatcher:dispatcherReducer,
     booking:bookingReducer,
     sailing:sailingReducer,
+    kontrola:kontrolaReducer,
   },
 });

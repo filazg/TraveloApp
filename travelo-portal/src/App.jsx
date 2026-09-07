@@ -46,6 +46,8 @@ import SalesPage from './features/sales/SalesPage';
 import DispatcherPage from './features/dispatcher/DispatcherPage';
 import SailingPage from './features/sailing/SailingPage';
 import DownloadsPage from './features/downloads/DownloadsPage';
+import KontrolaPage from './features/kontrola/KontrolaPage';
+import TicketCopyControlPage from './features/kontrola/pages/copy_control/TicketCopyControlPage';
 
 
 function App() {
@@ -104,6 +106,8 @@ function App() {
                 <Route path='dispatcher' element={<DispatcherPage/>}></Route>
                 <Route path='sailing' element={<SailingPage/>}></Route>
                 <Route path='downloads' element={<DownloadsPage/>}></Route>
+                <Route path='kontrola' element={<KontrolaPage/>}></Route>
+                <Route path='kontrola/kopije_karata' element={<TicketCopyControlPage/>}></Route>
               </Route>
             </Route>
           </Route>
