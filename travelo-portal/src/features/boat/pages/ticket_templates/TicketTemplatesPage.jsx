@@ -95,7 +95,7 @@ export default function TicketTemplatesPage() {
     }
 
     return (
-        <Box sx={{ width: "100%", maxWidth: 900 }}>
+        <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
             <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
                 Predlošci PDF karte
             </Typography>
