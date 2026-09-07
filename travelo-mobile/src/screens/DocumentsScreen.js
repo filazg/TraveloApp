@@ -135,9 +135,12 @@ export default function DocumentsScreen() {
             // Kopija se prijavi posluzitelju i dobije svoja tri znaka; bez
             // toga bi na papiru stajala oznaka originala i kopija se u kontroli
             // ne bi razlikovala od karte koju je putnik dobio pri kupnji.
+            // U evidenciju kopije ide operater koji ju je ispisao, ne onaj koji
+            // je kartu prodao — kontrola trazi tko je kopiju izdao.
+            const kopiraoIme = `${auth.operator?.user_name || ''} ${auth.operator?.user_surname || ''}`.trim();
             const kopije = await oznaciKopije(detailTickets, {
                 basicData: sync.basicData,
-                operatorName: r.operater_name || '',
+                operatorName: kopiraoIme || r.operater_name || '',
             });
             await printTicketsFn({
                 tickets: kopije,
