@@ -14,7 +14,7 @@ const backendURL = resolveBackendUrl("/app");
 const api = axios.create({ baseURL: backendURL, withCredentials: true });
 const unwrap = (r) => r?.data?.data?.data ?? r?.data?.data ?? r?.data ?? {};
 
-const ZADANO = { template_key: "compact", summary_threshold: 0 };
+const ZADANO = { template_key: "ticket_tamplate_1", summary_threshold: 0 };
 
 // Izgled PDF karte.
 //
@@ -132,7 +132,6 @@ export default function TicketTemplatesPage() {
                                             value={v.template_key}
                                             onChange={(e) => promijeni(k.key, "template_key", e.target.value)}
                                             sx={{ minWidth: 260 }}
-                                            helperText={izabran?.description || " "}
                                         >
                                             {katalog.map((t) => (
                                                 <MenuItem key={t.key} value={t.key}>{t.label}</MenuItem>
@@ -184,7 +183,6 @@ export default function TicketTemplatesPage() {
                                 <CardContent>
                                     <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
                                         <Typography fontWeight={700}>{t.label}</Typography>
-                                        <Chip size="small" label={t.key} variant="outlined" />
                                         {t.supports_summary && (
                                             <Chip size="small" color="primary" variant="outlined" label="sa sažetkom" />
                                         )}

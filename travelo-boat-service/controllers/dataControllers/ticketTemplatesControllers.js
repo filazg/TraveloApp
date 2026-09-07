@@ -6,7 +6,7 @@
 
 // Zadano kad kanal još nema zapis: postojeći predložak, bez sažetka. Novi kanal
 // se time ponaša kao i prije nego su predlošci uvedeni.
-const ZADANO = { template_key: "compact", summary_threshold: 0 };
+const ZADANO = { template_key: "ticket_tamplate_1", summary_threshold: 0 };
 
 const listTicketTemplatesController = async (req, res) => {
     const { TicketTemplatesModel } = req.app.locals.models;
