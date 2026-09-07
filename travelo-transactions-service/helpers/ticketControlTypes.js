@@ -20,10 +20,8 @@ const VRSTE = {
 
     // --- utvrđuje se pri ispisu kopije ---
     MANY_COPIES: "many_copies",
-    COPY_BY_OTHER_OPERATOR: "copy_by_other_operator",
 };
 
-// Naziv za prikaz i kratko objašnjenje. Držano uz ključeve da se ne razilaze.
 const OPIS_VRSTE = {
     [VRSTE.COPY_OVER_ORIGINAL]: "Kopija preko originala",
     [VRSTE.ORIGINAL_OVER_COPY]: "Original preko kopije",
@@ -31,8 +29,22 @@ const OPIS_VRSTE = {
     [VRSTE.SAME_ARTIFACT]: "Isti otisak dvaput",
     [VRSTE.CANCELED_TICKET]: "Stornirana karta",
     [VRSTE.MANY_COPIES]: "Previše kopija",
-    [VRSTE.COPY_BY_OTHER_OPERATOR]: "Kopiju izdao drugi operater",
 };
+
+// Kartice u portalu. Nisu jedna po vrsti: tri varijante sukoba originala i
+// kopije su isti nalaz gledan iz različitog kuta — original i kopija su
+// istovremeno u optjecaju — pa idu zajedno. Razlog uz svaki redak i dalje kaže
+// koja je točno varijanta.
+const KARTICE = [
+    {
+        value: "copy_conflict",
+        label: "Original i kopija",
+        types: [VRSTE.COPY_OVER_ORIGINAL, VRSTE.ORIGINAL_OVER_COPY, VRSTE.COPY_OVER_COPY],
+    },
+    { value: VRSTE.SAME_ARTIFACT, label: OPIS_VRSTE[VRSTE.SAME_ARTIFACT], types: [VRSTE.SAME_ARTIFACT] },
+    { value: VRSTE.CANCELED_TICKET, label: OPIS_VRSTE[VRSTE.CANCELED_TICKET], types: [VRSTE.CANCELED_TICKET] },
+    { value: VRSTE.MANY_COPIES, label: OPIS_VRSTE[VRSTE.MANY_COPIES], types: [VRSTE.MANY_COPIES] },
+];
 
 // Vrste koje nastaju na validaciji — po njima se filtrira ticket_validations.
 const VRSTE_VALIDACIJE = [
@@ -44,14 +56,28 @@ const VRSTE_VALIDACIJE = [
 ];
 
 // Vrste koje nastaju pri ispisu kopije — po njima se filtrira ticket_copy_prints.
-const VRSTE_ISPISA = [
-    VRSTE.MANY_COPIES,
-    VRSTE.COPY_BY_OTHER_OPERATOR,
-];
+const VRSTE_ISPISA = [VRSTE.MANY_COPIES];
 
 // Od koje kopije nadalje se ispis smatra uzorkom, a ne slučajnošću. Prva i
 // druga kopija se događaju (izgubljena karta, zaglavljen papir); treća već
 // traži objašnjenje.
 const PRAG_KOPIJA = 3;
 
-module.exports = { VRSTE, OPIS_VRSTE, VRSTE_VALIDACIJE, VRSTE_ISPISA, PRAG_KOPIJA };
+// Kartica ili pojedina vrsta → popis vrsta. Portal šalje ključ kartice, a
+// ovdje se prevodi; tako sučelje ne mora znati koje vrste kartica pokriva.
+const vrsteZaFiltar = (kljuc) => {
+    if (!kljuc) return null;
+    const kartica = KARTICE.find((k) => k.value === kljuc);
+    if (kartica) return kartica.types;
+    return Object.values(VRSTE).includes(kljuc) ? [kljuc] : [];
+};
+
+module.exports = {
+    VRSTE,
+    OPIS_VRSTE,
+    KARTICE,
+    VRSTE_VALIDACIJE,
+    VRSTE_ISPISA,
+    PRAG_KOPIJA,
+    vrsteZaFiltar,
+};

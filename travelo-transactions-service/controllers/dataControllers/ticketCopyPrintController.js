@@ -12,24 +12,6 @@ const { getModels } = require("../../dbModels");
 const { suffixKopije, procitajSuffix, MAX_KOPIJA } = require("../../helpers/ticketCopyMark");
 const { VRSTE, PRAG_KOPIJA } = require("../../helpers/ticketControlTypes");
 
-// Tko je kartu prodao i gdje. Kopiju u pravilu izdaje isto mjesto; kopija s
-// tude blagajne trazi objasnjenje, pa se prodavatelj mora znati.
-const prodavateljKarte = async (ticket_uuid) => {
-    const { TicketsModel, InvoiceModel } = getModels();
-    const karta = await TicketsModel.findOne({ where: { ticket_uuid } });
-    if (!karta) return null;
-    const racun = karta.invoice_uuid
-        ? await InvoiceModel.findOne({ where: { invoice_uuid: karta.invoice_uuid } })
-        : null;
-    return {
-        // Partnerska prodaja nema racun u trenutku prodaje, pa prodavatelj
-        // stoji na samoj karti.
-        operator: racun?.invoice_operator_name || racun?.operater_name || karta.sold_by_username || null,
-        operator_uuid: racun?.operater_uuid || null,
-        premise: racun?.invoice_business_premise_name || null,
-    };
-};
-
 const zapisiKopiju = async ({
     ticket_uuid,
     ticket_code = null,
@@ -57,32 +39,14 @@ const zapisiKopiju = async ({
     // sufiks ne nosi broj, pa se na papiru vidi da je kopija ali ne i koja.
     const suffix = broj <= MAX_KOPIJA ? suffixKopije(ticket_uuid, broj) : null;
 
-    // Dvije stvari se vide vec pri ispisu, ne treba cekati kontrolu.
-    //
-    // Prva i druga kopija se dogadaju — izgubljena karta, zaglavljen papir.
-    // Treca je uzorak, ne slucajnost.
-    //
-    // Kopija s druge blagajne nego sto je karta prodana takoder trazi
-    // objasnjenje: kopiju u pravilu izdaje mjesto koje je i prodalo.
+    // Previse kopija se vidi vec pri ispisu, ne treba cekati kontrolu. Prva i
+    // druga kopija se dogadaju — izgubljena karta, zaglavljen papir. Treca je
+    // uzorak, ne slucajnost.
     let flag_type = null;
     let flag_reason = null;
     if (broj >= PRAG_KOPIJA) {
         flag_type = VRSTE.MANY_COPIES;
         flag_reason = `${broj}. kopija iste karte`;
-    }
-    if (!flag_type) {
-        try {
-            const prodavatelj = await prodavateljKarte(ticket_uuid);
-            const izdao = operator_name || null;
-            if (prodavatelj?.operator && izdao && prodavatelj.operator !== izdao) {
-                flag_type = VRSTE.COPY_BY_OTHER_OPERATOR;
-                flag_reason = `kartu prodao ${prodavatelj.operator}, kopiju izdao ${izdao}`;
-            }
-        } catch (e) {
-            // Neuspjela provjera ne smije sprijeciti evidenciju ispisa — zapis je
-            // vazniji od oznake.
-            console.log("provjera prodavatelja nije uspjela:", e?.message || e);
-        }
     }
 
     const red = await TicketCopyPrintModel.create({

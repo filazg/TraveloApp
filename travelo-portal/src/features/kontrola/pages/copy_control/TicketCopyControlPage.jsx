@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-    Alert, Badge, Box, Button, Chip, CircularProgress, Drawer, Paper, Stack, Tab, Tabs,
+    Alert, Box, Button, Chip, Divider, Drawer, Paper, Stack, Tab, Tabs,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import { DataGrid } from "@mui/x-data-grid";
+import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 
 import {
@@ -47,13 +48,10 @@ const opisOtiska = (r) => {
 // točno hvata ni zašto je to sumnjivo.
 const OPIS_KARTICE = {
     "": "Svi nalazi u odabranom razdoblju. Nastaju na dva mjesta: na kontroli, kad se karta očita drugi put, i pri ispisu kopije, kad se već tada vidi da nešto ne štima.",
-    copy_over_original: "Original je prošao kontrolu, pa je netko pokušao i kopijom. Znači da su original i kopija istovremeno u optjecaju.",
-    original_over_copy: "Kopija je prošla kontrolu, pa je netko došao s originalom. Isto što i prethodno, samo obrnutim redom.",
-    copy_over_copy: "Dvije različite kopije iste karte pokušale su proći kontrolu.",
+    copy_conflict: "Original i kopija iste karte istovremeno su u optjecaju. Razlog uz redak kaže je li kopija došla preko originala, original preko kopije ili druga kopija preko prve.",
     same_artifact: "Ista karta s istom oznakom očitana je drugi put. Fotografija QR-a nosi identičnu oznaku kao original, pa je ovo jedini trag koji takav slučaj uopće ostavlja. Ovdje upada i putnik koji je dvaput prislonio kartu.",
     canceled_ticket: "Netko se pokušao ukrcati kartom koja je stornirana, često uz već vraćen novac.",
     many_copies: "Karta ima tri ili više ispisanih kopija. Prva i druga se događaju — izgubljena karta, zaglavljen papir — treća je uzorak.",
-    copy_by_other_operator: "Kopiju je izdao operater koji nije prodao kartu. Kopiju u pravilu izdaje mjesto koje je i prodalo.",
 };
 
 const danaUnazad = (n) => {
@@ -74,6 +72,7 @@ export default function TicketCopyControlPage() {
 
     const [from, setFrom] = useState(danaUnazad(30));
     const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+    const [sifra, setSifra] = useState("");
     // Prazna vrsta je kartica "Sve".
     const [vrsta, setVrsta] = useState("");
 
@@ -98,148 +97,170 @@ export default function TicketCopyControlPage() {
         ucitaj(novaVrsta);
     };
 
-    // Ladici se predaje cijeli redak, ne samo uuid: podatke o karti popis je vec
-    // dohvatio, pa nema razloga ici po njih drugi put.
+    // Ladici se predaje cijeli redak, ne samo uuid: podatke o karti popis je već
+    // dohvatio, pa nema razloga ići po njih drugi put.
     const otvoriDetalj = (r) => {
         setOdabrana(r);
         dispatch(setDetailTicket(r.ticket_uuid));
         dispatch(fetchTicketValidationsThunk({ ticket_uuid: r.ticket_uuid }));
         dispatch(fetchCopyPrintsThunk({ ticket_uuid: r.ticket_uuid }));
     };
-    const sukobi = data.conflicts || [];
+
+    // Šifra karte se filtrira ovdje, ne na poslužitelju: popis je već u
+    // memoriji i ograničen razdobljem, pa je odlazak po isti podatak čist trošak.
+    const sviRedci = data.conflicts || [];
+    const sukobi = sifra
+        ? sviRedci.filter((r) => String(r.ticket_code || "").toUpperCase().includes(sifra))
+        : sviRedci;
     const brojaci = data.counts || {};
     const ukupno = Object.values(brojaci).reduce((z, n) => z + n, 0);
 
+    // Tablica puni preostalu visinu prozora, kao i u pregledu karata — inače na
+    // kraćem popisu ostane prazan pojas, a na duljem se skrola cijela stranica.
+    const tablicaRef = useRef(null);
+    const [visinaTablice, setVisinaTablice] = useState(520);
+    useLayoutEffect(() => {
+        const preracunaj = () => {
+            const vrh = tablicaRef.current?.getBoundingClientRect().top ?? 0;
+            setVisinaTablice(Math.max(320, window.innerHeight - vrh - 24));
+        };
+        preracunaj();
+        window.addEventListener("resize", preracunaj);
+        return () => window.removeEventListener("resize", preracunaj);
+    }, [vrsta, sukobi.length]);
+
+    const columns = [
+        { field: "ticket_code", headerName: "Broj karte", width: 150 },
+        ...(vrsta ? [] : [{
+            field: "type_label",
+            headerName: "Vrsta",
+            width: 170,
+            renderCell: (p) => <Chip size="small" variant="outlined" label={p.value || ""} />,
+        }]),
+        {
+            field: "relacija",
+            headerName: "Relacija",
+            width: 190,
+            valueGetter: (_v, r) => (r.departure_harbor_name
+                ? `${r.departure_harbor_name} → ${r.arrival_harbor_name || ""}`
+                : "—"),
+        },
+        { field: "line_code", headerName: "Linija", width: 90 },
+        { field: "departure", headerName: "Polazak", width: 160 },
+        {
+            field: "ticket_issued_at",
+            headerName: "Original izdan",
+            width: 170,
+            valueFormatter: (v) => fmtVrijeme(v),
+        },
+        {
+            field: "issued_by",
+            headerName: "Original izdao",
+            width: 200,
+            valueGetter: (_v, r) => (r.issued_by
+                ? `${r.issued_by}${r.issued_at_premise ? " · " + r.issued_at_premise : ""}`
+                : "—"),
+        },
+        // Vrijeme storna ima smisla samo tamo gdje karta jest stornirana; na
+        // ostalim karticama bi stupac bio prazan u svakom retku.
+        ...(vrsta === "canceled_ticket" ? [{
+            field: "canceled_at",
+            headerName: "Stornirana",
+            width: 170,
+            valueFormatter: (v) => fmtVrijeme(v),
+        }] : []),
+        {
+            field: "event_count",
+            headerName: "Slučajeva",
+            width: 100,
+            align: "right",
+            headerAlign: "right",
+            renderCell: (p) => <Chip size="small" color="error" label={p.value} />,
+        },
+        {
+            field: "last_at",
+            headerName: "Zadnji put",
+            width: 170,
+            valueFormatter: (v) => fmtVrijeme(v),
+        },
+        { field: "last_reason", headerName: "Razlog", width: 300 },
+        { field: "last_operator", headerName: "Kontrolor", width: 160 },
+        { field: "last_terminal", headerName: "Uređaj", width: 140 },
+    ];
+
     return (
-        <Box sx={{ width: "100%", maxWidth: 1400 }}>
-            <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2, flexWrap: "wrap" }}>
-                <Typography variant="h6" fontWeight={800}>Kontrola kopija karata</Typography>
-                <Box sx={{ flex: 1 }} />
-                <TextField
-                    size="small" type="date" label="Od" InputLabelProps={{ shrink: true }}
-                    value={from} onChange={(e) => setFrom(e.target.value)}
-                />
-                <TextField
-                    size="small" type="date" label="Do" InputLabelProps={{ shrink: true }}
-                    value={to} onChange={(e) => setTo(e.target.value)}
-                />
-                <Button variant="contained" startIcon={<RefreshIcon />} onClick={ucitaj}>
-                    Osvježi
-                </Button>
-            </Stack>
-
-            {/* Kartica po vrsti sukoba, a prva sadrži sve. Brojači se računaju
-                nad punim popisom, pa ostaju točni i dok je odabrana jedna vrsta. */}
-            <Tabs
-                value={vrsta}
-                onChange={promijeniKarticu}
-                variant="scrollable"
-                scrollButtons="auto"
-                sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
-            >
-                <Tab
-                    value=""
-                    label={
-                        <Badge badgeContent={ukupno} color="error" sx={{ pr: ukupno ? 2 : 0 }}>
-                            Sve
-                        </Badge>
-                    }
-                />
-                {(data.types || []).map((t) => (
-                    <Tab
-                        key={t.value}
-                        value={t.value}
-                        label={
-                            <Badge
-                                badgeContent={brojaci[t.value] || 0}
-                                color="error"
-                                sx={{ pr: brojaci[t.value] ? 2 : 0 }}
-                            >
-                                {t.label}
-                            </Badge>
-                        }
+        <Box sx={{ width: "100%", maxWidth: 1600 }}>
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <Typography variant="h6" fontWeight={800} sx={{ mr: 2 }}>
+                        Kontrola kopija karata
+                    </Typography>
+                    <TextField
+                        size="small" type="date" label="Od" InputLabelProps={{ shrink: true }}
+                        value={from} onChange={(e) => setFrom(e.target.value)}
                     />
-                ))}
-            </Tabs>
+                    <TextField
+                        size="small" type="date" label="Do" InputLabelProps={{ shrink: true }}
+                        value={to} onChange={(e) => setTo(e.target.value)}
+                    />
+                </Stack>
 
-            <Alert severity="info" sx={{ mb: 2 }}>
+                <Divider sx={{ my: 1 }} />
+
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <TextField
+                        size="small"
+                        label="Šifra karte"
+                        value={sifra}
+                        onChange={(e) => setSifra(e.target.value.toUpperCase())}
+                        sx={{ width: 200 }}
+                        helperText="filtrira prikazani popis"
+                    />
+                    <Box sx={{ flex: 1 }} />
+                    <Chip label={`${sukobi.length} nalaza`} />
+                    <Button onClick={() => setSifra("")} disabled={!sifra}>Očisti</Button>
+                    <Button
+                        variant="contained"
+                        startIcon={<SearchIcon />}
+                        onClick={() => ucitaj()}
+                        disabled={data.conflictsLoading}
+                    >
+                        Pretraži
+                    </Button>
+                </Stack>
+            </Paper>
+
+            {data.conflictsError && <Alert severity="error" sx={{ mb: 2 }}>{data.conflictsError}</Alert>}
+
+            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 1 }}>
+                <Tabs value={vrsta} onChange={promijeniKarticu} variant="scrollable" scrollButtons="auto">
+                    <Tab value="" label={`Sve (${ukupno})`} />
+                    {(data.types || []).map((t) => (
+                        <Tab key={t.value} value={t.value} label={`${t.label} (${brojaci[t.value] || 0})`} />
+                    ))}
+                </Tabs>
+            </Box>
+
+            <Alert severity="info" sx={{ mb: 1 }}>
                 {OPIS_KARTICE[vrsta] || OPIS_KARTICE[""]}
             </Alert>
 
-            {data.conflictsError && (
-                <Alert severity="error" sx={{ mb: 2 }}>{data.conflictsError}</Alert>
-            )}
-
-            <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Broj karte</TableCell>
-                            {/* Vrsta se pokazuje samo na kartici "Sve" — na ostalima
-                                je ista u svakom retku i samo troši prostor. */}
-                            {!vrsta && <TableCell>Vrsta</TableCell>}
-                            <TableCell>Relacija</TableCell>
-                            {/* Kada je original izdan — iz toga se vidi je li kopija
-                                nastala odmah po prodaji ili danima kasnije. */}
-                            <TableCell>Original izdan</TableCell>
-                            <TableCell>Original izdao</TableCell>
-                            <TableCell align="right">Slučajeva</TableCell>
-                            <TableCell>Zadnji put</TableCell>
-                            <TableCell>Razlog</TableCell>
-                            <TableCell>Kontrolor</TableCell>
-                            <TableCell>Uređaj</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {data.conflictsLoading && (
-                            <TableRow>
-                                <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
-                                    <CircularProgress size={22} />
-                                </TableCell>
-                            </TableRow>
-                        )}
-                        {!data.conflictsLoading && sukobi.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={10} align="center" sx={{ py: 4, color: "text.secondary" }}>
-                                    U odabranom razdoblju nema uhvaćenih sukoba.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                        {!data.conflictsLoading && sukobi.map((r) => (
-                            <TableRow
-                                key={r.ticket_uuid}
-                                hover
-                                sx={{ cursor: "pointer" }}
-                                onClick={() => otvoriDetalj(r)}
-                            >
-                                <TableCell sx={{ fontWeight: 700 }}>{r.ticket_code || r.ticket_uuid}</TableCell>
-                                {!vrsta && (
-                                    <TableCell>
-                                        <Chip size="small" variant="outlined" label={r.type_label || r.type} />
-                                    </TableCell>
-                                )}
-                                <TableCell>
-                                    {r.departure_harbor_name
-                                        ? `${r.departure_harbor_name} → ${r.arrival_harbor_name || ""}`
-                                        : "—"}
-                                </TableCell>
-                                <TableCell>{fmtVrijeme(r.ticket_issued_at)}</TableCell>
-                                <TableCell>
-                                    {r.issued_by || "—"}
-                                    {r.issued_at_premise ? ` · ${r.issued_at_premise}` : ""}
-                                </TableCell>
-                                <TableCell align="right">
-                                    <Chip size="small" color="error" label={r.event_count} />
-                                </TableCell>
-                                <TableCell>{fmtVrijeme(r.last_at)}</TableCell>
-                                <TableCell>{r.last_reason || "—"}</TableCell>
-                                <TableCell>{r.last_operator || "—"}</TableCell>
-                                <TableCell>{r.last_terminal || "—"}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <Box ref={tablicaRef} sx={{ height: visinaTablice, minWidth: 1200 }}>
+                <DataGrid
+                    rows={sukobi}
+                    getRowId={(r) => `${r.ticket_uuid}|${r.type}`}
+                    columns={columns}
+                    loading={data.conflictsLoading}
+                    initialState={{
+                        pagination: { paginationModel: { pageSize: 50, page: 0 } },
+                        sorting: { sortModel: [{ field: "last_at", sort: "desc" }] },
+                    }}
+                    pageSizeOptions={[25, 50, 100, 250]}
+                    disableRowSelectionOnClick
+                    onRowClick={(p) => otvoriDetalj(p.row)}
+                    sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
+                />
+            </Box>
 
             {/* Detalj: cijela povijest karte. Sukob se ne da procijeniti iz jednog
                 retka — treba se vidjeti što je prošlo prvo i koje su kopije uopće
@@ -248,14 +269,12 @@ export default function TicketCopyControlPage() {
                 anchor="right"
                 open={!!data.detailTicketUuid}
                 onClose={zatvoriDetalj}
-                PaperProps={{ sx: { width: { xs: "100%", md: 720 }, p: 3 } }}
+                PaperProps={{ sx: { width: { xs: "100%", md: 760 }, p: 3 } }}
             >
                 <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
                     <Typography variant="h6" fontWeight={800}>Povijest karte</Typography>
                     <Box sx={{ flex: 1 }} />
-                    <Button startIcon={<CloseIcon />} onClick={zatvoriDetalj}>
-                        Zatvori
-                    </Button>
+                    <Button startIcon={<CloseIcon />} onClick={zatvoriDetalj}>Zatvori</Button>
                 </Stack>
 
                 {/* Podaci o originalu. Bez njih se povijest čita bez uporišta —
@@ -263,11 +282,7 @@ export default function TicketCopyControlPage() {
                     prodaje do prve kopije. */}
                 {odabrana && (
                     <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                        <Stack
-                            direction="row"
-                            spacing={4}
-                            sx={{ flexWrap: "wrap", rowGap: 1.5 }}
-                        >
+                        <Stack direction="row" spacing={4} sx={{ flexWrap: "wrap", rowGap: 1.5 }}>
                             {[
                                 ["Broj karte", odabrana.ticket_code || odabrana.ticket_uuid],
                                 ["Oznaka originala", odabrana.original_suffix || "—"],
@@ -280,14 +295,17 @@ export default function TicketCopyControlPage() {
                                 ["Original izdao", odabrana.issued_by
                                     ? `${odabrana.issued_by}${odabrana.issued_at_premise ? " · " + odabrana.issued_at_premise : ""}`
                                     : "—"],
+                                // Samo za storniranu kartu — inače prazan podatak
+                                // koji zbunjuje.
+                                ...(odabrana.ticket_canceled
+                                    ? [["Stornirana", fmtVrijeme(odabrana.canceled_at)]]
+                                    : []),
                             ].map(([oznaka, vrijednost]) => (
                                 <Box key={oznaka}>
                                     <Typography variant="caption" color="text.secondary" display="block">
                                         {oznaka}
                                     </Typography>
-                                    <Typography fontWeight={700} fontSize={14}>
-                                        {vrijednost}
-                                    </Typography>
+                                    <Typography fontWeight={700} fontSize={14}>{vrijednost}</Typography>
                                 </Box>
                             ))}
                         </Stack>
@@ -307,22 +325,14 @@ export default function TicketCopyControlPage() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {data.detailLoading && (
-                                <TableRow>
-                                    <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
-                                        <CircularProgress size={20} />
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                            {!data.detailLoading && (data.validations || []).map((v) => {
+                            {(data.validations || []).map((v) => {
                                 const i = ISHOD[v.outcome] || { label: v.outcome, color: "default" };
                                 return (
                                     <TableRow key={v.id} sx={v.is_conflict ? { bgcolor: "rgba(179,38,30,0.06)" } : {}}>
                                         <TableCell>{fmtVrijeme(v.validated_at)}</TableCell>
                                         <TableCell><Chip size="small" color={i.color} label={i.label} /></TableCell>
                                         <TableCell>
-                                            {opisOtiska(v)}
-                                            {v.suffix ? ` · ${v.suffix}` : ""}
+                                            {opisOtiska(v)}{v.suffix ? ` · ${v.suffix}` : ""}
                                         </TableCell>
                                         <TableCell>{v.operator || "—"}</TableCell>
                                         <TableCell sx={{ color: v.is_conflict ? "#B3261E" : "text.secondary" }}>

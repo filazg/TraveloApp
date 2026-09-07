@@ -5,7 +5,7 @@
 // strana: pisanje s ukrcaja, čitanje iz ureda.
 const { Op } = require("sequelize");
 const { getModels } = require("../../dbModels");
-const { OPIS_VRSTE, VRSTE_VALIDACIJE, VRSTE_ISPISA } = require("../../helpers/ticketControlTypes");
+const { OPIS_VRSTE, KARTICE, VRSTE_VALIDACIJE, VRSTE_ISPISA, vrsteZaFiltar } = require("../../helpers/ticketControlTypes");
 
 const rasponDatuma = (from, to) => {
     if (!from && !to) return null;
@@ -61,7 +61,10 @@ const listCopyConflictsController = async (req, res) => {
         const { TicketValidationModel } = getModels();
         const sequelize = TicketValidationModel.sequelize;
 
+        // Portal salje kljuc kartice, ne pojedinu vrstu — jedna kartica zna
+        // pokrivati vise vrsta (original i kopija su tri varijante istog nalaza).
         const trazenaVrsta = req.query.type || null;
+        const vrsteFiltra = vrsteZaFiltar(trazenaVrsta);
         const replacements = { limit: Math.min(Number(req.query.limit) || 300, 1000) };
 
         const uvjetiV = ["v.is_conflict = true", "v.conflict_type IS NOT NULL"];
@@ -78,16 +81,18 @@ const listCopyConflictsController = async (req, res) => {
             uvjetiI.push("p.printed_at <= :to");
             replacements.to = doo;
         }
-        if (trazenaVrsta) {
-            uvjetiV.push("v.conflict_type = :type");
-            uvjetiI.push("p.flag_type = :type");
-            replacements.type = trazenaVrsta;
+        if (vrsteFiltra) {
+            uvjetiV.push("v.conflict_type IN (:types)");
+            uvjetiI.push("p.flag_type IN (:types)");
+            // Prazan popis bi u IN (:types) srusio upit; jedna nepostojeca
+            // vrijednost daje prazan rezultat, sto je i tocan odgovor.
+            replacements.types = vrsteFiltra.length ? vrsteFiltra : ["__nema__"];
         }
 
-        // Kad je tražena vrsta iz samo jedne skupine, druga se ne pretražuje —
-        // prazan upit nad drugom tablicom je čist trošak.
-        const trebaValidacije = !trazenaVrsta || VRSTE_VALIDACIJE.includes(trazenaVrsta);
-        const trebaIspise = !trazenaVrsta || VRSTE_ISPISA.includes(trazenaVrsta);
+        // Kad kartica pokriva vrste iz samo jedne skupine, druga se ne
+        // pretrazuje — prazan upit nad drugom tablicom je cist trosak.
+        const trebaValidacije = !vrsteFiltra || vrsteFiltra.some((v) => VRSTE_VALIDACIJE.includes(v));
+        const trebaIspise = !vrsteFiltra || vrsteFiltra.some((v) => VRSTE_ISPISA.includes(v));
 
         // Podaci o originalu su isti za obje skupine: kada je izdan, tko ga je
         // izdao i gdje. Bez toga se iz popisa ne vidi ni je li kopija nastala
@@ -100,7 +105,9 @@ const listCopyConflictsController = async (req, res) => {
                     MIN(t.line_code)            AS line_code,
                     MIN(t.departure_harbor_name) AS departure_harbor_name,
                     MIN(t.arrival_harbor_name)  AS arrival_harbor_name,
-                    MIN(t.departure)            AS departure`;
+                    MIN(t.departure)            AS departure,
+                    BOOL_OR(t.is_canceled)      AS ticket_canceled,
+                    MIN(t.deactivate_data)      AS canceled_at`;
 
         const upitValidacije = `
             SELECT v.ticket_uuid,
@@ -150,9 +157,14 @@ ${KARTA_SELECT}
 
         // Brojači po vrsti — kartice u portalu pokazuju koliko ih je gdje, pa se
         // računaju ovdje i za neodabrane vrste.
+        // Brojaci idu po kartici — sucelje ne zna koje vrste kartica pokriva.
         const counts = {};
         if (!trazenaVrsta) {
-            for (const r of redci) counts[r.type] = (counts[r.type] || 0) + 1;
+            for (const r of redci) {
+                const kartica = KARTICE.find((k) => k.types.includes(r.type));
+                const kljuc = kartica ? kartica.value : r.type;
+                counts[kljuc] = (counts[kljuc] || 0) + 1;
+            }
         }
 
         res.send({
@@ -174,11 +186,9 @@ const listConflictTypesController = async (_req, res) => {
     res.send({
         status: 200,
         data: {
-            types: [...VRSTE_VALIDACIJE, ...VRSTE_ISPISA].map((v) => ({
-                value: v,
-                label: OPIS_VRSTE[v] || v,
-                source: VRSTE_VALIDACIJE.includes(v) ? "validation" : "copy_print",
-            })),
+            // Portalu idu kartice, ne pojedine vrste: koja kartica pokriva koje
+            // vrste je pravilo, a pravila ne pripadaju sucelju.
+            types: KARTICE.map((k) => ({ value: k.value, label: k.label, types: k.types })),
         },
     });
 };
