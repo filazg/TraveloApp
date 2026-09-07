@@ -67,7 +67,7 @@
 
       .journey {
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         padding: 9mm 7mm 7mm;
       }
       .place { flex: 1; }
@@ -80,16 +80,41 @@
       .place .date { font-size: 10pt; color: #6b7280; margin-top: .8mm; }
       .place.right { text-align: right; }
 
-      /* Crta s trokutom umjesto strelice iz fonta — znak koji font nema ispao
-         bi kao kvadratic nasred karte. */
-      .arrow { width: 26mm; padding: 0 3mm 9mm; }
-      .arrow .rail { height: 1px; background: #b9c2cb; position: relative; }
-      .arrow .rail:after {
+      /* Put izmedu luka: tocka na polasku, crta, vrh strelice na dolasku, a
+         ispod trajanje voznje. Nacrtano je CSS-om, ne znakom iz fonta —
+         strelica koju font nema ispala bi kao kvadratic nasred karte. */
+      .route { width: 40mm; padding: 0 4mm; text-align: center; }
+      .route .rail {
+        position: relative;
+        height: 2.4mm;
+        margin: 0 1mm;
+      }
+      .route .rail:before {
         content: "";
-        position: absolute; right: -1px; top: -1.6mm;
-        border-left: 3mm solid #175BD0;
-        border-top: 1.6mm solid transparent;
-        border-bottom: 1.6mm solid transparent;
+        position: absolute; left: 0; top: .55mm;
+        width: 2.2mm; height: 2.2mm;
+        border: .6mm solid #175BD0;
+        border-radius: 50%;
+        background: #fff;
+      }
+      /* Crta ide od tocke do vrha strelice, ne ispod njih. */
+      .route .rail .line {
+        position: absolute; left: 3.6mm; right: 3.2mm; top: 1.65mm;
+        border-top: 1.2px dashed #8b95a0;
+      }
+      .route .rail:after {
+        content: "";
+        position: absolute; right: 0; top: .35mm;
+        border-left: 3.2mm solid #175BD0;
+        border-top: 1.7mm solid transparent;
+        border-bottom: 1.7mm solid transparent;
+      }
+      .route .dur {
+        margin-top: 2mm;
+        font-size: 8pt;
+        color: #6b7280;
+        letter-spacing: .5px;
+        white-space: nowrap;
       }
 
       .facts {
@@ -199,6 +224,26 @@
       // rastavlja; ako oblik nije takav, sve ide u datum umjesto da se izgubi.
       const dan = (v) => String(v || "").split(" ")[0] || "";
       const sat = (v) => String(v || "").split(" ")[1] || "";
+
+      // Trajanje voznje stoji uz strelicu, kao na kartama drugih prijevoznika.
+      // Racuna se iz vremena na karti; ako dolazak nije upisan, izostaje umjesto
+      // da se izmislja.
+      const trajanje = (od, dolazak) => {
+        const uMinute = (v) => {
+          const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || ""));
+          return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+        };
+        const a = uMinute(od);
+        const b = uMinute(dolazak);
+        if (a === null || b === null) return "";
+        let d = b - a;
+        if (d < 0) d += 24 * 60; // polazak i dolazak preko ponoci
+        if (!d) return "";
+        const h = Math.floor(d / 60);
+        const m = d % 60;
+        if (!h) return m + " min";
+        return m ? h + " h " + String(m).padStart(2, "0") + " min" : h + " h";
+      };
     %>
 
     <% if (summary) { %>
@@ -273,7 +318,11 @@
                   <div class="date"><%= dan(ti.departure_fmt) %></div>
                 </div>
 
-                <div class="arrow"><div class="rail"></div></div>
+                <div class="route">
+                  <div class="rail"><div class="line"></div></div>
+                  <% var vozi = trajanje(sat(ti.departure_fmt), sat(ti.arrival_fmt)); %>
+                  <% if (vozi) { %><div class="dur"><%= vozi %></div><% } %>
+                </div>
 
                 <div class="place right">
                   <div class="k">Dolazak / To</div>
