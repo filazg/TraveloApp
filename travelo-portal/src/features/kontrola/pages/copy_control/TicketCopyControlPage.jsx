@@ -44,17 +44,6 @@ const opisOtiska = (r) => {
     return r.copy_no ? `kopija ${r.copy_no}` : "kopija (broj nečitljiv)";
 };
 
-// Kratko objašnjenje uz svaku karticu — bez njega se iz naziva ne vidi što se
-// točno hvata ni zašto je to sumnjivo.
-// Kartica "Sve" nema svoju napomenu: popis je mjesavina i tekst bi opisivao
-// sve i nista. Objasnjenje ide uz kartice koje hvataju jednu stvar.
-const OPIS_KARTICE = {
-    copy_conflict: "Original i kopija iste karte istovremeno su u optjecaju: jedan otisak je prošao kontrolu, a onda je došao drugi. Razlog uz redak kaže je li kopija došla preko originala, original preko kopije ili druga kopija preko prve.",
-    same_artifact: "Ista karta s istom oznakom očitana je više puta. Fotografija QR-a nosi identičnu oznaku kao original, pa je ovo jedini trag koji takav slučaj uopće ostavlja. Ovdje upada i putnik koji je dvaput prislonio kartu.",
-    canceled_ticket: "Netko se pokušao ukrcati kartom koja je stornirana, često uz već vraćen novac.",
-    many_copies: "Karta ima tri ili više ispisanih kopija. Prva i druga se događaju — izgubljena karta, zaglavljen papir — treća je uzorak.",
-};
-
 const danaUnazad = (n) => {
     const d = new Date();
     d.setDate(d.getDate() - n);
@@ -244,10 +233,6 @@ export default function TicketCopyControlPage() {
                     ))}
                 </Tabs>
             </Box>
-
-            {OPIS_KARTICE[vrsta] && (
-                <Alert severity="info" sx={{ mb: 1 }}>{OPIS_KARTICE[vrsta]}</Alert>
-            )}
 
             <Box ref={tablicaRef} sx={{ height: visinaTablice, minWidth: 1200 }}>
                 <DataGrid
