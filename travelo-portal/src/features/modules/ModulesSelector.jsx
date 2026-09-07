@@ -120,10 +120,17 @@ export default function ModulesSelector() {
     const catalog = authData?.modulesCatalog || { modules: [], enabled_modules: [] };
     const enabledSet = new Set(catalog.enabled_modules || []);
 
-    const isDisabled = (m) => {
+    // Modul koji korisniku nije dodijeljen se NE prikazuje. Prije je stajao
+    // ugašen, pa je izgledao kao kvar: pločica je tu, klik ne radi, a nigdje ne
+    // piše zašto. Sada naslovnica pokazuje samo ono što korisnik smije otvoriti.
+    //
+    // Korisnik bez ijednog upisanog prava vidi sve — takav zapis znači da prava
+    // nisu postavljena, a ne da su sva oduzeta; suprotno bi mu dalo praznu
+    // naslovnicu i nikakav put dalje.
+    const jeDodijeljen = (m) => {
         const perms = authData?.loggedUserData?.permissions || [];
-        if (perms.length === 0) return false;
-        return !perms.find((perm) => perm.module_acr === m.acr);
+        if (perms.length === 0) return true;
+        return !!perms.find((perm) => perm.module_acr === m.acr);
     };
 
     const handleClick = (m) => () => {
@@ -131,9 +138,11 @@ export default function ModulesSelector() {
         navigate(m.path);
     };
 
-    // Localize titles + sort by `order`. Filter by enabled_modules (deploy-time toggle).
+    // Localize titles + sort by `order`. Filter by enabled_modules (deploy-time
+    // toggle) i po pravima prijavljenog korisnika.
     const visible = (catalog.modules || [])
         .filter((m) => enabledSet.has(m.key))
+        .filter(jeDodijeljen)
         .map((m) => ({
             ...m,
             title: pickLocalized(m.title, lang),
@@ -145,7 +154,12 @@ export default function ModulesSelector() {
     const basic = visible.filter((m) => m.kind === "shared");
 
     // Fallback to legacy hardcoded data if catalog hasn't loaded yet.
-    const useFallback = visible.length === 0;
+    //
+    // Gleda se je li KATALOG prazan, ne je li `visible` prazan. Otkad se moduli
+    // bez prava izbacuju, `visible` zna ostati prazan i kad je katalog uredno
+    // stigao — korisnik jednostavno nema nijedan modul. Na staroj provjeri bi mu
+    // se tada pokazao zamjenski popis, dakle svi moduli, i to bez ijednog prava.
+    const useFallback = (catalog.modules || []).length === 0;
     const transportRender = useFallback ? (authData.transportmodulesData || []) : transport;
     const basicRender = useFallback ? (authData.basicModulesData || []) : basic;
 
@@ -166,7 +180,7 @@ export default function ModulesSelector() {
                         }}
                     >
                         {transportRender.map((m) => (
-                            <ModuleCard key={m.key || m.acr} m={m} disabled={isDisabled(m)} onClick={handleClick(m)} />
+                            <ModuleCard key={m.key || m.acr} m={m} disabled={false} onClick={handleClick(m)} />
                         ))}
                     </Box>
                 </>
@@ -186,7 +200,7 @@ export default function ModulesSelector() {
                         }}
                     >
                         {basicRender.map((m) => (
-                            <ModuleCard key={m.key || m.acr} m={m} disabled={isDisabled(m)} onClick={handleClick(m)} />
+                            <ModuleCard key={m.key || m.acr} m={m} disabled={false} onClick={handleClick(m)} />
                         ))}
                     </Box>
                 </>
