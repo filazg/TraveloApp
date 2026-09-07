@@ -25,6 +25,7 @@ import {
 } from '../store/slices/validationSlice';
 import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
+import { prijaviPokusaj } from '../services/validationAttempts';
 import { ENDPOINTS } from '../api/config';
 import { loadRecentBuyers, saveBuyer, findTicketByUuidOrCode } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
@@ -239,12 +240,31 @@ export default function SaleScreen() {
                 // polazak. Prije je takva karta znala izaći kao "nije za ovaj
                 // polazak", pa se nije znalo o čemu se radi.
                 result = { kind: 'reject', message: 'Karta je stornirana i ne vrijedi.', ticket: local };
+                // Pokušaj ukrcaja storniranom kartom je nalaz za kontrolu, ne
+                // samo poruka djelatniku — zato se javlja poslužitelju.
+                prijaviPokusaj({
+                    ticketUuid: local.ticket_uuid,
+                    scanned: code,
+                    terminalUuid: sync.basicData?.billing_device_uuid,
+                    operator: imeOperatera(),
+                    outcome: 'canceled',
+                });
                 soundError();
             } else if ((voyageMismatch || dateMismatch) && !otherVoyageSameRelation) {
                 result = { kind: 'reject', message: 'Karta nije za ovaj polazak.', ticket: local };
                 soundError();
             } else if (local.status === 'validated' || local.validate_data) {
                 result = { kind: 'already', ticket: local };
+                // Ponovno očitanje već validirane karte je sukob koji kontrola
+                // traži; uređaj ga odbija sam, pa bi bez prijave ostao vidljiv
+                // samo ovdje na zaslonu.
+                prijaviPokusaj({
+                    ticketUuid: local.ticket_uuid,
+                    scanned: code,
+                    terminalUuid: sync.basicData?.billing_device_uuid,
+                    operator: imeOperatera(),
+                    outcome: 'already_validated',
+                });
                 soundError();
             } else {
                 // Uvijek tražimo ručnu potvrdu — scan samo prikaže info, user tap-ne
@@ -282,28 +302,28 @@ export default function SaleScreen() {
         }
     };
 
-    // Validira jednu ili više karata — lokalni cache + backend POST (fire-and-forget).
-    const doValidate = (tickets) => {
+    // Poslužitelj operatera zapisuje kao tekst; objekt mu ruši zapis o pokušaju.
+    const imeOperatera = () => (auth.operator
+        ? `${auth.operator.user_name || ''} ${auth.operator.user_surname || ''}`.trim()
+        : null);
+
+    // Validira jednu ili više karata — lokalni cache + prijava poslužitelju.
+    const doValidate = (tickets, scanned) => {
         soundSuccess();
         const nowIso = new Date().toISOString();
-        const operator = auth.operator ? {
-            uuid: auth.operator.user_uuid,
-            name: `${auth.operator.user_name || ''} ${auth.operator.user_surname || ''}`.trim(),
-        } : null;
         const terminalUuid = sync.basicData?.billing_device_uuid;
         for (const t of tickets) {
             updateCachedTicket(t.ticket_uuid, { status: 'validated', validate_data: nowIso });
-            try {
-                api.post(ENDPOINTS.validateTicket, {
-                    ticket_uuid: t.ticket_uuid,
-                    terminal_uuid: terminalUuid,
-                    operator,
-                }, { timeout: 8000 })
-                    .then(() => console.log('[doValidate] backend OK', t.ticket_uuid))
-                    .catch((e) => console.log('[doValidate] POST failed:', e?.message || e));
-            } catch (e) {
-                console.log('[doValidate] sync error:', e?.message || e);
-            }
+            // Otisak vrijedi samo za očitanu kartu; ostale iz iste narudžbe
+            // djelatnik pušta zajedno s njom, a njihov papir nitko nije čitao.
+            prijaviPokusaj({
+                ticketUuid: t.ticket_uuid,
+                scanned: scanned && t.ticket_uuid === tickets[0]?.ticket_uuid ? scanned : null,
+                kada: nowIso,
+                terminalUuid,
+                operator: imeOperatera(),
+                outcome: 'validated',
+            });
         }
     };
 
@@ -311,7 +331,7 @@ export default function SaleScreen() {
     const onValidateOnlyOne = () => {
         const t = scanResult?.result?.ticket;
         if (!t) { setScanResult(null); return; }
-        doValidate([t]);
+        doValidate([t], scanResult?.code);
         setScanResult({
             ...scanResult,
             result: { kind: 'validated', ticket: { ...t, status: 'validated', validate_data: new Date().toISOString() } },
@@ -322,7 +342,7 @@ export default function SaleScreen() {
         const r = scanResult?.result;
         if (!r?.ticket) { setScanResult(null); return; }
         const all = [r.ticket, ...(r.related || [])];
-        doValidate(all);
+        doValidate(all, scanResult?.code);
         setScanResult({
             ...scanResult,
             result: { kind: 'validated', ticket: r.ticket, validatedCount: all.length },

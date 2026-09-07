@@ -25,7 +25,15 @@ const procitajSkenirano = (body) => {
 const validateTicketController = async (req, res) => {
     const { TicketsModel, TicketValidationModel } = req.app.locals.models;
     const body = req.body?.body || req.body || {};
-    const { ticket_uuid, ticket_code, terminal_uuid, operator, validated_at } = body;
+    const { ticket_uuid, ticket_code, terminal_uuid, validated_at } = body;
+
+    // Operater dolazi kao ime, ali starije mobilne salju cijeli objekt
+    // {uuid, name}. Takav zapis Sequelize odbija, pa je do sada svaki pokusaj
+    // validacije s mobilne ispadao neevidentiran — validacija bi prosla, a u
+    // kontroli ne bi ostalo nista.
+    const operator = typeof body.operator === "object" && body.operator !== null
+        ? (body.operator.name || body.operator.uuid || null)
+        : (body.operator || null);
     const suffix = procitajSkenirano(body);
 
     // Zapis pokusaja. Ne baca: neuspjelo biljezenje ne smije srusiti validaciju —

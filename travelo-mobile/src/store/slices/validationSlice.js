@@ -1,8 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../api/client';
+import { prijaviPokusaj } from '../../services/validationAttempts';
 import { ENDPOINTS } from '../../api/config';
 import { upsertExternalTickets, loadTicketsForRoutes, markTicketValidatedLocal, findTicketByUuidOrCode,
-    savePendingAttempt, loadPendingAttempts, deletePendingAttempt, countPendingAttempts,
+    loadPendingAttempts, deletePendingAttempt, countPendingAttempts,
 } from '../../db/repo';
 
 // Karte polaska — module-level Map, IZVAN Redux-a. SerializableStateInvariantMiddleware
@@ -282,52 +283,6 @@ export const loadLocalVoyageTicketsThunk = createAsyncThunk(
         return { tickets };
     }
 );
-
-// Prijava jednog ocitanja. Ide u red pa se salje u pozadini — djelatnik na
-// vratima ne smije cekati mrezu.
-//
-// Prijavljuje se SVAKO ocitanje, i ono koje uredaj sam odbije: drugo ocitanje
-// iste karte i pokusaj ukrcaja storniranom kartom su upravo ono sto kontrola
-// treba vidjeti. Bez toga bi u portalu ostao samo prvi, uspjesni prolaz.
-const prijaviPokusaj = async ({ ticketUuid, scanned, kada, terminalUuid, operator, outcome }) => {
-    try {
-        await savePendingAttempt({
-            ticketUuid, scanned, validatedAt: kada, terminalUuid, operator, outcome,
-        });
-    } catch (e) {
-        console.log('[validateScan] red neposlanih nije zapisan:', e?.message || e);
-    }
-    try {
-        api.post(
-            ENDPOINTS.validateTicket,
-            {
-                ticket_uuid: ticketUuid,
-                // Otisak s papira; posluzitelj iz njega cita oznaku i po njoj
-                // razlikuje kopiju od originala.
-                scanned: scanned || undefined,
-                terminal_uuid: terminalUuid,
-                operator,
-                validated_at: kada,
-            },
-            { timeout: 8000 }
-        )
-            .then(() => deletePendingAttemptZaKartu(ticketUuid, kada))
-            .catch((e) => console.log('[validateScan] slanje nije proslo, ostaje u redu:', e?.message || e));
-    } catch (e) {
-        console.log('[validateScan] POST sync error:', e?.message || e);
-    }
-};
-
-// Zapis se iz reda mice po paru (karta, vrijeme) — isti par kojim je i upisan.
-const deletePendingAttemptZaKartu = async (ticketUuid, kada) => {
-    try {
-        const red = await loadPendingAttempts(500);
-        const nas = red.find((v) => v.ticket_uuid === ticketUuid && v.validated_at === kada);
-        if (nas) await deletePendingAttempt(nas.id);
-    } catch (e) {
-        console.log('[validateScan] brisanje iz reda nije uspjelo:', e?.message || e);
-    }
-};
 
 // Scan QR → module-cache lookup → backend POST (fire-and-forget).
 export const validateScanThunk = createAsyncThunk(
