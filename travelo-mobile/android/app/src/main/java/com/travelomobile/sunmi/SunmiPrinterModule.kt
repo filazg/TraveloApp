@@ -1223,11 +1223,12 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                         try { printRawQR(p, qrData, 5, 49) } catch (_: Exception) {}
                     }
                     // Uz broj karte idu tri znaka koja razlikuju original od
-                    // kopije. Ispisuju se odvojeno razmakom da se vidi da nisu
-                    // dio broja — validacija i traženje ih ne koriste.
-                    val ticketSuffix = safeString(t, "ticket_code_suffix")
+                    // kopije. Pisu se u nastavku broja, bez razmaka i malim
+                    // slovima — razmak je izgledao kao da su na karti dva
+                    // podatka, a rijec je o jednom broju koji se tako prepisuje.
+                    val ticketSuffix = safeString(t, "ticket_code_suffix").lowercase()
                     val ticketCode = safeString(t, "ticket_code").let {
-                        if (it.isNotEmpty() && ticketSuffix.isNotEmpty()) "$it $ticketSuffix" else it
+                        if (it.isNotEmpty() && ticketSuffix.isNotEmpty()) "$it$ticketSuffix" else it
                     }
                     if (ticketCode.isNotEmpty()) {
                         // Bold + double-strike + double-height — kod karte mora biti najuočljiviji.

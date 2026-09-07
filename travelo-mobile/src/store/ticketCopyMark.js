@@ -17,6 +17,9 @@ const HEX16 = '0123456789ABCDEF';
 // znamenke (0-F, vrijednosti 0..15). Zbroj ide 0..30, pa su zapisive kopije
 // 1..24. Kopije do dvanaeste stanu u same brojke, pa se sufiksi izdani prije
 // proširenja čitaju jednako — 9 je i dalje 9, čitalo se dekadski ili hex.
+// Sufiks se zapisuje malim slovima: na papiru se veliko O i nula, B i osmica,
+// I i jedinica lako pobrkaju. Citanje ostaje neosjetljivo na velicinu slova, pa
+// se sufiksi izdani prije ove promjene citaju jednako.
 const POMAK = 6;
 const MAX_KOPIJA = 24;
 
@@ -34,7 +37,7 @@ export const markerZnak = (ticketUuid) => {
 export const suffixOriginala = (ticketUuid) => {
     const marker = markerZnak(ticketUuid);
     const dozvoljeni = marker ? HEX16.split('').filter((c) => c !== marker).join('') : HEX16;
-    return nasumicni(HEX16) + nasumicni(dozvoljeni) + nasumicni(HEX16);
+    return (nasumicni(HEX16) + nasumicni(dozvoljeni) + nasumicni(HEX16)).toLowerCase();
 };
 
 // Sufiks kopije: srednji znak je marker, a x i z se biraju tako da im zbroj bude
@@ -49,7 +52,7 @@ export const suffixKopije = (ticketUuid, copyNo) => {
     const donja = Math.max(0, zbroj - 15);
     const gornja = Math.min(15, zbroj);
     const x = donja + Math.floor(Math.random() * (gornja - donja + 1));
-    return HEX16[x] + marker + HEX16[zbroj - x];
+    return (HEX16[x] + marker + HEX16[zbroj - x]).toLowerCase();
 };
 
 // Čitanje sufiksa s papira ili iz QR-a.
@@ -73,8 +76,10 @@ export const procitajSuffix = (ticketUuid, suffix) => {
 };
 
 // Broj karte kakav ide na papir. Bez sufiksa vraća broj kakav je i bio.
+// Sufiks ide u nastavku broja, bez razmaka — razmak je izgledao kao da su na
+// karti dva podatka, a rijec je o jednom broju koji se tako i prepisuje.
 export const brojZaIspis = (ticketCode, suffix) =>
-    suffix ? `${ticketCode || ''} ${suffix}` : String(ticketCode || '');
+    suffix ? `${ticketCode || ''}${String(suffix).toLowerCase()}` : String(ticketCode || '');
 
 // QR nosi uuid i još šest polja odvojenih točka-zarezom; sufiks se dopisuje kao
 // osmo. Validacija uzima prvo polje, pa je dodatak bezopasan i za stare čitače.

@@ -16,6 +16,9 @@ const HEX16 = "0123456789ABCDEF";
 // znamenke (0-F, vrijednosti 0..15). Zbroj ide 0..30, pa su zapisive kopije
 // 1..24. Kopije do dvanaeste stanu u same brojke, pa se sufiksi izdani prije
 // prosirenja citaju jednako — 9 je i dalje 9, citalo se dekadski ili hex.
+// Sufiks se zapisuje malim slovima: na papiru se veliko O i nula, B i osmica,
+// I i jedinica lako pobrkaju. Citanje ostaje neosjetljivo na velicinu slova, pa
+// se sufiksi izdani prije ove promjene citaju jednako.
 const POMAK = 6;
 const MAX_KOPIJA = 24;
 
@@ -31,7 +34,7 @@ const markerZnak = (ticketUuid) => {
 const suffixOriginala = (ticketUuid) => {
     const marker = markerZnak(ticketUuid);
     const dozvoljeni = marker ? HEX16.split("").filter((c) => c !== marker).join("") : HEX16;
-    return nasumicni(HEX16) + nasumicni(dozvoljeni) + nasumicni(HEX16);
+    return (nasumicni(HEX16) + nasumicni(dozvoljeni) + nasumicni(HEX16)).toLowerCase();
 };
 
 const suffixKopije = (ticketUuid, copyNo) => {
@@ -43,7 +46,7 @@ const suffixKopije = (ticketUuid, copyNo) => {
     const donja = Math.max(0, zbroj - 15);
     const gornja = Math.min(15, zbroj);
     const x = crypto.randomInt(donja, gornja + 1);
-    return HEX16[x] + marker + HEX16[zbroj - x];
+    return (HEX16[x] + marker + HEX16[zbroj - x]).toLowerCase();
 };
 
 const procitajSuffix = (ticketUuid, suffix) => {
@@ -59,8 +62,10 @@ const procitajSuffix = (ticketUuid, suffix) => {
     return { isCopy: true, copyNo: n >= 1 && n <= MAX_KOPIJA ? n : null };
 };
 
+// Sufiks ide u nastavku broja, bez razmaka — razmak je izgledao kao da su na
+// karti dva podatka, a rijec je o jednom broju koji se tako i prepisuje.
 const brojZaIspis = (ticketCode, suffix) =>
-    suffix ? `${ticketCode || ""} ${suffix}` : String(ticketCode || "");
+    suffix ? `${ticketCode || ""}${String(suffix).toLowerCase()}` : String(ticketCode || "");
 
 // QR nosi uuid i još šest polja odvojenih točka-zarezom; sufiks je osmo.
 // Validacija uzima prvo polje, pa je dodatak bezopasan i za starije čitače.

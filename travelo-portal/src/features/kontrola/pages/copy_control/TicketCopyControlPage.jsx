@@ -21,6 +21,10 @@ import { setAuthData } from "../../../auth/authSlice";
 
 // Vrijeme dolazi kao ISO; prikazuje se u lokalnoj zoni jer se uspoređuje s onim
 // što piše na ukrcaju.
+// Oznaka se od ove promjene zapisuje malim slovima; starije su velikim, a u
+// kontroli se usporeduje s papirom pa se prikazuju jednako.
+const malo = (v) => (v ? String(v).toLowerCase() : "—");
+
 const fmtVrijeme = (v) => {
     if (!v) return "—";
     const d = new Date(v);
@@ -274,7 +278,7 @@ export default function TicketCopyControlPage() {
                         <Stack direction="row" spacing={4} sx={{ flexWrap: "wrap", rowGap: 1.5 }}>
                             {[
                                 ["Broj karte", odabrana.ticket_code || odabrana.ticket_uuid],
-                                ["Oznaka originala", odabrana.original_suffix || "—"],
+                                ["Oznaka originala", malo(odabrana.original_suffix)],
                                 ["Relacija", odabrana.departure_harbor_name
                                     ? `${odabrana.departure_harbor_name} → ${odabrana.arrival_harbor_name || ""}`
                                     : "—"],
@@ -321,7 +325,7 @@ export default function TicketCopyControlPage() {
                                         <TableCell>{fmtVrijeme(v.validated_at)}</TableCell>
                                         <TableCell><Chip size="small" color={i.color} label={i.label} /></TableCell>
                                         <TableCell>
-                                            {opisOtiska(v)}{v.suffix ? ` · ${v.suffix}` : ""}
+                                            {opisOtiska(v)}{v.suffix ? ` · ${String(v.suffix).toLowerCase()}` : ""}
                                         </TableCell>
                                         <TableCell>{v.operator || "—"}</TableCell>
                                         <TableCell sx={{ color: v.is_conflict ? "#B3261E" : "text.secondary" }}>
@@ -358,7 +362,7 @@ export default function TicketCopyControlPage() {
                             {(data.copyPrints || []).map((c) => (
                                 <TableRow key={c.id}>
                                     <TableCell align="right" sx={{ fontWeight: 700 }}>{c.copy_no}</TableCell>
-                                    <TableCell>{c.suffix || "—"}</TableCell>
+                                    <TableCell>{malo(c.suffix)}</TableCell>
                                     <TableCell>{fmtVrijeme(c.printed_at)}</TableCell>
                                     <TableCell>{c.operator_name || "—"}</TableCell>
                                     <TableCell>{c.billing_device_name || "—"}</TableCell>

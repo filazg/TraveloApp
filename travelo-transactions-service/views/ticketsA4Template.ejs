@@ -343,7 +343,9 @@
                 </div>
                 <div class="cell wide">
                   <div class="k">Broj karte / Ticket no.</div>
-                  <div class="v mono"><%= ti.ticket_code %><% if (ti.ticket_code_suffix) { %> <%= ti.ticket_code_suffix %><% } %></div>
+                  <%# ticket_code vec nosi oznaku originala/kopije (brojZaIspis),
+                      pa se ovdje ne dopisuje drugi put. %>
+                  <div class="v mono"><%= ti.ticket_code %></div>
                 </div>
               </div>
             </div>
@@ -351,9 +353,7 @@
             <div class="stub">
               <div class="k">Ukrcaj / Boarding</div>
               <img src="<%= ti.qr_data_url %>" alt="QR" />
-              <div class="code">
-                <%= ti.ticket_code %><% if (ti.ticket_code_suffix) { %> <span class="suffix"><%= ti.ticket_code_suffix %></span><% } %>
-              </div>
+              <div class="code"><%= ti.ticket_code %></div>
             </div>
           </div>
 
