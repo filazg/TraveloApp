@@ -24,6 +24,11 @@ import BrandMark from '../components/BrandMark';
 // Fallback na bcryptjs ako native modul nije dostupan (npr. starije instalacije bez rebuildanog APK-a).
 const { AppAuth } = NativeModules;
 
+// Prijava sifrom je zasad sakrivena — operateri se prijavljuju korisnickim
+// imenom i lozinkom. Kod ostaje na mjestu jer je odluka o nacinu prijave, ne o
+// tome da sifra vise ne postoji; prekidac na true vraca karticu natrag.
+const PRIJAVA_SIFROM = false;
+
 const verifyPassword = async (plain, stored) => {
     if (!stored) return false;
     const s = String(stored);
@@ -39,7 +44,7 @@ export default function OperatorLoginScreen() {
     const dispatch = useDispatch();
     const auth = useSelector(authData);
     const sync = useSelector(syncData);
-    const [mode, setMode] = useState('username'); // 'username' | 'code'
+    const [mode, setMode] = useState('username'); // 'username' | 'code' (kartica sifre je sakrivena)
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [code, setCode] = useState('');
@@ -128,24 +133,26 @@ export default function OperatorLoginScreen() {
                 <BrandMark style={styles.logo} onPrimary />
 
                 <View style={styles.form}>
-                    <View style={styles.modeRow}>
-                        <TouchableOpacity
-                            style={[styles.modeBtn, mode === 'username' && styles.modeBtnActive]}
-                            onPress={() => setMode('username')}
-                        >
-                            <Text style={[styles.modeText, mode === 'username' && styles.modeTextActive]}>
-                                Korisničko ime
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.modeBtn, mode === 'code' && styles.modeBtnActive]}
-                            onPress={() => setMode('code')}
-                        >
-                            <Text style={[styles.modeText, mode === 'code' && styles.modeTextActive]}>
-                                Šifra
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
+                    {PRIJAVA_SIFROM && (
+                        <View style={styles.modeRow}>
+                            <TouchableOpacity
+                                style={[styles.modeBtn, mode === 'username' && styles.modeBtnActive]}
+                                onPress={() => setMode('username')}
+                            >
+                                <Text style={[styles.modeText, mode === 'username' && styles.modeTextActive]}>
+                                    Korisničko ime
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modeBtn, mode === 'code' && styles.modeBtnActive]}
+                                onPress={() => setMode('code')}
+                            >
+                                <Text style={[styles.modeText, mode === 'code' && styles.modeTextActive]}>
+                                    Šifra
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
                     {mode === 'username' ? (
                         <>
