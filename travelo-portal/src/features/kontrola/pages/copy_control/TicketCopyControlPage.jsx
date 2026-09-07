@@ -184,7 +184,7 @@ export default function TicketCopyControlPage() {
             valueFormatter: (v) => fmtVrijeme(v),
         },
         { field: "last_reason", headerName: "Razlog", width: 300 },
-        { field: "last_operator", headerName: "Kontrolor", width: 160 },
+        { field: "last_operator", headerName: "Validirao", width: 160 },
         { field: "last_terminal", headerName: "Uređaj", width: 140 },
     ];
 
@@ -320,7 +320,7 @@ export default function TicketCopyControlPage() {
                                 <TableCell>Vrijeme</TableCell>
                                 <TableCell>Ishod</TableCell>
                                 <TableCell>Otisak</TableCell>
-                                <TableCell>Kontrolor</TableCell>
+                                <TableCell>Validirao</TableCell>
                                 <TableCell>Napomena</TableCell>
                             </TableRow>
                         </TableHead>

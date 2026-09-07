@@ -46,7 +46,8 @@ const zapisiKopiju = async ({
     let flag_reason = null;
     if (broj >= PRAG_KOPIJA) {
         flag_type = VRSTE.MANY_COPIES;
-        flag_reason = `${broj}. kopija iste karte`;
+        // Koliko ih je tocno vidi se u popisu ispisanih kopija u detalju karte.
+        flag_reason = "više ispisanih kopija iste karte";
     }
 
     const red = await TicketCopyPrintModel.create({

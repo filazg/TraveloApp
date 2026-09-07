@@ -73,7 +73,7 @@ const validateTicketController = async (req, res) => {
                 outcome: "canceled",
                 is_conflict: true,
                 conflict_type: VRSTE.CANCELED_TICKET,
-                conflict_reason: "pokusaj ukrcaja storniranom kartom",
+                conflict_reason: "pokušaj ukrcaja storniranom kartom",
             });
             return res.status(409).json({ status: 409, data: { message: "Karta je stornirana.", ticket } });
         }
@@ -97,17 +97,20 @@ const validateTicketController = async (req, res) => {
             const prijeKopija = !!prva?.is_copy;
             const sadaKopija = !!sada?.isCopy;
 
+            // Razlog je opis slucaja, bez rednih brojeva kopija. Koja je tocno
+            // kopija prosla a koja nije vidi se u povijesti karte, gdje uz svaki
+            // pokusaj stoji i otisak; u popisu bi brojevi samo zatrpali redak.
             let vrsta = VRSTE.SAME_ARTIFACT;
-            let razlog = "isti otisak ocitan drugi put";
+            let razlog = "isti otisak očitan ponovno";
             if (prva && sada) {
                 if (prijeKopija !== sadaKopija) {
                     vrsta = sadaKopija ? VRSTE.COPY_OVER_ORIGINAL : VRSTE.ORIGINAL_OVER_COPY;
                     razlog = sadaKopija
-                        ? `kopija ${sada.copyNo ?? "?"} preko validiranog originala`
-                        : `original preko validirane kopije ${prva.copy_no ?? "?"}`;
+                        ? "kopija preko validiranog originala"
+                        : "original preko validirane kopije";
                 } else if (sadaKopija && (prva.copy_no ?? null) !== (sada.copyNo ?? null)) {
                     vrsta = VRSTE.COPY_OVER_COPY;
-                    razlog = `kopija ${sada.copyNo ?? "?"} preko validirane kopije ${prva.copy_no ?? "?"}`;
+                    razlog = "druga kopija preko validirane kopije";
                 }
             }
 
