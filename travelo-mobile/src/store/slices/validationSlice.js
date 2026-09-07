@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
 import { upsertExternalTickets, loadTicketsForRoutes, markTicketValidatedLocal, findTicketByUuidOrCode,
-    savePendingValidation, loadPendingValidations, deletePendingValidation, countPendingValidations,
+    savePendingAttempt, loadPendingAttempts, deletePendingAttempt, countPendingAttempts,
 } from '../../db/repo';
 
 // Karte polaska — module-level Map, IZVAN Redux-a. SerializableStateInvariantMiddleware
@@ -199,7 +199,7 @@ export const syncPendingValidationsThunk = createAsyncThunk(
     'validation/syncPendingValidations',
     async (_, { rejectWithValue }) => {
         try {
-            const red = await loadPendingValidations();
+            const red = await loadPendingAttempts();
             if (!red.length) return { poslano: 0, ostalo: 0 };
             let poslano = 0;
             for (const v of red) {
@@ -208,22 +208,25 @@ export const syncPendingValidationsThunk = createAsyncThunk(
                         ENDPOINTS.validateTicket,
                         {
                             ticket_uuid: v.ticket_uuid,
+                            // Otisak s papira: posluzitelj iz njega cita oznaku i
+                            // po njoj razlikuje kopiju od originala.
+                            scanned: v.scanned || undefined,
                             terminal_uuid: v.terminal_uuid,
                             operator: v.operator,
                             validated_at: v.validated_at,
                         },
                         { timeout: 10000 }
                     );
-                    await deletePendingValidation(v.ticket_uuid);
+                    await deletePendingAttempt(v.id);
                     poslano += 1;
                 } catch (e) {
                     const status = e?.response?.status;
                     if (status && status !== 429 && status < 500) {
                         // Posluzitelj je odgovorio i odbio: karta je stornirana,
-                        // ne postoji ili je vec obradena. Ponavljanje nikad nece
-                        // proci, a zapis bi zauvijek blokirao red.
+                        // ne postoji ili je vec obradena. Zapis je time obavio
+                        // svoje — pokusaj je zabiljezen — pa izlazi iz reda.
                         console.log('[validacije] posluzitelj odbio', v.ticket_uuid, status);
-                        await deletePendingValidation(v.ticket_uuid);
+                        await deletePendingAttempt(v.id);
                         continue;
                     }
                     // Mreze nema ili posluzitelj ne odgovara — ostatak reda ide u
@@ -231,7 +234,7 @@ export const syncPendingValidationsThunk = createAsyncThunk(
                     break;
                 }
             }
-            const ostalo = await countPendingValidations();
+            const ostalo = await countPendingAttempts();
             if (poslano) console.log(`[validacije] poslano ${poslano}, ostalo ${ostalo}`);
             return { poslano, ostalo };
         } catch (err) {
@@ -280,6 +283,52 @@ export const loadLocalVoyageTicketsThunk = createAsyncThunk(
     }
 );
 
+// Prijava jednog ocitanja. Ide u red pa se salje u pozadini — djelatnik na
+// vratima ne smije cekati mrezu.
+//
+// Prijavljuje se SVAKO ocitanje, i ono koje uredaj sam odbije: drugo ocitanje
+// iste karte i pokusaj ukrcaja storniranom kartom su upravo ono sto kontrola
+// treba vidjeti. Bez toga bi u portalu ostao samo prvi, uspjesni prolaz.
+const prijaviPokusaj = async ({ ticketUuid, scanned, kada, terminalUuid, operator, outcome }) => {
+    try {
+        await savePendingAttempt({
+            ticketUuid, scanned, validatedAt: kada, terminalUuid, operator, outcome,
+        });
+    } catch (e) {
+        console.log('[validateScan] red neposlanih nije zapisan:', e?.message || e);
+    }
+    try {
+        api.post(
+            ENDPOINTS.validateTicket,
+            {
+                ticket_uuid: ticketUuid,
+                // Otisak s papira; posluzitelj iz njega cita oznaku i po njoj
+                // razlikuje kopiju od originala.
+                scanned: scanned || undefined,
+                terminal_uuid: terminalUuid,
+                operator,
+                validated_at: kada,
+            },
+            { timeout: 8000 }
+        )
+            .then(() => deletePendingAttemptZaKartu(ticketUuid, kada))
+            .catch((e) => console.log('[validateScan] slanje nije proslo, ostaje u redu:', e?.message || e));
+    } catch (e) {
+        console.log('[validateScan] POST sync error:', e?.message || e);
+    }
+};
+
+// Zapis se iz reda mice po paru (karta, vrijeme) — isti par kojim je i upisan.
+const deletePendingAttemptZaKartu = async (ticketUuid, kada) => {
+    try {
+        const red = await loadPendingAttempts(500);
+        const nas = red.find((v) => v.ticket_uuid === ticketUuid && v.validated_at === kada);
+        if (nas) await deletePendingAttempt(nas.id);
+    } catch (e) {
+        console.log('[validateScan] brisanje iz reda nije uspjelo:', e?.message || e);
+    }
+};
+
 // Scan QR → module-cache lookup → backend POST (fire-and-forget).
 export const validateScanThunk = createAsyncThunk(
     'validation/validateScan',
@@ -298,10 +347,26 @@ export const validateScanThunk = createAsyncThunk(
                 });
             }
             if (local.is_canceled) {
+                await prijaviPokusaj({
+                    ticketUuid: local.ticket_uuid,
+                    scanned,
+                    kada: new Date().toISOString(),
+                    terminalUuid,
+                    operator,
+                    outcome: 'canceled',
+                });
                 return rejectWithValue({ message: 'Karta je stornirana.', code: 'CANCELED', ticket: local });
             }
             if (local.status === 'validated' || local.validate_data) {
                 console.log('[validateScan] already validated');
+                await prijaviPokusaj({
+                    ticketUuid: local.ticket_uuid,
+                    scanned,
+                    kada: new Date().toISOString(),
+                    terminalUuid,
+                    operator,
+                    outcome: 'already_validated',
+                });
                 return {
                     ok: true,
                     already: true,
@@ -316,30 +381,14 @@ export const validateScanThunk = createAsyncThunk(
             // slalo "ispali i zaboravi": kad je uredaj bio bez mreze, javljanje se
             // gubilo — u sustavu bi putnik ostao neukrcan, a druga mobilna bi istu
             // kartu mogla validirati jos jednom.
-            try {
-                await savePendingValidation({
-                    ticketUuid: local.ticket_uuid,
-                    validatedAt: now,
-                    terminalUuid,
-                    operator,
-                });
-            } catch (e) {
-                console.log('[validateScan] red neposlanih nije zapisan:', e?.message || e);
-            }
-
-            // Slanje ne smije zadrzavati djelatnika na vratima: ide u pozadini, a
-            // ako padne, ostaje u redu i gura se kasnije.
-            try {
-                api.post(
-                    ENDPOINTS.validateTicket,
-                    { ticket_uuid: local.ticket_uuid, terminal_uuid: terminalUuid, operator },
-                    { timeout: 8000 }
-                )
-                    .then(() => deletePendingValidation(local.ticket_uuid).catch(() => {}))
-                    .catch((e) => console.log('[validateScan] slanje validacije nije proslo, ostaje u redu:', e?.message || e));
-            } catch (e) {
-                console.log('[validateScan] POST sync error:', e?.message || e);
-            }
+            await prijaviPokusaj({
+                ticketUuid: local.ticket_uuid,
+                scanned,
+                kada: now,
+                terminalUuid,
+                operator,
+                outcome: 'validated',
+            });
 
             // SQLite mark — best-effort, isto fire-and-forget.
             try {

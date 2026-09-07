@@ -155,6 +155,32 @@ export const SCHEMA = [
     );`,
     `CREATE INDEX IF NOT EXISTS idx_pending_validations_created ON pending_validations(created_at);`,
 
+    // Red neposlanih pokusaja validacije. Stari red je imao ticket_uuid za
+    // primarni kljuc, pa je drugo ocitanje iste karte pregazilo prvo — a upravo
+    // je ponovljeno ocitanje ono sto kontrola treba vidjeti.
+    //
+    // Jedinstven par (karta, vrijeme) cuva od dvostrukog upisa istog pokusaja;
+    // bez toga bi ponovno slanje ispalo kao novi sukob.
+    `CREATE TABLE IF NOT EXISTS pending_validation_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ticket_uuid TEXT NOT NULL,
+        scanned TEXT,
+        validated_at TEXT NOT NULL,
+        terminal_uuid TEXT,
+        operator TEXT,
+        outcome TEXT,
+        created_at TEXT NOT NULL,
+        UNIQUE(ticket_uuid, validated_at)
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_pending_attempts_created ON pending_validation_attempts(created_at);`,
+    // Preseljenje zateceno neposlanog iz starog reda; INSERT OR IGNORE i brisanje
+    // cine korak ponovljivim pri svakom pokretanju.
+    `INSERT OR IGNORE INTO pending_validation_attempts
+        (ticket_uuid, scanned, validated_at, terminal_uuid, operator, outcome, created_at)
+     SELECT ticket_uuid, NULL, validated_at, terminal_uuid, operator, 'validated', created_at
+       FROM pending_validations;`,
+    `DELETE FROM pending_validations;`,
+
     // Ispisane kopije karata. Redni broj se dodjeljuje ovdje, na uredaju, jer se
     // kopija ispisuje i bez mreze — racun oznake je poznat i ne treba
     // posluzitelja. Zapis ceka na sinkronizaciju kao i validacije.

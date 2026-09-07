@@ -337,39 +337,6 @@ export async function countPendingInvoices() {
     return r?.c || 0;
 }
 
-// ---------- RED NEPOSLANIH VALIDACIJA ----------
-// Uredaj validira i bez mreze; ovdje ceka ono sto nije stiglo do posluzitelja,
-// dok ga sinkronizacija ne progura. Posluzitelj je na ponovljeno javljanje
-// otporan — druga validacija iste karte vraca zatecno vrijeme.
-export async function savePendingValidation({ ticketUuid, validatedAt, terminalUuid, operator }) {
-    if (!ticketUuid) return false;
-    await exec(
-        `INSERT OR REPLACE INTO pending_validations
-         (ticket_uuid, validated_at, terminal_uuid, operator, created_at)
-         VALUES (?, ?, ?, ?, ?);`,
-        [ticketUuid, validatedAt, terminalUuid || null, operator || null, new Date().toISOString()]
-    );
-    return true;
-}
-
-export async function loadPendingValidations(limit = 200) {
-    return queryAll(
-        `SELECT ticket_uuid, validated_at, terminal_uuid, operator
-           FROM pending_validations ORDER BY created_at ASC LIMIT ?;`,
-        [limit]
-    );
-}
-
-export async function deletePendingValidation(ticketUuid) {
-    await exec(`DELETE FROM pending_validations WHERE ticket_uuid = ?;`, [ticketUuid]);
-    return true;
-}
-
-export async function countPendingValidations() {
-    const r = await queryOne(`SELECT COUNT(*) AS c FROM pending_validations;`);
-    return r?.c || 0;
-}
-
 // ---------- ISPISANE KOPIJE KARATA ----------
 // Redni broj kopije se odreduje ovdje, iz onoga sto je uredaj sam ispisao.
 // Kopija mora izaci i bez mreze, a racun oznake ne treba posluzitelja.
@@ -418,6 +385,41 @@ export async function loadPendingCopyPrints(limit = 200) {
 export async function markCopyPrintSynced(id) {
     await exec(`UPDATE ticket_copy_prints SET synced = 1 WHERE id = ?;`, [id]);
     return true;
+}
+
+// ---------- RED NEPOSLANIH POKUSAJA VALIDACIJE ----------
+// Uredaj validira i bez mreze; ovdje ceka ono sto nije stiglo do posluzitelja,
+// dok ga sinkronizacija ne progura.
+// Svako ocitanje je svoj zapis, i ono koje nije proslo: posluzitelj po njima
+// prepoznaje ponovljena ocitanja, a ona su razlog zbog kojeg evidencija postoji.
+export async function savePendingAttempt({ ticketUuid, scanned, validatedAt, terminalUuid, operator, outcome }) {
+    if (!ticketUuid) return false;
+    await exec(
+        `INSERT OR IGNORE INTO pending_validation_attempts
+         (ticket_uuid, scanned, validated_at, terminal_uuid, operator, outcome, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        [ticketUuid, scanned || null, validatedAt, terminalUuid || null, operator || null,
+         outcome || null, new Date().toISOString()]
+    );
+    return true;
+}
+
+export async function loadPendingAttempts(limit = 200) {
+    return queryAll(
+        `SELECT id, ticket_uuid, scanned, validated_at, terminal_uuid, operator, outcome
+           FROM pending_validation_attempts ORDER BY id ASC LIMIT ?;`,
+        [limit]
+    );
+}
+
+export async function deletePendingAttempt(id) {
+    await exec(`DELETE FROM pending_validation_attempts WHERE id = ?;`, [id]);
+    return true;
+}
+
+export async function countPendingAttempts() {
+    const r = await queryOne(`SELECT COUNT(*) AS c FROM pending_validation_attempts;`);
+    return r?.c || 0;
 }
 
 // ---------- ADRESAR (BUYERS) ----------
