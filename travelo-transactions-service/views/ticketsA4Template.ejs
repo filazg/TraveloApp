@@ -39,9 +39,17 @@
       .brand .name { font-size: 22pt; font-weight: 800; letter-spacing: .5px; }
       .brand .doc { font-size: 10pt; color: #6b7280; text-transform: uppercase; letter-spacing: 2px; }
 
-      /* Sadrzaj se centrira izmedu zaglavlja i napomene. Bez toga vise od pola
-         stranice ostane prazno ispod, a karta izgleda kao odsjecen ispis. */
+      /* Sadrzaj se centrira izmedu zaglavlja i napomene, i stoji u uokvirenom
+         polju. Bez okvira je na A4 papiru vise praznine nego karte, pa ispis
+         izgleda kao da se nesto nije iscrtalo. */
       .content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+      .panel {
+        border: 1px solid #d7dbe0;
+        border-left: 6mm solid #175BD0;
+        border-radius: 3mm;
+        padding: 12mm 12mm 10mm;
+        background: #FCFBF8;
+      }
       .headline { }
       .route {
         font-size: 30pt;
@@ -51,10 +59,11 @@
       .route .arrow { color: #175BD0; margin: 0 4mm; }
       .line { margin-top: 2mm; font-size: 12pt; color: #6b7280; }
 
-      .main { margin-top: 10mm; display: flex; gap: 12mm; }
+      .main { margin-top: 10mm; display: flex; gap: 12mm; align-items: center; }
       .facts { flex: 1; }
 
       .fact { margin-bottom: 7mm; }
+      .fact:last-child { margin-bottom: 0; }
       .fact .k {
         font-size: 9pt; color: #6b7280; text-transform: uppercase;
         letter-spacing: 1.5px; margin-bottom: 1.5mm;
@@ -164,6 +173,7 @@
         </div>
 
         <div class="content">
+        <div class="panel">
         <div class="headline">
           <div class="route">
             <%= ti.departure_harbor_name || "" %><span class="arrow">→</span><%= ti.arrival_harbor_name || "" %>
@@ -200,6 +210,7 @@
               <%= ti.ticket_code %><% if (ti.ticket_code_suffix) { %> <span class="suffix"><%= ti.ticket_code_suffix %></span><% } %>
             </div>
           </div>
+        </div>
         </div>
         </div>
 

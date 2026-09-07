@@ -1,7 +1,7 @@
 const express = require('express');
 const { addTerminalSaleController } = require('../controllers/dataControllers/terminalSaleControllers');
 const { createPartnerSaleController, listTicketsForOrderController } = require('../controllers/dataControllers/partnerSaleControllers');
-const { renderTicketsPdfController, ticketTemplateCatalogController } = require('../controllers/dataControllers/ticketPdfController');
+const { renderTicketsPdfController, ticketTemplateCatalogController, ticketTemplatePreviewController } = require('../controllers/dataControllers/ticketPdfController');
 const { finalizeWebSaleController } = require('../controllers/dataControllers/finalizeWebSaleController');
 const { renderInvoicePdfController } = require('../controllers/dataControllers/invoicePdfController');
 const { renderPartnerInvoicePdfController, renderPartnerInvoiceDetailsPdfController } = require('../controllers/dataControllers/partnerInvoicePdfController');
@@ -61,6 +61,12 @@ router
 router
     .route('/ticket_template_catalog')
     .get(ticketTemplateCatalogController)
+
+// Ogledni PDF jednog predloska — portal ga otvara uz opis, da se izgled vidi
+// prije nego se predlozak nekom kanalu ukljuci.
+router
+    .route('/ticket_template_preview')
+    .get(ticketTemplatePreviewController)
 
 router
     .route('/tickets_pdf')

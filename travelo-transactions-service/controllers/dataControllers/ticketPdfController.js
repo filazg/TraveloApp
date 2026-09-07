@@ -204,6 +204,86 @@ const renderTicketsPdfController = async (req, res) => {
     }
 };
 
+// Ogledne karte za pregled predloska. Izmisljene su namjerno: pregled se gleda
+// prije nego je predlozak igdje ukljucen, pa ne smije ovisiti o tome postoji li
+// u bazi prikladna narudzba, a ni pokazati tudeg putnika.
+const OGLEDNE = [
+    {
+        ticket_uuid: "3f2a1c94-5b7e-4d21-9a08-6c1de4b7f012",
+        ticket_code: "ogled-primjer1",
+        ticket_code_suffix: "a4c",
+        ticket_type_name: "Odrasli",
+        line_code: "9604",
+        line_name: "9604 Split – Hvar – Korčula",
+        departure: "12.07.2026. 08:00",
+        arrival: "12.07.2026. 09:05",
+        departure_planed: "12.07.2026. 08:00",
+        arrival_planed: "12.07.2026. 09:05",
+        departure_harbor_name: "Split",
+        arrival_harbor_name: "Hvar",
+        route_uuid: "ogledna-ruta",
+        ticket_type_uuid: "ogledni-tip",
+    },
+    {
+        ticket_uuid: "8b41e77d-2c60-49aa-b3f5-71920ac4e355",
+        ticket_code: "ogled-primjer2",
+        ticket_code_suffix: "b7k",
+        ticket_type_name: "Djeca 3–12",
+        line_code: "9604",
+        line_name: "9604 Split – Hvar – Korčula",
+        departure: "12.07.2026. 08:00",
+        arrival: "12.07.2026. 09:05",
+        departure_planed: "12.07.2026. 08:00",
+        arrival_planed: "12.07.2026. 09:05",
+        departure_harbor_name: "Split",
+        arrival_harbor_name: "Hvar",
+        route_uuid: "ogledna-ruta",
+        ticket_type_uuid: "ogledni-tip",
+    },
+    {
+        ticket_uuid: "c05d9e13-7f48-4b90-8a12-4de6013b9a77",
+        ticket_code: "ogled-primjer3",
+        ticket_code_suffix: "m2p",
+        ticket_type_name: "Otočna karta",
+        line_code: "9604",
+        line_name: "9604 Split – Hvar – Korčula",
+        departure: "12.07.2026. 08:00",
+        arrival: "12.07.2026. 09:05",
+        departure_planed: "12.07.2026. 08:00",
+        arrival_planed: "12.07.2026. 09:05",
+        departure_harbor_name: "Split",
+        arrival_harbor_name: "Hvar",
+        route_uuid: "ogledna-ruta",
+        ticket_type_uuid: "ogledni-tip",
+        is_island: true,
+        seop_card_no: "HR-0000-0000",
+        seop_pravo: "Stalni stanovnik otoka",
+        seop_otok: "Hvar",
+    },
+];
+
+// Pregled predloska na oglednim kartama. Sazetak se prikazuje kad ga predlozak
+// podnosi, bez obzira na prag — prag je stvar primjene, a ovdje se gleda izgled.
+const ticketTemplatePreviewController = async (req, res) => {
+    try {
+        const izabran = predlozak(req.query.template);
+        const ticketsData = await Promise.all(OGLEDNE.map(toTemplateTicket));
+        const summary = izabran.supports_summary ? podaciSazetka(ticketsData) : null;
+
+        const buffer = await renderTemplateToPdfBuffer(
+            izabran.file,
+            { ticketsData, logo: "logo.png", summary, companyName: await nazivTvrtke() },
+            { margin: { top: "0", right: "0", bottom: "0", left: "0" } }
+        );
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `inline; filename="ogled-${izabran.key}.pdf"`);
+        return res.end(buffer);
+    } catch (error) {
+        console.log("ticketTemplatePreviewController error:", error);
+        return res.status(500).send("Pregled predloska nije uspio");
+    }
+};
+
 // Katalog dostupnih predlozaka i kanala. Zivi ovdje jer ovdje i postoje —
 // postavka u boat servisu pamti samo koji je izabran.
 const ticketTemplateCatalogController = async (_req, res) => {
@@ -217,4 +297,9 @@ const ticketTemplateCatalogController = async (_req, res) => {
     });
 };
 
-module.exports = { renderTicketsPdfController, buildTicketsPdfBuffer, ticketTemplateCatalogController };
+module.exports = {
+    renderTicketsPdfController,
+    buildTicketsPdfBuffer,
+    ticketTemplateCatalogController,
+    ticketTemplatePreviewController,
+};

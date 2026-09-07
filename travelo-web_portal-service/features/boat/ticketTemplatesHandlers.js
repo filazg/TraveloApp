@@ -56,4 +56,33 @@ const handleUpsertTicketTemplateFeature = async (req, res) => {
     }
 };
 
-module.exports = { handleGetTicketTemplatesFeature, handleUpsertTicketTemplateFeature };
+// Ogledni PDF predloska. Ide kroz portal, ne izravno na transactions, jer
+// preglednik do internih servisa ionako ne dolazi.
+const handleTicketTemplatePreviewFeature = async (req, res) => {
+    try {
+        const core = await getCoreServiceConfigData();
+        const trxUrl = core?.services?.transactions?.url;
+        if (!trxUrl) return res.status(500).send('transactions URL nije postavljen');
+
+        const r = await axios.get(`${trxUrl}/ticket_template_preview`, {
+            params: { template: req.query.template },
+            responseType: 'arraybuffer',
+            validateStatus: () => true,
+        });
+        res.status(r.status);
+        res.setHeader('content-type', r.headers['content-type'] || 'application/pdf');
+        if (r.headers['content-disposition']) {
+            res.setHeader('content-disposition', r.headers['content-disposition']);
+        }
+        return res.send(Buffer.from(r.data));
+    } catch (error) {
+        console.log('handleTicketTemplatePreviewFeature error:', error?.message || error);
+        res.status(500).send('Pregled predloska nije uspio');
+    }
+};
+
+module.exports = {
+    handleGetTicketTemplatesFeature,
+    handleUpsertTicketTemplateFeature,
+    handleTicketTemplatePreviewFeature,
+};
