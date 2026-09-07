@@ -22,13 +22,16 @@ const VRSTE = {
     MANY_COPIES: "many_copies",
 };
 
+// Naziv pojedine vrste — stoji uz redak na kartici "Sve", gdje se u istom
+// popisu mijesaju razlicite vrste. Tri varijante sukoba originala i kopije tu
+// zadrzavaju svoje precizne nazive: kartica ih objedinjuje, redak ne.
 const OPIS_VRSTE = {
     [VRSTE.COPY_OVER_ORIGINAL]: "Kopija preko originala",
     [VRSTE.ORIGINAL_OVER_COPY]: "Original preko kopije",
     [VRSTE.COPY_OVER_COPY]: "Kopija preko kopije",
-    [VRSTE.SAME_ARTIFACT]: "Isti otisak dvaput",
+    [VRSTE.SAME_ARTIFACT]: "Višestruka validacija",
     [VRSTE.CANCELED_TICKET]: "Stornirana karta",
-    [VRSTE.MANY_COPIES]: "Previše kopija",
+    [VRSTE.MANY_COPIES]: "Višestruke kopije",
 };
 
 // Kartice u portalu. Nisu jedna po vrsti: tri varijante sukoba originala i
@@ -38,12 +41,12 @@ const OPIS_VRSTE = {
 const KARTICE = [
     {
         value: "copy_conflict",
-        label: "Original i kopija",
+        label: "Validacija ORG/KOP",
         types: [VRSTE.COPY_OVER_ORIGINAL, VRSTE.ORIGINAL_OVER_COPY, VRSTE.COPY_OVER_COPY],
     },
-    { value: VRSTE.SAME_ARTIFACT, label: OPIS_VRSTE[VRSTE.SAME_ARTIFACT], types: [VRSTE.SAME_ARTIFACT] },
-    { value: VRSTE.CANCELED_TICKET, label: OPIS_VRSTE[VRSTE.CANCELED_TICKET], types: [VRSTE.CANCELED_TICKET] },
-    { value: VRSTE.MANY_COPIES, label: OPIS_VRSTE[VRSTE.MANY_COPIES], types: [VRSTE.MANY_COPIES] },
+    { value: VRSTE.SAME_ARTIFACT, label: "Višestruka validacija", types: [VRSTE.SAME_ARTIFACT] },
+    { value: VRSTE.CANCELED_TICKET, label: "Stornirane karte", types: [VRSTE.CANCELED_TICKET] },
+    { value: VRSTE.MANY_COPIES, label: "Višestruke kopije", types: [VRSTE.MANY_COPIES] },
 ];
 
 // Vrste koje nastaju na validaciji — po njima se filtrira ticket_validations.
