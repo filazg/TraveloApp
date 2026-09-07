@@ -154,4 +154,23 @@ export const SCHEMA = [
         created_at TEXT NOT NULL
     );`,
     `CREATE INDEX IF NOT EXISTS idx_pending_validations_created ON pending_validations(created_at);`,
+
+    // Ispisane kopije karata. Redni broj se dodjeljuje ovdje, na uredaju, jer se
+    // kopija ispisuje i bez mreze — racun oznake je poznat i ne treba
+    // posluzitelja. Zapis ceka na sinkronizaciju kao i validacije.
+    `CREATE TABLE IF NOT EXISTS ticket_copy_prints (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ticket_uuid TEXT NOT NULL,
+        ticket_code TEXT,
+        copy_no INTEGER NOT NULL,
+        suffix TEXT,
+        printed_at TEXT NOT NULL,
+        operator_name TEXT,
+        billing_device_uuid TEXT,
+        billing_device_name TEXT,
+        business_premise_name TEXT,
+        synced INTEGER DEFAULT 0
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_ticket_copy_prints_ticket ON ticket_copy_prints(ticket_uuid);`,
+    `CREATE INDEX IF NOT EXISTS idx_ticket_copy_prints_synced ON ticket_copy_prints(synced);`,
 ];

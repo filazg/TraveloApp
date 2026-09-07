@@ -370,6 +370,56 @@ export async function countPendingValidations() {
     return r?.c || 0;
 }
 
+// ---------- ISPISANE KOPIJE KARATA ----------
+// Redni broj kopije se odreduje ovdje, iz onoga sto je uredaj sam ispisao.
+// Kopija mora izaci i bez mreze, a racun oznake ne treba posluzitelja.
+//
+// Blagajna koja je istu kartu prodala broji svoje kopije, pa se brojevi znaju
+// poklopiti. To se u kontroli vidi kao dvije kopije istog rednog broja i samo
+// po sebi je podatak — gori bi bio ispis koji ceka mrezu.
+export async function nextCopyNo(ticketUuid) {
+    const r = await queryOne(
+        `SELECT MAX(copy_no) AS n FROM ticket_copy_prints WHERE ticket_uuid = ?;`,
+        [ticketUuid]
+    );
+    return (Number(r?.n) || 0) + 1;
+}
+
+export async function saveCopyPrint(zapis) {
+    await exec(
+        `INSERT INTO ticket_copy_prints
+         (ticket_uuid, ticket_code, copy_no, suffix, printed_at, operator_name,
+          billing_device_uuid, billing_device_name, business_premise_name, synced)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0);`,
+        [
+            zapis.ticket_uuid,
+            zapis.ticket_code || null,
+            zapis.copy_no,
+            zapis.suffix || null,
+            zapis.printed_at,
+            zapis.operator_name || null,
+            zapis.billing_device_uuid || null,
+            zapis.billing_device_name || null,
+            zapis.business_premise_name || null,
+        ]
+    );
+    return true;
+}
+
+export async function loadPendingCopyPrints(limit = 200) {
+    return queryAll(
+        `SELECT id, ticket_uuid, ticket_code, copy_no, suffix, printed_at, operator_name,
+                billing_device_uuid, billing_device_name, business_premise_name
+           FROM ticket_copy_prints WHERE synced = 0 ORDER BY id ASC LIMIT ?;`,
+        [limit]
+    );
+}
+
+export async function markCopyPrintSynced(id) {
+    await exec(`UPDATE ticket_copy_prints SET synced = 1 WHERE id = ?;`, [id]);
+    return true;
+}
+
 // ---------- ADRESAR (BUYERS) ----------
 // Spremaju se podaci R1 kupaca nakon uspješne prodaje — za brzi izbor idući put.
 export async function saveBuyer(buyer) {

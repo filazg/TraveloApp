@@ -9,6 +9,7 @@ import { syncData } from '../store/slices/syncSlice';
 import { authData } from '../store/slices/authSlice';
 import { shiftsData } from '../store/slices/shiftsSlice';
 import { printReceipt as printReceiptFn, printTickets as printTicketsFn } from '../device/printSale';
+import { oznaciKopije } from '../services/ticketCopies';
 import api from '../api/client';
 import { ENDPOINTS } from '../api/config';
 import { markTicketsCanceled, markInvoiceCanceled, saveSale, markInvoiceSynced } from '../db/repo';
@@ -131,8 +132,15 @@ export default function DocumentsScreen() {
                     isReprint: true,
                 });
             }
+            // Kopija se prijavi posluzitelju i dobije svoja tri znaka; bez
+            // toga bi na papiru stajala oznaka originala i kopija se u kontroli
+            // ne bi razlikovala od karte koju je putnik dobio pri kupnji.
+            const kopije = await oznaciKopije(detailTickets, {
+                basicData: sync.basicData,
+                operatorName: r.operater_name || '',
+            });
             await printTicketsFn({
-                tickets: detailTickets,
+                tickets: kopije,
                 basicData: sync.basicData,
                 voyage: null,
                 isReprint: true,

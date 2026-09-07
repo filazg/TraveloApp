@@ -21,7 +21,7 @@ const HEX16 = '0123456789ABCDEF';
 // I i jedinica lako pobrkaju. Citanje ostaje neosjetljivo na velicinu slova, pa
 // se sufiksi izdani prije ove promjene citaju jednako.
 const POMAK = 6;
-const MAX_KOPIJA = 24;
+export const MAX_KOPIJA = 24;
 
 const nasumicni = (abeceda) => abeceda[Math.floor(Math.random() * abeceda.length)];
 
@@ -97,6 +97,18 @@ export const qrSaSuffixom = (ticketQr, suffix) => {
 };
 
 // Sufiks pročitan iz QR-a; prazno kad ga karta nema.
+// Kopija dobiva novu oznaku, pa joj se osmo polje QR-a mijenja — na mobilnoj je
+// QR vec sastavljen pri prodaji i nosi oznaku originala, a qrSaSuffixom po
+// dogovoru ne dira vec postojece osmo polje.
+export const postaviSuffixUQr = (ticketQr, suffix) => {
+    const qr = String(ticketQr || '');
+    if (!qr || !suffix) {return qr;}
+    const polja = qr.split(';');
+    while (polja.length < QR_POLJA_BEZ_SUFIKSA) {polja.push('');}
+    polja[QR_POLJA_BEZ_SUFIKSA] = suffix;
+    return polja.slice(0, QR_POLJA_BEZ_SUFIKSA + 1).join(';');
+};
+
 export const suffixIzQr = (ticketQr) => {
     const polja = String(ticketQr || '').split(';');
     return polja.length > QR_POLJA_BEZ_SUFIKSA ? polja[QR_POLJA_BEZ_SUFIKSA] : '';
