@@ -307,11 +307,55 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
     // zatim redak na kojem piše samo "–", a na karti je zadnje slovo završilo
     // samo u svom retku. Crte se crtaju iz iste širine da prate ostatak ispisa.
     private val W = 31
+
+    // Sirina papira u tockama na V2s-u; logo se skalira na nju.
+    private val LOGO_SIRINA = 384
     private val LINE_HARD = "=".repeat(W) + "\n"
     private val LINE_SOFT = "-".repeat(W) + "\n"
 
     private fun hline(p: IWoyouService) { p.printText(LINE_HARD, null) }
     private fun dline(p: IWoyouService) { p.printText(LINE_SOFT, null) }
+
+    // Logo u vrhu ispisa. Slika se podesava na naplatnom uredaju i stize kroz
+    // sync kao base64 PNG; uredaj je ne dobiva ako prekidac nije ukljucen, pa
+    // prazna vrijednost ovdje znaci "bez logotipa", ne gresku.
+    //
+    // Sve je u try/catch: neispravna slika ne smije zaustaviti ispis. Bolje
+    // racun bez logotipa nego kupac bez racuna.
+    private fun printLogo(p: IWoyouService, base64: String) {
+        if (base64.isBlank()) return
+        try {
+            val cist = base64.substringAfterLast("base64,").trim()
+            val bajtovi = android.util.Base64.decode(cist, android.util.Base64.DEFAULT)
+            val slika = android.graphics.BitmapFactory.decodeByteArray(bajtovi, 0, bajtovi.size)
+                ?: return
+
+            // Papir V2s-a je 384 tocke; sira slika bi se odrezala s desne strane.
+            val ciljna = if (slika.width > LOGO_SIRINA) LOGO_SIRINA else slika.width
+            val visina = (slika.height.toFloat() * ciljna / slika.width).toInt().coerceAtLeast(1)
+
+            // Prozirnost termalni printer crta kao crno, pa logo s prozirnom
+            // pozadinom ispadne kao crna mrlja — slika se prvo polozi na bijelo.
+            val konacna = android.graphics.Bitmap.createBitmap(
+                ciljna, visina, android.graphics.Bitmap.Config.ARGB_8888
+            )
+            val platno = android.graphics.Canvas(konacna)
+            platno.drawColor(android.graphics.Color.WHITE)
+            platno.drawBitmap(
+                slika,
+                null,
+                android.graphics.Rect(0, 0, ciljna, visina),
+                android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+            )
+
+            p.setAlignment(1, null)
+            p.printBitmap(konacna, null)
+            p.printText("\n", null)
+            p.setAlignment(0, null)
+        } catch (t: Throwable) {
+            Log.w("SunmiPrint", "logo nije ispisan: ${t.message}")
+        }
+    }
 
     // label lijevo, value desno (široki print: stupci 16+16 jedinica).
     // Printer skalira interno po trenutnom fontu pa se odnos održava i pri 28-32f.
@@ -526,6 +570,9 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             // Sve renderiramo s LEFT alignment-om — sve "centrirano" izvedeno padding-om.
             p.setAlignment(0, null)
             p.setFontSize(24f, null)
+
+            // ----- LOGO -----
+            printLogo(p, safeString(bd, "billing_device_invoice_logo"))
 
             // ----- KLIJENT (centrirano) -----
             val clientName = safeString(bd, "client_name").ifEmpty { "TRAVELO" }
@@ -988,6 +1035,9 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     // ESC 7 maknut, firmware ga otisne kao znak `7`.
                     try { p.sendRAWData(byteArrayOf(0x1B, 0x45, 0x01), null) } catch (_: Exception) {}
                     p.setPrinterStyle(1000, 1)
+
+                    // ----- LOGO -----
+                    printLogo(p, safeString(bd, "billing_device_ticket_logo"))
 
                     // ----- HEADER (tvrtka + PRIJEVOZNA KARTA — bold + double-strike) -----
                     try { p.sendRAWData(byteArrayOf(0x1B, 0x47, 0x01), null) } catch (_: Exception) {}
