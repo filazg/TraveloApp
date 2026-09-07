@@ -67,10 +67,18 @@ export default function TicketCopyControlPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dispatch]);
 
-    const otvoriDetalj = (ticketUuid) => {
-        dispatch(setDetailTicket(ticketUuid));
-        dispatch(fetchTicketValidationsThunk({ ticket_uuid: ticketUuid }));
-        dispatch(fetchCopyPrintsThunk({ ticket_uuid: ticketUuid }));
+    // Ladici se predaje cijeli redak, ne samo uuid: podatke o karti popis je vec
+    // dohvatio, pa nema razloga ici po njih drugi put.
+    const [odabrana, setOdabrana] = useState(null);
+    const otvoriDetalj = (r) => {
+        setOdabrana(r);
+        dispatch(setDetailTicket(r.ticket_uuid));
+        dispatch(fetchTicketValidationsThunk({ ticket_uuid: r.ticket_uuid }));
+        dispatch(fetchCopyPrintsThunk({ ticket_uuid: r.ticket_uuid }));
+    };
+    const zatvoriDetalj = () => {
+        setOdabrana(null);
+        dispatch(clearDetail());
     };
 
     const sukobi = data.conflicts || [];
@@ -108,6 +116,10 @@ export default function TicketCopyControlPage() {
                     <TableHead>
                         <TableRow>
                             <TableCell>Broj karte</TableCell>
+                            <TableCell>Relacija</TableCell>
+                            {/* Kada je original izdan — iz toga se vidi je li kopija
+                                nastala odmah po prodaji ili danima kasnije. */}
+                            <TableCell>Original izdan</TableCell>
                             <TableCell align="right">Sukoba</TableCell>
                             <TableCell>Zadnji sukob</TableCell>
                             <TableCell>Razlog</TableCell>
@@ -118,14 +130,14 @@ export default function TicketCopyControlPage() {
                     <TableBody>
                         {data.conflictsLoading && (
                             <TableRow>
-                                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                                     <CircularProgress size={22} />
                                 </TableCell>
                             </TableRow>
                         )}
                         {!data.conflictsLoading && sukobi.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                                <TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>
                                     U odabranom razdoblju nema uhvaćenih sukoba.
                                 </TableCell>
                             </TableRow>
@@ -135,9 +147,15 @@ export default function TicketCopyControlPage() {
                                 key={r.ticket_uuid}
                                 hover
                                 sx={{ cursor: "pointer" }}
-                                onClick={() => otvoriDetalj(r.ticket_uuid)}
+                                onClick={() => otvoriDetalj(r)}
                             >
                                 <TableCell sx={{ fontWeight: 700 }}>{r.ticket_code || r.ticket_uuid}</TableCell>
+                                <TableCell>
+                                    {r.departure_harbor_name
+                                        ? `${r.departure_harbor_name} → ${r.arrival_harbor_name || ""}`
+                                        : "—"}
+                                </TableCell>
+                                <TableCell>{fmtVrijeme(r.ticket_issued_at)}</TableCell>
                                 <TableCell align="right">
                                     <Chip size="small" color="error" label={r.conflict_count} />
                                 </TableCell>
@@ -157,16 +175,49 @@ export default function TicketCopyControlPage() {
             <Drawer
                 anchor="right"
                 open={!!data.detailTicketUuid}
-                onClose={() => dispatch(clearDetail())}
+                onClose={zatvoriDetalj}
                 PaperProps={{ sx: { width: { xs: "100%", md: 720 }, p: 3 } }}
             >
                 <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
                     <Typography variant="h6" fontWeight={800}>Povijest karte</Typography>
                     <Box sx={{ flex: 1 }} />
-                    <Button startIcon={<CloseIcon />} onClick={() => dispatch(clearDetail())}>
+                    <Button startIcon={<CloseIcon />} onClick={zatvoriDetalj}>
                         Zatvori
                     </Button>
                 </Stack>
+
+                {/* Podaci o originalu. Bez njih se povijest čita bez uporišta —
+                    ne vidi se koja je to karta ni koliko je vremena prošlo od
+                    prodaje do prve kopije. */}
+                {odabrana && (
+                    <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                        <Stack
+                            direction="row"
+                            spacing={4}
+                            sx={{ flexWrap: "wrap", rowGap: 1.5 }}
+                        >
+                            {[
+                                ["Broj karte", odabrana.ticket_code || odabrana.ticket_uuid],
+                                ["Oznaka originala", odabrana.original_suffix || "—"],
+                                ["Relacija", odabrana.departure_harbor_name
+                                    ? `${odabrana.departure_harbor_name} → ${odabrana.arrival_harbor_name || ""}`
+                                    : "—"],
+                                ["Linija", odabrana.line_code || "—"],
+                                ["Polazak", odabrana.departure || "—"],
+                                ["Original izdan", fmtVrijeme(odabrana.ticket_issued_at)],
+                            ].map(([oznaka, vrijednost]) => (
+                                <Box key={oznaka}>
+                                    <Typography variant="caption" color="text.secondary" display="block">
+                                        {oznaka}
+                                    </Typography>
+                                    <Typography fontWeight={700} fontSize={14}>
+                                        {vrijednost}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Stack>
+                    </Paper>
+                )}
 
                 <Typography variant="caption" color="text.secondary">Pokušaji validacije</Typography>
                 <TableContainer component={Paper} variant="outlined" sx={{ mb: 3, mt: 0.5 }}>

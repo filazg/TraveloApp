@@ -63,6 +63,13 @@ const listCopyConflictsController = async (req, res) => {
             replacements.to = doo;
         }
 
+        // Uz sukob ide i podatak o samoj karti — kada je original izdan i na
+        // kojoj relaciji. Bez toga se iz popisa ne vidi je li kopija napravljena
+        // odmah po prodaji ili danima kasnije, a upravo to razlikuje pogresku od
+        // namjere.
+        //
+        // Vrijeme izdavanja se uzima s racuna; tek ako karta nema racun (jos nije
+        // sinkroniziran, partnerska prodaja) pada na trenutak nastanka karte.
         const redci = await sequelize.query(
             `SELECT v.ticket_uuid,
                     MAX(v.ticket_code)          AS ticket_code,
@@ -71,8 +78,16 @@ const listCopyConflictsController = async (req, res) => {
                     MAX(v.validated_at)         AS last_conflict_at,
                     MAX(v.conflict_reason)      AS last_reason,
                     MAX(v.operator)             AS last_operator,
-                    MAX(v.terminal_uuid)        AS last_terminal
+                    MAX(v.terminal_uuid)        AS last_terminal,
+                    MIN(COALESCE(i.invoice_date, t."createdAt")) AS ticket_issued_at,
+                    MIN(t.ticket_code_suffix)   AS original_suffix,
+                    MIN(t.line_code)            AS line_code,
+                    MIN(t.departure_harbor_name) AS departure_harbor_name,
+                    MIN(t.arrival_harbor_name)  AS arrival_harbor_name,
+                    MIN(t.departure)            AS departure
              FROM ticket_validations v
+             LEFT JOIN tickets t  ON t.ticket_uuid = v.ticket_uuid
+             LEFT JOIN invoices i ON i.invoice_uuid = t.invoice_uuid
              WHERE ${uvjeti.join(" AND ")}
              GROUP BY v.ticket_uuid
              ORDER BY MAX(v.validated_at) DESC
