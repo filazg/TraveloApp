@@ -22,7 +22,7 @@
       .page {
         width: 210mm;
         height: 297mm;
-        padding: 16mm 16mm 14mm;
+        padding: 14mm 14mm 12mm;
         page-break-after: always;
         display: flex;
         flex-direction: column;
@@ -34,53 +34,103 @@
         align-items: flex-end;
         justify-content: space-between;
         border-bottom: 3px solid #175BD0;
-        padding-bottom: 6mm;
+        padding-bottom: 5mm;
       }
-      .brand .name { font-size: 22pt; font-weight: 800; letter-spacing: .5px; }
-      .brand .doc { font-size: 10pt; color: #6b7280; text-transform: uppercase; letter-spacing: 2px; }
+      .brand .name { font-size: 20pt; font-weight: 800; letter-spacing: .5px; }
+      .brand .doc { font-size: 9.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: 2px; }
 
-      /* Sadrzaj se centrira izmedu zaglavlja i napomene, i stoji u uokvirenom
-         polju. Bez okvira je na A4 papiru vise praznine nego karte, pa ispis
-         izgleda kao da se nesto nije iscrtalo. */
-      .content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-      .panel {
-        border: 1px solid #d7dbe0;
-        border-left: 6mm solid #175BD0;
+      .content { flex: 1; display: flex; flex-direction: column; padding-top: 10mm; }
+
+      /* Ukrcajni kupon. Raspored je onaj na koji je putnik navikao kod drugih
+         prijevoznika: relacija i vrijeme veliko lijevo, QR na otkinutom dijelu
+         desno, sitni podaci u traci ispod. */
+      .pass {
+        display: flex;
+        border: 1px solid #cfd5db;
         border-radius: 3mm;
-        padding: 12mm 12mm 10mm;
-        background: #FCFBF8;
+        overflow: hidden;
+        background: #fff;
       }
-      .headline { }
-      .route {
-        font-size: 30pt;
-        font-weight: 800;
-        line-height: 1.15;
+      .pass .body { flex: 1; }
+      .pass .strip {
+        background: #175BD0;
+        color: #fff;
+        padding: 3.5mm 7mm;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 9.5pt;
+        letter-spacing: 1px;
       }
-      .route .arrow { color: #175BD0; margin: 0 4mm; }
-      .line { margin-top: 2mm; font-size: 12pt; color: #6b7280; }
+      .pass .strip .lijevo { font-weight: 700; text-transform: uppercase; }
+      .pass .strip .desno { opacity: .85; text-transform: uppercase; letter-spacing: 2px; }
 
-      .main { margin-top: 10mm; display: flex; gap: 12mm; align-items: center; }
-      .facts { flex: 1; }
-
-      .fact { margin-bottom: 7mm; }
-      .fact:last-child { margin-bottom: 0; }
-      .fact .k {
-        font-size: 9pt; color: #6b7280; text-transform: uppercase;
+      .journey {
+        display: flex;
+        align-items: flex-end;
+        padding: 9mm 7mm 7mm;
+      }
+      .place { flex: 1; }
+      .place .k {
+        font-size: 8pt; color: #6b7280; text-transform: uppercase;
         letter-spacing: 1.5px; margin-bottom: 1.5mm;
       }
-      .fact .v { font-size: 15pt; font-weight: 700; }
-      .fact .v small { font-size: 10pt; font-weight: 400; color: #6b7280; }
+      .place .harbor { font-size: 24pt; font-weight: 800; line-height: 1.1; }
+      .place .time { font-size: 16pt; font-weight: 700; margin-top: 1.5mm; }
+      .place .date { font-size: 10pt; color: #6b7280; margin-top: .8mm; }
+      .place.right { text-align: right; }
 
-      /* QR je razlog zbog kojeg karta postoji na papiru — dobiva prostora. */
-      .qr { width: 56mm; text-align: center; }
-      .qr img { width: 52mm; height: 52mm; }
-      .qr .code {
+      /* Crta s trokutom umjesto strelice iz fonta — znak koji font nema ispao
+         bi kao kvadratic nasred karte. */
+      .arrow { width: 26mm; padding: 0 3mm 9mm; }
+      .arrow .rail { height: 1px; background: #b9c2cb; position: relative; }
+      .arrow .rail:after {
+        content: "";
+        position: absolute; right: -1px; top: -1.6mm;
+        border-left: 3mm solid #175BD0;
+        border-top: 1.6mm solid transparent;
+        border-bottom: 1.6mm solid transparent;
+      }
+
+      .facts {
+        display: flex;
+        border-top: 1px dashed #cfd5db;
+        padding: 5mm 7mm 6mm;
+        gap: 6mm;
+      }
+      .facts .cell { flex: 1; }
+      .facts .cell.wide { flex: 1.5; }
+      .facts .k {
+        font-size: 7.5pt; color: #6b7280; text-transform: uppercase;
+        letter-spacing: .8px; margin-bottom: 1.2mm; white-space: nowrap;
+      }
+      .facts .v { font-size: 11pt; font-weight: 700; }
+      .facts .v.mono { font-family: "Courier New", Courier, monospace; font-size: 10pt; letter-spacing: 0; white-space: nowrap; }
+
+      /* Kupon za ukrcaj — odvojen probusenom crtom, kao kod svih koji karte
+         kidaju na ulazu. */
+      .stub {
+        width: 58mm;
+        border-left: 1px dashed #9aa3ad;
+        background: #F7F9FC;
+        padding: 6mm 5mm;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .stub .k {
+        font-size: 7.5pt; color: #6b7280; text-transform: uppercase;
+        letter-spacing: 1.5px; margin-bottom: 3mm;
+      }
+      .stub img { width: 42mm; height: 42mm; }
+      .stub .code {
         margin-top: 3mm;
         font-family: "Courier New", Courier, monospace;
-        font-size: 13pt; font-weight: 700; letter-spacing: 1px;
+        font-size: 11pt; font-weight: 700; letter-spacing: .5px;
         word-break: break-all;
       }
-      .qr .suffix { color: #6b7280; }
+      .stub .suffix { color: #6b7280; }
 
       .island {
         margin-top: 4mm; padding: 4mm 5mm;
@@ -89,14 +139,41 @@
       }
       .island b { font-size: 11pt; }
 
+      .terms {
+        margin-top: 6mm;
+        display: flex;
+        gap: 8mm;
+        font-size: 8.5pt;
+        color: #6b7280;
+        line-height: 1.55;
+      }
+      .terms .col { flex: 1; }
+      .terms .col b { display: block; color: #383E42; font-size: 8pt; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 1.5mm; }
+
+      /* Podaci prijevoznika u podnozju — na tudim kartama stoje na istom
+         mjestu, a putniku trebaju kad karta zapne pa zove nekoga. */
+      .carrier {
+        margin-top: 6mm;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 4mm;
+        display: flex;
+        gap: 8mm;
+        font-size: 8.5pt;
+        color: #6b7280;
+      }
+      .carrier .k {
+        font-size: 7.5pt; text-transform: uppercase; letter-spacing: 1.2px;
+        color: #9aa3ad; margin-bottom: 1.2mm;
+      }
+      .carrier .v { color: #383E42; }
+
       .spacer { flex: 1; }
 
       .notes {
         border-top: 1px solid #d1d5db;
-        padding-top: 4mm;
-        font-size: 8.5pt;
+        padding-top: 3.5mm;
+        font-size: 8pt;
         color: #6b7280;
-        line-height: 1.5;
       }
       .counter { float: right; font-weight: 700; color: #383E42; }
 
@@ -115,6 +192,14 @@
     </style>
   </head>
   <body>
+
+    <%
+      // Datum i vrijeme stoje jedno pod drugim, kao na kartama drugih
+      // prijevoznika. Zapis dolazi spojen ("12.07.2026. 08:00") pa se ovdje
+      // rastavlja; ako oblik nije takav, sve ide u datum umjesto da se izgubi.
+      const dan = (v) => String(v || "").split(" ")[0] || "";
+      const sat = (v) => String(v || "").split(" ")[1] || "";
+    %>
 
     <% if (summary) { %>
       <%# Sazetak je prva stranica, ne zaseban dokument: karte se svugdje
@@ -169,56 +254,111 @@
       <div class="page">
         <div class="brand">
           <div class="name"><%= companyName %></div>
-          <div class="doc">Prijevozna karta</div>
+          <div class="doc">Prijevozna karta &middot; Ticket</div>
         </div>
 
         <div class="content">
-        <div class="panel">
-        <div class="headline">
-          <div class="route">
-            <%= ti.departure_harbor_name || "" %><span class="arrow">→</span><%= ti.arrival_harbor_name || "" %>
-          </div>
-          <% if (ti.line_name) { %><div class="line"><%= ti.line_name %></div><% } %>
-        </div>
-
-        <div class="main">
-          <div class="facts">
-            <div class="fact">
-              <div class="k">Polazak</div>
-              <div class="v"><%= ti.departure_fmt || ti.departure || "" %></div>
-            </div>
-            <div class="fact">
-              <div class="k">Dolazak</div>
-              <div class="v"><%= ti.arrival_fmt || ti.arrival || "—" %></div>
-            </div>
-            <div class="fact">
-              <div class="k">Vrsta karte</div>
-              <div class="v"><%= ti.ticket_type_name || "" %></div>
-            </div>
-            <% if (ti.is_island && ti.seop_card_no) { %>
-              <div class="island">
-                Otočna karta &middot; <b><%= ti.seop_card_no %></b>
-                <% if (ti.seop_pravo) { %><br /><%= ti.seop_pravo %><% } %>
-                <% if (ti.seop_otok) { %> &middot; <%= ti.seop_otok %><% } %>
+          <div class="pass">
+            <div class="body">
+              <div class="strip">
+                <div class="lijevo"><%= ti.line_name || ti.line_code || "" %></div>
+                <div class="desno">Ukrcajni kupon</div>
               </div>
-            <% } %>
-          </div>
 
-          <div class="qr">
-            <img src="<%= ti.qr_data_url %>" alt="QR" />
-            <div class="code">
-              <%= ti.ticket_code %><% if (ti.ticket_code_suffix) { %> <span class="suffix"><%= ti.ticket_code_suffix %></span><% } %>
+              <div class="journey">
+                <div class="place">
+                  <div class="k">Polazak / From</div>
+                  <div class="harbor"><%= ti.departure_harbor_name || "" %></div>
+                  <div class="time"><%= sat(ti.departure_fmt) || "—" %></div>
+                  <div class="date"><%= dan(ti.departure_fmt) %></div>
+                </div>
+
+                <div class="arrow"><div class="rail"></div></div>
+
+                <div class="place right">
+                  <div class="k">Dolazak / To</div>
+                  <div class="harbor"><%= ti.arrival_harbor_name || "" %></div>
+                  <div class="time"><%= sat(ti.arrival_fmt) || "—" %></div>
+                  <div class="date"><%= dan(ti.arrival_fmt) %></div>
+                </div>
+              </div>
+
+              <div class="facts">
+                <div class="cell">
+                  <div class="k">Vrsta karte / Fare</div>
+                  <div class="v"><%= ti.ticket_type_name || "" %></div>
+                </div>
+                <div class="cell">
+                  <div class="k">Linija / Line</div>
+                  <div class="v"><%= ti.line_code || "" %></div>
+                </div>
+                <div class="cell wide">
+                  <div class="k">Broj karte / Ticket no.</div>
+                  <div class="v mono"><%= ti.ticket_code %><% if (ti.ticket_code_suffix) { %> <%= ti.ticket_code_suffix %><% } %></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stub">
+              <div class="k">Ukrcaj / Boarding</div>
+              <img src="<%= ti.qr_data_url %>" alt="QR" />
+              <div class="code">
+                <%= ti.ticket_code %><% if (ti.ticket_code_suffix) { %> <span class="suffix"><%= ti.ticket_code_suffix %></span><% } %>
+              </div>
             </div>
           </div>
-        </div>
-        </div>
+
+          <% if (ti.is_island && ti.seop_card_no) { %>
+            <div class="island">
+              Otočna karta &middot; <b><%= ti.seop_card_no %></b>
+              <% if (ti.seop_pravo) { %><br /><%= ti.seop_pravo %><% } %>
+              <% if (ti.seop_otok) { %> &middot; <%= ti.seop_otok %><% } %>
+            </div>
+          <% } %>
+
+          <% var tvrtka = (typeof company !== "undefined" && company) ? company : {}; %>
+          <% if (tvrtka.name) { %>
+            <div class="carrier">
+              <div style="flex:1">
+                <div class="k">Prijevoznik / Carrier</div>
+                <div class="v"><%= tvrtka.name %></div>
+              </div>
+              <% if (tvrtka.address || tvrtka.town) { %>
+                <div style="flex:1">
+                  <div class="k">Adresa / Address</div>
+                  <div class="v">
+                    <%= tvrtka.address || "" %><% if (tvrtka.town) { %>, <%= tvrtka.postal_code || "" %> <%= tvrtka.town %><% } %>
+                  </div>
+                </div>
+              <% } %>
+              <% if (tvrtka.legal_id) { %>
+                <div style="flex:1">
+                  <div class="k">OIB</div>
+                  <div class="v"><%= tvrtka.legal_id %></div>
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+
+          <div class="terms">
+            <div class="col">
+              <b>Uvjeti prijevoza</b>
+              Kartu s QR kodom obavezno predočite pri ukrcaju. Karta vrijedi samo za
+              navedeni polazak i relaciju. Preporučuje se dolazak na vez najkasnije
+              30 minuta prije polaska. Dozvoljena osobna prtljaga do 23 kg.
+            </div>
+            <div class="col">
+              <b>Conditions of carriage</b>
+              You are obligated to present the code printed on the ticket while boarding.
+              The ticket is valid for the stated departure and route only. Please arrive at
+              the berth at least 30 minutes before departure. Maximum luggage weight 23 kg.
+            </div>
+          </div>
         </div>
 
         <div class="notes">
           <span class="counter">Karta <%= i + 1 %>/<%= ticketsData.length %></span>
-          Kartu s QR kodom obavezno predočite pri ukrcaju.<br />
-          You are obligated to present the code printed on the ticket while boarding.<br />
-          Dozvoljena osobna prtljaga do 23 kg / Maximum luggage weight up to 23 kg.
+          Elektronička karta / Electronic ticket
         </div>
       </div>
     <% }); %>

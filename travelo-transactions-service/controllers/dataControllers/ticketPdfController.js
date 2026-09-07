@@ -112,19 +112,19 @@ const fmtDatum = (v) => {
     return hh ? `${dan} ${String(hh).padStart(2, "0")}:${mm}` : dan;
 };
 
-// Naziv tvrtke za zaglavlje karte. Prije je bio upisan u sam predlozak, pa bi
-// svaka druga instalacija ispisivala tudje ime.
-const nazivTvrtke = async () => {
+// Podaci prijevoznika za zaglavlje i podnozje karte. Prije je u predlosku
+// stajalo upisano ime, pa bi svaka druga instalacija ispisivala tude.
+const podaciTvrtke = async () => {
     try {
         const core = await getCoreServiceConfigData();
         const url = core?.services?.backoffice?.url;
-        if (!url) return "";
+        if (!url) return {};
         const r = await axios.get(`${url}/company`, { timeout: 8000, validateStatus: () => true });
         const c = r.data?.data?.company;
-        return (Array.isArray(c) ? c[0]?.name : c?.name) || "";
+        return (Array.isArray(c) ? c[0] : c) || {};
     } catch (error) {
-        console.log("naziv tvrtke nije dohvacen:", error?.message || error);
-        return "";
+        console.log("podaci tvrtke nisu dohvaceni:", error?.message || error);
+        return {};
     }
 };
 
@@ -136,8 +136,10 @@ const loadTickets = async ({ TicketsModel, order_uuid, order_uuids }) => {
     return Promise.all(tickets.map(toTemplateTicket));
 };
 
-const renderTicketsPdf = async (ticketsData, { channel = null, companyName = "" } = {}) => {
+const renderTicketsPdf = async (ticketsData, { channel = null, company = null } = {}) => {
     if (!ticketsData.length) return null;
+
+    const tvrtka = company || {};
 
     const postavka = await postavkaPredloska(channel);
     const izabran = predlozak(postavka.template_key);
@@ -152,18 +154,18 @@ const renderTicketsPdf = async (ticketsData, { channel = null, companyName = "" 
     // (zero). Template + browser default body margin handle spacing.
     return renderTemplateToPdfBuffer(
         izabran.file,
-        { ticketsData, logo: "logo.png", summary, companyName },
+        { ticketsData, logo: "logo.png", summary, companyName: tvrtka.name || "", company: tvrtka },
         { margin: { top: "0", right: "0", bottom: "0", left: "0" } }
     );
 };
 
-const buildTicketsPdfBuffer = async ({ TicketsModel, order_uuid, order_uuids, channel, companyName }) => {
+const buildTicketsPdfBuffer = async ({ TicketsModel, order_uuid, order_uuids, channel, company }) => {
     const ticketsData = await loadTickets({ TicketsModel, order_uuid, order_uuids });
-    // Naziv tvrtke se dohvaca ovdje ako ga pozivatelj nije dao — inace bi novi
-    // predlozak isao u mail s praznim zaglavljem, a stari ga i tako ne cita.
+    // Podaci prijevoznika se dohvacaju ovdje ako ih pozivatelj nije dao — inace
+    // bi novi predlozak isao u mail s praznim zaglavljem.
     return renderTicketsPdf(ticketsData, {
         channel,
-        companyName: companyName || (await nazivTvrtke()),
+        company: company || (await podaciTvrtke()),
     });
 };
 
@@ -187,7 +189,7 @@ const renderTicketsPdfController = async (req, res) => {
         // bi trazilo pogadanje: `origin` je na vecini karata prazan.
         const buffer = await renderTicketsPdf(ticketsData, {
             channel: req.query.channel || null,
-            companyName: await nazivTvrtke(),
+            company: await podaciTvrtke(),
         });
         const fnameHint = order_uuid
             ? order_uuid.slice(0, 8)
@@ -272,7 +274,10 @@ const ticketTemplatePreviewController = async (req, res) => {
 
         const buffer = await renderTemplateToPdfBuffer(
             izabran.file,
-            { ticketsData, logo: "logo.png", summary, companyName: await nazivTvrtke() },
+            { ticketsData, logo: "logo.png", summary, ...(await (async () => {
+                const t = await podaciTvrtke();
+                return { companyName: t.name || "", company: t };
+            })()) },
             { margin: { top: "0", right: "0", bottom: "0", left: "0" } }
         );
         res.setHeader("Content-Type", "application/pdf");
