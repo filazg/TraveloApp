@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="hr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Karte</title>
+    <style>
+      /* Bez vanjskih stilova: PDF se crta u Puppeteeru, a mreza koja ceka CDN
+         zna dati stranicu bez stilova ako veza zapne. Sve je ovdje. */
+      @page { size: A4; margin: 0; }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #383E42;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      /* Jedna karta = jedna stranica. Zadnja nema prijelom, inace PDF zavrsi
+         praznom stranicom. */
+      .page {
+        width: 210mm;
+        height: 297mm;
+        padding: 16mm 16mm 14mm;
+        page-break-after: always;
+        display: flex;
+        flex-direction: column;
+      }
+      .page:last-child { page-break-after: auto; }
+
+      .brand {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        border-bottom: 3px solid #175BD0;
+        padding-bottom: 6mm;
+      }
+      .brand .name { font-size: 22pt; font-weight: 800; letter-spacing: .5px; }
+      .brand .doc { font-size: 10pt; color: #6b7280; text-transform: uppercase; letter-spacing: 2px; }
+
+      /* Sadrzaj se centrira izmedu zaglavlja i napomene. Bez toga vise od pola
+         stranice ostane prazno ispod, a karta izgleda kao odsjecen ispis. */
+      .content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+      .headline { }
+      .route {
+        font-size: 30pt;
+        font-weight: 800;
+        line-height: 1.15;
+      }
+      .route .arrow { color: #175BD0; margin: 0 4mm; }
+      .line { margin-top: 2mm; font-size: 12pt; color: #6b7280; }
+
+      .main { margin-top: 10mm; display: flex; gap: 12mm; }
+      .facts { flex: 1; }
+
+      .fact { margin-bottom: 7mm; }
+      .fact .k {
+        font-size: 9pt; color: #6b7280; text-transform: uppercase;
+        letter-spacing: 1.5px; margin-bottom: 1.5mm;
+      }
+      .fact .v { font-size: 15pt; font-weight: 700; }
+      .fact .v small { font-size: 10pt; font-weight: 400; color: #6b7280; }
+
+      /* QR je razlog zbog kojeg karta postoji na papiru — dobiva prostora. */
+      .qr { width: 56mm; text-align: center; }
+      .qr img { width: 52mm; height: 52mm; }
+      .qr .code {
+        margin-top: 3mm;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 13pt; font-weight: 700; letter-spacing: 1px;
+        word-break: break-all;
+      }
+      .qr .suffix { color: #6b7280; }
+
+      .island {
+        margin-top: 4mm; padding: 4mm 5mm;
+        background: #F5F2EB; border-left: 4px solid #96D1F2;
+        font-size: 10pt;
+      }
+      .island b { font-size: 11pt; }
+
+      .spacer { flex: 1; }
+
+      .notes {
+        border-top: 1px solid #d1d5db;
+        padding-top: 4mm;
+        font-size: 8.5pt;
+        color: #6b7280;
+        line-height: 1.5;
+      }
+      .counter { float: right; font-weight: 700; color: #383E42; }
+
+      /* --- sazetak --- */
+      .sum-title { margin-top: 10mm; font-size: 20pt; font-weight: 800; }
+      .sum-sub { margin-top: 1mm; font-size: 11pt; color: #6b7280; }
+      table.sum { width: 100%; border-collapse: collapse; margin-top: 8mm; font-size: 10.5pt; }
+      table.sum th {
+        text-align: left; font-size: 8.5pt; text-transform: uppercase;
+        letter-spacing: 1px; color: #6b7280; border-bottom: 2px solid #383E42;
+        padding: 0 0 2mm;
+      }
+      table.sum td { padding: 3mm 0; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+      table.sum td.code { font-family: "Courier New", Courier, monospace; font-weight: 700; }
+      table.sum .muted { color: #6b7280; font-size: 9pt; }
+    </style>
+  </head>
+  <body>
+
+    <% if (summary) { %>
+      <%# Sazetak je prva stranica, ne zaseban dokument: karte se svugdje
+          otvaraju kao jedan PDF — u kartici preglednika i kao privitak. %>
+      <div class="page">
+        <div class="brand">
+          <div class="name"><%= companyName %></div>
+          <div class="doc">Sažetak</div>
+        </div>
+
+        <div class="sum-title"><%= ticketsData.length %> karata</div>
+        <div class="sum-sub">
+          <% if (summary.route) { %><%= summary.route %><% } %>
+          <% if (summary.departure) { %> &middot; <%= summary.departure %><% } %>
+        </div>
+
+        <table class="sum">
+          <thead>
+            <tr>
+              <th style="width:22%">Broj karte</th>
+              <th style="width:28%">Vrsta</th>
+              <th style="width:32%">Relacija</th>
+              <th style="width:18%">Polazak</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% ticketsData.forEach(function (ti) { %>
+              <tr>
+                <td class="code"><%= ti.ticket_code %></td>
+                <td>
+                  <%= ti.ticket_type_name || "" %>
+                  <% if (ti.is_island && ti.seop_card_no) { %>
+                    <div class="muted"><%= ti.seop_card_no %></div>
+                  <% } %>
+                </td>
+                <td><%= ti.departure_harbor_name || "" %> → <%= ti.arrival_harbor_name || "" %></td>
+                <td><%= ti.departure_fmt || ti.departure || "" %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+
+        <div class="spacer"></div>
+        <div class="notes">
+          Sažetak služi za pregled i predaju na ukrcaju. Za ukrcaj vrijedi pojedinačna
+          karta s QR kodom, na stranicama koje slijede.
+        </div>
+      </div>
+    <% } %>
+
+    <% ticketsData.forEach(function (ti, i) { %>
+      <div class="page">
+        <div class="brand">
+          <div class="name"><%= companyName %></div>
+          <div class="doc">Prijevozna karta</div>
+        </div>
+
+        <div class="content">
+        <div class="headline">
+          <div class="route">
+            <%= ti.departure_harbor_name || "" %><span class="arrow">→</span><%= ti.arrival_harbor_name || "" %>
+          </div>
+          <% if (ti.line_name) { %><div class="line"><%= ti.line_name %></div><% } %>
+        </div>
+
+        <div class="main">
+          <div class="facts">
+            <div class="fact">
+              <div class="k">Polazak</div>
+              <div class="v"><%= ti.departure_fmt || ti.departure || "" %></div>
+            </div>
+            <div class="fact">
+              <div class="k">Dolazak</div>
+              <div class="v"><%= ti.arrival_fmt || ti.arrival || "—" %></div>
+            </div>
+            <div class="fact">
+              <div class="k">Vrsta karte</div>
+              <div class="v"><%= ti.ticket_type_name || "" %></div>
+            </div>
+            <% if (ti.is_island && ti.seop_card_no) { %>
+              <div class="island">
+                Otočna karta &middot; <b><%= ti.seop_card_no %></b>
+                <% if (ti.seop_pravo) { %><br /><%= ti.seop_pravo %><% } %>
+                <% if (ti.seop_otok) { %> &middot; <%= ti.seop_otok %><% } %>
+              </div>
+            <% } %>
+          </div>
+
+          <div class="qr">
+            <img src="<%= ti.qr_data_url %>" alt="QR" />
+            <div class="code">
+              <%= ti.ticket_code %><% if (ti.ticket_code_suffix) { %> <span class="suffix"><%= ti.ticket_code_suffix %></span><% } %>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div class="notes">
+          <span class="counter">Karta <%= i + 1 %>/<%= ticketsData.length %></span>
+          Kartu s QR kodom obavezno predočite pri ukrcaju.<br />
+          You are obligated to present the code printed on the ticket while boarding.<br />
+          Dozvoljena osobna prtljaga do 23 kg / Maximum luggage weight up to 23 kg.
+        </div>
+      </div>
+    <% }); %>
+
+  </body>
+</html>

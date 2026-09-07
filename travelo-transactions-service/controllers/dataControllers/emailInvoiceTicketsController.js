@@ -25,7 +25,7 @@ const emailInvoiceTicketsController = async (req, res) => {
         if (!to) return res.status(400).json({ status: 400, data: { message: "to (email) required" } });
 
         const tasks = [buildInvoicePdfBuffer({ models, invoice_uuid })];
-        if (order_uuid) tasks.push(buildTicketsPdfBuffer({ TicketsModel: models.TicketsModel, order_uuid }));
+        if (order_uuid) tasks.push(buildTicketsPdfBuffer({ TicketsModel: models.TicketsModel, order_uuid, channel: 'URED' }));
         const [invoicePdf, ticketsPdf] = await Promise.all(tasks);
 
         const attachments = [];

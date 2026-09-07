@@ -10,6 +10,7 @@ const { handleGetHarborsFeature, handleAddHarborFeature, handleUpdateHarborFeatu
 const { handleGetBoatsFeature, handleAddBoatsFeature, handleUpdateBoatsFeature } = require('../features/boat/boatsHandlers');
 const { handleGetLinesFeature, handleAddLinesFeature, handleUpdateLinesFeature } = require('../features/boat/linesHandlers');
 const { handleGetRegionsFeature, handleAddRegionFeature, handleUpdateRegionFeature } = require('../features/boat/regionsHandlers');
+const { handleGetTicketTemplatesFeature, handleUpsertTicketTemplateFeature } = require('../features/boat/ticketTemplatesHandlers');
 const { handleGetTicketTypesFeature, handleAddTicketTypesFeature, handleUpdateTicketTypesFeature } = require('../features/boat/ticketTypesHandlers');
 const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrFeature } = require('../features/backoffice/partnersHandlers');
 const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
@@ -271,6 +272,13 @@ router
 
 // Modul KONTROLA — kontrola kopija karata. Sukobi original/kopija, pokusaji
 // validacije i evidentirani ispisi kopija.
+// Predlosci PDF karte po kanalu — postavka u boat servisu, katalog u
+// transactions servisu; handler ih spaja.
+router
+    .route('/boat/ticket_templates')
+    .get(handleGetTicketTemplatesFeature)
+    .post(handleUpsertTicketTemplateFeature)
+
 router
     .route('/transactions/ticket_conflict_types')
     .get(handleGetConflictTypesFeature)

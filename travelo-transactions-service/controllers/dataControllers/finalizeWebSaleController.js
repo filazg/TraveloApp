@@ -402,7 +402,7 @@ const finalizeWebSaleController = async (req, res) => {
             try {
                 const [invoicePdf, ticketsPdf] = await Promise.all([
                     buildInvoicePdfBuffer({ models, invoice_uuid }),
-                    buildTicketsPdfBuffer({ TicketsModel, order_uuids: orderLinks }),
+                    buildTicketsPdfBuffer({ TicketsModel, order_uuids: orderLinks, channel: 'WEB' }),
                 ]);
                 await sendWebSaleEmail({
                     to: buyer.summary_buyer_email,

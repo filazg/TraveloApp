@@ -8,7 +8,19 @@ const { getTimetableDataController, getTimetableDetailsController, addTimetableD
 const { getSalesRoutesController, getAllSalesRoutesController, cancelSalesRoutesBatchController, rescheduleSalesRoutesBatchController } = require('../controllers/dataControllers/salesRoutesController');
 const { getDeparturesController, getDepartureByUuidController, getRoutesByDepartureController, getRouteByUuidController } = require('../controllers/dataControllers/departuresControllers');
 const { getSailingsController, getSailingDetailsController, startSailingController, updateLegStatusController, cancelHarborArrivalController, changeBoatController } = require('../controllers/dataControllers/sailingControllers');
+const { listTicketTemplatesController, getTicketTemplateController, upsertTicketTemplateController } = require('../controllers/dataControllers/ticketTemplatesControllers');
 const router = express.Router();
+
+// Predlozak PDF karte po prodajnom kanalu. Postavku cita transactions servis
+// pri svakom crtanju PDF-a; portal je ureduje kroz karticu Predlosci.
+router
+    .route('/ticket_templates')
+    .get(listTicketTemplatesController)
+    .post(upsertTicketTemplateController)
+
+router
+    .route('/ticket_templates/:channel')
+    .get(getTicketTemplateController)
 
 module.exports = router
 

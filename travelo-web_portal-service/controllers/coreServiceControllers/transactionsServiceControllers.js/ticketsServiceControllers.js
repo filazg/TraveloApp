@@ -15,11 +15,15 @@ const searchTicketsController = async (params = {}) => {
     }
 };
 
-const getTicketsPdfController = async (order_uuid) => {
+const getTicketsPdfController = async (order_uuid, channel) => {
     const coreConfigData = await getCoreServiceConfigData();
     return axios.get(
         coreConfigData.services.transactions.url + '/tickets_pdf/' + order_uuid,
-        { responseType: 'arraybuffer', validateStatus: () => true }
+        {
+            params: { channel: channel || 'URED' },
+            responseType: 'arraybuffer',
+            validateStatus: () => true,
+        }
     );
 };
 

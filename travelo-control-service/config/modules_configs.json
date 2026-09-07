@@ -528,6 +528,19 @@
                             },
                             "path": "/boat/regions",
                             "icon": "Anchor"
+                        },
+                        {
+                            "key": "BOAT_TICKET_TEMPLATES",
+                            "label": {
+                                "hr": "Predlošci",
+                                "en": "Templates"
+                            },
+                            "subtitle": {
+                                "hr": "Izgled PDF karte po kanalu",
+                                "en": "Ticket PDF layout per channel"
+                            },
+                            "path": "/boat/ticket_templates",
+                            "icon": "Assignment"
                         }
                     ]
                 }

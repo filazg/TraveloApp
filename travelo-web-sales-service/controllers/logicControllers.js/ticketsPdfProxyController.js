@@ -11,9 +11,12 @@ const ticketsPdfProxyController = async (req, res) => {
         const txUrl = coreConfig?.services?.transactions?.url;
         if (!txUrl) return res.status(500).send('transactions URL missing');
 
+        // Kroz ovaj proxy ide i web kupac i partnerska prodaja, a predlozak se
+        // bira po kanalu — pa se kanal prenosi dalje. Bez njega je to web.
+        const channel = req.query.channel || 'WEB';
         const target = order_uuid
-            ? `${txUrl}/tickets_pdf/${order_uuid}`
-            : `${txUrl}/tickets_pdf?order_uuids=${encodeURIComponent(order_uuids)}`;
+            ? `${txUrl}/tickets_pdf/${order_uuid}?channel=${encodeURIComponent(channel)}`
+            : `${txUrl}/tickets_pdf?order_uuids=${encodeURIComponent(order_uuids)}&channel=${encodeURIComponent(channel)}`;
 
         const response = await axios({
             method: 'get',

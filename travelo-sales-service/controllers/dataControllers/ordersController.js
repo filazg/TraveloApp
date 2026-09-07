@@ -222,7 +222,7 @@ const createOrderController = async (req, res) => {
                     departure_harbor_name: order.departure_harbor_name,
                     arrival_harbor_name: order.arrival_harbor_name,
                     tickets: ticketsResult?.tickets || [],
-                    tickets_pdf_url: `/transactions/tickets_pdf/${order.uuid}`,
+                    tickets_pdf_url: `/transactions/tickets_pdf/${order.uuid}?channel=PARTNER`,
                 },
             },
         });

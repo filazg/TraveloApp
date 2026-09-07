@@ -26,7 +26,7 @@ const handleCancelTicketsFeature = async (req, res) => {
 const handleGetTicketsPdfFeature = async (req, res) => {
     try {
         const { order_uuid } = req.params;
-        const response = await getTicketsPdfController(order_uuid);
+        const response = await getTicketsPdfController(order_uuid, req.query.channel);
         res.status(response.status);
         const ctype = response.headers['content-type'] || 'application/pdf';
         res.setHeader('content-type', ctype);

@@ -1,7 +1,7 @@
 const express = require('express');
 const { addTerminalSaleController } = require('../controllers/dataControllers/terminalSaleControllers');
 const { createPartnerSaleController, listTicketsForOrderController } = require('../controllers/dataControllers/partnerSaleControllers');
-const { renderTicketsPdfController } = require('../controllers/dataControllers/ticketPdfController');
+const { renderTicketsPdfController, ticketTemplateCatalogController } = require('../controllers/dataControllers/ticketPdfController');
 const { finalizeWebSaleController } = require('../controllers/dataControllers/finalizeWebSaleController');
 const { renderInvoicePdfController } = require('../controllers/dataControllers/invoicePdfController');
 const { renderPartnerInvoicePdfController, renderPartnerInvoiceDetailsPdfController } = require('../controllers/dataControllers/partnerInvoicePdfController');
@@ -57,6 +57,11 @@ router
 
 // Bulk varijanta — koristi se za "preuzmi sve karte" gumb na download stranici.
 // Query: ?order_uuids=uuid1,uuid2,...  → vraća jedan PDF s kartama svih order-a.
+// Katalog predlozaka PDF karte — portal ga cita da bi ponudio izbor.
+router
+    .route('/ticket_template_catalog')
+    .get(ticketTemplateCatalogController)
+
 router
     .route('/tickets_pdf')
     .get(renderTicketsPdfController)
