@@ -63,6 +63,11 @@ const initialState = {
             module_acr:'DOWN',
             module_name:'Preuzimanja'
         },
+        {
+            id:10,
+            module_acr:'KONT',
+            module_name:'Kontrola'
+        },
         // BUS moduli (BUSL, BUSSALE, BUSDISP, BUSDRV, BUSPRL) su maknuti iz izbora
         // dodjele prava — bus je odvojen projekt, a i control-service ovdje vozi
         // TRAVELO_MODULES=BOAT pa se ti moduli ionako ne prikazuju na naslovnici.
