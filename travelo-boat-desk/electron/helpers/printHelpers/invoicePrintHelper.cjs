@@ -5,6 +5,25 @@ const { companyModel } = require('../../db/models/BasicData.cjs');
 const { runPrintJob, cutOrFeed } = require('./printJob.cjs');
 const { qrSaSuffixom, brojZaIspis } = require('../ticketCopyMark.cjs');
 
+// Logo u vrhu ispisa. Dolazi iz osnovnih podataka kao PNG u base64, onako kako
+// je ucitan na naplatnom uredaju; prazno znaci da se ne ispisuje.
+//
+// Ne baca: racun i karta moraju izaci i kad logo ne prode. Papir bez loga je
+// sitnica, papir koji nije izasao nije.
+const printLogo = async (printer, base64) => {
+    const podatak = String(base64 || '').trim();
+    if (!podatak) return;
+    try {
+        // Podnosi i cisti base64 i data URI, jer se ucitana slika zna spremiti
+        // u oba oblika.
+        const cisto = podatak.replace(/^data:image\/[a-z+]+;base64,/i, '');
+        printer.alignCenter();
+        await printer.printImageBuffer(Buffer.from(cisto, 'base64'));
+    } catch (error) {
+        console.log('logo nije ispisan:', error?.message || error);
+    }
+};
+
 // F2 (HRFISK20) račun se kupcu dostavlja kao e-račun — na blagajni se ne
 // ispisuje ni pri izdavanju ni pri kopiji, na papir idu samo karte. Isto
 // pravilo vrijedi na mobilnoj blagajni.
@@ -155,6 +174,7 @@ const printInvoice = async ({ invoice, items, copy }) => {
         }
         printer.setCharacterSet(CharacterSet.SLOVENIA);
         printer.alignCenter();
+        await printLogo(printer, osnovniPodaci?.billing_device_invoice_logo);
         // Prazna polja se preskaču. Poslovni prostor npr. često ima samo naziv,
         // a println('') ispiše prazan redak — na računu su to bili prazni redci
         // između naziva poslovnice i crte iznad broja računa.
@@ -349,6 +369,7 @@ const printTickets = async ({ tickets,copy }) => {
             // bio upisan rukom, pa bi svaka druga instalacija na kartama i
             // dalje ispisivala tuđe ime.
             printer.alignCenter();
+            await printLogo(printer, osnovniPodaci?.billing_device_ticket_logo);
             printer.setTextDoubleHeight();
             printer.println(String(osnovniPodaci?.client_name || 'TRAVELO').trim());
             printer.setTextNormal();

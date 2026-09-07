@@ -86,6 +86,11 @@ const getTerminalBasicDataHandler = async(data)=>{
                 // odnosno karte na blagajni i mobilnoj.
                 billing_device_footer:terminaData.footer || '',
                 billing_device_ticket_footer:terminaData.ticket_footer || '',
+                // Logo u vrhu ispisa, PNG u base64. Odvojeno za racun i kartu —
+                // to nisu isti dokumenti. Prazno kad prekidac nije ukljucen, da
+                // uredaj ne nosi sliku koju ionako nece ispisati.
+                billing_device_invoice_logo: terminaData.print_invoice_logo ? (terminaData.invoice_logo || '') : '',
+                billing_device_ticket_logo: terminaData.print_ticket_logo ? (terminaData.ticket_logo || '') : '',
                 billing_device_auto_validate:terminaData.auto_validate || '',
                 // Smije li se na uredaju prodavati za buduce datume. Bez toga
                 // mobilna ne bi znala smije li ponuditi odabir dana polaska.

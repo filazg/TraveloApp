@@ -167,6 +167,10 @@ const getBillingDevicesController = async(req,res)=>{
                 header:billingDevice.header,
                 footer:billingDevice.footer,
                 ticket_footer:billingDevice.ticket_footer,
+                invoice_logo:billingDevice.invoice_logo,
+                ticket_logo:billingDevice.ticket_logo,
+                print_invoice_logo:billingDevice.print_invoice_logo,
+                print_ticket_logo:billingDevice.print_ticket_logo,
                 is_active:billingDevice.is_active,
                 permissions:permissionsForBillingDevice,
                 payment:paymentMethodsForBillingDevice,
@@ -287,6 +291,10 @@ const addBillingDeviceController = async(req,res)=>{
                         header:data.header,
                         footer:data.footer,
                         ticket_footer:data.ticket_footer ?? null,
+                        invoice_logo:data.invoice_logo ?? null,
+                        ticket_logo:data.ticket_logo ?? null,
+                        print_invoice_logo: data.print_invoice_logo === true || data.print_invoice_logo === 'true',
+                        print_ticket_logo: data.print_ticket_logo === true || data.print_ticket_logo === 'true',
                         // Stupac ne dopušta NULL, a forma zna poslati prazno ako
                         // korisnik ne dirne izbornik — tada bi create pukao, a
                         // korisnik bi vidio samo zatvorenu formu bez uređaja.
@@ -422,6 +430,10 @@ const updateBillingDeviceController = async(req,res)=>{
                         header:data.header,
                         footer:data.footer,
                         ticket_footer:data.ticket_footer ?? null,
+                        invoice_logo:data.invoice_logo ?? null,
+                        ticket_logo:data.ticket_logo ?? null,
+                        print_invoice_logo: data.print_invoice_logo === true || data.print_invoice_logo === 'true',
+                        print_ticket_logo: data.print_ticket_logo === true || data.print_ticket_logo === 'true',
                         is_active:data.is_active,
                         ...(data.type ? { type_uuid: data.type, type_name: data.type } : {}),
                 },{where:{

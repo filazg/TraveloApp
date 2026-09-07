@@ -100,6 +100,17 @@ const companyModel = sequelize.define('company',{
     billing_device_ticket_footer:{
         type: Sequelize.TEXT,
         allowNull:true
+    },
+    // Logo u vrhu ispisa, PNG u base64. Odvojeno za račun i kartu jer to nisu
+    // isti dokumenti. Prazno znači da se ne ispisuje — poslužitelj ga i ne šalje
+    // kad je prekidač na uređaju ugašen.
+    billing_device_invoice_logo:{
+        type: Sequelize.TEXT,
+        allowNull:true
+    },
+    billing_device_ticket_logo:{
+        type: Sequelize.TEXT,
+        allowNull:true
     }
 },{
     freezeTableName: true

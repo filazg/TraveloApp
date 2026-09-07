@@ -12,6 +12,7 @@ import TransferList from "../../../../helpers/TransferList";
 // Linije su u boat modulu, ne u backofficeu — ovdje trebaju samo kao šifarnik
 // za popis linija koje se uređaju zabranjuju.
 import { boatSliceData, getBoatThunk } from "../../../boat/boatSlice";
+import LogoUpload from "./LogoUpload";
 
 
 export default function BillingDevicesPage (){
@@ -785,6 +786,23 @@ export default function BillingDevicesPage (){
                         name="ticket_footer"
                         sx={{ mt: 1 }}
                     />
+                    {/* Logo se ispisuje u vrhu dokumenta. Odvojeno za račun i
+                        kartu jer to nisu isti dokumenti: račun ide kupcu i u
+                        knjigovodstvo, karta putniku na ukrcaj. */}
+                    <LogoUpload
+                        label="Logo na računu"
+                        value={newData?.invoice_logo || null}
+                        checked={newData?.print_invoice_logo}
+                        onChange={(v) => setNewData((p) => ({ ...p, invoice_logo: v, ...(v ? {} : { print_invoice_logo: false }) }))}
+                        onToggle={(v) => setNewData((p) => ({ ...p, print_invoice_logo: v }))}
+                    />
+                    <LogoUpload
+                        label="Logo na karti"
+                        value={newData?.ticket_logo || null}
+                        checked={newData?.print_ticket_logo}
+                        onChange={(v) => setNewData((p) => ({ ...p, ticket_logo: v, ...(v ? {} : { print_ticket_logo: false }) }))}
+                        onToggle={(v) => setNewData((p) => ({ ...p, print_ticket_logo: v }))}
+                    />
                     <TextField
                         type="text"
                         variant="outlined"
@@ -1037,6 +1055,23 @@ export default function BillingDevicesPage (){
                         onChange={handleChangeEdit}
                         name="ticket_footer"
                         sx={{ mt: 1 }}
+                    />
+                    {/* Logo se ispisuje u vrhu dokumenta. Odvojeno za račun i
+                        kartu jer to nisu isti dokumenti: račun ide kupcu i u
+                        knjigovodstvo, karta putniku na ukrcaj. */}
+                    <LogoUpload
+                        label="Logo na računu"
+                        value={editedData?.invoice_logo || null}
+                        checked={editedData?.print_invoice_logo}
+                        onChange={(v) => setEditedData((p) => ({ ...p, invoice_logo: v, ...(v ? {} : { print_invoice_logo: false }) }))}
+                        onToggle={(v) => setEditedData((p) => ({ ...p, print_invoice_logo: v }))}
+                    />
+                    <LogoUpload
+                        label="Logo na karti"
+                        value={editedData?.ticket_logo || null}
+                        checked={editedData?.print_ticket_logo}
+                        onChange={(v) => setEditedData((p) => ({ ...p, ticket_logo: v, ...(v ? {} : { print_ticket_logo: false }) }))}
+                        onToggle={(v) => setEditedData((p) => ({ ...p, print_ticket_logo: v }))}
                     />
                     <TextField
                         type="text"

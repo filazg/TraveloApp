@@ -109,6 +109,35 @@ module.exports =  (sequelize) =>{
             type:DataTypes.TEXT,
             allowNull:true
         },
+        // Logo u vrhu ispisa, kao PNG u base64 obliku (data URI bez zaglavlja).
+        //
+        // Odvojeno za račun i za kartu jer to nisu isti dokumenti: račun ide
+        // kupcu i u knjigovodstvo, karta putniku na ukrcaj, pa se i grafika zna
+        // razlikovati.
+        //
+        // Slika je pripremljena za termalni ispis — jednobojna, najviše 576
+        // točaka široka; sam ispis je samo ne skalira dalje nego je uklopi.
+        // TEXT jer base64 lako prijeđe granicu varchara.
+        invoice_logo:{
+            type:DataTypes.TEXT,
+            allowNull:true
+        },
+        ticket_logo:{
+            type:DataTypes.TEXT,
+            allowNull:true
+        },
+        // Prekidači stoje odvojeno od slika: logo se tako može privremeno
+        // ugasiti bez brisanja učitane slike.
+        print_invoice_logo:{
+            type:DataTypes.BOOLEAN,
+            allowNull:true,
+            defaultValue:false
+        },
+        print_ticket_logo:{
+            type:DataTypes.BOOLEAN,
+            allowNull:true,
+            defaultValue:false
+        },
         is_active:{
             type:DataTypes.BOOLEAN,
             allowNull:false
