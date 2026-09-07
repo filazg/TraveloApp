@@ -126,11 +126,15 @@ ${KARTA_SELECT}
             WHERE ${uvjetiV.join(" AND ")}
             GROUP BY v.ticket_uuid, v.conflict_type`;
 
+        // Kod ispisa se broje SVE kopije te karte, ne samo oznacene. Oznaku
+        // nose tek kopije od praga nadalje, pa bi karta s cetiri kopije
+        // pokazivala dvije — a stupac se cita kao "koliko ih je".
         const upitIspisi = `
             SELECT p.ticket_uuid,
                    p.flag_type                  AS type,
                    MAX(p.ticket_code)           AS ticket_code,
-                   COUNT(*)::int                AS event_count,
+                   (SELECT count(*) FROM ticket_copy_prints x
+                     WHERE x.ticket_uuid = p.ticket_uuid)::int AS event_count,
                    MIN(p.printed_at)            AS first_at,
                    MAX(p.printed_at)            AS last_at,
                    MAX(p.flag_reason)           AS last_reason,

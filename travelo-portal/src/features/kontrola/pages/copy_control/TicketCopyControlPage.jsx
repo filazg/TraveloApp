@@ -171,7 +171,10 @@ export default function TicketCopyControlPage() {
         }] : []),
         {
             field: "event_count",
-            headerName: "Slučajeva",
+            // Na kartici previse kopija broj znaci koliko je kopija ispisano, a
+            // na ostalima koliko je puta sukob zabiljezen. Ista brojka, dva
+            // razlicita pitanja — pa i naziv prati karticu.
+            headerName: vrsta === "many_copies" ? "Kopija" : "Slučajeva",
             width: 100,
             align: "right",
             headerAlign: "right",
