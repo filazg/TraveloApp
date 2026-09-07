@@ -28,6 +28,30 @@ const dateOnly = (s) => {
     return m ? `${m[1]}.${m[2]}.` : '';
 };
 
+// Polazak se skida s popisa dva sata nakon dolaska u zadnju luku. Prije je
+// stajao do kraja dana, pa je blagajnik pri kraju smjene birao između polazaka
+// koji su odavno otplovili. Dva sata je zato što se karte znaju izdavati i malo
+// nakon dolaska — putnik koji je zaboravio platiti, ispravak.
+const SATI_NAKON_DOLASKA = 2;
+
+// "DD.MM.YYYY. HH:mm" → Date. Taj zapis new Date() ne razumije, pa se rastavlja
+// ručno; neprepoznat oblik vraća null i polazak tada ostaje na popisu — radije
+// višak polaska nego skriven polazak zbog neočekivanog zapisa.
+const trenutak = (s) => {
+    const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?\s+(\d{1,2}):(\d{2})/.exec(String(s || '').trim());
+    if (!m) {return null;}
+    const [, d, mo, y, hh, mm] = m;
+    const t = new Date(Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mm), 0, 0);
+    return Number.isNaN(t.getTime()) ? null : t;
+};
+
+// Je li polazak odplovio i prošla su dva sata od dolaska u zadnju luku.
+const jeIstekao = (g, sada = new Date()) => {
+    const kraj = trenutak(g.last_arrival);
+    if (!kraj) {return false;}
+    return sada.getTime() > kraj.getTime() + SATI_NAKON_DOLASKA * 60 * 60 * 1000;
+};
+
 // Group sales_routes by (timetable_uuid, sequence, departure_date) → one voyage per group.
 const groupVoyages = (routes) => {
     const groups = new Map();
@@ -53,6 +77,9 @@ const groupVoyages = (routes) => {
         g.first_departure_time = g.legs[0]?.departure_time || '';
         g.start_harbor = g.legs[0]?.departure_harbor_name || '';
         g.end_harbor = g.legs[g.legs.length - 1]?.arrival_harbor_name || '';
+        // Dolazak u zadnju luku; pomaknut polazak nosi stvarno vrijeme.
+        const zadnja = g.legs[g.legs.length - 1] || {};
+        g.last_arrival = zadnja.actual_arrival || zadnja.arrival || '';
         // Pomaknut polazak: plovidbeni red ostaje u `departure`, stvarno vrijeme je u
         // `actual_departure`. Blagajna mora prodavati po stvarnom vremenu, pa se
         // ono prikazuje, a planirano ostaje vidljivo uz oznaku.
@@ -91,7 +118,7 @@ export default function VoyageSelectScreen() {
                 r.departure_date === dan &&
                 (!line || r.line_code === line.code)
             )
-        ),
+        ).filter((g) => !jeIstekao(g)),
         [sync.salesRoutes, dan, line]
     );
 
