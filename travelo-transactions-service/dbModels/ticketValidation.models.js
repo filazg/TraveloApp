@@ -61,6 +61,12 @@ module.exports = (sequelize) => {
                 type: DataTypes.STRING,
                 allowNull: true,
             },
+            // Vrsta sukoba iz helpers/ticketControlTypes.js. Portal po njoj
+            // slaže kartice, pa razlog ostaje slobodan tekst za ljude.
+            conflict_type: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
             terminal_uuid: {
                 type: DataTypes.STRING,
                 allowNull: true,

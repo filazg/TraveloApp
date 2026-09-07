@@ -1,4 +1,5 @@
 const {
+    getConflictTypesController,
     getTicketCopyConflictsController,
     getTicketValidationsController,
     getTicketCopyPrintsController,
@@ -50,7 +51,21 @@ const handleGetTicketCopyPrintsFeature = async (req, res) => {
     }
 };
 
+const handleGetConflictTypesFeature = async (req, res) => {
+    try {
+        const payload = await getConflictTypesController();
+        res.send({
+            status: 200,
+            data: { path1: 'kontrolaData', path2: 'conflictTypes', data: payload },
+        });
+    } catch (error) {
+        console.log('handleGetConflictTypesFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
+    handleGetConflictTypesFeature,
     handleGetTicketCopyConflictsFeature,
     handleGetTicketValidationsFeature,
     handleGetTicketCopyPrintsFeature,

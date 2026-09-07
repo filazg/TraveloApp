@@ -21,7 +21,22 @@ export const fetchCopyConflictsThunk = createAsyncThunk(
     async (params = {}, { rejectWithValue }) => {
         try {
             const resp = await api.get("/portal/transactions/ticket_copy_conflicts", { params });
-            return unwrapBff(resp)?.conflicts || [];
+            const payload = unwrapBff(resp) || {};
+            return { conflicts: payload.conflicts || [], counts: payload.counts || {} };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
+// Vrste sukoba za kartice. Dolaze s poslužitelja da se nazivi i pravila ne
+// raziđu — kartica koja postoji u sučelju, a pravila iza nje nema, je zamka.
+export const fetchConflictTypesThunk = createAsyncThunk(
+    "kontrola/fetchConflictTypes",
+    async (_, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/ticket_conflict_types");
+            return unwrapBff(resp)?.types || [];
         } catch (err) {
             return rejectWithValue(err.response?.data || { message: err.message });
         }
@@ -58,6 +73,11 @@ const kontrolaSlice = createSlice({
     name: "kontrola",
     initialState: {
         conflicts: [],
+        // Brojači po vrsti — kartice pokazuju koliko ih je gdje. Pune se samo
+        // kad se dohvaća bez filtra; s odabranom vrstom brojači drugih kartica
+        // ne bi bili točni pa se namjerno ne diraju.
+        counts: {},
+        types: [],
         conflictsLoading: false,
         conflictsError: null,
         // Detalj odabrane karte — povijest validacija i ispisane kopije.
@@ -87,7 +107,11 @@ const kontrolaSlice = createSlice({
             })
             .addCase(fetchCopyConflictsThunk.fulfilled, (s, a) => {
                 s.conflictsLoading = false;
-                s.conflicts = a.payload;
+                s.conflicts = a.payload.conflicts;
+                if (Object.keys(a.payload.counts || {}).length) s.counts = a.payload.counts;
+            })
+            .addCase(fetchConflictTypesThunk.fulfilled, (s, a) => {
+                s.types = a.payload;
             })
             .addCase(fetchCopyConflictsThunk.rejected, (s, a) => {
                 s.conflictsLoading = false;

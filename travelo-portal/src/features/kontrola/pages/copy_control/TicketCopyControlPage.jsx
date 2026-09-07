@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-    Alert, Box, Button, Chip, CircularProgress, Drawer, Paper, Stack,
+    Alert, Badge, Box, Button, Chip, CircularProgress, Drawer, Paper, Stack, Tab, Tabs,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -10,6 +10,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import {
     kontrolaSliceData,
     fetchCopyConflictsThunk,
+    fetchConflictTypesThunk,
     fetchTicketValidationsThunk,
     fetchCopyPrintsThunk,
     clearDetail,
@@ -42,6 +43,19 @@ const opisOtiska = (r) => {
     return r.copy_no ? `kopija ${r.copy_no}` : "kopija (broj nečitljiv)";
 };
 
+// Kratko objašnjenje uz svaku karticu — bez njega se iz naziva ne vidi što se
+// točno hvata ni zašto je to sumnjivo.
+const OPIS_KARTICE = {
+    "": "Svi nalazi u odabranom razdoblju. Nastaju na dva mjesta: na kontroli, kad se karta očita drugi put, i pri ispisu kopije, kad se već tada vidi da nešto ne štima.",
+    copy_over_original: "Original je prošao kontrolu, pa je netko pokušao i kopijom. Znači da su original i kopija istovremeno u optjecaju.",
+    original_over_copy: "Kopija je prošla kontrolu, pa je netko došao s originalom. Isto što i prethodno, samo obrnutim redom.",
+    copy_over_copy: "Dvije različite kopije iste karte pokušale su proći kontrolu.",
+    same_artifact: "Ista karta s istom oznakom očitana je drugi put. Fotografija QR-a nosi identičnu oznaku kao original, pa je ovo jedini trag koji takav slučaj uopće ostavlja. Ovdje upada i putnik koji je dvaput prislonio kartu.",
+    canceled_ticket: "Netko se pokušao ukrcati kartom koja je stornirana, često uz već vraćen novac.",
+    many_copies: "Karta ima tri ili više ispisanih kopija. Prva i druga se događaju — izgubljena karta, zaglavljen papir — treća je uzorak.",
+    copy_by_other_operator: "Kopiju je izdao operater koji nije prodao kartu. Kopiju u pravilu izdaje mjesto koje je i prodalo.",
+};
+
 const danaUnazad = (n) => {
     const d = new Date();
     d.setDate(d.getDate() - n);
@@ -52,36 +66,49 @@ export default function TicketCopyControlPage() {
     const dispatch = useDispatch();
     const data = useSelector(kontrolaSliceData);
 
+    const [odabrana, setOdabrana] = useState(null);
+    const zatvoriDetalj = () => {
+        setOdabrana(null);
+        dispatch(clearDetail());
+    };
+
     const [from, setFrom] = useState(danaUnazad(30));
     const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+    // Prazna vrsta je kartica "Sve".
+    const [vrsta, setVrsta] = useState("");
 
-    const ucitaj = () => {
-        dispatch(fetchCopyConflictsThunk({ from, to }));
+    const ucitaj = (zaVrstu = vrsta) => {
+        dispatch(fetchCopyConflictsThunk({ from, to, ...(zaVrstu ? { type: zaVrstu } : {}) }));
     };
 
     useEffect(() => {
         dispatch(setAuthData({ path: "loading", value: false }));
-        ucitaj();
-        // Prvi dohvat ide samo pri otvaranju; dalje na zahtjev, da se popis ne
-        // osvježava pod rukom dok se čita.
+        dispatch(fetchConflictTypesThunk());
+        ucitaj("");
+        // Prvi dohvat ide samo pri otvaranju; dalje na promjenu kartice ili na
+        // zahtjev, da se popis ne osvježava pod rukom dok se čita.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dispatch]);
 
+    const promijeniKarticu = (_e, novaVrsta) => {
+        setVrsta(novaVrsta);
+        // Detalj pripada karti s prethodne kartice; ostavljen otvoren bi visio
+        // nad popisom koji ga više ne sadrži.
+        zatvoriDetalj();
+        ucitaj(novaVrsta);
+    };
+
     // Ladici se predaje cijeli redak, ne samo uuid: podatke o karti popis je vec
     // dohvatio, pa nema razloga ici po njih drugi put.
-    const [odabrana, setOdabrana] = useState(null);
     const otvoriDetalj = (r) => {
         setOdabrana(r);
         dispatch(setDetailTicket(r.ticket_uuid));
         dispatch(fetchTicketValidationsThunk({ ticket_uuid: r.ticket_uuid }));
         dispatch(fetchCopyPrintsThunk({ ticket_uuid: r.ticket_uuid }));
     };
-    const zatvoriDetalj = () => {
-        setOdabrana(null);
-        dispatch(clearDetail());
-    };
-
     const sukobi = data.conflicts || [];
+    const brojaci = data.counts || {};
+    const ukupno = Object.values(brojaci).reduce((z, n) => z + n, 0);
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400 }}>
@@ -101,10 +128,42 @@ export default function TicketCopyControlPage() {
                 </Button>
             </Stack>
 
+            {/* Kartica po vrsti sukoba, a prva sadrži sve. Brojači se računaju
+                nad punim popisom, pa ostaju točni i dok je odabrana jedna vrsta. */}
+            <Tabs
+                value={vrsta}
+                onChange={promijeniKarticu}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+            >
+                <Tab
+                    value=""
+                    label={
+                        <Badge badgeContent={ukupno} color="error" sx={{ pr: ukupno ? 2 : 0 }}>
+                            Sve
+                        </Badge>
+                    }
+                />
+                {(data.types || []).map((t) => (
+                    <Tab
+                        key={t.value}
+                        value={t.value}
+                        label={
+                            <Badge
+                                badgeContent={brojaci[t.value] || 0}
+                                color="error"
+                                sx={{ pr: brojaci[t.value] ? 2 : 0 }}
+                            >
+                                {t.label}
+                            </Badge>
+                        }
+                    />
+                ))}
+            </Tabs>
+
             <Alert severity="info" sx={{ mb: 2 }}>
-                Popis pokazuje karte kod kojih je na kontroli pokušana validacija drugog
-                otiska nego onog koji je već prošao — kopija preko originala, original
-                preko kopije ili druga kopija. Ponovno očitanje istog papira nije sukob.
+                {OPIS_KARTICE[vrsta] || OPIS_KARTICE[""]}
             </Alert>
 
             {data.conflictsError && (
@@ -116,12 +175,16 @@ export default function TicketCopyControlPage() {
                     <TableHead>
                         <TableRow>
                             <TableCell>Broj karte</TableCell>
+                            {/* Vrsta se pokazuje samo na kartici "Sve" — na ostalima
+                                je ista u svakom retku i samo troši prostor. */}
+                            {!vrsta && <TableCell>Vrsta</TableCell>}
                             <TableCell>Relacija</TableCell>
                             {/* Kada je original izdan — iz toga se vidi je li kopija
                                 nastala odmah po prodaji ili danima kasnije. */}
                             <TableCell>Original izdan</TableCell>
-                            <TableCell align="right">Sukoba</TableCell>
-                            <TableCell>Zadnji sukob</TableCell>
+                            <TableCell>Original izdao</TableCell>
+                            <TableCell align="right">Slučajeva</TableCell>
+                            <TableCell>Zadnji put</TableCell>
                             <TableCell>Razlog</TableCell>
                             <TableCell>Kontrolor</TableCell>
                             <TableCell>Uređaj</TableCell>
@@ -130,14 +193,14 @@ export default function TicketCopyControlPage() {
                     <TableBody>
                         {data.conflictsLoading && (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                                <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
                                     <CircularProgress size={22} />
                                 </TableCell>
                             </TableRow>
                         )}
                         {!data.conflictsLoading && sukobi.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                                <TableCell colSpan={10} align="center" sx={{ py: 4, color: "text.secondary" }}>
                                     U odabranom razdoblju nema uhvaćenih sukoba.
                                 </TableCell>
                             </TableRow>
@@ -150,16 +213,25 @@ export default function TicketCopyControlPage() {
                                 onClick={() => otvoriDetalj(r)}
                             >
                                 <TableCell sx={{ fontWeight: 700 }}>{r.ticket_code || r.ticket_uuid}</TableCell>
+                                {!vrsta && (
+                                    <TableCell>
+                                        <Chip size="small" variant="outlined" label={r.type_label || r.type} />
+                                    </TableCell>
+                                )}
                                 <TableCell>
                                     {r.departure_harbor_name
                                         ? `${r.departure_harbor_name} → ${r.arrival_harbor_name || ""}`
                                         : "—"}
                                 </TableCell>
                                 <TableCell>{fmtVrijeme(r.ticket_issued_at)}</TableCell>
-                                <TableCell align="right">
-                                    <Chip size="small" color="error" label={r.conflict_count} />
+                                <TableCell>
+                                    {r.issued_by || "—"}
+                                    {r.issued_at_premise ? ` · ${r.issued_at_premise}` : ""}
                                 </TableCell>
-                                <TableCell>{fmtVrijeme(r.last_conflict_at)}</TableCell>
+                                <TableCell align="right">
+                                    <Chip size="small" color="error" label={r.event_count} />
+                                </TableCell>
+                                <TableCell>{fmtVrijeme(r.last_at)}</TableCell>
                                 <TableCell>{r.last_reason || "—"}</TableCell>
                                 <TableCell>{r.last_operator || "—"}</TableCell>
                                 <TableCell>{r.last_terminal || "—"}</TableCell>
@@ -205,6 +277,9 @@ export default function TicketCopyControlPage() {
                                 ["Linija", odabrana.line_code || "—"],
                                 ["Polazak", odabrana.departure || "—"],
                                 ["Original izdan", fmtVrijeme(odabrana.ticket_issued_at)],
+                                ["Original izdao", odabrana.issued_by
+                                    ? `${odabrana.issued_by}${odabrana.issued_at_premise ? " · " + odabrana.issued_at_premise : ""}`
+                                    : "—"],
                             ].map(([oznaka, vrijednost]) => (
                                 <Box key={oznaka}>
                                     <Typography variant="caption" color="text.secondary" display="block">

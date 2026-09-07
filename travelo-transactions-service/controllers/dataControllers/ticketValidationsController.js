@@ -1,10 +1,11 @@
-// Pregled evidentiranih validacija — podloga za modul KONTROLA u portalu.
+// Pregled evidentiranih validacija i sukoba — podloga za modul KONTROLA.
 //
-// Zapisuje ih validateTicketController; ovdje se samo čitaju. Zaseban kontroler
-// jer se čitanje i pisanje traže s različitih strana: pisanje s ukrcaja, čitanje
-// iz ureda.
+// Zapisuje ih validateTicketController i ticketCopyPrintController; ovdje se
+// samo čitaju. Zaseban kontroler jer se čitanje i pisanje traže s različitih
+// strana: pisanje s ukrcaja, čitanje iz ureda.
 const { Op } = require("sequelize");
 const { getModels } = require("../../dbModels");
+const { OPIS_VRSTE, VRSTE_VALIDACIJE, VRSTE_ISPISA } = require("../../helpers/ticketControlTypes");
 
 const rasponDatuma = (from, to) => {
     if (!from && !to) return null;
@@ -25,8 +26,6 @@ const listTicketValidationsController = async (req, res) => {
         if (req.query.ticket_uuid) where.ticket_uuid = req.query.ticket_uuid;
         if (req.query.ticket_code) where.ticket_code = { [Op.iLike]: String(req.query.ticket_code).trim() };
         if (req.query.outcome) where.outcome = req.query.outcome;
-        // Pregled sukoba je zaseban filtar jer je to ono zbog čega se ovaj popis
-        // uopće gleda — ostalo je kontekst.
         if (req.query.conflicts_only === "1" || req.query.conflicts_only === "true") {
             where.is_conflict = true;
         }
@@ -47,65 +46,145 @@ const listTicketValidationsController = async (req, res) => {
     }
 };
 
-// Kontrola kopija karata: karte kod kojih se pojavio sukob, s brojem pokušaja i
-// zadnjim viđenim. Jedan redak po karti — u portalu se otvara u detalj.
+// Kontrola kopija karata — objedinjeni popis.
+//
+// Sukobi nastaju na dva mjesta: na kontroli (drugi pokušaj validacije) i pri
+// ispisu kopije (previše kopija, kopija s tuđe blagajne). Portal ih pokazuje u
+// jednom popisu s karticama po vrsti, pa se i ovdje spajaju u jedan niz — inače
+// bi svaka kartica trebala znati iz koje tablice vuče, a to je znanje koje ne
+// pripada sučelju.
+//
+// Jedan redak po karti i vrsti: ista karta zna imati i previše kopija i sukob na
+// ukrcaju, a to su dva različita nalaza.
 const listCopyConflictsController = async (req, res) => {
     try {
         const { TicketValidationModel } = getModels();
         const sequelize = TicketValidationModel.sequelize;
-        const uvjeti = ["v.is_conflict = true"];
-        const replacements = {};
-        if (req.query.from) { uvjeti.push("v.validated_at >= :from"); replacements.from = new Date(req.query.from); }
+
+        const trazenaVrsta = req.query.type || null;
+        const replacements = { limit: Math.min(Number(req.query.limit) || 300, 1000) };
+
+        const uvjetiV = ["v.is_conflict = true", "v.conflict_type IS NOT NULL"];
+        const uvjetiI = ["p.flag_type IS NOT NULL"];
+        if (req.query.from) {
+            uvjetiV.push("v.validated_at >= :from");
+            uvjetiI.push("p.printed_at >= :from");
+            replacements.from = new Date(req.query.from);
+        }
         if (req.query.to) {
             const doo = new Date(req.query.to);
             doo.setHours(23, 59, 59, 999);
-            uvjeti.push("v.validated_at <= :to");
+            uvjetiV.push("v.validated_at <= :to");
+            uvjetiI.push("p.printed_at <= :to");
             replacements.to = doo;
         }
+        if (trazenaVrsta) {
+            uvjetiV.push("v.conflict_type = :type");
+            uvjetiI.push("p.flag_type = :type");
+            replacements.type = trazenaVrsta;
+        }
 
-        // Uz sukob ide i podatak o samoj karti — kada je original izdan i na
-        // kojoj relaciji. Bez toga se iz popisa ne vidi je li kopija napravljena
-        // odmah po prodaji ili danima kasnije, a upravo to razlikuje pogresku od
-        // namjere.
-        //
-        // Vrijeme izdavanja se uzima s racuna; tek ako karta nema racun (jos nije
-        // sinkroniziran, partnerska prodaja) pada na trenutak nastanka karte.
-        const redci = await sequelize.query(
-            `SELECT v.ticket_uuid,
-                    MAX(v.ticket_code)          AS ticket_code,
-                    COUNT(*)::int               AS conflict_count,
-                    MIN(v.validated_at)         AS first_conflict_at,
-                    MAX(v.validated_at)         AS last_conflict_at,
-                    MAX(v.conflict_reason)      AS last_reason,
-                    MAX(v.operator)             AS last_operator,
-                    MAX(v.terminal_uuid)        AS last_terminal,
+        // Kad je tražena vrsta iz samo jedne skupine, druga se ne pretražuje —
+        // prazan upit nad drugom tablicom je čist trošak.
+        const trebaValidacije = !trazenaVrsta || VRSTE_VALIDACIJE.includes(trazenaVrsta);
+        const trebaIspise = !trazenaVrsta || VRSTE_ISPISA.includes(trazenaVrsta);
+
+        // Podaci o originalu su isti za obje skupine: kada je izdan, tko ga je
+        // izdao i gdje. Bez toga se iz popisa ne vidi ni je li kopija nastala
+        // odmah po prodaji ni je li ju izdalo isto mjesto.
+        const KARTA_SELECT = `
                     MIN(COALESCE(i.invoice_date, t."createdAt")) AS ticket_issued_at,
+                    MIN(COALESCE(i.invoice_operator_name, i.operater_name, t.sold_by_username)) AS issued_by,
+                    MIN(i.invoice_business_premise_name) AS issued_at_premise,
                     MIN(t.ticket_code_suffix)   AS original_suffix,
                     MIN(t.line_code)            AS line_code,
                     MIN(t.departure_harbor_name) AS departure_harbor_name,
                     MIN(t.arrival_harbor_name)  AS arrival_harbor_name,
-                    MIN(t.departure)            AS departure
-             FROM ticket_validations v
-             LEFT JOIN tickets t  ON t.ticket_uuid = v.ticket_uuid
-             LEFT JOIN invoices i ON i.invoice_uuid = t.invoice_uuid
-             WHERE ${uvjeti.join(" AND ")}
-             GROUP BY v.ticket_uuid
-             ORDER BY MAX(v.validated_at) DESC
-             LIMIT :limit`,
-            {
-                replacements: { ...replacements, limit: Math.min(Number(req.query.limit) || 200, 1000) },
-                type: sequelize.QueryTypes.SELECT,
-            },
+                    MIN(t.departure)            AS departure`;
+
+        const upitValidacije = `
+            SELECT v.ticket_uuid,
+                   v.conflict_type              AS type,
+                   MAX(v.ticket_code)           AS ticket_code,
+                   COUNT(*)::int                AS event_count,
+                   MIN(v.validated_at)          AS first_at,
+                   MAX(v.validated_at)          AS last_at,
+                   MAX(v.conflict_reason)       AS last_reason,
+                   MAX(v.operator)              AS last_operator,
+                   MAX(v.terminal_uuid)         AS last_terminal,
+${KARTA_SELECT}
+            FROM ticket_validations v
+            LEFT JOIN tickets t  ON t.ticket_uuid = v.ticket_uuid
+            LEFT JOIN invoices i ON i.invoice_uuid = t.invoice_uuid
+            WHERE ${uvjetiV.join(" AND ")}
+            GROUP BY v.ticket_uuid, v.conflict_type`;
+
+        const upitIspisi = `
+            SELECT p.ticket_uuid,
+                   p.flag_type                  AS type,
+                   MAX(p.ticket_code)           AS ticket_code,
+                   COUNT(*)::int                AS event_count,
+                   MIN(p.printed_at)            AS first_at,
+                   MAX(p.printed_at)            AS last_at,
+                   MAX(p.flag_reason)           AS last_reason,
+                   MAX(p.operator_name)         AS last_operator,
+                   MAX(p.billing_device_name)   AS last_terminal,
+${KARTA_SELECT}
+            FROM ticket_copy_prints p
+            LEFT JOIN tickets t  ON t.ticket_uuid = p.ticket_uuid
+            LEFT JOIN invoices i ON i.invoice_uuid = t.invoice_uuid
+            WHERE ${uvjetiI.join(" AND ")}
+            GROUP BY p.ticket_uuid, p.flag_type`;
+
+        const dijelovi = [];
+        if (trebaValidacije) dijelovi.push(upitValidacije);
+        if (trebaIspise) dijelovi.push(upitIspisi);
+        if (!dijelovi.length) {
+            return res.send({ status: 200, data: { conflicts: [], counts: {} } });
+        }
+
+        const redci = await sequelize.query(
+            `SELECT * FROM (${dijelovi.join(" UNION ALL ")}) z ORDER BY z.last_at DESC LIMIT :limit`,
+            { replacements, type: sequelize.QueryTypes.SELECT },
         );
 
-        res.send({ status: 200, data: { conflicts: redci } });
+        // Brojači po vrsti — kartice u portalu pokazuju koliko ih je gdje, pa se
+        // računaju ovdje i za neodabrane vrste.
+        const counts = {};
+        if (!trazenaVrsta) {
+            for (const r of redci) counts[r.type] = (counts[r.type] || 0) + 1;
+        }
+
+        res.send({
+            status: 200,
+            data: {
+                conflicts: redci.map((r) => ({ ...r, type_label: OPIS_VRSTE[r.type] || r.type })),
+                counts,
+            },
+        });
     } catch (error) {
         console.log("listCopyConflictsController error:", error?.message || error);
         res.status(500).send({ status: 500, data: { message: error.message } });
     }
 };
 
+// Popis vrsta za kartice u portalu — nazivi žive na poslužitelju da se sučelje i
+// pravila ne raziđu.
+const listConflictTypesController = async (_req, res) => {
+    res.send({
+        status: 200,
+        data: {
+            types: [...VRSTE_VALIDACIJE, ...VRSTE_ISPISA].map((v) => ({
+                value: v,
+                label: OPIS_VRSTE[v] || v,
+                source: VRSTE_VALIDACIJE.includes(v) ? "validation" : "copy_print",
+            })),
+        },
+    });
+};
+
 module.exports = {
     listTicketValidationsController,
     listCopyConflictsController,
+    listConflictTypesController,
 };

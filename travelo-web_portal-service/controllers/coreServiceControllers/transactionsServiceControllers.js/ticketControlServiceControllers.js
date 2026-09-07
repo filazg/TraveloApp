@@ -53,7 +53,22 @@ const getTicketCopyPrintsController = async (params = {}) => {
     }
 };
 
+// Vrste sukoba za kartice u portalu.
+const getConflictTypesController = async () => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(
+            coreConfigData.services.transactions.url + '/ticket_conflict_types'
+        );
+        return response.data?.data || { types: [] };
+    } catch (error) {
+        console.log('getConflictTypesController error:', error?.message || error);
+        return { types: [] };
+    }
+};
+
 module.exports = {
+    getConflictTypesController,
     getTicketCopyConflictsController,
     getTicketValidationsController,
     getTicketCopyPrintsController,

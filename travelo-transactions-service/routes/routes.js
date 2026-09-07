@@ -12,7 +12,7 @@ const { backfillInvoicesFiscalController } = require('../controllers/dataControl
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
 const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController, fiscalizePartnerInvoiceController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
 const { logTicketCopyPrintController, listTicketCopyPrintsController } = require('../controllers/dataControllers/ticketCopyPrintController');
-const { listTicketValidationsController, listCopyConflictsController } = require('../controllers/dataControllers/ticketValidationsController');
+const { listTicketValidationsController, listCopyConflictsController, listConflictTypesController } = require('../controllers/dataControllers/ticketValidationsController');
 const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
 const {
     listPartnerCommissionReportsController,
@@ -156,6 +156,12 @@ router
 router
     .route('/ticket_copy_conflicts')
     .get(listCopyConflictsController)
+
+// Vrste sukoba za kartice u portalu — nazivi zive ovdje da se sucelje i pravila
+// ne raziđu.
+router
+    .route('/ticket_conflict_types')
+    .get(listConflictTypesController)
 
 router
     .route('/tickets_search')

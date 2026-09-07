@@ -65,6 +65,17 @@ module.exports = (sequelize) => {
                 type: DataTypes.STRING,
                 allowNull: true,
             },
+            // Oznaka sumnje utvrđena već pri ispisu — previše kopija iste karte
+            // ili kopija s druge blagajne nego što je karta prodana. Vrste su u
+            // helpers/ticketControlTypes.js.
+            flag_type: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            flag_reason: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
         },
         { freezeTableName: true, tableName: "ticket_copy_prints", timestamps: true }
     );

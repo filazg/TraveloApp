@@ -1,5 +1,6 @@
 const { podigniSignal } = require("./syncSignalsController");
 const { procitajSuffix, suffixIzQr } = require("../../helpers/ticketCopyMark");
+const { VRSTE } = require("../../helpers/ticketControlTypes");
 
 // Sto je skener procitao. QR nosi uuid i jos sest polja, a sufiks je osmo; s
 // papira se zna prepisati i sam broj karte, gdje sufiks stoji iza razmaka.
@@ -29,7 +30,7 @@ const validateTicketController = async (req, res) => {
 
     // Zapis pokusaja. Ne baca: neuspjelo biljezenje ne smije srusiti validaciju —
     // putnik stoji na ukrcaju.
-    const zabiljezi = async ({ ticket, outcome, is_conflict = false, conflict_reason = null, kada }) => {
+    const zabiljezi = async ({ ticket, outcome, is_conflict = false, conflict_reason = null, conflict_type = null, kada }) => {
         try {
             const uuidZaCitanje = ticket?.ticket_uuid || ticket_uuid;
             const citanje = uuidZaCitanje ? procitajSuffix(uuidZaCitanje, suffix) : null;
@@ -43,6 +44,7 @@ const validateTicketController = async (req, res) => {
                 outcome,
                 is_conflict,
                 conflict_reason,
+                conflict_type,
                 terminal_uuid: terminal_uuid || null,
                 operator: operator || null,
                 validated_at: kada || new Date(),
@@ -64,7 +66,15 @@ const validateTicketController = async (req, res) => {
             return res.status(404).json({ status: 404, data: { message: "Karta nije pronađena." } });
         }
         if (ticket.is_canceled) {
-            await zabiljezi({ ticket, outcome: "canceled" });
+            // Stornirana karta na ukrcaju nije samo neuspjeh nego pokusaj — netko
+            // se ukrcava kartom koja je ponistena, cesto uz vec vracen novac.
+            await zabiljezi({
+                ticket,
+                outcome: "canceled",
+                is_conflict: true,
+                conflict_type: VRSTE.CANCELED_TICKET,
+                conflict_reason: "pokusaj ukrcaja storniranom kartom",
+            });
             return res.status(409).json({ status: 409, data: { message: "Karta je stornirana.", ticket } });
         }
         if (ticket.is_active === false) {
@@ -72,42 +82,52 @@ const validateTicketController = async (req, res) => {
             return res.status(409).json({ status: 409, data: { message: "Karta nije aktivna.", ticket } });
         }
         if (ticket.status === "validated") {
-            // Ovdje se hvata zloupotreba. Karta je vec prosla — pitanje je je li
-            // sada na redu isti papir ili drugi. Usporeduje se s otiskom koji je
-            // prosao prvi put: kopija preko originala, original preko kopije ili
-            // druga kopija su sukob, a ponovni scan istog papira nije.
+            // Karta je vec prosla, pa je svako sljedece ocitanje sukob. Vrsta se
+            // odreduje usporedbom s otiskom koji je prosao prvi put.
+            //
+            // I isti otisak ponovno je sukob, namjerno: fotografija QR-a nosi
+            // istu oznaku kao original, pa je ponovno ocitanje jedini trag koji
+            // uopce postoji. Putnik koji dvaput prisloni kartu time upada u
+            // popis, ali lazna uzbuna je jeftinija od propustene.
             const prva = await TicketValidationModel.findOne({
                 where: { ticket_uuid: ticket.ticket_uuid, outcome: "validated" },
                 order: [["validated_at", "ASC"]],
             });
             const sada = procitajSuffix(ticket.ticket_uuid, suffix);
-            let sukob = false;
-            let razlog = null;
+            const prijeKopija = !!prva?.is_copy;
+            const sadaKopija = !!sada?.isCopy;
+
+            let vrsta = VRSTE.SAME_ARTIFACT;
+            let razlog = "isti otisak ocitan drugi put";
             if (prva && sada) {
-                const prijeKopija = !!prva.is_copy;
-                const sadaKopija = !!sada.isCopy;
                 if (prijeKopija !== sadaKopija) {
-                    sukob = true;
+                    vrsta = sadaKopija ? VRSTE.COPY_OVER_ORIGINAL : VRSTE.ORIGINAL_OVER_COPY;
                     razlog = sadaKopija
                         ? `kopija ${sada.copyNo ?? "?"} preko validiranog originala`
                         : `original preko validirane kopije ${prva.copy_no ?? "?"}`;
                 } else if (sadaKopija && (prva.copy_no ?? null) !== (sada.copyNo ?? null)) {
-                    sukob = true;
+                    vrsta = VRSTE.COPY_OVER_COPY;
                     razlog = `kopija ${sada.copyNo ?? "?"} preko validirane kopije ${prva.copy_no ?? "?"}`;
                 }
             }
-            await zabiljezi({ ticket, outcome: "already_validated", is_conflict: sukob, conflict_reason: razlog });
+
+            await zabiljezi({
+                ticket,
+                outcome: "already_validated",
+                is_conflict: true,
+                conflict_type: vrsta,
+                conflict_reason: razlog,
+            });
             return res.status(200).json({
                 status: 200,
                 data: {
                     already_validated: true,
                     validate_data: ticket.validate_data,
                     ticket,
-                    is_conflict: sukob,
+                    is_conflict: true,
+                    conflict_type: vrsta,
                     conflict_reason: razlog,
-                    message: sukob
-                        ? `Karta je već validirana — ${razlog}.`
-                        : "Karta je već validirana.",
+                    message: `Karta je već validirana — ${razlog}.`,
                 },
             });
         }
