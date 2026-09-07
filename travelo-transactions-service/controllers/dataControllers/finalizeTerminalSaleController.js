@@ -5,7 +5,7 @@ const { reserveBookings } = require("../../helpers/bookingClient");
 const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
 const { podigniSignal } = require("./syncSignalsController");
 
-const randomCode = () => crypto.randomBytes(5).toString("hex").toUpperCase();
+const { jedinstvenBroj } = require("../../helpers/ticketCode");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — port tax 6%, VAT 25% on the rest (matches legacy + web-sale).
@@ -327,7 +327,9 @@ const finalizeTerminalSaleController = async (req, res) => {
                     // Veza na račun — kanal prodaje i sredstvo plaćanja stoje
                     // ondje, pa se bez nje po njima ne može filtrirati.
                     invoice_uuid,
-                    ticket_code: ct?.ticket_code || randomCode(),
+                    // POS zna poslati svoj broj (izdao ga je offline i vec je
+                    // otisnut); inace ga dodjeljuje posluzitelj.
+                    ticket_code: ct?.ticket_code || await jedinstvenBroj(TicketsModel),
                     order_uuid,
                     order_number: `POS-${invoice_no}`,
                     ticket_group_uuid: it.ticket_type_uuid || null,

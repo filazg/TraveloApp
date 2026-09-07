@@ -2,9 +2,7 @@ const crypto = require("crypto");
 const { reserveBookings } = require("../../helpers/bookingClient");
 const { podigniSignal } = require("./syncSignalsController");
 
-const randomCode = () => {
-    return crypto.randomBytes(5).toString("hex").toUpperCase();
-};
+const { jedinstvenBroj } = require("../../helpers/ticketCode");
 
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
@@ -61,7 +59,7 @@ const createPartnerSaleController = async (req, res) => {
             const qty = parseInt(item.qty, 10) || 0;
             for (let i = 0; i < qty; i++) {
                 const ticket_uuid = crypto.randomUUID();
-                const ticket_code = randomCode();
+                const ticket_code = await jedinstvenBroj(TicketsModel);
                 // Tri znaka koja razlikuju original od kopije; idu i u QR.
                 const ticket_code_suffix = suffixOriginala(ticket_uuid);
                 ticketsToCreate.push({

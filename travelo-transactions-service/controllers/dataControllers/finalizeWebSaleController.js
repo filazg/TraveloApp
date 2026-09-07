@@ -8,7 +8,7 @@ const { sendWebSaleEmail } = require("../../helpers/webSaleEmail");
 const { reserveBookings } = require("../../helpers/bookingClient");
 const { podigniSignal } = require("./syncSignalsController");
 
-const randomCode = () => crypto.randomBytes(5).toString("hex").toUpperCase();
+const { jedinstvenBroj } = require("../../helpers/ticketCode");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — matches the legacy template:
@@ -215,7 +215,7 @@ const finalizeWebSaleController = async (req, res) => {
                         // Veza na račun — po njemu se čita kanal prodaje i
                         // sredstvo plaćanja u pregledu karata.
                         invoice_uuid,
-                        ticket_code: randomCode(),
+                        ticket_code: await jedinstvenBroj(TicketsModel),
                         order_uuid: order.order_uuid,
                         order_number: `WS-${payment_reference.slice(0, 8)}`,
                         ticket_group_uuid: it.ticket_type_uuid,

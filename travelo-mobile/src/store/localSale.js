@@ -34,7 +34,23 @@ const randomFromAlpha = (len) => {
     for (let i = 0; i < len; i++) s += ALPHA32[Math.floor(Math.random() * ALPHA32.length)];
     return s;
 };
-const randomCode = () => randomFromAlpha(10);          // ticket_code
+// Dvanaest znakova, kao i na ostalim kanalima. Deset je davalo prostor od
+// 1,1 x 10^15; dvanaest ga podize na 1,2 x 10^18, gdje je sudar prakticki
+// nemoguc — a sudar znaci da kontrola po broju karte nade krivu kartu.
+// Broj karte: dvanaest znakova, mala slova — isto kao na blagajni, webu i
+// partnerskoj prodaji. Deset je davalo prostor od 1,1 × 10¹⁵; dvanaest ga diže
+// na 1,2 × 10¹⁸, gdje je sudar praktički nemoguć — a sudar znači da kontrola po
+// broju karte nađe krivu kartu.
+//
+// Mala slova jer se velika pri očitanju miješaju sa znamenkama (B/8). Vlastita
+// abeceda, ne ALPHA32 iznad: nju koristi i oznaka F2 računa, koja se piše
+// velikim slovima i ne smije se mijenjati usput.
+const ALPHA32_MALA = 'abcdefghjklmnpqrstuvwxyz23456789';
+const randomCode = () => {
+    let s = '';
+    for (let i = 0; i < 12; i++) s += ALPHA32_MALA[Math.floor(Math.random() * ALPHA32_MALA.length)];
+    return s;
+};
 const randomInvoiceCodeF2 = () => randomFromAlpha(8);  // F2 invoice_code (vidljivi "Račun br")
 
 // Numeriranje računa je ISKLJUČIVO lokalno (vidi memoriju "Numeriranje računa").

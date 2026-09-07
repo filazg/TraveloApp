@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const axios = require('axios');
 const { suffixOriginala, suffixKopije, qrSaSuffixom, MAX_KOPIJA } = require("../helpers/ticketCopyMark.cjs");
+const { nasumicanBroj: brojKarte } = require("../helpers/ticketCode.cjs");
 const https = require("https");
 const { Op } = require("sequelize");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
@@ -254,7 +255,7 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
           const ticketUuid = crypto.randomBytes(16).toString("hex");
           const newTicket = {
             ticket_uuid: ticketUuid,
-            ticket_code: crypto.randomBytes(6).toString("hex"),
+            ticket_code: brojKarte(),
             // Oznaka originala. Blagajna je izdaje sama i šalje je poslužitelju
             // uz kartu — inače bi poslužitelj izdao svoju, pa bi otisnuti papir
             // i zapis u bazi nosili različite znakove.
