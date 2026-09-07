@@ -1116,7 +1116,17 @@ export default function SalesPage() {
                                                 <IconButton
                                                     size="small"
                                                     title="Karte PDF"
-                                                    onClick={(e) => { e.stopPropagation(); window.open(ticketsPdfUrl(p.row.order_uuid), "_blank"); }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        // Iz popisa se karta ispisuje po drugi put — to je kopija.
+                                                        window.open(ticketsPdfUrl(p.row.order_uuid, {
+                                                            operator: auth?.loggedUserData?.name
+                                                                || auth?.loggedUserData?.full_name
+                                                                || auth?.loggedUserData?.username || "",
+                                                            deviceUuid: sales.selectedTerminal || "",
+                                                            deviceName: selectedBD?.name || "",
+                                                        }), "_blank");
+                                                    }}
                                                 >
                                                     <ReceiptLongIcon fontSize="small" color="primary" />
                                                 </IconButton>

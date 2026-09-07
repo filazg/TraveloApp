@@ -321,5 +321,16 @@ export const {
 
 export const salesSliceData = (state) => state.sales;
 export const invoicePdfUrl = (uuid) => `${backendURL}/portal/transactions/invoice_pdf/${uuid}`;
-export const ticketsPdfUrl = (orderUuid) => `${backendURL}/portal/transactions/tickets_pdf/${orderUuid}`;
+// Ponovni ispis karata je kopija: nosi copy=1 pa mu poslužitelj dodijeli
+// oznaku kopije i zabilježi ispis. Prvi ispis odmah nakon prodaje je original,
+// pa ide bez toga.
+export const ticketsPdfUrl = (orderUuid, kopija = null) => {
+    const osnova = `${backendURL}/portal/transactions/tickets_pdf/${orderUuid}`;
+    if (!kopija) return osnova;
+    const p = new URLSearchParams({ copy: '1' });
+    if (kopija.operator) p.set('operator', kopija.operator);
+    if (kopija.deviceUuid) p.set('billing_device_uuid', kopija.deviceUuid);
+    if (kopija.deviceName) p.set('billing_device_name', kopija.deviceName);
+    return `${osnova}?${p.toString()}`;
+};
 export default salesSlice.reducer;

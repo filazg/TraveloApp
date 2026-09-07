@@ -15,12 +15,14 @@ const searchTicketsController = async (params = {}) => {
     }
 };
 
-const getTicketsPdfController = async (order_uuid, channel) => {
+const getTicketsPdfController = async (order_uuid, params = {}) => {
     const coreConfigData = await getCoreServiceConfigData();
     return axios.get(
         coreConfigData.services.transactions.url + '/tickets_pdf/' + order_uuid,
         {
-            params: { channel: channel || 'URED' },
+            // Kanal odreduje predlozak, a copy/operator/uredaj se prenose jer
+            // ponovni ispis iz portala treba dobiti oznaku kopije.
+            params: { ...params, channel: params.channel || 'URED' },
             responseType: 'arraybuffer',
             validateStatus: () => true,
         }

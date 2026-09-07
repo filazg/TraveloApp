@@ -4,6 +4,7 @@ const { renderTemplateToPdfBuffer } = require("../../helpers/pdfRenderer");
 const { brojZaIspis, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 const { PREDLOSCI, KANALI, predlozak, ZADANI } = require("../../helpers/ticketTemplates");
 const { getCoreServiceConfigData } = require("../configSyncController");
+const { zapisiKopiju } = require("./ticketCopyPrintController");
 
 // Postavka predloska po kanalu. Zivi u boat servisu, uz ostalo sto se tice
 // same voznje; ovdje se samo cita.
@@ -128,12 +129,42 @@ const podaciTvrtke = async () => {
     }
 };
 
-const loadTickets = async ({ TicketsModel, order_uuid, order_uuids }) => {
+const loadTickets = async ({ TicketsModel, order_uuid, order_uuids, kopija = null }) => {
     const where = { is_active: true };
     if (Array.isArray(order_uuids) && order_uuids.length) where.order_uuid = order_uuids;
     else if (order_uuid) where.order_uuid = order_uuid;
     const tickets = await TicketsModel.findAll({ where, order: [["id", "ASC"]] });
-    return Promise.all(tickets.map(toTemplateTicket));
+
+    // Ponovni ispis iz portala je kopija kao i svaka druga: evidentira se i
+    // dobiva svoja tri znaka. Bez toga bi s pisaca izasla karta koja izgleda
+    // kao original, a upravo je razlikovanje razlog zbog kojeg oznaka postoji.
+    if (!kopija) return Promise.all(tickets.map(toTemplateTicket));
+
+    const oznacene = [];
+    for (const t of tickets) {
+        let suffix = t.ticket_code_suffix;
+        try {
+            const zapis = await zapisiKopiju({
+                ticket_uuid: t.ticket_uuid,
+                ticket_code: t.ticket_code,
+                operator_name: kopija.operator_name || null,
+                billing_device_uuid: kopija.billing_device_uuid || null,
+                billing_device_name: kopija.billing_device_name || null,
+                business_premise_name: kopija.business_premise_name || null,
+                origin: kopija.origin || "portal",
+            });
+            if (zapis?.suffix) suffix = zapis.suffix;
+        } catch (error) {
+            // Neuspjela evidencija ne smije zaustaviti ispis — putnik ceka kartu.
+            console.log("kopija nije evidentirana:", error?.message || error);
+        }
+        // Sirovi red u bazi ostaje netaknut; oznaka kopije zivi uz sam ispis, a
+        // QR se ionako slaze iz polja karte pa nova oznaka ulazi i u njega.
+        const zaIspis = t.toJSON ? t.toJSON() : { ...t };
+        zaIspis.ticket_code_suffix = suffix;
+        oznacene.push(zaIspis);
+    }
+    return Promise.all(oznacene.map(toTemplateTicket));
 };
 
 const renderTicketsPdf = async (ticketsData, { channel = null, company = null } = {}) => {
@@ -182,7 +213,19 @@ const renderTicketsPdfController = async (req, res) => {
             return res.status(400).send("order_uuid or order_uuids required");
         }
 
-        const ticketsData = await loadTickets({ TicketsModel, order_uuid, order_uuids });
+        // Ponovni ispis se najavljuje s copy=1; tko ga radi i s kojeg uredaja
+        // salje pozivatelj — servis to sam ne moze znati.
+        const kopija = ["1", "true", "yes"].includes(String(req.query.copy || "").toLowerCase())
+            ? {
+                operator_name: req.query.operator || null,
+                billing_device_uuid: req.query.billing_device_uuid || null,
+                billing_device_name: req.query.billing_device_name || null,
+                business_premise_name: req.query.business_premise_name || null,
+                origin: req.query.origin || "portal",
+            }
+            : null;
+
+        const ticketsData = await loadTickets({ TicketsModel, order_uuid, order_uuids, kopija });
         if (!ticketsData.length) return res.status(404).send("No tickets for this order");
 
         // Kanal salje pozivatelj — on jedini zna tko je. Izvodenje iz podataka
