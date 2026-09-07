@@ -12,6 +12,7 @@ const { backfillInvoicesFiscalController } = require('../controllers/dataControl
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
 const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController, fiscalizePartnerInvoiceController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
 const { logTicketCopyPrintController, listTicketCopyPrintsController } = require('../controllers/dataControllers/ticketCopyPrintController');
+const { listTicketValidationsController, listCopyConflictsController } = require('../controllers/dataControllers/ticketValidationsController');
 const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
 const {
     listPartnerCommissionReportsController,
@@ -144,6 +145,17 @@ router
     .route('/ticket_copy_prints')
     .post(logTicketCopyPrintController)
     .get(listTicketCopyPrintsController)
+
+// Evidencija validacija — svaki pokusaj, i neuspjesan. Podloga za modul
+// KONTROLA u portalu.
+router
+    .route('/ticket_validations')
+    .get(listTicketValidationsController)
+
+// Karte kod kojih je uhvacen sukob original <-> kopija, jedan redak po karti.
+router
+    .route('/ticket_copy_conflicts')
+    .get(listCopyConflictsController)
 
 router
     .route('/tickets_search')

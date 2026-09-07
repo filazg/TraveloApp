@@ -9,6 +9,7 @@ const apiOrdersModelsFactory = require("./apiOrders.models");
 const paymentOrdersModelsFactory = require("./paymentOrders.models");
 const syncSignalsModelsFactory = require("./syncSignals.models");
 const ticketCopyPrintModelsFactory = require("./ticketCopyPrint.models");
+const ticketValidationModelsFactory = require("./ticketValidation.models");
 
 let models = null;
 
@@ -26,7 +27,8 @@ function initModels() {
       ...apiOrdersModelsFactory(sequelize),
       ...paymentOrdersModelsFactory(sequelize),
       ...syncSignalsModelsFactory(sequelize),
-      ...ticketCopyPrintModelsFactory(sequelize)
+      ...ticketCopyPrintModelsFactory(sequelize),
+      ...ticketValidationModelsFactory(sequelize)
     };
   }
 
