@@ -1,6 +1,9 @@
 const { Resend } = require('resend');
 
-const API_KEY = process.env.RESEND_API_KEY || 're_eMiQgU7N_71D28aQsG3w1nSpD71CzuwCp';
+// Kljuc dolazi iz okoline (pm2 env na VM-u, vidi ecosystem.config.js).
+// Prije je uz njega stajao i upisan kljuc kao zamjena, pa je zavrsio u
+// javnom repozitoriju; tajna u kodu je tajna samo dok netko ne pogleda.
+const API_KEY = process.env.RESEND_API_KEY || '';
 const FROM = process.env.RESEND_FROM || 'Kapetan Luka <noreply@tech4beez.com>';
 
 const resend = new Resend(API_KEY);

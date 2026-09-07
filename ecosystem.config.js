@@ -40,6 +40,9 @@ const node = (name, entry, extraEnv = {}) => ({
     // DB_PASS prolazi iz shell env-a na VM-u — control-service ga injektira
     // u response na /database_services_config. Ne hardkodirati ovdje.
     DB_PASS: process.env.DB_PASS,
+    // Isto vrijedi za kljuc kojim se salju mailovi (racuni, karte, obavijesti
+    // dispeceru): stoji u shell env-u VM-a, ne u repozitoriju.
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
     TRAVELO_PROFILE: PROFILE,
     ...extraEnv,
   },

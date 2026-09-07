@@ -40,6 +40,27 @@ sudo timedatectl set-timezone Europe/Zagreb
 date            # mora pokazati CEST/CET, ne UTC
 ```
 
+## Tajne u okolini
+
+Kljucevi ne idu u repozitorij. `ecosystem.config.js` ih samo proslijedi iz shell
+okoline VM-a:
+
+| Varijabla | Cemu sluzi |
+|---|---|
+| `DB_PASS` | lozinka baze; control-service je dalje dijeli servisima |
+| `RESEND_API_KEY` | slanje mailova — racuni i karte kupcu, obavijesti dispeceru |
+
+Bez `RESEND_API_KEY` servis radi, ali mail ne odlazi; u logu stoji greska
+poslana od Resenda.
+
+```bash
+# u ~/.profile korisnika koji pokrece pm2 (pa `pm2 restart all --update-env`)
+export RESEND_API_KEY='...'
+```
+
+Kljuc koji je do rujna 2026. stajao upisan u kodu treba zamijeniti novim: bio je
+u javnoj povijesti repozitorija, pa se vise ne moze smatrati tajnim.
+
 ## Prvi put na VM-u
 
 ```bash

@@ -2,6 +2,9 @@ const { Resend } = require("resend");
 const { buildInvoicePdfBuffer } = require("./invoicePdfController");
 const { buildTicketsPdfBuffer } = require("./ticketPdfController");
 
+// Kljuc dolazi iz okoline (pm2 env na VM-u, vidi ecosystem.config.js).
+// Prije je uz njega stajao i upisan kljuc kao zamjena, pa je zavrsio u
+// javnom repozitoriju; tajna u kodu je tajna samo dok netko ne pogleda.
 const API_KEY = process.env.RESEND_API_KEY || "";
 const FROM = process.env.RESEND_FROM || "Kapetan Luka <noreply@tech4beez.com>";
 
