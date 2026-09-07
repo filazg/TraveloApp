@@ -323,6 +323,7 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
     // Sve je u try/catch: neispravna slika ne smije zaustaviti ispis. Bolje
     // racun bez logotipa nego kupac bez racuna.
     private fun printLogo(p: IWoyouService, base64: String) {
+        Log.d("SunmiPrint", "logo: duzina base64 = ${base64.length}")
         if (base64.isBlank()) return
         try {
             val cist = base64.substringAfterLast("base64,").trim()
@@ -348,10 +349,40 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                 android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
             )
 
-            p.setAlignment(1, null)
-            p.printBitmap(konacna, null)
+            Log.d("SunmiPrint", "logo: ${slika.width}x${slika.height} -> ${ciljna}x$visina")
+            // Slika ide kao ESC/POS raster (GS v 0), ne kroz printBitmap:
+            // unutar enterPrinterBuffer transakcije V2s bitmapu tiho odbaci —
+            // ispisao bi se ostatak racuna, a logo bi nestao bez ijedne greske.
+            // QR se iz istog razloga vec salje sirovim naredbama.
+            val sirinaBajtova = (ciljna + 7) / 8
+            val tocke = IntArray(ciljna * visina)
+            konacna.getPixels(tocke, 0, ciljna, 0, 0, ciljna, visina)
+            val raster = ByteArray(sirinaBajtova * visina)
+            for (y in 0 until visina) {
+                for (x in 0 until ciljna) {
+                    val boja = tocke[y * ciljna + x]
+                    val sivo = ((boja shr 16 and 0xFF) * 299 +
+                            (boja shr 8 and 0xFF) * 587 +
+                            (boja and 0xFF) * 114) / 1000
+                    if (sivo < 128) {
+                        val i = y * sirinaBajtova + x / 8
+                        raster[i] = (raster[i].toInt() or (0x80 shr (x % 8))).toByte()
+                    }
+                }
+            }
+            val naredba = ByteArray(8 + raster.size)
+            naredba[0] = 0x1D; naredba[1] = 0x76; naredba[2] = 0x30; naredba[3] = 0x00
+            naredba[4] = (sirinaBajtova and 0xFF).toByte()
+            naredba[5] = ((sirinaBajtova shr 8) and 0xFF).toByte()
+            naredba[6] = (visina and 0xFF).toByte()
+            naredba[7] = ((visina shr 8) and 0xFF).toByte()
+            System.arraycopy(raster, 0, naredba, 8, raster.size)
+
+            p.sendRAWData(byteArrayOf(0x1B, 0x61, 0x01), null) // ESC a 1 — centrirano
+            p.sendRAWData(naredba, null)
+            p.sendRAWData(byteArrayOf(0x1B, 0x61, 0x00), null) // ESC a 0 — natrag lijevo
+            Log.d("SunmiPrint", "logo: poslano printeru (${naredba.size} B)")
             p.printText("\n", null)
-            p.setAlignment(0, null)
         } catch (t: Throwable) {
             Log.w("SunmiPrint", "logo nije ispisan: ${t.message}")
         }
