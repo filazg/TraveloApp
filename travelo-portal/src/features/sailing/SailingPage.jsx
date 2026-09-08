@@ -507,6 +507,17 @@ function SailingDetailView({
         return out;
     }, [bookings, selected]);
 
+    // Koliko je karata prodano za ukrcaj u pojedinoj luci — zbroj po kategorijama.
+    const ukrcajPoLuci = useMemo(() => {
+        const out = {};
+        for (const h of harbors) {
+            let n = 0;
+            for (const code of categoryCodes) n += Number(harborStats[h.harbor_id]?.[code]?.board_planned) || 0;
+            out[h.harbor_id] = n;
+        }
+        return out;
+    }, [harbors, categoryCodes, harborStats]);
+
     // Map from harbor pair → adjacent leg (used for per-harbor incoming/outgoing status).
     const legBetween = (fromHarborId, toHarborId) =>
         legs.find((l) => l.departure_harbor_id === fromHarborId && l.arrival_harbor_id === toHarborId);
@@ -723,18 +734,34 @@ function SailingDetailView({
                                 </Stack>
                             )}
 
-                            {!h.is_last && ocitanjaPoLuci[h.harbor_id] && (
-                                <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
-                                    <Typography fontSize={13} color="primary.main">
-                                        Očitano: <b>{ocitanjaPoLuci[h.harbor_id].validated}</b>
-                                    </Typography>
-                                    {ocitanjaPoLuci[h.harbor_id].other > 0 && (
-                                        <Typography fontSize={13} color="warning.main">
-                                            S drugih polazaka: <b>{ocitanjaPoLuci[h.harbor_id].other}</b>
-                                        </Typography>
-                                    )}
-                                </Stack>
-                            )}
+                            {/* Ukrcaj u brojkama: koliko je karata prodano za ovu
+                                luku, koliko ih je ocitano, koliko je proslo s
+                                drugog polaska i koliko je ljudi time na brodu.
+                                Razlika prodanog i ocitanog su putnici koji jos
+                                nisu dosli — kapetan po njoj odlucuje ceka li. */}
+                            {!h.is_last && (() => {
+                                const o = ocitanjaPoLuci[h.harbor_id] || { validated: 0, other: 0 };
+                                const prodano = ukrcajPoLuci[h.harbor_id] || 0;
+                                const ukrcano = o.validated + o.other;
+                                const nedoslo = Math.max(0, prodano - o.validated);
+                                return (
+                                    <Stack direction="row" spacing={2} sx={{ mb: 1, flexWrap: "wrap", rowGap: 0.5 }}>
+                                        <Typography fontSize={13}>Prodano: <b>{prodano}</b></Typography>
+                                        <Typography fontSize={13} color="primary.main">Validirano: <b>{o.validated}</b></Typography>
+                                        {o.other > 0 && (
+                                            <Typography fontSize={13} color="warning.main">
+                                                S drugih polazaka: <b>{o.other}</b>
+                                            </Typography>
+                                        )}
+                                        <Typography fontSize={13} color="success.main">Ukrcano: <b>{ukrcano}</b></Typography>
+                                        {nedoslo > 0 && (
+                                            <Typography fontSize={13} color="text.secondary">
+                                                Nije došlo: <b>{nedoslo}</b>
+                                            </Typography>
+                                        )}
+                                    </Stack>
+                                );
+                            })()}
 
                             {categoryCodes.length > 0 && (
                                 <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 1.5 }}>
