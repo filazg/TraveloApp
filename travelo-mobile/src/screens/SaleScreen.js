@@ -1868,12 +1868,20 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
         // iscrta (scanResult), pa se s njim osvježi i popis.
     }, [kartica, scanResult]);
 
+    // Povijest se veze uz polazak na kojem je ocitano. Bez te provjere zapisi s
+    // ranijeg polaska ispali bi i na svakom sljedecem — brojac i popis pokazivali
+    // bi tudji posao. Zapisi bez polaska su od prije ove verzije i ne broje se
+    // nigdje, umjesto da se broje svugdje.
+    const zaOvajPolazak = (z) => !!z.route_uuid
+        && Array.isArray(voyageRouteUuids)
+        && voyageRouteUuids.includes(z.route_uuid);
+
+    const povijestPolaska = povijest.filter(zaOvajPolazak);
+
     // Karte propustene s drugog polaska ili linije na ovom polasku. Ne ulaze u
     // brojac validiranih jer nisu karte ovog polaska, a bez ovoga ih nigdje ne
     // bi bilo — ni ovdje ni kod kapetana.
-    const sDrugihPolazaka = povijest.filter((z) => z.note
-        && z.outcome === 'validated'
-        && (!z.route_uuid || !voyageRouteUuids?.length || voyageRouteUuids.includes(z.route_uuid))).length;
+    const sDrugihPolazaka = povijestPolaska.filter((z) => z.note && z.outcome === 'validated').length;
 
     // Re-komputiramo listu i brojila na svaki render — cache se ažurira tijekom
     // scan-a pa će parent re-render (zbog scanResult promjene) osvježiti prikaz.
@@ -1908,7 +1916,7 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
         return (
             <View style={{ flex: 1 }}>
                 <KarticeValidacije kartica={kartica} setKartica={setKartica} />
-                <PovijestValidacije zapisi={povijest} />
+                <PovijestValidacije zapisi={povijestPolaska} />
             </View>
         );
     }
@@ -2070,7 +2078,7 @@ function PovijestValidacije({ zapisi }) {
     const danas = new Date().toLocaleDateString('hr-HR');
 
     if (!zapisi.length) {
-        return <Text style={vs.emptyText}>Još nema očitanih karata na ovom uređaju.</Text>;
+        return <Text style={vs.emptyText}>Još nema očitanih karata na ovom polasku.</Text>;
     }
 
     // Karte propuštene odjednom (VALIDIRAJ SVE) nose isto vrijeme, jer su i
