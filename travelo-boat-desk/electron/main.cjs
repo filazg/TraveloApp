@@ -6,7 +6,7 @@ const { sequelize } = require("./db/index.cjs");
 const { registerIpcHandlers } = require("./ipc/index.cjs");
 const { pairingDataModel } = require("./db/models/Pairing.cjs");
 const { systemSettingsDataModel } = require("./db/models/Settings.cjs");
-const { syncPendingInvoicesService } = require("./services/invoiceDataService.cjs");
+const { syncPendingInvoicesService, syncPendingCopyPrintsService } = require("./services/invoiceDataService.cjs");
 const { startSyncStreamService } = require("./services/syncStreamService.cjs");
 const { syncPendingShiftsService, autoCloseShiftsService } = require("./services/shiftsDataService.cjs");
 const { syncBasicDataService, syncTransportDataService } = require("./services/backendDataService.cjs");
@@ -232,6 +232,11 @@ app.whenReady().then(async () => {
   setTimeout(() => { syncPendingShiftsService().catch(() => {}) }, 6000)
   setInterval(() => { syncPendingInvoicesService().catch(() => {}) }, 60000)
   setInterval(() => { syncPendingShiftsService().catch(() => {}) }, 60000)
+
+  // Ispisane kopije karata: oznaku im blagajna dodijeli sama, pa poslužitelj za
+  // njih saznaje tek ovdje. Ide u istom ritmu kao ostalo zaostalo.
+  setTimeout(() => { syncPendingCopyPrintsService().catch(() => {}) }, 7000)
+  setInterval(() => { syncPendingCopyPrintsService().catch(() => {}) }, 60000)
 
   // Smjena se ne prenosi u sljedeći dan — ono što u 01:00 još stoji otvoreno
   // zatvara se samo. Provjera ide i pri pokretanju, jer je blagajna preko noći

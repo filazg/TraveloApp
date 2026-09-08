@@ -11,6 +11,7 @@ const { invoicesModel, invoiceTransportItemsModel } = require("../db/models/Invo
 const { ticketsGroupsModel, ticketsModel } = require("../db/models/TicketsData.cjs");
 const { invoicePrintHelper, cancelInvoicePrint, copyInvoicePrint, copyAllTickets } = require("../helpers/printHelpers/invoicePrintHelper.cjs");
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs");
+const { ticketCopyPrintsModel } = require("../db/models/TicketCopyPrints.cjs");
 
 
 const INV_DATE_KEYS = ["invoice_date"];
@@ -742,49 +743,110 @@ const printInvoiceCopyService = async (data)=>{
   }
 }
 
-// Kopija se evidentira prije ispisa i tek onda dobiva svoja tri znaka. Redni
-// broj dodjeljuje poslužitelj jer kopije iste karte znaju izaći s dva mjesta.
+// Kopija dobiva svoja tri znaka ovdje, na blagajni. Račun oznake je poznat
+// (redni broj kopije + marker iz uuid-a karte), pa poslužitelj za ispis nije
+// potreban — blagajna mora ispisati kopiju i kad veze nema.
 //
-// Kad mreže nema, ispis se ne zaustavlja — kopija izlazi bez sufiksa. Papir bez
-// oznake se čita kao original, što jest gubitak podatka, ali je manje štete
-// nego blagajnik koji putniku ne može ispisati kartu. Zapis se tada ne stvara.
+// Redni broj se broji iz onoga što je ova blagajna sama ispisala. Ista karta
+// zna dobiti kopiju i drugdje — na mobilnoj, u portalu — pa se brojevi mogu
+// poklopiti; u kontroli je to dvije kopije istog rednog broja i samo po sebi
+// podatak. Poslužitelj se obavještava naknadno, iz reda neposlanih.
 const oznaciKopije = async (tickets) => {
+    if (!tickets?.length) return tickets;
+    const basic = await companyModel.findOne().catch(() => null);
+    const trenutak = new Date();
+
+    const oznacene = [];
+    for (const t of tickets) {
+        const red = t.toJSON ? t.toJSON() : { ...t };
+        try {
+            const zadnja = await ticketCopyPrintsModel.max('copy_no', {
+                where: { ticket_uuid: red.ticket_uuid },
+            });
+            const broj = (Number.isFinite(Number(zadnja)) ? Number(zadnja) : 0) + 1;
+            // Iznad dvadeset i četvrte kopije redni broj ne stane u dva znaka.
+            // Ispis se svejedno bilježi — dogodio se — samo mu oznaka ne nosi broj.
+            const suffix = broj <= MAX_KOPIJA ? suffixKopije(red.ticket_uuid, broj) : null;
+
+            await ticketCopyPrintsModel.create({
+                ticket_uuid: red.ticket_uuid,
+                ticket_code: red.ticket_code || null,
+                copy_no: broj,
+                suffix,
+                printed_at: trenutak,
+                operator_name: red.operater_name || null,
+                billing_device_uuid: basic?.billing_device_uuid || null,
+                billing_device_name: basic?.billing_device_name || null,
+                business_premise_name: basic?.business_premise_name || null,
+                synced: false,
+            });
+
+            oznacene.push(suffix ? { ...red, ticket_code_suffix: suffix } : red);
+        } catch (error) {
+            // Neuspjela evidencija ne smije zaustaviti ispis: putnik čeka kartu.
+            console.log('oznaciKopije: kopija ide bez nove oznake:', error?.message || error);
+            oznacene.push(red);
+        }
+    }
+    return oznacene;
+};
+
+// Prijava ispisanih kopija poslužitelju. Šalje se i redni broj — blagajna ga je
+// već dodijelila i otisnula na papir, pa ga poslužitelj zadržava umjesto da
+// dodijeli svoj.
+const syncPendingCopyPrintsService = async () => {
     try {
-        const pairing = await pairingDataModel.findOne();
         const settings = await systemSettingsDataModel.findOne();
-        const basic = await companyModel.findOne();
+        const pairing = await pairingDataModel.findOne();
         const backendUrl = settings?.backend_url;
-        if (!backendUrl || !tickets?.length) return tickets;
+        const token = pairing?.token;
+        if (!backendUrl || !token) return { ok: false, reason: 'no_backend_url_or_token' };
 
-        const copies = tickets.map((t) => ({
-            ticket_uuid: t.ticket_uuid,
-            ticket_code: t.ticket_code,
-            operator_name: t.operater_name || null,
-            billing_device_uuid: basic?.billing_device_uuid || null,
-            billing_device_name: basic?.billing_device_name || null,
-            business_premise_name: basic?.business_premise_name || null,
-            origin: 'desk',
-        }));
-
-        const odgovor = await axios.post(
-            backendUrl + '/terminals/terminal/ticket_copy_print',
-            { copies },
-            { headers: { Authorization: `Bearer ${pairing?.token}` }, timeout: 15000, validateStatus: () => true },
-        );
-        const dodijeljene = odgovor?.data?.data?.copies || [];
-        if (!dodijeljene.length) return tickets;
-
-        // Odgovor dolazi istim redoslijedom kojim je poslan, ali se veže po
-        // uuid-u — redoslijed nije nešto na što se treba oslanjati.
-        const poUuidu = new Map(dodijeljene.map((c) => [c.ticket_uuid, c]));
-        return tickets.map((t) => {
-            const c = poUuidu.get(t.ticket_uuid);
-            const red = t.toJSON ? t.toJSON() : { ...t };
-            return c ? { ...red, ticket_code_suffix: c.suffix || null } : red;
+        const pending = await ticketCopyPrintsModel.findAll({
+            where: { synced: false },
+            order: [['id', 'ASC']],
+            limit: 200,
         });
+        if (!pending.length) return { ok: true, total: 0, pushed: 0 };
+
+        let pushed = 0;
+        for (const red of pending) {
+            try {
+                const odgovor = await axios.post(
+                    backendUrl + '/terminals/terminal/ticket_copy_print',
+                    {
+                        copies: [{
+                            ticket_uuid: red.ticket_uuid,
+                            ticket_code: red.ticket_code,
+                            copy_no: red.copy_no,
+                            printed_at: red.printed_at,
+                            operator_name: red.operator_name,
+                            billing_device_uuid: red.billing_device_uuid,
+                            billing_device_name: red.billing_device_name,
+                            business_premise_name: red.business_premise_name,
+                            origin: 'desk',
+                        }],
+                    },
+                    { headers: { Authorization: `Bearer ${token}` }, timeout: 15000, validateStatus: () => true },
+                );
+                // Poslužitelj koji je odgovorio i odbio (npr. karte nema) neće
+                // primiti ni sljedeći put, pa zapis izlazi iz reda — pokušaj je
+                // ostao zabilježen ovdje. Mrežna greška i 5xx se ponavljaju.
+                if (odgovor.status === 200 || (odgovor.status >= 400 && odgovor.status < 500)) {
+                    await ticketCopyPrintsModel.update({ synced: true }, { where: { id: red.id } });
+                    pushed++;
+                } else {
+                    break;
+                }
+            } catch (error) {
+                console.log('syncPendingCopyPrintsService: kopija', red.ticket_uuid, 'ostaje u redu:', error?.message || error);
+                break;
+            }
+        }
+        return { ok: true, total: pending.length, pushed };
     } catch (error) {
-        console.log('oznaciKopije nije uspio, kopija ide bez oznake:', error?.message || error);
-        return tickets;
+        console.log('syncPendingCopyPrintsService error:', error?.message || error);
+        return { ok: false, reason: error?.message || 'error' };
     }
 };
 
@@ -1584,6 +1646,7 @@ const cancelExternalTicketService = async ({ ticket_code, user, payment, payment
 };
 
 module.exports = {
+  syncPendingCopyPrintsService,
   getInvoicesDataService,
   getInvoiceDataService,
   lookupExternalTicketService,
