@@ -47,6 +47,10 @@ U traci iznad radne plohe biraš, slijeva nadesno:
 
 Gumb **OSVJEŽI FORMU** briše odabir i vraća praznu formu — najbrži način da počneš iznova bez odjave.
 
+Gumb **PONOVI KUPNJU** pored njega vraća košaricu zadnjeg izdanog računa — isti polasci, iste vrste karata i količine — pa ostaje samo izdati račun. Polazak koji je u međuvremenu prošao ne ulazi u košaricu i o tome dobiješ poruku.
+
+U izborniku operatera (ikona osobe gore desno) → **Osobne postavke** biraš **matičnu luku**: kad odabereš liniju, luka ukrcaja i prvi sljedeći polazak iz nje postave se sami. Uz to stoji i prekidač **automatski odaberi prvu luku dolaska**, koji popunjava i odredište.
+
 Ne vidiš neku liniju? Svaki naplatni uređaj ima popis linija koje smije prodavati, a postavlja ga podrška u portalu. Ako linije nema ni nakon sinkronizacije, javi podršci.
 
 ### 4. Prodaja karata
@@ -87,6 +91,10 @@ Zelena ikona otvara račun i pokazuje ga onako kako je ispisan.
 
 Kopija se ispisuje s oznakom **KOPIJA** preko dokumenta, da se ne zamijeni s izvornikom.
 
+Kopija karte uz to nosi i **tri dodatna znaka na kraju broja karte**, koji se ispisuju i u QR kodu. Po njima kontrola razlikuje kopiju od izvorne karte i vidi koja je po redu. Blagajna ih računa sama, pa kopija izlazi i kad interneta nema; ispis se zabilježi i pošalje poslužitelju kad veza proradi.
+
+Ako je na naplatnom uređaju postavljen logotip, ispisuje se u vrhu računa odnosno karte. Postavlja ga podrška u portalu, zasebno za račun i za kartu.
+
 ### 6. Zaključak smjene
 
 Pritisni **SMJENE** pa otvori pregled smjene. **Pregled smjene** pokazuje:
@@ -99,6 +107,8 @@ Pritisni **SMJENE** pa otvori pregled smjene. **Pregled smjene** pokazuje:
 ![Popis smjena s gumbom za otvaranje nove](images/05-smjene.png)
 
 ![Pregled smjene prije zaključenja](images/09-pregled-smjene.png)
+
+Prije zaključenja možeš upisati **napomenu** — istu onakvu kakva se upisuje pri otvaranju smjene (npr. manjak, višak, kvar na pisaču). Ostaje zapisana uz smjenu.
 
 Provjeri iznose prije nego zaključiš. Zaključak se ispisuje sam, a kopiju možeš dobiti kasnije: otvori smjenu u popisu i pritisni **Ispiši kopiju zaključka**.
 
@@ -126,7 +136,7 @@ Takav storno ulazi u zaključak smjene zasebno, pod *Storno s drugih prodajnih m
 
 Izbornik operatera (ikona osobe gore desno) → **Funkcijske tipke**. Tipkama F1–F12 dodjeljuješ radnje koje najčešće koristiš:
 
-- Izdaj račun, Osvježi formu, R1 račun (adresar), Povlaštene kartice,
+- Izdaj račun, Osvježi formu, Ponovi kupnju, R1 račun (adresar), Povlaštene kartice,
 - Pregled računa, Pregled karata, Smjene,
 - ili odabir pojedinog sredstva plaćanja.
 
