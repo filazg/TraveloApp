@@ -4,7 +4,7 @@
 
 Prodaja i validacija karata na ručnom terminalu. Sve što treba za jednu smjenu, redom kojim se radi.
 
-**VERZIJA 1.0.7 · IZDANJE 08.09.2026.**
+**VERZIJA 1.0.8 · IZDANJE 08.09.2026.**
 
 ---
 

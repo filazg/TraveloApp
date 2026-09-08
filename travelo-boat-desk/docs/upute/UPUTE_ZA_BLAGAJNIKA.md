@@ -4,7 +4,7 @@
 
 Prodaja karata na blagajni. Sve što treba za jednu smjenu, redom kojim se radi.
 
-**VERZIJA 1.0.25 · IZDANJE 08.09.2026.**
+**VERZIJA 1.0.24 · IZDANJE 08.09.2026.**
 
 ---
 
@@ -178,4 +178,4 @@ Kad prijavljujete problem podršci, recite **verziju aplikacije** — piše na d
 
 ---
 
-Upute vrijede za TraveloAPP Boat Desk, verzija 1.0.25. Izgled pojedinih ekrana ovisi o postavkama blagajne u portalu — dopuštena sredstva plaćanja, linije i prava operatera postavlja podrška.
+Upute vrijede za TraveloAPP Boat Desk, verzija 1.0.24. Izgled pojedinih ekrana ovisi o postavkama blagajne u portalu — dopuštena sredstva plaćanja, linije i prava operatera postavlja podrška.

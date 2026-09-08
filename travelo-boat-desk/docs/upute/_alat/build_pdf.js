@@ -1,4 +1,8 @@
-// Slaze UPUTE_ZA_BLAGAJNIKA.md u PDF. Isti postupak kao za portalske upute:
+// Slaze UPUTE_ZA_BLAGAJNIKA.md u PDF.
+//
+// Broj uputa prati verziju aplikacije: uputa opisuje odredeno izdanje, pa se uz
+// svaki novi build podize i ovdje (verzija u markdownu, ime datoteke i manifest
+// preuzimanja). Isti postupak kao za portalske upute:
 // marked pretvara markdown u html, Chromium ga ispisuje u PDF.
 //
 // Pokretanje:  node docs/upute/_alat/build_pdf.js
@@ -9,7 +13,7 @@ const { chromium } = require("C:/Tech4beeZ/Projekti/TraveloApp/travelo-portal/do
 
 const SRC = path.resolve(__dirname, "..", "UPUTE_ZA_BLAGAJNIKA.md");
 const IMG_DIR = path.resolve(__dirname, "..", "images");
-const OUT_PDF = path.resolve(__dirname, "..", "TraveloAPP-Boat-Desk-upute-za-blagajnika-1.0.25.pdf");
+const OUT_PDF = path.resolve(__dirname, "..", "TraveloAPP-Boat-Desk-upute-za-blagajnika-1.0.24.pdf");
 
 const md = fs.readFileSync(SRC, "utf8");
 

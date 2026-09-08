@@ -1,4 +1,8 @@
-// Slaze UPUTE_ZA_OPERATERA.md u PDF. Isti postupak i isti stil kao upute za
+// Slaze UPUTE_ZA_OPERATERA.md u PDF.
+//
+// Broj uputa prati verziju aplikacije: uputa opisuje odredeno izdanje, pa se uz
+// svaki novi build podize i ovdje (verzija u markdownu, ime datoteke i manifest
+// preuzimanja). Isti postupak i isti stil kao upute za
 // blagajnika i portal — dokumenti se time drze jednog izgleda.
 // marked pretvara markdown u html, Chromium ga ispisuje u PDF.
 //
@@ -10,7 +14,7 @@ const { chromium } = require("C:/Tech4beeZ/Projekti/TraveloApp/travelo-portal/do
 
 const SRC = path.resolve(__dirname, "..", "UPUTE_ZA_OPERATERA.md");
 const IMG_DIR = path.resolve(__dirname, "..", "images");
-const OUT_PDF = path.resolve(__dirname, "..", "..", "TraveloAPP-upute-za-operatera-1.0.7.pdf");
+const OUT_PDF = path.resolve(__dirname, "..", "..", "TraveloAPP-upute-za-operatera-1.0.8.pdf");
 
 const md = fs.readFileSync(SRC, "utf8");
 
