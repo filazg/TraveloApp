@@ -2020,6 +2020,9 @@ function KarticeValidacije({ kartica, setKartica }) {
 // Pregled aktivnosti pri validaciji: sto je ocitano, kada i s kakvim ishodom.
 // Cita se iz lokalne baze, pa je jednako dostupno i bez mreze.
 function PovijestValidacije({ zapisi }) {
+    // Grupa se otvara dodirom; zatvorena zauzima jedan redak, kao i svako drugo
+    // ocitanje, jer je i bila jedan potez.
+    const [otvorene, setOtvorene] = useState({});
     const vrijeme = (v) => {
         const d = new Date(v);
         return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('hr-HR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2063,16 +2066,58 @@ function PovijestValidacije({ zapisi }) {
         );
     };
 
+    // Karta koja je stvarno očitana upisana je prva, pa ima najmanji id; ostale
+    // su propuštene uz nju. Zato ona i stoji na vrhu grupe.
+    const ocitana = (redci) => redci.reduce((a, b) => (a.id <= b.id ? a : b));
+
+    const grupa = (g) => {
+        const glavna = ocitana(g.redci);
+        const ostale = g.redci.filter((z) => z.id !== glavna.id);
+        const i = ISHOD[glavna.outcome] || { tekst: glavna.outcome || '—', boja: colors.textMuted };
+        const dan = datum(glavna.validated_at);
+        const otvorena = !!otvorene[g.kada];
+        return (
+            <View key={g.kada}>
+                <TouchableOpacity
+                    style={vs.ticketRow}
+                    activeOpacity={0.7}
+                    onPress={() => setOtvorene((p) => ({ ...p, [g.kada]: !p[g.kada] }))}
+                >
+                    <View style={[vs.ticketMarker, { backgroundColor: i.boja }]} />
+                    <View style={{ flex: 1 }}>
+                        <Text style={vs.ticketCode}>{String(glavna.ticket_code || glavna.ticket_uuid || '')}</Text>
+                        <Text style={vs.ticketType}>
+                            {vrijeme(glavna.validated_at)}
+                            {dan && dan !== danas ? `  ·  ${dan}` : ''}
+                            {glavna.operator ? `  ·  ${glavna.operator}` : ''}
+                        </Text>
+                        <Text style={vs.grupaOznaka}>
+                            {`Grupna validacija · ${g.redci.length} karata  ${otvorena ? '▾' : '▸'}`}
+                        </Text>
+                    </View>
+                    <Text style={[vs.ticketStatus, { color: i.boja }]}>{i.tekst}</Text>
+                </TouchableOpacity>
+
+                {otvorena && (
+                    <View style={vs.grupaDetalji}>
+                        {ostale.map((z) => {
+                            const oi = ISHOD[z.outcome] || { tekst: z.outcome || '—', boja: colors.textMuted };
+                            return (
+                                <View key={z.id} style={vs.grupaRedak}>
+                                    <Text style={vs.grupaKod}>{String(z.ticket_code || z.ticket_uuid || '')}</Text>
+                                    <Text style={[vs.ticketStatus, { color: oi.boja }]}>{oi.tekst}</Text>
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+            </View>
+        );
+    };
+
     return (
         <ScrollView style={vs.ticketList} keyboardShouldPersistTaps="handled">
-            {skupine.map((g) => (g.redci.length > 1 ? (
-                <View key={g.kada} style={vs.grupaOkvir}>
-                    <Text style={vs.grupaNaslov}>
-                        {`Zajedno · ${g.redci.length} karte · ${vrijeme(g.kada)}`}
-                    </Text>
-                    {g.redci.map(redak)}
-                </View>
-            ) : redak(g.redci[0])))}
+            {skupine.map((g) => (g.redci.length > 1 ? grupa(g) : redak(g.redci[0])))}
         </ScrollView>
     );
 }
@@ -2087,16 +2132,22 @@ const vs = StyleSheet.create({
     karticaBtnAktivna: { backgroundColor: colors.primary },
     karticaText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800', letterSpacing: 1 },
     karticaTextAktivan: { color: colors.textOnPrimary },
-    grupaOkvir: {
-        marginHorizontal: 12, marginTop: 8,
-        borderWidth: 2, borderColor: colors.primary, borderRadius: 8,
-        paddingBottom: 6, overflow: 'hidden',
+    // Grupna validacija: redak izgleda kao i svaki drugi, samo nosi oznaku i
+    // otvara popis ostalih karata iz istog poteza.
+    grupaOznaka: {
+        color: colors.primary, fontSize: 11, fontWeight: '800',
+        letterSpacing: 0.5, marginTop: 4,
     },
-    grupaNaslov: {
-        color: colors.textOnPrimary, backgroundColor: colors.primary,
-        fontSize: 11, fontWeight: '800', letterSpacing: 0.5,
-        paddingVertical: 5, paddingHorizontal: 10,
+    grupaDetalji: {
+        backgroundColor: colors.surfaceAlt || colors.surface,
+        borderLeftWidth: 6, borderLeftColor: colors.primary,
+        borderRadius: 6, marginBottom: 3, paddingVertical: 2,
     },
+    grupaRedak: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingVertical: 8, paddingLeft: 16, paddingRight: 12,
+    },
+    grupaKod: { color: colors.textSecondary, fontSize: 14, fontFamily: 'monospace' },
     headerBox: {
         padding: 12, backgroundColor: colors.surface, marginHorizontal: 12, marginTop: 10, borderRadius: 8,
         borderWidth: 1, borderColor: colors.border,
