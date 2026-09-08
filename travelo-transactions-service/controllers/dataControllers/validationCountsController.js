@@ -40,6 +40,37 @@ const validationCountsController = async (req, res) => {
             else c.validated += 1;
         }
 
+        // Karte OVOG polaska koje su ocitane negdje drugdje: putnik je kupio
+        // ovaj brod, a usao na drugi. Kapetanu to nije svejedno — bez toga ih
+        // ceka, jer u njegovim brojkama stoje kao "jos nisu dosli".
+        const { TicketsModel } = getModels();
+        const drugdje = await TicketValidationModel.findAll({
+            where: { other_voyage: true, outcome: "validated" },
+            attributes: ["ticket_uuid", "validated_route_uuid"],
+        });
+        const uuidi = [...new Set(drugdje.map((v) => v.ticket_uuid).filter(Boolean))];
+        const poRutiDrugdje = {};
+        if (uuidi.length) {
+            const karte = await TicketsModel.findAll({
+                where: { ticket_uuid: { [Op.in]: uuidi }, route_uuid: { [Op.in]: rute } },
+                attributes: ["ticket_uuid", "route_uuid"],
+            });
+            const rutaKarte = new Map(karte.map((k) => [k.ticket_uuid, k.route_uuid]));
+            const brojane = new Set();
+            for (const v of drugdje) {
+                const svoja = rutaKarte.get(v.ticket_uuid);
+                // Ocitanje na vlastitoj ruti nije "drugdje" — takvo i ne bi
+                // trebalo nositi oznaku, ali provjera je jeftina.
+                if (!svoja || svoja === v.validated_route_uuid) continue;
+                if (brojane.has(v.ticket_uuid)) continue;
+                brojane.add(v.ticket_uuid);
+                poRutiDrugdje[svoja] = (poRutiDrugdje[svoja] || 0) + 1;
+            }
+        }
+        for (const [ruta, n] of Object.entries(poRutiDrugdje)) {
+            (poRuti[ruta] ||= { validated: 0, other_voyage: 0 }).validated_elsewhere = n;
+        }
+
         res.send({ status: 200, data: { counts: poRuti } });
     } catch (error) {
         console.log("validationCountsController error:", error?.message || error);

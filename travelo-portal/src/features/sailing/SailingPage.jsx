@@ -489,6 +489,22 @@ function SailingDetailView({
         return stats;
     }, [harbors, bookings, categoryCodes]);
 
+    // Karte ovog polaska koje su ocitane na drugom polasku: putnik je kupio ovaj
+    // brod, a usao na drugi. U brojkama ove voznje stoje kao "jos nisu dosli",
+    // pa se prikazuju zasebno — inace ih kapetan ceka bez potrebe.
+    const drugdjeOcitanePoLuci = useMemo(() => {
+        const brojaci = selected?.validation_counts || {};
+        const out = {};
+        const vidjene = new Set();
+        for (const b of bookings) {
+            const n = Number(brojaci[b.route_uuid]?.validated_elsewhere) || 0;
+            if (!n || vidjene.has(b.route_uuid)) continue;
+            vidjene.add(b.route_uuid);
+            out[b.departure_harbor_id] = (out[b.departure_harbor_id] || 0) + n;
+        }
+        return out;
+    }, [bookings, selected]);
+
     // Map from harbor pair → adjacent leg (used for per-harbor incoming/outgoing status).
     const legBetween = (fromHarborId, toHarborId) =>
         legs.find((l) => l.departure_harbor_id === fromHarborId && l.arrival_harbor_id === toHarborId);
@@ -703,6 +719,13 @@ function SailingDetailView({
                                         >OTKAŽI UPLOVLJAVANJE</Button>
                                     )}
                                 </Stack>
+                            )}
+
+                            {!h.is_last && drugdjeOcitanePoLuci[h.harbor_id] > 0 && (
+                                <Typography fontSize={13} color="text.secondary" sx={{ mb: 1 }}>
+                                    Validirano na drugom polasku: <b>{drugdjeOcitanePoLuci[h.harbor_id]}</b>
+                                    {" — te karte se ne ukrcavaju ovdje."}
+                                </Typography>
                             )}
 
                             {categoryCodes.length > 0 && (
