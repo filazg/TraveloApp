@@ -10,7 +10,7 @@ import { deletePendingAttempt, loadPendingAttempts, savePendingAttempt, saveVali
 //
 // Zapis prvo ide u red pa se šalje u pozadini — djelatnik na vratima ne smije
 // čekati mrežu, a bez mreže prijava odlazi pri sljedećoj sinkronizaciji.
-export async function prijaviPokusaj({ ticketUuid, ticketCode, ticketType, scanned, kada, terminalUuid, operator, outcome, note }) {
+export async function prijaviPokusaj({ ticketUuid, ticketCode, ticketType, scanned, kada, terminalUuid, operator, outcome, note, routeUuid }) {
     if (!ticketUuid) {return false;}
     const vrijeme = kada || new Date().toISOString();
     // Poslužitelj operatera zapisuje kao tekst; objekt bi mu srušio zapis.
@@ -29,6 +29,7 @@ export async function prijaviPokusaj({ ticketUuid, ticketCode, ticketType, scann
             note,
             operator: imeOperatera,
             validatedAt: vrijeme,
+            routeUuid,
         });
     } catch (e) {
         console.log('[prijaviPokusaj] povijest nije zapisana:', e?.message || e);
@@ -42,6 +43,8 @@ export async function prijaviPokusaj({ ticketUuid, ticketCode, ticketType, scann
             terminalUuid,
             operator: imeOperatera,
             outcome,
+            routeUuid,
+            note,
         });
     } catch (e) {
         console.log('[prijaviPokusaj] red neposlanih nije zapisan:', e?.message || e);
@@ -58,6 +61,11 @@ export async function prijaviPokusaj({ ticketUuid, ticketCode, ticketType, scann
                 terminal_uuid: terminalUuid,
                 operator: imeOperatera,
                 validated_at: vrijeme,
+                // Polazak na kojem se očitavalo i je li karta bila s drugog:
+                // poslužitelj zna kojoj vožnji karta pripada, ali ne i gdje je
+                // djelatnik stajao.
+                route_uuid: routeUuid || undefined,
+                other_voyage: !!note,
             },
             { timeout: 8000 },
         )

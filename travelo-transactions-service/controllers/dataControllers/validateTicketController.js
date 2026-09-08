@@ -25,7 +25,7 @@ const procitajSkenirano = (body) => {
 const validateTicketController = async (req, res) => {
     const { TicketsModel, TicketValidationModel } = req.app.locals.models;
     const body = req.body?.body || req.body || {};
-    const { ticket_uuid, ticket_code, terminal_uuid, validated_at } = body;
+    const { ticket_uuid, ticket_code, terminal_uuid, validated_at, route_uuid, other_voyage } = body;
 
     // Operater dolazi kao ime, ali starije mobilne salju cijeli objekt
     // {uuid, name}. Takav zapis Sequelize odbija, pa je do sada svaki pokusaj
@@ -55,6 +55,10 @@ const validateTicketController = async (req, res) => {
                 conflict_type,
                 terminal_uuid: terminal_uuid || null,
                 operator: operator || null,
+                // Polazak s kojeg je ocitano salje uredaj: posluzitelj zna kojoj
+                // voznji karta pripada, ali ne i gdje je covjek stajao.
+                validated_route_uuid: route_uuid || null,
+                other_voyage: !!other_voyage,
                 validated_at: kada || new Date(),
             });
         } catch (e) {

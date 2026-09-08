@@ -392,21 +392,21 @@ export async function markCopyPrintSynced(id) {
 // dok ga sinkronizacija ne progura.
 // Svako ocitanje je svoj zapis, i ono koje nije proslo: posluzitelj po njima
 // prepoznaje ponovljena ocitanja, a ona su razlog zbog kojeg evidencija postoji.
-export async function savePendingAttempt({ ticketUuid, scanned, validatedAt, terminalUuid, operator, outcome }) {
+export async function savePendingAttempt({ ticketUuid, scanned, validatedAt, terminalUuid, operator, outcome, routeUuid, note }) {
     if (!ticketUuid) return false;
     await exec(
         `INSERT OR IGNORE INTO pending_validation_attempts
-         (ticket_uuid, scanned, validated_at, terminal_uuid, operator, outcome, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+         (ticket_uuid, scanned, validated_at, terminal_uuid, operator, outcome, route_uuid, note, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [ticketUuid, scanned || null, validatedAt, terminalUuid || null, operator || null,
-         outcome || null, new Date().toISOString()]
+         outcome || null, routeUuid || null, note || null, new Date().toISOString()]
     );
     return true;
 }
 
 export async function loadPendingAttempts(limit = 200) {
     return queryAll(
-        `SELECT id, ticket_uuid, scanned, validated_at, terminal_uuid, operator, outcome
+        `SELECT id, ticket_uuid, scanned, validated_at, terminal_uuid, operator, outcome, route_uuid, note
            FROM pending_validation_attempts ORDER BY id ASC LIMIT ?;`,
         [limit]
     );
@@ -425,20 +425,20 @@ export async function countPendingAttempts() {
 // ---------- POVIJEST OCITANJA ----------
 // Zapis ostaje na uredaju i nakon sto ode posluzitelju: djelatnik na vratima
 // gleda sto je ocitao u ovoj smjeni, a mreza mu za to ne treba.
-export async function saveValidationLog({ ticketUuid, ticketCode, ticketType, outcome, note, operator, validatedAt }) {
+export async function saveValidationLog({ ticketUuid, ticketCode, ticketType, outcome, note, operator, validatedAt, routeUuid }) {
     await exec(
         `INSERT INTO validation_log
-         (ticket_uuid, ticket_code, ticket_type, outcome, note, operator, validated_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+         (ticket_uuid, ticket_code, ticket_type, outcome, note, operator, route_uuid, validated_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [ticketUuid || null, ticketCode || null, ticketType || null, outcome || null, note || null,
-         operator || null, validatedAt, new Date().toISOString()]
+         operator || null, routeUuid || null, validatedAt, new Date().toISOString()]
     );
     return true;
 }
 
 export async function loadValidationLog(limit = 200) {
     return queryAll(
-        `SELECT id, ticket_uuid, ticket_code, ticket_type, outcome, note, operator, validated_at
+        `SELECT id, ticket_uuid, ticket_code, ticket_type, outcome, note, operator, route_uuid, validated_at
            FROM validation_log ORDER BY id DESC LIMIT ?;`,
         [limit]
     );

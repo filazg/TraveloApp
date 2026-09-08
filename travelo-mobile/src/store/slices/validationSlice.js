@@ -215,6 +215,11 @@ export const syncPendingValidationsThunk = createAsyncThunk(
                             terminal_uuid: v.terminal_uuid,
                             operator: v.operator,
                             validated_at: v.validated_at,
+                            // Polazak s kojeg je ocitano i je li karta bila s
+                            // drugog — bez toga bi zaostalo javljanje izgubilo
+                            // podatak koji se na uredaju vec vidi.
+                            route_uuid: v.route_uuid || undefined,
+                            other_voyage: !!v.note,
                         },
                         { timeout: 10000 }
                     );

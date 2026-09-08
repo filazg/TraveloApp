@@ -488,6 +488,25 @@ function SailingDetailView({
         return stats;
     }, [harbors, bookings, categoryCodes]);
 
+    // Očitane karte po luci ukrcaja. Broji se po nozi na kojoj je očitano, pa uz
+    // karte ove vožnje stoje i one propuštene s drugog polaska — one ne ulaze u
+    // rezervacije ove vožnje, a kroz brod su prošle.
+    const ocitanjaPoLuci = useMemo(() => {
+        const brojaci = selected?.validation_counts || {};
+        const out = {};
+        for (const b of bookings) {
+            const c = brojaci[b.route_uuid];
+            if (!c) continue;
+            const u = (out[b.departure_harbor_id] ||= { validated: 0, other: 0, rute: new Set() });
+            // Ista noga se pojavljuje jednom po kategoriji, a brojač je za nogu.
+            if (u.rute.has(b.route_uuid)) continue;
+            u.rute.add(b.route_uuid);
+            u.validated += Number(c.validated) || 0;
+            u.other += Number(c.other_voyage) || 0;
+        }
+        return out;
+    }, [bookings, selected]);
+
     // Map from harbor pair → adjacent leg (used for per-harbor incoming/outgoing status).
     const legBetween = (fromHarborId, toHarborId) =>
         legs.find((l) => l.departure_harbor_id === fromHarborId && l.arrival_harbor_id === toHarborId);
@@ -704,6 +723,19 @@ function SailingDetailView({
                                 </Stack>
                             )}
 
+                            {!h.is_last && ocitanjaPoLuci[h.harbor_id] && (
+                                <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
+                                    <Typography fontSize={13} color="primary.main">
+                                        Očitano: <b>{ocitanjaPoLuci[h.harbor_id].validated}</b>
+                                    </Typography>
+                                    {ocitanjaPoLuci[h.harbor_id].other > 0 && (
+                                        <Typography fontSize={13} color="warning.main">
+                                            S drugih polazaka: <b>{ocitanjaPoLuci[h.harbor_id].other}</b>
+                                        </Typography>
+                                    )}
+                                </Stack>
+                            )}
+
                             {categoryCodes.length > 0 && (
                                 <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 1.5 }}>
                                     {categoryCodes.map((code) => {
@@ -730,13 +762,6 @@ function SailingDetailView({
                                                             value={`${st.disembark_planned}`}
                                                             color="error.main"
                                                             bold
-                                                        />
-                                                    )}
-                                                    {!h.is_last && (
-                                                        <RowInfo
-                                                            label="Validirano"
-                                                            value={`${st.validated}`}
-                                                            color="primary.main"
                                                         />
                                                     )}
                                                     {!h.is_last && (

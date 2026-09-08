@@ -150,6 +150,14 @@ export default function SaleScreen() {
 
     // Izdvojena logika obrade scan-a — koristi se iz hardware listener-a i
     // iz kamera-based scanOnce() gumba.
+    // Polazak na kojem djelatnik stoji: noga koja kreće iz odabrane ulazne luke,
+    // a ako se ne prepozna, prva noga polaska. Poslužitelj zna kojoj vožnji
+    // karta pripada, ali ne i gdje je očitana.
+    const rutaOcitanja = () => {
+        const izLuke = voyageRoutes.find((r) => String(r.departure_harbor_id) === String(fromHarbor?.id));
+        return (izLuke || voyageRoutes[0])?.uuid || null;
+    };
+
     const processScan = async (code) => {
         if (!code) return;
         // Dok je otvoren modal "Otočna iskaznica", ignoriraj sve scan eventove —
@@ -250,6 +258,7 @@ export default function SaleScreen() {
                     terminalUuid: sync.basicData?.billing_device_uuid,
                     operator: imeOperatera(),
                     outcome: 'canceled',
+                    routeUuid: rutaOcitanja(),
                 });
                 soundError();
             } else if ((voyageMismatch || dateMismatch) && !otherVoyageSameRelation) {
@@ -268,6 +277,7 @@ export default function SaleScreen() {
                     terminalUuid: sync.basicData?.billing_device_uuid,
                     operator: imeOperatera(),
                     outcome: 'already_validated',
+                    routeUuid: rutaOcitanja(),
                 });
                 soundError();
             } else {
@@ -332,6 +342,7 @@ export default function SaleScreen() {
                 // Karta propustena iako je za drugi polazak — djelatnik je tako
                 // odlucio, ali u povijesti to mora ostati vidljivo.
                 note: napomena || null,
+                routeUuid: rutaOcitanja(),
             });
         }
     };
@@ -858,6 +869,7 @@ export default function SaleScreen() {
                     harbors={harbors}
                     fromIdx={fromIdx}
                     setFromIdx={setFromIdx}
+                    voyageRouteUuids={voyageRouteUuids}
                 />
             ) : (
             <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
@@ -1838,7 +1850,7 @@ const ISHOD = {
     canceled: { tekst: 'Stornirana', boja: colors.error },
 };
 
-function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, onRefresh, onTicketTap, userTypingRef, fromHarbor, harbors, fromIdx, setFromIdx }) {
+function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, onRefresh, onTicketTap, userTypingRef, fromHarbor, harbors, fromIdx, setFromIdx, voyageRouteUuids }) {
     const [search, setSearch] = useState('');
     // Dvije kartice: PREGLED je popis karata polaska, POVIJEST je ono što je ovaj
     // uređaj očitao. Povijest se čita iz lokalne baze pa radi i bez mreže.
@@ -1846,15 +1858,22 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
     const [povijest, setPovijest] = useState([]);
 
     useEffect(() => {
-        if (kartica !== 'povijest') {return;}
         let ziv = true;
         loadValidationLog(200)
             .then((r) => { if (ziv) {setPovijest(r || []);} })
             .catch((e) => console.log('[povijest] citanje nije uspjelo:', e?.message || e));
         return () => { ziv = false; };
-        // Nakon svakog očitanja parent se ponovno iscrta (scanResult), pa se s njim
-        // osvježi i popis — bez toga bi zadnje očitanje nedostajalo.
+        // Cita se i dok je otvoren PREGLED, jer se iz istih zapisa broje karte
+        // propustene s drugih polazaka. Nakon svakog očitanja parent se ponovno
+        // iscrta (scanResult), pa se s njim osvježi i popis.
     }, [kartica, scanResult]);
+
+    // Karte propustene s drugog polaska ili linije na ovom polasku. Ne ulaze u
+    // brojac validiranih jer nisu karte ovog polaska, a bez ovoga ih nigdje ne
+    // bi bilo — ni ovdje ni kod kapetana.
+    const sDrugihPolazaka = povijest.filter((z) => z.note
+        && z.outcome === 'validated'
+        && (!z.route_uuid || !voyageRouteUuids?.length || voyageRouteUuids.includes(z.route_uuid))).length;
 
     // Re-komputiramo listu i brojila na svaki render — cache se ažurira tijekom
     // scan-a pa će parent re-render (zbog scanResult promjene) osvježiti prikaz.
@@ -1924,8 +1943,13 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
 
             <View style={vs.statsRow}>
                 <View style={vs.statBox}>
-                    <Text style={vs.statLabel}>Karte (ukupno / validirano)</Text>
-                    <Text style={vs.statValue}>{total}/{validatedCount}</Text>
+                    <Text style={vs.statLabel}>
+                        Karte (ukupno / validirano{sDrugihPolazaka > 0 ? ' / drugi polazak' : ''})
+                    </Text>
+                    <Text style={vs.statValue}>
+                        {total}/{validatedCount}
+                        {sDrugihPolazaka > 0 ? <Text style={vs.statDrugi}>{` / ${sDrugihPolazaka}`}</Text> : null}
+                    </Text>
                 </View>
                 <TouchableOpacity
                     style={vs.refreshBtn}
@@ -2169,6 +2193,9 @@ const vs = StyleSheet.create({
     },
     grupaKod: { color: colors.textSecondary, fontSize: 14, fontFamily: 'monospace' },
     grupaVrsta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+    // Karte s drugog polaska stoje uz brojac, u istoj velicini — samo drugom
+    // bojom, da se vidi da nisu karte ove voznje.
+    statDrugi: { color: colors.warning },
     // Karta propustena iako je za drugi polazak: zuti rub i napomena, da se u
     // popisu odmah vidi sto je proslo mimo pravila.
     retkaDrugiPolazak: { borderWidth: 1, borderColor: colors.warning },

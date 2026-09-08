@@ -221,4 +221,7 @@ export const SCHEMA = [
 // stoje odvojeno od SCHEME, gdje greska mora zaustaviti otvaranje baze.
 export const MIGRACIJE = [
     `ALTER TABLE validation_log ADD COLUMN ticket_type TEXT;`,
+    `ALTER TABLE validation_log ADD COLUMN route_uuid TEXT;`,
+    `ALTER TABLE pending_validation_attempts ADD COLUMN route_uuid TEXT;`,
+    `ALTER TABLE pending_validation_attempts ADD COLUMN note TEXT;`,
 ];

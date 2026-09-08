@@ -29,6 +29,7 @@ const { transferTicketsController } = require('../controllers/dataControllers/ti
 const { emailInvoiceTicketsController } = require('../controllers/dataControllers/emailInvoiceTicketsController');
 const { managementReportController } = require('../controllers/dataControllers/managementReportController');
 const { validateTicketController } = require('../controllers/dataControllers/validateTicketController');
+const { validationCountsController } = require('../controllers/dataControllers/validationCountsController');
 const { listBuyersController } = require('../controllers/dataControllers/buyersListController');
 const { yescorHealthController } = require('../controllers/dataControllers/yescorHealthController');
 const { yescorTestSubmitController } = require('../controllers/dataControllers/yescorTestSubmitController');
@@ -152,6 +153,10 @@ router
 
 // Evidencija ispisa kopija karata. POST javlja ispis i vraca redni broj i
 // sufiks koji ide na papir; GET sluzi pregledu.
+router
+    .route('/validation_counts')
+    .get(validationCountsController)
+
 router
     .route('/ticket_copy_prints')
     .post(logTicketCopyPrintController)

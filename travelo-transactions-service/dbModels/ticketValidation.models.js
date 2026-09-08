@@ -67,6 +67,19 @@ module.exports = (sequelize) => {
                 type: DataTypes.STRING,
                 allowNull: true,
             },
+            // Polazak na kojem je karta ocitana i je li pripadala drugom. Karta
+            // s drugog polaska ne ulazi u brojace te voznje, pa bi bez ovoga
+            // ostala nevidljiva i kapetanu i u izvjestajima.
+            validated_route_uuid: {
+                type: Sequelize.STRING,
+                allowNull: true,
+            },
+            other_voyage: {
+                type: Sequelize.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
+
             terminal_uuid: {
                 type: DataTypes.STRING,
                 allowNull: true,
