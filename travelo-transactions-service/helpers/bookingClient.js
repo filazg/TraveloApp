@@ -27,6 +27,28 @@ async function reserveBookings(items) {
     return resp.data;
 }
 
+// Javljanje o ocitanju karte. Booking servis po tome zna koliko je ljudi uslo
+// na kojoj nozi, pa kapetan vidi stvarne brojke; do sada taj brojac nitko nije
+// punio i stajao je na nuli.
+//
+// Ne blokira validaciju: putnik stoji na vratima, a brojac je pregled.
+async function reportValidation({ route_uuid, ticket_type_uuid, other_voyage }) {
+    try {
+        if (!route_uuid || !ticket_type_uuid) return;
+        const url = await bookingBase();
+        const resp = await axios.post(
+            `${url}/bookings/validate`,
+            { route_uuid, ticket_type_uuid, qty: 1, other_voyage: !!other_voyage },
+            { timeout: 8000, validateStatus: () => true },
+        );
+        if (resp.status !== 200) {
+            console.log("bookingClient.validate non-200:", resp.status, resp.data?.data?.message || "");
+        }
+    } catch (error) {
+        console.log("bookingClient.validate error:", error?.message || error);
+    }
+}
+
 // Release is non-blocking — log and continue on error (already-released tickets should not abort storno).
 async function releaseBookings(items) {
     try {
@@ -45,4 +67,4 @@ async function releaseBookings(items) {
     }
 }
 
-module.exports = { reserveBookings, releaseBookings };
+module.exports = { reserveBookings, releaseBookings, reportValidation };

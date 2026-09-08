@@ -1,6 +1,7 @@
 const { podigniSignal } = require("./syncSignalsController");
 const { procitajSuffix, suffixIzQr } = require("../../helpers/ticketCopyMark");
 const { VRSTE } = require("../../helpers/ticketControlTypes");
+const { reportValidation } = require("../../helpers/bookingClient");
 
 // Sto je skener procitao. QR nosi uuid i jos sest polja, a sufiks je osmo; s
 // papira se zna prepisati i sam broj karte, gdje sufiks stoji iza razmaka.
@@ -174,6 +175,15 @@ const validateTicketController = async (req, res) => {
         }
 
         await zabiljezi({ ticket, outcome: "validated", kada: now });
+
+        // Kapetan broji ljude na nozi na kojoj su usli. Za kartu ovog polaska to
+        // je njena ruta; za onu propustenu s drugog polaska ruta na kojoj je
+        // ocitana — covjek je usao ondje, bez obzira sto mu karta glasi drugdje.
+        reportValidation({
+            route_uuid: other_voyage ? route_uuid : (ticket.route_uuid || route_uuid),
+            ticket_type_uuid: ticket.ticket_type_uuid,
+            other_voyage: !!other_voyage,
+        });
 
         return res.status(200).json({
             status: 200,

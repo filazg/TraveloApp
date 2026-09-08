@@ -341,21 +341,53 @@ const setAdditionalCapacityController = async (req, res) => {
     }
 };
 
-// Validate — body: { route_uuid, category_uuid, qty }  (boat desk QR scan)
+// Validate — body: { route_uuid, ticket_type_uuid | category_uuid, qty, other_voyage }
+//
+// Broji se noga na kojoj se ukrcalo, ista ona na kojoj se broji i in_count:
+// putnik je usao ondje. Karta propustena s drugog polaska ide u zaseban brojac —
+// nije karta ove voznje, ali covjek jest na brodu.
+//
+// Kategorija se izvodi iz vrste karte, kao i pri rezervaciji; category_uuid se
+// i dalje prima zbog starijih pozivatelja.
 const validateTicketsController = async (req, res) => {
-    const { BookingModel } = req.app.locals.models;
+    const models = req.app.locals.models;
+    const { BookingModel, TicketTypeMappingModel } = models;
     try {
         const data = req.body?.body || req.body || {};
-        const { route_uuid, category_uuid } = data;
+        const { route_uuid, ticket_type_uuid, other_voyage } = data;
         const qty = parseInt(data.qty, 10) || 1;
-        if (!route_uuid || !category_uuid) {
-            return res.status(400).send({ status: 400, data: { message: "route_uuid and category_uuid required" } });
+        if (!route_uuid || (!ticket_type_uuid && !data.category_uuid)) {
+            return res.status(400).send({
+                status: 400,
+                data: { message: "route_uuid and ticket_type_uuid (or category_uuid) required" },
+            });
         }
-        await BookingModel.increment(
-            { validated: qty },
-            { where: { route_uuid, category_uuid } }
+
+        let category_uuid = data.category_uuid;
+        if (!category_uuid) {
+            const mapping = await TicketTypeMappingModel.findOne({ where: { ticket_type_uuid } });
+            if (!mapping) {
+                return res.status(404).send({
+                    status: 404,
+                    data: { message: `no category mapping for ticket_type ${ticket_type_uuid}` },
+                });
+            }
+            category_uuid = mapping.category_uuid;
+        }
+
+        const meta = await fetchRouteMeta(route_uuid);
+        const polje = other_voyage ? "validated_other" : "validated";
+        const [affected] = await BookingModel.increment(
+            { [polje]: qty },
+            {
+                where: {
+                    departure_uuid: meta.departure_uuid,
+                    category_uuid,
+                    departure_harbor_order: meta.dep_order,
+                },
+            }
         );
-        res.send({ status: 200 });
+        res.send({ status: 200, data: { affected: Array.isArray(affected) ? affected.length : affected } });
     } catch (error) {
         console.log("validateTicketsController error:", error?.message || error);
         res.status(500).send({ status: 500, data: { message: error.message } });

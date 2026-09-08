@@ -449,7 +449,7 @@ function SailingDetailView({
                 stats[h.harbor_id][code] = {
                     board_planned: 0, board_scanned: 0,
                     disembark_planned: 0, disembark_scanned: 0,
-                    onboard: 0, capacity: 0, validated: 0,
+                    onboard: 0, capacity: 0, validated: 0, validated_other: 0,
                 };
             }
         }
@@ -462,6 +462,7 @@ function SailingDetailView({
                 depStats.onboard = Number(b.occupied) || 0;
                 depStats.capacity = (Number(b.capacity_base) || 0) + (Number(b.capacity_additional) || 0);
                 depStats.validated += Number(b.validated) || 0;
+                depStats.validated_other += Number(b.validated_other) || 0;
             }
             // leg ending at arrival_harbor_id
             const arrStats = stats[b.arrival_harbor_id]?.[code];
@@ -487,36 +488,6 @@ function SailingDetailView({
         }
         return stats;
     }, [harbors, bookings, categoryCodes]);
-
-    // Očitane karte po luci ukrcaja. Broji se po nozi na kojoj je očitano, pa uz
-    // karte ove vožnje stoje i one propuštene s drugog polaska — one ne ulaze u
-    // rezervacije ove vožnje, a kroz brod su prošle.
-    const ocitanjaPoLuci = useMemo(() => {
-        const brojaci = selected?.validation_counts || {};
-        const out = {};
-        for (const b of bookings) {
-            const c = brojaci[b.route_uuid];
-            if (!c) continue;
-            const u = (out[b.departure_harbor_id] ||= { validated: 0, other: 0, rute: new Set() });
-            // Ista noga se pojavljuje jednom po kategoriji, a brojač je za nogu.
-            if (u.rute.has(b.route_uuid)) continue;
-            u.rute.add(b.route_uuid);
-            u.validated += Number(c.validated) || 0;
-            u.other += Number(c.other_voyage) || 0;
-        }
-        return out;
-    }, [bookings, selected]);
-
-    // Koliko je karata prodano za ukrcaj u pojedinoj luci — zbroj po kategorijama.
-    const ukrcajPoLuci = useMemo(() => {
-        const out = {};
-        for (const h of harbors) {
-            let n = 0;
-            for (const code of categoryCodes) n += Number(harborStats[h.harbor_id]?.[code]?.board_planned) || 0;
-            out[h.harbor_id] = n;
-        }
-        return out;
-    }, [harbors, categoryCodes, harborStats]);
 
     // Map from harbor pair → adjacent leg (used for per-harbor incoming/outgoing status).
     const legBetween = (fromHarborId, toHarborId) =>
@@ -734,35 +705,6 @@ function SailingDetailView({
                                 </Stack>
                             )}
 
-                            {/* Ukrcaj u brojkama: koliko je karata prodano za ovu
-                                luku, koliko ih je ocitano, koliko je proslo s
-                                drugog polaska i koliko je ljudi time na brodu.
-                                Razlika prodanog i ocitanog su putnici koji jos
-                                nisu dosli — kapetan po njoj odlucuje ceka li. */}
-                            {!h.is_last && (() => {
-                                const o = ocitanjaPoLuci[h.harbor_id] || { validated: 0, other: 0 };
-                                const prodano = ukrcajPoLuci[h.harbor_id] || 0;
-                                const ukrcano = o.validated + o.other;
-                                const nedoslo = Math.max(0, prodano - o.validated);
-                                return (
-                                    <Stack direction="row" spacing={2} sx={{ mb: 1, flexWrap: "wrap", rowGap: 0.5 }}>
-                                        <Typography fontSize={13}>Prodano: <b>{prodano}</b></Typography>
-                                        <Typography fontSize={13} color="primary.main">Validirano: <b>{o.validated}</b></Typography>
-                                        {o.other > 0 && (
-                                            <Typography fontSize={13} color="warning.main">
-                                                S drugih polazaka: <b>{o.other}</b>
-                                            </Typography>
-                                        )}
-                                        <Typography fontSize={13} color="success.main">Ukrcano: <b>{ukrcano}</b></Typography>
-                                        {nedoslo > 0 && (
-                                            <Typography fontSize={13} color="text.secondary">
-                                                Nije došlo: <b>{nedoslo}</b>
-                                            </Typography>
-                                        )}
-                                    </Stack>
-                                );
-                            })()}
-
                             {categoryCodes.length > 0 && (
                                 <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 1.5 }}>
                                     {categoryCodes.map((code) => {
@@ -789,6 +731,23 @@ function SailingDetailView({
                                                             value={`${st.disembark_planned}`}
                                                             color="error.main"
                                                             bold
+                                                        />
+                                                    )}
+                                                    {!h.is_last && (
+                                                        <RowInfo
+                                                            label="Validirano"
+                                                            value={`${st.validated}`}
+                                                            color="primary.main"
+                                                        />
+                                                    )}
+                                                    {/* Karte propustene s drugog polaska: nisu karte ove
+                                                        voznje, ali su ti ljudi na brodu — bez ovoga se
+                                                        ukrcaj ne slaze s brojem validiranih. */}
+                                                    {!h.is_last && st.validated_other > 0 && (
+                                                        <RowInfo
+                                                            label="S drugih polazaka"
+                                                            value={`${st.validated_other}`}
+                                                            color="warning.main"
                                                         />
                                                     )}
                                                     {!h.is_last && (
