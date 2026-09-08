@@ -449,7 +449,7 @@ function SailingDetailView({
                 stats[h.harbor_id][code] = {
                     board_planned: 0, board_scanned: 0,
                     disembark_planned: 0, disembark_scanned: 0,
-                    onboard: 0, capacity: 0, validated: 0, validated_other: 0,
+                    onboard: 0, capacity: 0, validated: 0, validated_other: 0, validated_out: 0,
                 };
             }
         }
@@ -468,6 +468,9 @@ function SailingDetailView({
             const arrStats = stats[b.arrival_harbor_id]?.[code];
             if (arrStats) {
                 arrStats.disembark_scanned += Number(b.out_count) || 0;
+                // Iskrcaj po ocitanjima: tko je validiran, na brodu je i izlazi
+                // — bez obzira je li karta bila za ovaj polazak.
+                arrStats.validated_out += Number(b.validated_out) || 0;
             }
         }
         // Derive planned boarding/disembarking from running occupancy deltas.
@@ -751,7 +754,7 @@ function SailingDetailView({
                                                     {!h.is_first && (
                                                         <RowInfo
                                                             label="Iskrcava se"
-                                                            value={`${st.disembark_planned}`}
+                                                            value={`${st.validated_out}`}
                                                             color="error.main"
                                                             bold
                                                         />
@@ -784,11 +787,6 @@ function SailingDetailView({
                                                                 label="Na brodu"
                                                                 value={`${st.validated + st.validated_other} / ${st.capacity}`}
                                                                 bold
-                                                            />
-                                                            <RowInfo
-                                                                label="Rezervirano"
-                                                                value={`${st.onboard}`}
-                                                                color="text.secondary"
                                                             />
                                                         </>
                                                     )}

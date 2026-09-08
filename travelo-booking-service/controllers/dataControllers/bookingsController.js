@@ -377,7 +377,7 @@ const validateTicketsController = async (req, res) => {
 
         const meta = await fetchRouteMeta(route_uuid);
         const polje = other_voyage ? "validated_other" : "validated";
-        const [affected] = await BookingModel.increment(
+        await BookingModel.increment(
             { [polje]: qty },
             {
                 where: {
@@ -387,7 +387,26 @@ const validateTicketsController = async (req, res) => {
                 },
             }
         );
-        res.send({ status: 200, data: { affected: Array.isArray(affected) ? affected.length : affected } });
+
+        // Iskrcaj: putnik izlazi u luci na koju mu karta glasi, i kad je karta s
+        // drugog polaska. Bez toga bi kapetan vidio koliko ih je uslo, ali ne i
+        // gdje silaze.
+        const izlaz = data.arrival_harbor_id;
+        if (izlaz) {
+            const noga = await BookingModel.findOne({
+                where: {
+                    departure_uuid: meta.departure_uuid,
+                    category_uuid,
+                    arrival_harbor_id: String(izlaz),
+                },
+                order: [["arrival_harbor_order", "ASC"]],
+            });
+            if (noga) {
+                await BookingModel.increment({ validated_out: qty }, { where: { id: noga.id } });
+            }
+        }
+
+        res.send({ status: 200 });
     } catch (error) {
         console.log("validateTicketsController error:", error?.message || error);
         res.status(500).send({ status: 500, data: { message: error.message } });

@@ -43,6 +43,10 @@ module.exports = (sequelize) => {
             // karte ove voznje, a ljudi jesu na brodu — kapetan mora vidjeti
             // oboje, i koliko ih je kupilo ovaj polazak i koliko ih je preslo.
             validated_other: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+            // Koliko ih se na ovoj nozi iskrcava, po ocitanjima. Rezervacije
+            // govore koliko ih je kupilo, a kapetana zanima koliko ih je uslo i
+            // gdje izlazi — validiran putnik je na brodu bez obzira na kartu.
+            validated_out: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
 
             is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
         },

@@ -183,6 +183,7 @@ const validateTicketController = async (req, res) => {
             route_uuid: other_voyage ? route_uuid : (ticket.route_uuid || route_uuid),
             ticket_type_uuid: ticket.ticket_type_uuid,
             other_voyage: !!other_voyage,
+            arrival_harbor_id: ticket.arrival_harbor_id,
         });
 
         return res.status(200).json({

@@ -32,13 +32,13 @@ async function reserveBookings(items) {
 // punio i stajao je na nuli.
 //
 // Ne blokira validaciju: putnik stoji na vratima, a brojac je pregled.
-async function reportValidation({ route_uuid, ticket_type_uuid, other_voyage }) {
+async function reportValidation({ route_uuid, ticket_type_uuid, other_voyage, arrival_harbor_id }) {
     try {
         if (!route_uuid || !ticket_type_uuid) return;
         const url = await bookingBase();
         const resp = await axios.post(
             `${url}/bookings/validate`,
-            { route_uuid, ticket_type_uuid, qty: 1, other_voyage: !!other_voyage },
+            { route_uuid, ticket_type_uuid, qty: 1, other_voyage: !!other_voyage, arrival_harbor_id },
             { timeout: 8000, validateStatus: () => true },
         );
         if (resp.status !== 200) {
