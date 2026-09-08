@@ -129,9 +129,12 @@ const podaciTvrtke = async () => {
     }
 };
 
-const loadTickets = async ({ TicketsModel, order_uuid, order_uuids, kopija = null }) => {
+const loadTickets = async ({ TicketsModel, order_uuid, order_uuids, ticket_uuid, kopija = null }) => {
     const where = { is_active: true };
-    if (Array.isArray(order_uuids) && order_uuids.length) where.order_uuid = order_uuids;
+    // Jedna karta: pregled iz portala, gdje se trazi bas ta karta, a ne cijela
+    // narudzba u kojoj je prodana.
+    if (ticket_uuid) where.ticket_uuid = ticket_uuid;
+    else if (Array.isArray(order_uuids) && order_uuids.length) where.order_uuid = order_uuids;
     else if (order_uuid) where.order_uuid = order_uuid;
     const tickets = await TicketsModel.findAll({ where, order: [["id", "ASC"]] });
 
@@ -204,13 +207,14 @@ const renderTicketsPdfController = async (req, res) => {
     const { TicketsModel } = req.app.locals.models;
     try {
         const order_uuid = req.params.order_uuid || req.query.order_uuid;
+        const ticket_uuid = req.query.ticket_uuid;
         const order_uuids_raw = req.query.order_uuids;
         const order_uuids = typeof order_uuids_raw === "string"
             ? order_uuids_raw.split(",").map((s) => s.trim()).filter(Boolean)
             : Array.isArray(order_uuids_raw) ? order_uuids_raw : null;
 
-        if (!order_uuid && (!order_uuids || !order_uuids.length)) {
-            return res.status(400).send("order_uuid or order_uuids required");
+        if (!order_uuid && !ticket_uuid && (!order_uuids || !order_uuids.length)) {
+            return res.status(400).send("order_uuid, order_uuids or ticket_uuid required");
         }
 
         // Ponovni ispis se najavljuje s copy=1; tko ga radi i s kojeg uredaja
@@ -225,7 +229,7 @@ const renderTicketsPdfController = async (req, res) => {
             }
             : null;
 
-        const ticketsData = await loadTickets({ TicketsModel, order_uuid, order_uuids, kopija });
+        const ticketsData = await loadTickets({ TicketsModel, order_uuid, order_uuids, ticket_uuid, kopija });
         if (!ticketsData.length) return res.status(404).send("No tickets for this order");
 
         // Kanal salje pozivatelj — on jedini zna tko je. Izvodenje iz podataka
@@ -234,9 +238,9 @@ const renderTicketsPdfController = async (req, res) => {
             channel: req.query.channel || null,
             company: await podaciTvrtke(),
         });
-        const fnameHint = order_uuid
-            ? order_uuid.slice(0, 8)
-            : `bulk-${order_uuids[0].slice(0, 8)}`;
+        const fnameHint = ticket_uuid
+            ? ticket_uuid.slice(0, 8)
+            : (order_uuid ? order_uuid.slice(0, 8) : `bulk-${order_uuids[0].slice(0, 8)}`);
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader(
             "Content-Disposition",

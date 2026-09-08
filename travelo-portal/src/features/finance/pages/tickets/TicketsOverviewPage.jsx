@@ -6,6 +6,7 @@ import {
     Button,
     Chip,
     Divider,
+    IconButton,
     MenuItem,
     Paper,
     Stack,
@@ -26,6 +27,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import HandshakeIcon from "@mui/icons-material/Handshake";
+import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import {
     fetchTicketsThunk,
     fetchLinesThunk,
@@ -36,6 +38,7 @@ import {
     fetchPartnersListThunk,
     financeSliceData,
     setTicketsFilter,
+    jednaKartaPdfUrl,
 } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
 import { useLoading } from "../../../loading/useLoading";
@@ -504,6 +507,33 @@ export default function TicketsOverviewPage() {
                         </Box>
                     );
                 },
+            },
+            // Prikaz same karte — onako kako je putnik dobio. Otvara se u novoj
+            // kartici i ne broji se kao kopija: ovo je uvid, ne ponovni ispis.
+            {
+                field: "prikaz",
+                headerName: "Karta",
+                width: 80,
+                sortable: false,
+                filterable: false,
+                align: "center",
+                headerAlign: "center",
+                renderCell: (p) => (
+                    <Tooltip title="Prikaži kartu">
+                        <span>
+                            <IconButton
+                                size="small"
+                                disabled={!p.row.order_uuid || !p.row.ticket_uuid}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(jednaKartaPdfUrl(p.row.order_uuid, p.row.ticket_uuid), "_blank");
+                                }}
+                            >
+                                <ConfirmationNumberIcon fontSize="small" color="primary" />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                ),
             },
             { field: "order_uuid", headerName: "Order UUID", flex: 1, minWidth: 280 },
         ],

@@ -1045,6 +1045,12 @@ export const financeSliceData = (state) => state.finance;
 export const { setFilter, resetFilters, setPartnerInvoiceFilter, setTicketsFilter, setHarborTaxReportFilter, setManagementReportMonth, setPurchaseReportMonth, setShiftsFilter, setDailyRealizationFilter, clearDailyRealizationSendResult, setDailyRealizationDemoFilter, clearDailyRealizationDemoSendResult } = financeSlice.actions;
 export const invoicePdfUrl = (invoice_uuid) => `${backendURL}/portal/transactions/invoice_pdf/${invoice_uuid}`;
 // Karte se u PDF vade po narudžbi, ne po računu — isto kao u POS prodaji.
+// Prikaz jedne karte. Nije kopija: sluzi za uvid u karticu pregleda karata, pa
+// se ne evidentira ni ne dobiva oznaku kopije — inace bi svako otvaranje karte
+// u kontroli ispalo kao jos jedan ispis.
+export const jednaKartaPdfUrl = (order_uuid, ticket_uuid) =>
+    `${backendURL}/portal/transactions/tickets_pdf/${order_uuid}?ticket_uuid=${encodeURIComponent(ticket_uuid)}`;
+
 // Kopija se najavljuje s copy=1; vidi salesSlice.ticketsPdfUrl.
 export const ticketsPdfUrl = (order_uuid, kopija = null) => {
     const osnova = `${backendURL}/portal/transactions/tickets_pdf/${order_uuid}`;
