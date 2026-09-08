@@ -245,6 +245,7 @@ export default function SaleScreen() {
                 prijaviPokusaj({
                     ticketUuid: local.ticket_uuid,
                     ticketCode: local.ticket_code,
+                    ticketType: local.ticket_type_name,
                     scanned: code,
                     terminalUuid: sync.basicData?.billing_device_uuid,
                     operator: imeOperatera(),
@@ -262,6 +263,7 @@ export default function SaleScreen() {
                 prijaviPokusaj({
                     ticketUuid: local.ticket_uuid,
                     ticketCode: local.ticket_code,
+                    ticketType: local.ticket_type_name,
                     scanned: code,
                     terminalUuid: sync.basicData?.billing_device_uuid,
                     operator: imeOperatera(),
@@ -310,7 +312,7 @@ export default function SaleScreen() {
         : null);
 
     // Validira jednu ili više karata — lokalni cache + prijava poslužitelju.
-    const doValidate = (tickets, scanned) => {
+    const doValidate = (tickets, scanned, napomena) => {
         soundSuccess();
         const nowIso = new Date().toISOString();
         const terminalUuid = sync.basicData?.billing_device_uuid;
@@ -321,20 +323,30 @@ export default function SaleScreen() {
             prijaviPokusaj({
                 ticketUuid: t.ticket_uuid,
                 ticketCode: t.ticket_code,
+                ticketType: t.ticket_type_name,
                 scanned: scanned && t.ticket_uuid === tickets[0]?.ticket_uuid ? scanned : null,
                 kada: nowIso,
                 terminalUuid,
                 operator: imeOperatera(),
                 outcome: 'validated',
+                // Karta propustena iako je za drugi polazak — djelatnik je tako
+                // odlucio, ali u povijesti to mora ostati vidljivo.
+                note: napomena || null,
             });
         }
     };
 
     // Handler za gumbe u Choice overlay-u.
+    // Karta s drugog polaska (ili druge linije) prolazi samo ako djelatnik tako
+    // odluci; napomena putuje u povijest da se poslije zna sto je propusteno.
+    const napomenaPolaska = (r) => (r?.otherVoyage
+        ? (r.otherLine ? 'druga linija' : 'drugi polazak')
+        : null);
+
     const onValidateOnlyOne = () => {
         const t = scanResult?.result?.ticket;
         if (!t) { setScanResult(null); return; }
-        doValidate([t], scanResult?.code);
+        doValidate([t], scanResult?.code, napomenaPolaska(scanResult?.result));
         setScanResult({
             ...scanResult,
             result: { kind: 'validated', ticket: { ...t, status: 'validated', validate_data: new Date().toISOString() } },
@@ -345,7 +357,7 @@ export default function SaleScreen() {
         const r = scanResult?.result;
         if (!r?.ticket) { setScanResult(null); return; }
         const all = [r.ticket, ...(r.related || [])];
-        doValidate(all, scanResult?.code);
+        doValidate(all, scanResult?.code, napomenaPolaska(r));
         setScanResult({
             ...scanResult,
             result: { kind: 'validated', ticket: r.ticket, validatedCount: all.length },
@@ -2051,15 +2063,17 @@ function PovijestValidacije({ zapisi }) {
         const i = ISHOD[z.outcome] || { tekst: z.outcome || '—', boja: colors.textMuted };
         const dan = datum(z.validated_at);
         return (
-            <View key={z.id} style={vs.ticketRow}>
-                <View style={[vs.ticketMarker, { backgroundColor: i.boja }]} />
+            <View key={z.id} style={[vs.ticketRow, z.note && vs.retkaDrugiPolazak]}>
+                <View style={[vs.ticketMarker, { backgroundColor: z.note ? colors.warning : i.boja }]} />
                 <View style={{ flex: 1 }}>
                     <Text style={vs.ticketCode}>{String(z.ticket_code || z.ticket_uuid || '')}</Text>
                     <Text style={vs.ticketType}>
+                        {z.ticket_type ? `${z.ticket_type}  ·  ` : ''}
                         {vrijeme(z.validated_at)}
                         {dan && dan !== danas ? `  ·  ${dan}` : ''}
                         {z.operator ? `  ·  ${z.operator}` : ''}
                     </Text>
+                    {z.note ? <Text style={vs.napomenaPolaska}>{`⚠ nije za ovaj polazak · ${z.note}`}</Text> : null}
                 </View>
                 <Text style={[vs.ticketStatus, { color: i.boja }]}>{i.tekst}</Text>
             </View>
@@ -2079,18 +2093,20 @@ function PovijestValidacije({ zapisi }) {
         return (
             <View key={g.kada}>
                 <TouchableOpacity
-                    style={vs.ticketRow}
+                    style={[vs.ticketRow, glavna.note && vs.retkaDrugiPolazak]}
                     activeOpacity={0.7}
                     onPress={() => setOtvorene((p) => ({ ...p, [g.kada]: !p[g.kada] }))}
                 >
-                    <View style={[vs.ticketMarker, { backgroundColor: i.boja }]} />
+                    <View style={[vs.ticketMarker, { backgroundColor: glavna.note ? colors.warning : i.boja }]} />
                     <View style={{ flex: 1 }}>
                         <Text style={vs.ticketCode}>{String(glavna.ticket_code || glavna.ticket_uuid || '')}</Text>
                         <Text style={vs.ticketType}>
+                            {glavna.ticket_type ? `${glavna.ticket_type}  ·  ` : ''}
                             {vrijeme(glavna.validated_at)}
                             {dan && dan !== danas ? `  ·  ${dan}` : ''}
                             {glavna.operator ? `  ·  ${glavna.operator}` : ''}
                         </Text>
+                        {glavna.note ? <Text style={vs.napomenaPolaska}>{`⚠ nije za ovaj polazak · ${glavna.note}`}</Text> : null}
                         <Text style={vs.grupaOznaka}>
                             {`Grupna validacija · ${g.redci.length} karata  ${otvorena ? '▾' : '▸'}`}
                         </Text>
@@ -2104,7 +2120,11 @@ function PovijestValidacije({ zapisi }) {
                             const oi = ISHOD[z.outcome] || { tekst: z.outcome || '—', boja: colors.textMuted };
                             return (
                                 <View key={z.id} style={vs.grupaRedak}>
-                                    <Text style={vs.grupaKod}>{String(z.ticket_code || z.ticket_uuid || '')}</Text>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={vs.grupaKod}>{String(z.ticket_code || z.ticket_uuid || '')}</Text>
+                                        {z.ticket_type ? <Text style={vs.grupaVrsta}>{z.ticket_type}</Text> : null}
+                                        {z.note ? <Text style={vs.napomenaPolaska}>{`⚠ nije za ovaj polazak · ${z.note}`}</Text> : null}
+                                    </View>
                                     <Text style={[vs.ticketStatus, { color: oi.boja }]}>{oi.tekst}</Text>
                                 </View>
                             );
@@ -2148,6 +2168,11 @@ const vs = StyleSheet.create({
         paddingVertical: 8, paddingLeft: 16, paddingRight: 12,
     },
     grupaKod: { color: colors.textSecondary, fontSize: 14, fontFamily: 'monospace' },
+    grupaVrsta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+    // Karta propustena iako je za drugi polazak: zuti rub i napomena, da se u
+    // popisu odmah vidi sto je proslo mimo pravila.
+    retkaDrugiPolazak: { borderWidth: 1, borderColor: colors.warning },
+    napomenaPolaska: { color: colors.warning, fontSize: 11, fontWeight: '700', marginTop: 3 },
     headerBox: {
         padding: 12, backgroundColor: colors.surface, marginHorizontal: 12, marginTop: 10, borderRadius: 8,
         borderWidth: 1, borderColor: colors.border,

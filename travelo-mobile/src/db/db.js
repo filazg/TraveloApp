@@ -1,5 +1,5 @@
 import SQLite from 'react-native-sqlite-storage';
-import { SCHEMA } from './schema';
+import { SCHEMA, MIGRACIJE } from './schema';
 
 SQLite.enablePromise(true);
 
@@ -10,6 +10,18 @@ export async function openDb() {
     _db = await SQLite.openDatabase({ name: 'travelo.db', location: 'default' });
     for (const stmt of SCHEMA) {
         await _db.executeSql(stmt);
+    }
+    // Migracije smiju pasti: SQLite nema ADD COLUMN IF NOT EXISTS, pa je greska
+    // ovdje uobicajen ishod na uredaju koji stupac vec ima.
+    for (const stmt of MIGRACIJE) {
+        try {
+            await _db.executeSql(stmt);
+        } catch (e) {
+            const poruka = String(e?.message || e);
+            if (!/duplicate column/i.test(poruka)) {
+                console.log('[db] migracija nije prosla:', poruka);
+            }
+        }
     }
     return _db;
 }

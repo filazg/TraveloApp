@@ -10,7 +10,7 @@ import { deletePendingAttempt, loadPendingAttempts, savePendingAttempt, saveVali
 //
 // Zapis prvo ide u red pa se šalje u pozadini — djelatnik na vratima ne smije
 // čekati mrežu, a bez mreže prijava odlazi pri sljedećoj sinkronizaciji.
-export async function prijaviPokusaj({ ticketUuid, ticketCode, scanned, kada, terminalUuid, operator, outcome, note }) {
+export async function prijaviPokusaj({ ticketUuid, ticketCode, ticketType, scanned, kada, terminalUuid, operator, outcome, note }) {
     if (!ticketUuid) {return false;}
     const vrijeme = kada || new Date().toISOString();
     // Poslužitelj operatera zapisuje kao tekst; objekt bi mu srušio zapis.
@@ -24,6 +24,7 @@ export async function prijaviPokusaj({ ticketUuid, ticketCode, scanned, kada, te
         await saveValidationLog({
             ticketUuid,
             ticketCode,
+            ticketType,
             outcome,
             note,
             operator: imeOperatera,

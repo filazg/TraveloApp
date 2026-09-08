@@ -215,3 +215,10 @@ export const SCHEMA = [
     `CREATE INDEX IF NOT EXISTS idx_ticket_copy_prints_ticket ON ticket_copy_prints(ticket_uuid);`,
     `CREATE INDEX IF NOT EXISTS idx_ticket_copy_prints_synced ON ticket_copy_prints(synced);`,
 ];
+
+// Naknadne izmjene zatecenih tablica. SQLite nema ADD COLUMN IF NOT EXISTS, pa
+// se ovi upiti puste da padnu: greska znaci da stupac vec postoji. Zbog toga
+// stoje odvojeno od SCHEME, gdje greska mora zaustaviti otvaranje baze.
+export const MIGRACIJE = [
+    `ALTER TABLE validation_log ADD COLUMN ticket_type TEXT;`,
+];

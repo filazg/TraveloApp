@@ -425,12 +425,12 @@ export async function countPendingAttempts() {
 // ---------- POVIJEST OCITANJA ----------
 // Zapis ostaje na uredaju i nakon sto ode posluzitelju: djelatnik na vratima
 // gleda sto je ocitao u ovoj smjeni, a mreza mu za to ne treba.
-export async function saveValidationLog({ ticketUuid, ticketCode, outcome, note, operator, validatedAt }) {
+export async function saveValidationLog({ ticketUuid, ticketCode, ticketType, outcome, note, operator, validatedAt }) {
     await exec(
         `INSERT INTO validation_log
-         (ticket_uuid, ticket_code, outcome, note, operator, validated_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?);`,
-        [ticketUuid || null, ticketCode || null, outcome || null, note || null,
+         (ticket_uuid, ticket_code, ticket_type, outcome, note, operator, validated_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+        [ticketUuid || null, ticketCode || null, ticketType || null, outcome || null, note || null,
          operator || null, validatedAt, new Date().toISOString()]
     );
     return true;
@@ -438,7 +438,7 @@ export async function saveValidationLog({ ticketUuid, ticketCode, outcome, note,
 
 export async function loadValidationLog(limit = 200) {
     return queryAll(
-        `SELECT id, ticket_uuid, ticket_code, outcome, note, operator, validated_at
+        `SELECT id, ticket_uuid, ticket_code, ticket_type, outcome, note, operator, validated_at
            FROM validation_log ORDER BY id DESC LIMIT ?;`,
         [limit]
     );
