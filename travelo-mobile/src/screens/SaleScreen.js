@@ -877,6 +877,7 @@ export default function SaleScreen() {
                     fromIdx={fromIdx}
                     setFromIdx={setFromIdx}
                     voyageRouteUuids={voyageRouteUuids}
+                    rutaUlazneLuke={rutaOcitanja()}
                 />
             ) : (
             <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
@@ -1857,7 +1858,7 @@ const ISHOD = {
     canceled: { tekst: 'Stornirana', boja: colors.error },
 };
 
-function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, onRefresh, onTicketTap, userTypingRef, fromHarbor, harbors, fromIdx, setFromIdx, voyageRouteUuids }) {
+function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, onRefresh, onTicketTap, userTypingRef, fromHarbor, harbors, fromIdx, setFromIdx, voyageRouteUuids, rutaUlazneLuke }) {
     const [search, setSearch] = useState('');
     // Dvije kartice: PREGLED je popis karata polaska, POVIJEST je ono što je ovaj
     // uređaj očitao. Povijest se čita iz lokalne baze pa radi i bez mreže.
@@ -1887,8 +1888,14 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
 
     // Karte propustene s drugog polaska ili linije na ovom polasku. Ne ulaze u
     // brojac validiranih jer nisu karte ovog polaska, a bez ovoga ih nigdje ne
-    // bi bilo — ni ovdje ni kod kapetana.
-    const sDrugihPolazaka = povijestPolaska.filter((z) => z.note && z.outcome === 'validated').length;
+    // bi bilo — ni ovdje ni kod kapetana. Putnik se svejedno ukrcao u nekoj
+    // luci, pa i te karte pripadaju luci ukrcaja: zapis nosi nogu polaska na
+    // kojoj je ocitan, pa se broje uz luku iz koje ta noga krece.
+    const sDrugihPolazaka = povijestPolaska.filter(
+        (z) => z.note
+            && z.outcome === 'validated'
+            && (!rutaUlazneLuke || z.route_uuid === rutaUlazneLuke)
+    ).length;
 
     // Djelatnik stoji u jednoj luci i zanimaju ga samo putnici koji se tu
     // ukrcavaju; karte za kasnije luke mu na popisu samo smetaju. Zato se popis
