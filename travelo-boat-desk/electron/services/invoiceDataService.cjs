@@ -819,6 +819,9 @@ const syncPendingCopyPrintsService = async () => {
                             ticket_uuid: red.ticket_uuid,
                             ticket_code: red.ticket_code,
                             copy_no: red.copy_no,
+                            // Oznaka je vec otisnuta na papiru; posluzitelj je
+                            // zadrzava umjesto da racuna svoju.
+                            suffix: red.suffix,
                             printed_at: red.printed_at,
                             operator_name: red.operator_name,
                             billing_device_uuid: red.billing_device_uuid,

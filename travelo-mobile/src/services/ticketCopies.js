@@ -66,6 +66,9 @@ export async function posaljiKopije(limit = 200) {
                         ticket_uuid: k.ticket_uuid,
                         ticket_code: k.ticket_code,
                         copy_no: k.copy_no,
+                        // Oznaka je vec otisnuta na papiru; posluzitelj je
+                        // zadrzava umjesto da racuna svoju.
+                        suffix: k.suffix,
                         printed_at: k.printed_at,
                         operator_name: k.operator_name,
                         billing_device_uuid: k.billing_device_uuid,

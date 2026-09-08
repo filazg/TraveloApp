@@ -16,6 +16,10 @@ const zapisiKopiju = async ({
     ticket_uuid,
     ticket_code = null,
     copy_no = null,
+    // Uredaj koji je kopiju vec otisnuo salje i oznaku s papira; zapis mora
+    // nositi bas nju. Racun je isti na obje strane, ali x i z su nasumicni, pa
+    // bi ponovno generiranje dalo drugu oznaku od one koju kontrolor drzi u ruci.
+    suffix: suffix_s_papira = null,
     printed_at = null,
     operator_uuid = null,
     operator_name = null,
@@ -37,7 +41,14 @@ const zapisiKopiju = async ({
     // Iznad dvadeset i cetvrte se redni broj ne da zapisati u dva hex znaka.
     // Kopija se i dalje evidentira — ispis se dogodio i to je podatak — samo joj
     // sufiks ne nosi broj, pa se na papiru vidi da je kopija ali ne i koja.
-    const suffix = broj <= MAX_KOPIJA ? suffixKopije(ticket_uuid, broj) : null;
+    //
+    // Oznaka s uredaja ima prednost: ona je vec na papiru. Sam je racuna samo
+    // pozivatelj koji je nije poslao — starije blagajne i portal koji ispis tek
+    // trazi.
+    const sPapira = String(suffix_s_papira || "").trim();
+    const suffix = sPapira
+        ? sPapira
+        : (broj <= MAX_KOPIJA ? suffixKopije(ticket_uuid, broj) : null);
 
     // Previse kopija se vidi vec pri ispisu, ne treba cekati kontrolu. Prva i
     // druga kopija se dogadaju — izgubljena karta, zaglavljen papir. Treca je
