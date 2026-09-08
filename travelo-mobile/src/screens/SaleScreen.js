@@ -21,7 +21,7 @@ import {
     fetchVoyageTicketsThunk, validateScanThunk, validationData, clearScanResult,
     getCachedTicket, updateCachedTicket, findRelatedTickets, addTicketsToCache,
     lookupTicketRemote, jeStaraKarta,
-    listCachedTickets, countCachedValidated, countCachedValid,
+    listCachedTickets,
 } from '../store/slices/validationSlice';
 import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
@@ -1890,13 +1890,24 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
     // bi bilo — ni ovdje ni kod kapetana.
     const sDrugihPolazaka = povijestPolaska.filter((z) => z.note && z.outcome === 'validated').length;
 
+    // Djelatnik stoji u jednoj luci i zanimaju ga samo putnici koji se tu
+    // ukrcavaju; karte za kasnije luke mu na popisu samo smetaju. Zato se popis
+    // i brojila drže odabrane ulazne luke. Karta bez upisane luke ukrcaja
+    // (starije karte) ostaje vidljiva svugdje — bolje da je djelatnik nađe nego
+    // da mu nestane s popisa.
+    const zaUlaznuLuku = (t) => !fromHarbor?.id
+        || !t.departure_harbor_id
+        || String(t.departure_harbor_id) === String(fromHarbor.id);
+
     // Re-komputiramo listu i brojila na svaki render — cache se ažurira tijekom
     // scan-a pa će parent re-render (zbog scanResult promjene) osvježiti prikaz.
-    const allTickets = listCachedTickets();
+    const allTickets = listCachedTickets().filter(zaUlaznuLuku);
     // Brojač govori koliko se putnika ukrcava, pa stornirane ne ulaze — one
     // ostaju u popisu samo da se vidi da su nevažeće.
-    const total = countCachedValid();
-    const validatedCount = countCachedValidated();
+    const total = allTickets.filter((t) => !t.is_canceled).length;
+    const validatedCount = allTickets.filter(
+        (t) => !t.is_canceled && (t.status === 'validated' || t.validate_data)
+    ).length;
 
     const filtered = search.trim()
         ? allTickets.filter((t) => {
