@@ -1951,8 +1951,10 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
 
             <View style={vs.statsRow}>
                 <View style={vs.statBox}>
-                    <Text style={vs.statLabel}>
-                        Karte (ukupno / validirano{sDrugihPolazaka > 0 ? ' / drugi polazak' : ''})
+                    {/* Bez rijeci "Karte": natpis se s trecim brojem lomio u dva
+                        reda, a iznad njega ionako stoji popis karata. */}
+                    <Text style={vs.statLabel} numberOfLines={1}>
+                        {sDrugihPolazaka > 0 ? 'UKUPNO / VALIDIRANO / DRUGI POLAZAK' : 'UKUPNO / VALIDIRANO'}
                     </Text>
                     <Text style={vs.statValue}>
                         {total}/{validatedCount}
@@ -2241,7 +2243,7 @@ const vs = StyleSheet.create({
         flex: 1, backgroundColor: colors.surface, padding: 12, borderRadius: 8,
         borderWidth: 1, borderColor: colors.border,
     },
-    statLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
+    statLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
     statValue: { color: colors.textPrimary, fontSize: 24, fontWeight: '800', marginTop: 4 },
     refreshBtn: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 8, marginLeft: 10 },
     refreshText: { color: colors.textOnPrimary, fontWeight: '700' },
