@@ -1,16 +1,13 @@
-// Slaze UPUTE_ZA_OPERATERA.md u PDF. Isti postupak i isti stil kao upute za
-// blagajnika i portal — dokumenti se time drze jednog izgleda.
-// marked pretvara markdown u html, Chromium ga ispisuje u PDF.
-//
-// Pokretanje:  node travelo-mobile/docs/upute/_alat/build_pdf.js
+// Render KORISNICKE_UPUTE.md -> KORISNICKE_UPUTE.pdf
+// Uses marked for md->html and Playwright (Chromium) for html->pdf.
 const fs = require("fs");
 const path = require("path");
-const { marked } = require("C:/Tech4beeZ/Projekti/TraveloApp/travelo-portal/docs/upute/_shotter/node_modules/marked");
-const { chromium } = require("C:/Tech4beeZ/Projekti/TraveloApp/travelo-portal/docs/upute/_shotter/node_modules/playwright");
+const { marked } = require("marked");
+const { chromium } = require("playwright");
 
-const SRC = path.resolve(__dirname, "..", "UPUTE_ZA_OPERATERA.md");
+const SRC = path.resolve(__dirname, "..", "KORISNICKE_UPUTE.md");
 const IMG_DIR = path.resolve(__dirname, "..", "images");
-const OUT_PDF = path.resolve(__dirname, "..", "..", "TraveloAPP-upute-za-operatera-1.0.7.pdf");
+const OUT_PDF = path.resolve(__dirname, "..", "KORISNICKE_UPUTE.pdf");
 
 const md = fs.readFileSync(SRC, "utf8");
 
@@ -29,17 +26,13 @@ const resolvedHtml = bodyHtml.replace(
 
 // Izgled dolazi iz zajednickog stila; ovdje stoji samo ono sto je posebno
 // za ovaj dokument.
-const css = fs.readFileSync("C:/Tech4beeZ/Projekti/TraveloApp/docs/upute/stil.css", "utf8") + `
-/* Snimke su s telefona, uspravne: preko cijele sirine stranice svaka bi
-   zauzela vise od pola stranice i dokument bi narastao trostruko. */
-img { max-width: 62mm; }
-`;
+const css = fs.readFileSync("C:/Tech4beeZ/Projekti/TraveloApp/docs/upute/stil.css", "utf8");
 
 const fullHtml = `<!doctype html>
 <html lang="hr">
 <head>
 <meta charset="utf-8">
-<title>TraveloAPP Boat Mobile — Upute za operatera</title>
+<title>TraveloApp — Korisničke upute</title>
 <style>${css}</style>
 </head>
 <body>

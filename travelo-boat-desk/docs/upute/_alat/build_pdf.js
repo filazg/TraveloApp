@@ -26,45 +26,9 @@ const resolvedHtml = bodyHtml.replace(
     (_, name) => `src="file:///${path.join(IMG_DIR, name).replace(/\\/g, "/")}"`
 );
 
-const css = `
-@page { size: A4; margin: 18mm 16mm; }
-* { box-sizing: border-box; }
-body {
-    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    color: #1f2937;
-    font-size: 11pt;
-    line-height: 1.55;
-    max-width: 100%;
-}
-h1 { font-size: 22pt; margin: 0 0 12px; color: #0f172a; border-bottom: 2px solid #2E53A0; padding-bottom: 6px; }
-h2 { font-size: 16pt; margin: 22px 0 8px; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; page-break-after: avoid; }
-h3 { font-size: 13pt; margin: 16px 0 4px; color: #1e3a8a; page-break-after: avoid; }
-h4 { font-size: 11.5pt; margin: 12px 0 3px; color: #1e3a8a; }
-p { margin: 6px 0; }
-ul, ol { margin: 6px 0 6px 20px; }
-li { margin: 2px 0; }
-hr { border: 0; border-top: 1px solid #cbd5e1; margin: 18px 0; }
-code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 10pt; }
-pre { background: #0f172a; color: #f1f5f9; padding: 10px 12px; border-radius: 6px; overflow: auto; font-size: 9.5pt; }
-pre code { background: transparent; color: inherit; padding: 0; }
-blockquote { border-left: 3px solid #2E53A0; background: #f8fafc; padding: 6px 12px; margin: 8px 0; color: #334155; }
-table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 10pt; }
-th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; vertical-align: top; }
-th { background: #f1f5f9; }
-img {
-    max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 10px auto;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(15,23,42,0.08);
-    page-break-inside: avoid;
-}
-a { color: #2E53A0; text-decoration: none; }
-a:hover { text-decoration: underline; }
-h2, h3 { page-break-inside: avoid; }
-`;
+// Izgled dolazi iz zajednickog stila; ovdje stoji samo ono sto je posebno
+// za ovaj dokument.
+const css = fs.readFileSync("C:/Tech4beeZ/Projekti/TraveloApp/docs/upute/stil.css", "utf8");
 
 const fullHtml = `<!doctype html>
 <html lang="hr">
