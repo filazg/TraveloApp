@@ -71,11 +71,11 @@ module.exports = (sequelize) => {
             // s drugog polaska ne ulazi u brojace te voznje, pa bi bez ovoga
             // ostala nevidljiva i kapetanu i u izvjestajima.
             validated_route_uuid: {
-                type: Sequelize.STRING,
+                type: DataTypes.STRING,
                 allowNull: true,
             },
             other_voyage: {
-                type: Sequelize.BOOLEAN,
+                type: DataTypes.BOOLEAN,
                 allowNull: false,
                 defaultValue: false,
             },
