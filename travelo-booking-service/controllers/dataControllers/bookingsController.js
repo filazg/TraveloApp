@@ -402,7 +402,21 @@ const validateTicketsController = async (req, res) => {
                 order: [["arrival_harbor_order", "ASC"]],
             });
             if (noga) {
-                await BookingModel.increment({ validated_out: qty }, { where: { id: noga.id } });
+                // Ista noga zna postojati u više redaka (polazak inicijaliziran
+                // više puta). Broji se po nozi, ne po retku — inače dio ukrcanih
+                // padne na redak koji kapetanski modul ne čita pa iskrcaj ispadne
+                // manji nego što jest.
+                await BookingModel.increment(
+                    { validated_out: qty },
+                    {
+                        where: {
+                            departure_uuid: meta.departure_uuid,
+                            category_uuid,
+                            arrival_harbor_id: String(izlaz),
+                            arrival_harbor_order: noga.arrival_harbor_order,
+                        },
+                    }
+                );
             }
         }
 

@@ -453,8 +453,15 @@ function SailingDetailView({
                 };
             }
         }
+        // Ista noga zna doci u vise redaka (polazak inicijaliziran vise puta).
+        // Broji se jednom po nozi i kategoriji — inace bi ukrcani i iskrcani
+        // ispali umnozeni brojem kopija.
+        const vidjene = new Set();
         for (const b of bookings) {
             const code = b.category_code || b.category_uuid;
+            const kljuc = `${b.route_uuid}|${b.departure_harbor_id}|${b.arrival_harbor_id}|${code}`;
+            if (vidjene.has(kljuc)) continue;
+            vidjene.add(kljuc);
             // leg starting from departure_harbor_id
             const depStats = stats[b.departure_harbor_id]?.[code];
             if (depStats) {
