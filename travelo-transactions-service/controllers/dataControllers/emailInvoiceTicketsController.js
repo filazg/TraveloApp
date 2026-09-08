@@ -47,6 +47,10 @@ const emailInvoiceTicketsController = async (req, res) => {
             });
         }
 
+        if (!API_KEY) {
+            console.log("mail nije poslan: RESEND_API_KEY nije postavljen u okolini");
+            return res.status(503).json({ status: 503, data: { message: "Slanje e-pošte nije podešeno." } });
+        }
         const resend = new Resend(API_KEY);
         const result = await resend.emails.send({
             from: FROM,

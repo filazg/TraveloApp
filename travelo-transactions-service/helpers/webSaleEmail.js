@@ -6,7 +6,10 @@ const { Resend } = require('resend');
 const API_KEY = process.env.RESEND_API_KEY || '';
 const FROM = process.env.RESEND_FROM || 'Kapetan Luka <noreply@tech4beez.com>';
 
-const resend = new Resend(API_KEY);
+// Klijent se stvara samo kad kljuc postoji: Resend baca vec u konstruktoru,
+// a to bi pri pokretanju srusilo cijeli servis — prodaja i ispis ne smiju
+// ovisiti o tome je li mail podesen.
+const resend = API_KEY ? new Resend(API_KEY) : null;
 
 const buildHtml = (lang, buyerName) => {
     if (lang === 'en') {
@@ -50,6 +53,11 @@ const sendWebSaleEmail = async ({ to, lang = 'hr', buyerName, invoicePdf, ticket
             content: ticketsPdf.toString('base64'),
             contentType: 'application/pdf',
         });
+    }
+
+    if (!resend) {
+        console.log('mail nije poslan: RESEND_API_KEY nije postavljen u okolini');
+        return { ok: false, skipped: true, reason: 'no api key' };
     }
 
     try {

@@ -6,7 +6,10 @@ const { Resend } = require('resend');
 const API_KEY = process.env.RESEND_API_KEY || '';
 const FROM = process.env.RESEND_FROM || 'Kapetan Luka <noreply@tech4beez.com>';
 
-const resend = new Resend(API_KEY);
+// Klijent se stvara samo kad kljuc postoji: Resend baca vec u konstruktoru,
+// a to bi pri pokretanju srusilo cijeli servis — prodaja i ispis ne smiju
+// ovisiti o tome je li mail podesen.
+const resend = API_KEY ? new Resend(API_KEY) : null;
 
 const escapeHtml = (s) => String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -43,6 +46,10 @@ const buildHtml = ({ body, signature = "", sailing }) => `
 
 const sendDispatcherEmail = async ({ to, subject, body, signature, sailing }) => {
     if (!to) return { ok: false, skipped: true, reason: "no recipient" };
+    if (!resend) {
+        console.log('mail nije poslan: RESEND_API_KEY nije postavljen u okolini');
+        return { ok: false, skipped: true, reason: 'no api key' };
+    }
     try {
         const result = await resend.emails.send({
             from: FROM,
