@@ -54,9 +54,17 @@ Bez `RESEND_API_KEY` servis radi, ali mail ne odlazi; u logu stoji greska
 poslana od Resenda.
 
 ```bash
-# u ~/.profile korisnika koji pokrece pm2 (pa `pm2 restart all --update-env`)
+# u ~/.profile korisnika koji pokrece pm2
+export DB_PASS='...'
 export RESEND_API_KEY='...'
 ```
+
+**`--update-env` uzima okolinu iz ljuske iz koje je pozvan.** Ako u njoj nema
+`DB_PASS`, pm2 ga procesima proslijedi prazan i svi servisi padnu na
+`password authentication failed for user "doadmin"` — a dotad su radili, jer su
+vrijednost nosili iz starijeg pokretanja. Zato prvo `source ~/.profile`, pa tek
+onda restart; `pm2 save` tek kad servisi budu spojeni, da dump ne zapamti
+pokvarenu okolinu.
 
 Kljuc koji je do rujna 2026. stajao upisan u kodu treba zamijeniti novim: bio je
 u javnoj povijesti repozitorija, pa se vise ne moze smatrati tajnim.
