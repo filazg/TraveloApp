@@ -422,6 +422,36 @@ export async function countPendingAttempts() {
     return r?.c || 0;
 }
 
+// ---------- POVIJEST OCITANJA ----------
+// Zapis ostaje na uredaju i nakon sto ode posluzitelju: djelatnik na vratima
+// gleda sto je ocitao u ovoj smjeni, a mreza mu za to ne treba.
+export async function saveValidationLog({ ticketUuid, ticketCode, outcome, note, operator, validatedAt }) {
+    await exec(
+        `INSERT INTO validation_log
+         (ticket_uuid, ticket_code, outcome, note, operator, validated_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        [ticketUuid || null, ticketCode || null, outcome || null, note || null,
+         operator || null, validatedAt, new Date().toISOString()]
+    );
+    return true;
+}
+
+export async function loadValidationLog(limit = 200) {
+    return queryAll(
+        `SELECT id, ticket_uuid, ticket_code, outcome, note, operator, validated_at
+           FROM validation_log ORDER BY id DESC LIMIT ?;`,
+        [limit]
+    );
+}
+
+// Povijest se ne cuva zauvijek — uredaj radi mjesecima, a zanimljivo je ono
+// sto je blizu. Cisti se ono starije od dva tjedna.
+export async function pruneValidationLog(dana = 14) {
+    const granica = new Date(Date.now() - dana * 24 * 60 * 60 * 1000).toISOString();
+    await exec(`DELETE FROM validation_log WHERE validated_at < ?;`, [granica]);
+    return true;
+}
+
 // ---------- ADRESAR (BUYERS) ----------
 // Spremaju se podaci R1 kupaca nakon uspješne prodaje — za brzi izbor idući put.
 export async function saveBuyer(buyer) {

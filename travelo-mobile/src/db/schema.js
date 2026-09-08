@@ -173,6 +173,21 @@ export const SCHEMA = [
         UNIQUE(ticket_uuid, validated_at)
     );`,
     `CREATE INDEX IF NOT EXISTS idx_pending_attempts_created ON pending_validation_attempts(created_at);`,
+
+    // Povijest ocitanja na uredaju. Red neposlanih se prazni kad zapis ode
+    // posluzitelju, pa iz njega nema sto citati — a djelatniku na vratima treba
+    // pregled onoga sto je vec ocitao, i kad mreze nema.
+    `CREATE TABLE IF NOT EXISTS validation_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ticket_uuid TEXT,
+        ticket_code TEXT,
+        outcome TEXT,
+        note TEXT,
+        operator TEXT,
+        validated_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_validation_log_time ON validation_log(validated_at DESC);`,
     // Preseljenje zateceno neposlanog iz starog reda; INSERT OR IGNORE i brisanje
     // cine korak ponovljivim pri svakom pokretanju.
     `INSERT OR IGNORE INTO pending_validation_attempts

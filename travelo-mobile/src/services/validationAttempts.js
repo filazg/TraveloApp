@@ -1,6 +1,6 @@
 import api from '../api/client';
 import { ENDPOINTS } from '../api/config';
-import { deletePendingAttempt, loadPendingAttempts, savePendingAttempt } from '../db/repo';
+import { deletePendingAttempt, loadPendingAttempts, savePendingAttempt, saveValidationLog } from '../db/repo';
 
 // Prijava jednog očitanja karte.
 //
@@ -10,13 +10,28 @@ import { deletePendingAttempt, loadPendingAttempts, savePendingAttempt } from '.
 //
 // Zapis prvo ide u red pa se šalje u pozadini — djelatnik na vratima ne smije
 // čekati mrežu, a bez mreže prijava odlazi pri sljedećoj sinkronizaciji.
-export async function prijaviPokusaj({ ticketUuid, scanned, kada, terminalUuid, operator, outcome }) {
+export async function prijaviPokusaj({ ticketUuid, ticketCode, scanned, kada, terminalUuid, operator, outcome, note }) {
     if (!ticketUuid) {return false;}
     const vrijeme = kada || new Date().toISOString();
     // Poslužitelj operatera zapisuje kao tekst; objekt bi mu srušio zapis.
     const imeOperatera = typeof operator === 'object' && operator !== null
         ? (operator.name || operator.uuid || '')
         : (operator || '');
+
+    // Povijest ostaje na uređaju i kad zapis ode poslužitelju; red neposlanih se
+    // prazni, pa se iz njega ne bi imalo što prikazati.
+    try {
+        await saveValidationLog({
+            ticketUuid,
+            ticketCode,
+            outcome,
+            note,
+            operator: imeOperatera,
+            validatedAt: vrijeme,
+        });
+    } catch (e) {
+        console.log('[prijaviPokusaj] povijest nije zapisana:', e?.message || e);
+    }
 
     try {
         await savePendingAttempt({

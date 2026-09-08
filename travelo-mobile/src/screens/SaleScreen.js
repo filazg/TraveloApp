@@ -27,7 +27,7 @@ import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
 import { prijaviPokusaj } from '../services/validationAttempts';
 import { ENDPOINTS } from '../api/config';
-import { loadRecentBuyers, saveBuyer, findTicketByUuidOrCode } from '../db/repo';
+import { loadRecentBuyers, saveBuyer, findTicketByUuidOrCode, loadValidationLog } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
 import { startScan as akdStartScan, stopScan as akdStopScan, onCardRead as akdOnCardRead, hideKeyboard as akdHideKeyboard, akdCardAvailable } from '../device/akdCard';
 import { printReceipt as printReceiptFn, printTickets as printTicketsFn } from '../device/printSale';
@@ -244,6 +244,7 @@ export default function SaleScreen() {
                 // samo poruka djelatniku — zato se javlja poslužitelju.
                 prijaviPokusaj({
                     ticketUuid: local.ticket_uuid,
+                    ticketCode: local.ticket_code,
                     scanned: code,
                     terminalUuid: sync.basicData?.billing_device_uuid,
                     operator: imeOperatera(),
@@ -260,6 +261,7 @@ export default function SaleScreen() {
                 // samo ovdje na zaslonu.
                 prijaviPokusaj({
                     ticketUuid: local.ticket_uuid,
+                    ticketCode: local.ticket_code,
                     scanned: code,
                     terminalUuid: sync.basicData?.billing_device_uuid,
                     operator: imeOperatera(),
@@ -318,6 +320,7 @@ export default function SaleScreen() {
             // djelatnik pušta zajedno s njom, a njihov papir nitko nije čitao.
             prijaviPokusaj({
                 ticketUuid: t.ticket_uuid,
+                ticketCode: t.ticket_code,
                 scanned: scanned && t.ticket_uuid === tickets[0]?.ticket_uuid ? scanned : null,
                 kada: nowIso,
                 terminalUuid,
@@ -1815,8 +1818,31 @@ function LocalValidationStatus({ result }) {
 // Validacija polaska. Scan output prikazujemo inline u TextInputu — Modal
 // komponenta je rušila app na Sunmi V2s 3s nakon scan-a (čak i bez ikakvih
 // drugih akcija), a TextInput je stabilan.
+// Ishodi očitanja onako kako ih djelatnik prepoznaje. Zapis nosi tehničku
+// oznaku, ali na popisu treba stajati ono što se dogodilo na vratima.
+const ISHOD = {
+    validated: { tekst: 'Validirano', boja: colors.success || '#16A34A' },
+    already_validated: { tekst: 'Već validirana', boja: colors.error },
+    canceled: { tekst: 'Stornirana', boja: colors.error },
+};
+
 function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, onRefresh, onTicketTap, userTypingRef, fromHarbor, harbors, fromIdx, setFromIdx }) {
     const [search, setSearch] = useState('');
+    // Dvije kartice: PREGLED je popis karata polaska, POVIJEST je ono što je ovaj
+    // uređaj očitao. Povijest se čita iz lokalne baze pa radi i bez mreže.
+    const [kartica, setKartica] = useState('pregled');
+    const [povijest, setPovijest] = useState([]);
+
+    useEffect(() => {
+        if (kartica !== 'povijest') {return;}
+        let ziv = true;
+        loadValidationLog(200)
+            .then((r) => { if (ziv) {setPovijest(r || []);} })
+            .catch((e) => console.log('[povijest] citanje nije uspjelo:', e?.message || e));
+        return () => { ziv = false; };
+        // Nakon svakog očitanja parent se ponovno iscrta (scanResult), pa se s njim
+        // osvježi i popis — bez toga bi zadnje očitanje nedostajalo.
+    }, [kartica, scanResult]);
 
     // Re-komputiramo listu i brojila na svaki render — cache se ažurira tijekom
     // scan-a pa će parent re-render (zbog scanResult promjene) osvježiti prikaz.
@@ -1847,8 +1873,19 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
         return (a.ticket_code || '').localeCompare(b.ticket_code || '');
     });
 
+    if (kartica === 'povijest') {
+        return (
+            <View style={{ flex: 1 }}>
+                <KarticeValidacije kartica={kartica} setKartica={setKartica} />
+                <PovijestValidacije zapisi={povijest} />
+            </View>
+        );
+    }
+
     return (
         <View style={{ flex: 1 }}>
+            <KarticeValidacije kartica={kartica} setKartica={setKartica} />
+
             {/* Odabir ulazne luke — usporedba protiv ticket-ove departure_harbor */}
             <View style={vs.harborSelector}>
                 <Text style={vs.harborSelectorLabel}>ULAZNA LUKA</Text>
@@ -1963,7 +2000,103 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
     );
 }
 
+// Traka s karticama. Stoji na vrhu oba prikaza, da se prebacivanje ne trazi.
+function KarticeValidacije({ kartica, setKartica }) {
+    return (
+        <View style={vs.karticeRed}>
+            {[['pregled', 'PREGLED'], ['povijest', 'POVIJEST']].map(([kljuc, natpis]) => (
+                <TouchableOpacity
+                    key={kljuc}
+                    style={[vs.karticaBtn, kartica === kljuc && vs.karticaBtnAktivna]}
+                    onPress={() => setKartica(kljuc)}
+                >
+                    <Text style={[vs.karticaText, kartica === kljuc && vs.karticaTextAktivan]}>{natpis}</Text>
+                </TouchableOpacity>
+            ))}
+        </View>
+    );
+}
+
+// Pregled aktivnosti pri validaciji: sto je ocitano, kada i s kakvim ishodom.
+// Cita se iz lokalne baze, pa je jednako dostupno i bez mreze.
+function PovijestValidacije({ zapisi }) {
+    const vrijeme = (v) => {
+        const d = new Date(v);
+        return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('hr-HR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+    const datum = (v) => {
+        const d = new Date(v);
+        return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('hr-HR');
+    };
+    const danas = new Date().toLocaleDateString('hr-HR');
+
+    if (!zapisi.length) {
+        return <Text style={vs.emptyText}>Još nema očitanih karata na ovom uređaju.</Text>;
+    }
+
+    // Karte propuštene odjednom (VALIDIRAJ SVE) nose isto vrijeme, jer su i
+    // obrađene u jednom potezu. U popisu se zato prikazuju u zajedničkom okviru
+    // — inače izgledaju kao nekoliko odvojenih očitanja, a bilo je jedno.
+    const skupine = [];
+    for (const z of zapisi) {
+        const zadnja = skupine[skupine.length - 1];
+        if (zadnja && zadnja.kada === z.validated_at) {zadnja.redci.push(z);}
+        else {skupine.push({ kada: z.validated_at, redci: [z] });}
+    }
+
+    const redak = (z) => {
+        const i = ISHOD[z.outcome] || { tekst: z.outcome || '—', boja: colors.textMuted };
+        const dan = datum(z.validated_at);
+        return (
+            <View key={z.id} style={vs.ticketRow}>
+                <View style={[vs.ticketMarker, { backgroundColor: i.boja }]} />
+                <View style={{ flex: 1 }}>
+                    <Text style={vs.ticketCode}>{String(z.ticket_code || z.ticket_uuid || '')}</Text>
+                    <Text style={vs.ticketType}>
+                        {vrijeme(z.validated_at)}
+                        {dan && dan !== danas ? `  ·  ${dan}` : ''}
+                        {z.operator ? `  ·  ${z.operator}` : ''}
+                    </Text>
+                </View>
+                <Text style={[vs.ticketStatus, { color: i.boja }]}>{i.tekst}</Text>
+            </View>
+        );
+    };
+
+    return (
+        <ScrollView style={vs.ticketList} keyboardShouldPersistTaps="handled">
+            {skupine.map((g) => (g.redci.length > 1 ? (
+                <View key={g.kada} style={vs.grupaOkvir}>
+                    <Text style={vs.grupaNaslov}>
+                        {`Zajedno · ${g.redci.length} karte · ${vrijeme(g.kada)}`}
+                    </Text>
+                    {g.redci.map(redak)}
+                </View>
+            ) : redak(g.redci[0])))}
+        </ScrollView>
+    );
+}
+
 const vs = StyleSheet.create({
+    karticeRed: {
+        flexDirection: 'row', marginHorizontal: 12, marginTop: 10,
+        backgroundColor: colors.surface, borderRadius: 8,
+        borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
+    },
+    karticaBtn: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+    karticaBtnAktivna: { backgroundColor: colors.primary },
+    karticaText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800', letterSpacing: 1 },
+    karticaTextAktivan: { color: colors.textOnPrimary },
+    grupaOkvir: {
+        marginHorizontal: 12, marginTop: 8,
+        borderWidth: 2, borderColor: colors.primary, borderRadius: 8,
+        paddingBottom: 6, overflow: 'hidden',
+    },
+    grupaNaslov: {
+        color: colors.textOnPrimary, backgroundColor: colors.primary,
+        fontSize: 11, fontWeight: '800', letterSpacing: 0.5,
+        paddingVertical: 5, paddingHorizontal: 10,
+    },
     headerBox: {
         padding: 12, backgroundColor: colors.surface, marginHorizontal: 12, marginTop: 10, borderRadius: 8,
         borderWidth: 1, borderColor: colors.border,

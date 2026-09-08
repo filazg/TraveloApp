@@ -8,6 +8,7 @@ import { startSyncStream, stopSyncStream } from '../api/syncStream';
 import { autoCloseStaleShiftThunk, loadCurrentOpenThunk, loadRecentShiftsThunk, shiftsData, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
 import { syncPendingSalesThunk } from '../store/slices/salesSlice';
 import { posaljiKopije } from '../services/ticketCopies';
+import { pruneValidationLog } from '../db/repo';
 import { refreshOpenVoyageTicketsThunk, syncPendingValidationsThunk } from '../store/slices/validationSlice';
 import { openDb } from '../db/db';
 import { voyageData } from '../store/slices/voyageSlice';
@@ -176,6 +177,10 @@ export default function AppNavigator() {
     // plan, jer je mreža tada najčešće opet dostupna.
     useEffect(() => {
         if (!sync.hydrated || !auth.token || !sync.basicData) return;
+        // Povijest ocitanja se ne cuva zauvijek: uredaj radi mjesecima, a
+        // djelatniku treba ono blizu. Starije od dva tjedna otpada.
+        pruneValidationLog().catch(() => {});
+
         // Uz prodaje idu i ispisane kopije karata: uredaj ih oznaci i evidentira
         // sam, pa posluzitelj za njih saznaje tek ovdje.
         const push = () => {
