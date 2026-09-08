@@ -19,6 +19,9 @@ const printLogo = async (printer, base64) => {
         const cisto = podatak.replace(/^data:image\/[a-z+]+;base64,/i, '');
         printer.alignCenter();
         await printer.printImageBuffer(Buffer.from(cisto, 'base64'));
+        // Razmak ide tek kad je slika stvarno otisnuta: inace bi racun bez
+        // logotipa poceo praznim retkom.
+        printer.newLine();
     } catch (error) {
         console.log('logo nije ispisan:', error?.message || error);
     }
