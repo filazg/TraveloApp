@@ -22,7 +22,7 @@ import {
 //   toHarbor     — { name }
 //   isReprint    — true → "*** KOPIJA ***" header
 export async function printReceipt({ r, items, paymentName, basicData, operator, voyage, fromHarbor, toHarbor, isReprint }) {
-    if (!sunmiPrinterAvailable) return;
+    if (!sunmiPrinterAvailable) return true;
     try {
         // Backend response može imati alternativne ključeve (vat_base, vat,
         // harbor_tax, amount); native očekuje total_*. Normaliziraj prije slanja.
@@ -51,8 +51,10 @@ export async function printReceipt({ r, items, paymentName, basicData, operator,
             toHarbor: toHarbor || {},
             isReprint: !!isReprint,
         });
+        return true;
     } catch (e) {
         console.warn('[printReceipt] ERROR:', e?.message || e);
+        return false;
     }
 }
 
@@ -73,7 +75,7 @@ export async function printShiftReport({ shift, basicData, isReprint }) {
 
 // Ispis pojedinačnih karata. args: { tickets, basicData, voyage, isReprint }
 export async function printTickets({ tickets, basicData, voyage, isReprint }) {
-    if (!sunmiPrinterAvailable || !tickets?.length) return;
+    if (!sunmiPrinterAvailable || !tickets?.length) return true;
     try {
         await nativePrintTickets({
             tickets,
@@ -81,7 +83,9 @@ export async function printTickets({ tickets, basicData, voyage, isReprint }) {
             voyage: voyage || {},
             isReprint: !!isReprint,
         });
+        return true;
     } catch (e) {
         console.warn('[printTickets] ERROR:', e?.message || e);
+        return false;
     }
 }

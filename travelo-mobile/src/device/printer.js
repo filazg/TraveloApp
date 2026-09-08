@@ -9,10 +9,30 @@ export const ALIGN = { LEFT: 0, CENTER: 1, RIGHT: 2 };
 
 let bound = false;
 
+// Sunmi printer servis je zaseban proces. Kad se zaglavi (nestalo papira,
+// zaostali buffer, servis restartan usred posla), AIDL poziv nikad ne vrati
+// odgovor — a bez roka čekanja ekran "ISPIS U TIJEKU" ostane zauvijek i
+// blagajna stoji. Zato svaki poziv prema servisu ima svoj rok; istekne li,
+// ispis se prekida s greškom, a prodaja ide dalje (račun je već spremljen i
+// može se ispisati iz Dokumenata).
+export async function sRokom(posao, ms, sto) {
+    let brojac = null;
+    try {
+        return await Promise.race([
+            posao,
+            new Promise((_, odbij) => {
+                brojac = setTimeout(() => odbij(new Error(`${sto} nije odgovorio u ${Math.round(ms / 1000)} s`)), ms);
+            }),
+        ]);
+    } finally {
+        if (brojac) {clearTimeout(brojac);}
+    }
+}
+
 export async function bindPrinter() {
     if (!isAvailable) throw new Error('SunmiPrinter not available');
     if (bound) return true;
-    const ok = await SunmiPrinter.bind();
+    const ok = await sRokom(SunmiPrinter.bind(), 8000, 'Printer');
     bound = !!ok;
     return bound;
 }
@@ -154,17 +174,30 @@ export async function exitPrinterBuffer(commit = true) {
 
 // High-level native ispisi — sav layout (font, alignment, kolone) je u Kotlin modulu.
 // Vidi `SunmiPrinterModule.printReceipt` / `printShiftReport` / `printTickets` za detalje.
+// Nakon neuspjelog ispisa veza prema servisu se odbacuje: idući ispis se
+// veže iznova umjesto da nastavi preko zaglavljene veze.
+async function ispisi(posao, ms, sto) {
+    try {
+        return await sRokom(posao, ms, sto);
+    } catch (e) {
+        bound = false;
+        throw e;
+    }
+}
+
 export async function nativePrintReceipt(data) {
     await bindPrinter();
-    return SunmiPrinter.printReceipt(data);
+    return ispisi(SunmiPrinter.printReceipt(data), 45000, 'Ispis računa');
 }
 export async function nativePrintShiftReport(data) {
     await bindPrinter();
-    return SunmiPrinter.printShiftReport(data);
+    return ispisi(SunmiPrinter.printShiftReport(data), 45000, 'Ispis zaključka');
 }
 export async function nativePrintTickets(data) {
     await bindPrinter();
-    return SunmiPrinter.printTickets(data);
+    // Karte idu jednim pozivom pa dug račun s puno karata treba više vremena
+    // nego sam račun.
+    return ispisi(SunmiPrinter.printTickets(data), 120000, 'Ispis karata');
 }
 
 export const sunmiPrinterAvailable = isAvailable;

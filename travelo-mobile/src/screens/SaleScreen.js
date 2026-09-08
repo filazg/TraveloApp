@@ -572,7 +572,7 @@ export default function SaleScreen() {
     // Print račun + karte preko zajedničkog modula (src/device/printSale.js).
     // Iste funkcije koristi i DocumentsScreen za reprint.
     const printReceipt = async (r, items, paymentName) => {
-        await printReceiptFn({
+        return printReceiptFn({
             r,
             items,
             paymentName,
@@ -585,7 +585,7 @@ export default function SaleScreen() {
         });
     };
     const printTickets = async (tickets) => {
-        await printTicketsFn({
+        return printTicketsFn({
             tickets,
             basicData: sync.basicData,
             voyage: v,
@@ -722,12 +722,19 @@ export default function SaleScreen() {
                 addTicketsToCache(r.tickets || []);
                 // F2 račun se kupcu dostavlja kao e-račun (HRFISK20), pa se na
                 // blagajni ne ispisuje — na papir idu samo karte.
+                let ispisano = true;
                 if (!r.is_f2) {
                     setPrintingLabel('Ispis računa…');
-                    await printReceipt(r, items, pm.name);
+                    ispisano = await printReceipt(r, items, pm.name);
                 }
                 setPrintingLabel(`Ispis karata… (${(r.tickets || []).length})`);
-                await printTickets(r.tickets || []);
+                if (!(await printTickets(r.tickets || []))) { ispisano = false; }
+                // Papir zna nestati ili se printer servis zaglavi. Racun je vec
+                // izdan i spremljen, pa se prodaja ne prekida — ali operater
+                // mora znati da papir nije izasao.
+                if (!ispisano) {
+                    Alert.alert('Ispis nije uspio', 'Račun je izdan i spremljen. Provjerite papir i ispišite kopiju iz Dokumenata.');
+                }
                 setQtyByType({});
                 setIslandTickets([]);
                 dispatch(clearLastInvoice());
