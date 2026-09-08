@@ -776,10 +776,19 @@ function SailingDetailView({
                                                     {!h.is_last && (
                                                         <>
                                                             <Divider sx={{ my: 0.25 }} />
+                                                            {/* Na brodu su ljudi koji su prosli ocitanje na
+                                                                ovoj nozi — i oni s kartom za ovaj polazak i oni
+                                                                propusteni s drugog. Rezervirano ostaje ispod,
+                                                                jer po njemu ide kapacitet. */}
                                                             <RowInfo
                                                                 label="Na brodu"
-                                                                value={`${st.onboard} / ${st.capacity}`}
+                                                                value={`${st.validated + st.validated_other} / ${st.capacity}`}
                                                                 bold
+                                                            />
+                                                            <RowInfo
+                                                                label="Rezervirano"
+                                                                value={`${st.onboard}`}
+                                                                color="text.secondary"
                                                             />
                                                         </>
                                                     )}
