@@ -14,7 +14,7 @@ const { chromium } = require("C:/Tech4beeZ/Projekti/TraveloApp/travelo-portal/do
 
 const SRC = path.resolve(__dirname, "..", "UPUTE_ZA_OPERATERA.md");
 const IMG_DIR = path.resolve(__dirname, "..", "images");
-const OUT_PDF = path.resolve(__dirname, "..", "..", "TraveloAPP-upute-za-operatera-1.0.8.pdf");
+const OUT_PDF = path.resolve(__dirname, "..", "..", "TraveloAPP-upute-za-operatera-1.0.9.pdf");
 
 const md = fs.readFileSync(SRC, "utf8");
 

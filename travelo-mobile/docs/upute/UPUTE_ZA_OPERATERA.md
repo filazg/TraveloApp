@@ -4,7 +4,7 @@
 
 Prodaja i validacija karata na ručnom terminalu. Sve što treba za jednu smjenu, redom kojim se radi.
 
-**VERZIJA 1.0.8 · IZDANJE 08.09.2026.**
+**VERZIJA 1.0.9 · IZDANJE 09.09.2026.**
 
 ---
 
@@ -68,11 +68,17 @@ Pritisnite **Izdaj račun** i u prozoru koji se otvori odaberite:
 
 Potvrdite s **Izdaj**. Račun i karte se ispisuju odmah. Dok traje ispis na ekranu stoji **ISPIS U TIJEKU** — ne vadite papir i ne pritišćite ništa dok ne nestane.
 
+Ako pisač ne odgovori, uređaj prekida ispis i javlja *„Ispis nije uspio“*. Račun je i tada izdan i spremljen: provjerite papir pa kopiju ispišite iz **Dokumenata**.
+
 ### 5. Validacija karata
 
 Karte se skeniraju bez prebacivanja ekrana. Tipka za skeniranje sa strane uređaja radi i dok ste na kartici **Prodaja**, a rezultat se prikaže preko cijelog zaslona.
 
-Kartica **Validacija** treba samo za promjenu **ULAZNE LUKE**, brojač validiranih, gumb **Osvježi** i ručnu potragu za kartom koja se ne da skenirati (upišite barem tri znaka oznake ili tipa karte).
+Kartica **Validacija** treba za promjenu **ULAZNE LUKE**, brojače, gumb **Osvježi** i ručnu potragu za kartom koja se ne da skenirati (upišite barem tri znaka oznake ili tipa karte). Podijeljena je na dvije kartice: **PREGLED** i **POVIJEST**.
+
+**ULAZNA LUKA** je luka u kojoj stojite. Popis karata i brojači na kartici PREGLED odnose se samo na nju — vidite putnike koji se ukrcavaju kod vas, a ne i one koji ulaze u sljedećim lukama. Ista je luka i **OD LUKE** na kartici Prodaja: promijenite li je na jednom mjestu, mijenja se i na drugom.
+
+Brojači iznad popisa vrijede za odabranu luku: **UKUPNO** su sve karte za ukrcaj u toj luci, **VALIDIRANO** one koje su prošle, a **DRUGI POLAZAK** karte koje su tu propuštene iako su izdane za neki drugi polazak.
 
 | Nakon skeniranja | Što napraviti |
 | --- | --- |
@@ -81,6 +87,22 @@ Kartica **Validacija** treba samo za promjenu **ULAZNE LUKE**, brojač validiran
 | **✗ ODBIJENO** — već validirana, stornirana ili nepostojeća | Tapnite bilo gdje za zatvaranje i uputite putnika na blagajnu. |
 
 Odbijeno očitanje nije samo poruka na zaslonu: ponovno očitanje već validirane karte i pokušaj ukrcaja storniranom kartom uređaj **javlja uredu**, pa se u kontroli vidi tko je i kada pokušao proći.
+
+#### Povijest očitanja
+
+Kartica **POVIJEST** pokazuje sve što je uređaj očitao na tom polasku, najnovije na vrhu — uz svaku kartu stoji vrijeme, vrsta karte, operater i ishod:
+
+| Ishod | Značenje |
+| --- | --- |
+| **Validirano** | karta je propuštena |
+| **Već validirana** | karta je prije toga već prošla |
+| **Stornirana** | karta je poništena i ne vrijedi |
+| **Nije pronađena** | očitano je nešto što uređaj ne poznaje |
+| **Drugi polazak** | karta je izdana za drugi polazak i uređaj ju je odbio |
+
+Karte propuštene odjednom (**SVE** na potvrdnom ekranu) stoje u zajedničkom okviru s oznakom koliko ih je; dodirom se otvara popis svih karata iz tog poteza. Karta koja je propuštena, a nije za taj polazak, posebno je označena.
+
+Povijest se čuva **dva tjedna** i vezana je uz polazak — kad odaberete drugi polazak, vidite njegova očitanja. Ostaje na uređaju i radi bez mreže.
 
 ![Validacija: ulazna luka, brojač ukupno / validirano i popis karata](images/09-validacija.png)
 
@@ -175,4 +197,4 @@ Kad prijavljujete problem uredu, recite **TID uređaja i verziju** — oboje pi�
 
 ---
 
-Upute vrijede za TraveloAPP Boat Mobile, verzija 1.0.8. Izgled pojedinih ekrana ovisi o postavkama uređaja u portalu — dopuštena sredstva plaćanja, linije i prava operatera postavlja ured.
+Upute vrijede za TraveloAPP Boat Mobile, verzija 1.0.9. Izgled pojedinih ekrana ovisi o postavkama uređaja u portalu — dopuštena sredstva plaćanja, linije i prava operatera postavlja ured.

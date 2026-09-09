@@ -4,7 +4,7 @@
 
 Prodaja karata na blagajni. Sve što treba za jednu smjenu, redom kojim se radi.
 
-**VERZIJA 1.0.24 · IZDANJE 08.09.2026.**
+**VERZIJA 1.0.25 · IZDANJE 09.09.2026.**
 
 ---
 
@@ -39,9 +39,11 @@ U traci iznad radne plohe birate, slijeva nadesno:
 | Polje | Što bira |
 | --- | --- |
 | **Datum putovanja** | dan za koji prodajete; gumb **DANAS** vraća na današnji datum |
-| **Odaberi liniju** | linija koju blagajna smije prodavati |
+| **Odaberi liniju** | linija koju blagajna smije prodavati; uz naziv stoji i broj linije, npr. *647 · Split – Milna – Hvar – Korčula – Pomena – Dubrovnik* |
 | **Odaberi luku** | luka ukrcaja |
 | **Odaberi polazak i smjer** | konkretan polazak (smjer A ili B) |
+
+Promjena luke ukrcaja poništava sve što je ispod nje — polazak, odredišta, cjenik i odabrane količine — jer to vrijedi samo za luku iz koje se kreće. Košarica ostaje netaknuta, pa na isti račun možete složiti karte s više relacija.
 
 ![Radna ploha prije odabira polaska](images/03-radna-ploha.png)
 
@@ -59,7 +61,7 @@ Radna ploha ima četiri stupca i radi se slijeva nadesno:
 
 | Stupac | Što radite |
 | --- | --- |
-| **Odredišta** | odabir odredišta i uvid u raspoložive kapacitete — putnici, kavezi, bicikli |
+| **Odredišta** | odabir odredišta i uvid u raspoložive kapacitete — putnici, kavezi, bicikli; odabrano odredište dobiva plavi okvir i plavi naziv luke |
 | **Karte** | odabir vrste karte i količine; gumb **DODAJ ODABRANO** stavlja ih u košaricu |
 | **Košarica** | pregled po polasku i vrsti karata — količina, cijena, iznos; **UKLONI** briše redak |
 | **Plaćanje** | odabir sredstva plaćanja |
@@ -178,4 +180,4 @@ Kad prijavljujete problem podršci, recite **verziju aplikacije** — piše na d
 
 ---
 
-Upute vrijede za TraveloAPP Boat Desk, verzija 1.0.24. Izgled pojedinih ekrana ovisi o postavkama blagajne u portalu — dopuštena sredstva plaćanja, linije i prava operatera postavlja podrška.
+Upute vrijede za TraveloAPP Boat Desk, verzija 1.0.25. Izgled pojedinih ekrana ovisi o postavkama blagajne u portalu — dopuštena sredstva plaćanja, linije i prava operatera postavlja podrška.

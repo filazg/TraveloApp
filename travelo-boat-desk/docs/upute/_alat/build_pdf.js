@@ -13,7 +13,7 @@ const { chromium } = require("C:/Tech4beeZ/Projekti/TraveloApp/travelo-portal/do
 
 const SRC = path.resolve(__dirname, "..", "UPUTE_ZA_BLAGAJNIKA.md");
 const IMG_DIR = path.resolve(__dirname, "..", "images");
-const OUT_PDF = path.resolve(__dirname, "..", "TraveloAPP-Boat-Desk-upute-za-blagajnika-1.0.24.pdf");
+const OUT_PDF = path.resolve(__dirname, "..", "TraveloAPP-Boat-Desk-upute-za-blagajnika-1.0.25.pdf");
 
 const md = fs.readFileSync(SRC, "utf8");
 
