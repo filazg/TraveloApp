@@ -36,6 +36,13 @@ const trenutakPolaska = (v) => {
     return new Date(+y, +mo - 1, +d, +hh, +mm);
 };
 
+// Kod linije ispred naziva. Blagajnik i putnik liniju zovu po broju, a nazivi
+// susjednih linija razlikuju se tek u zadnjoj luci — s kodom se odabir potvrdi
+// na prvi pogled. Isti zapis ostaje i u polju nakon odabira.
+const oznakaLinije = (linija) => (linija?.code
+    ? `${linija.code} · ${linija.name || ""}`.trim()
+    : (linija?.name || ""));
+
 const uMinute = (time) => {
     const [h, m] = String(time || "").split(":");
     return (Number(h) || 0) * 60 + (Number(m) || 0);
@@ -373,7 +380,7 @@ export default function FilterBar() {
               id="line"
               fullWidth
               options={transportData?.lines || []}
-              getOptionLabel={(option) => option.name}
+              getOptionLabel={oznakaLinije}
               value={appData.searchData?.selectedLine || null}
               isOptionEqualToValue={(option, value) => option.code === value?.code}
               renderInput={(params) => (
