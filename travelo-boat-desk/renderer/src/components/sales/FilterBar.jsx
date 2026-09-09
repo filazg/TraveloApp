@@ -230,9 +230,24 @@ export default function FilterBar() {
         }
     }
 
+    // Sve ispod luke polaska ovisi o njoj: polasci, relacije, cjenik i brojači
+    // karata. Dosad se čistio samo popis relacija, pa je u stupcu Karte ostajao
+    // cjenik prethodne luke — blagajnik je mogao dodati kartu koja s odabranom
+    // lukom nema veze. Košarica se ne dira: u njoj mogu stajati karte drugih
+    // relacija koje blagajnik namjerno slaže na isti račun.
+    const HARBOR_DEPENDENT_PATHS = [
+        'searchData/availableDepartures',
+        'searchData/selectedDeparture',
+        'searchData/harborsForSelectedDeparture',
+        'searchData/bookingData',
+        'searchData/selectedTrip',
+        'searchData/selectedTripPrices',
+        'searchData/ticketsCounter',
+    ];
+
      const handleSetTravelFrom = async(e) => {
         const data = e.target.value;
-        await dispatch(resetStateData({path:'searchData/harborsForSelectedDeparture'}));
+        await dispatch(resetStateData({ paths: HARBOR_DEPENDENT_PATHS }));
         await dispatch(setStateData({path:'searchData/selectedFromHarbor', value: data}));
     };
 

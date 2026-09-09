@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
-import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { alpha, Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
 
 
 
@@ -105,6 +105,11 @@ export default function TripsBar() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [automatski, relacije, odabrana]);
 
+    // Odabrana relacija mora se vidjeti na prvi pogled: dosad se klikom nije
+    // mijenjalo ništa, pa blagajnik nije imao po čemu znati za koje odredište
+    // prodaje kartu.
+    const jeOdabrana = (relacija) => !!odabrana && odabrana.id === relacija.id;
+
     return(
         <>
       <Box
@@ -130,6 +135,11 @@ export default function TripsBar() {
                 width: "100%",
                 my: 1,
                 p: 1.5,
+                ...(jeOdabrana(departure) && {
+                  borderWidth: 2,
+                  borderColor: "primary.main",
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.14),
+                }),
               }}
             >
               {/* Odredište lijevo, vrijeme desno — blagajnik traži luku po
@@ -142,7 +152,12 @@ export default function TripsBar() {
                   gap: 1,
                 }}
               >
-                <Typography sx={{ fontWeight: 700 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    ...(jeOdabrana(departure) && { color: "primary.main", fontWeight: 800 }),
+                  }}
+                >
                   {departure.arrival_harbor_name}
                 </Typography>
                 {/* Kad je polazak pomaknut, vrijedi stvarno vrijeme dolaska
