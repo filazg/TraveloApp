@@ -444,6 +444,20 @@ export async function loadValidationLog(limit = 200) {
     );
 }
 
+// Povijest jednog polaska. Prije se citalo zadnjih 200 zapisa pa se filtriralo
+// u ekranu — na uredaju koji radi vise polazaka dnevno starija ocitanja tog
+// polaska ispala bi izvan tih 200 i nestala s popisa iako su jos u bazi.
+export async function loadValidationLogForRoutes(routeUuids, limit = 500) {
+    const rute = (routeUuids || []).filter(Boolean);
+    if (!rute.length) {return [];}
+    const upitnici = rute.map(() => '?').join(',');
+    return queryAll(
+        `SELECT id, ticket_uuid, ticket_code, ticket_type, outcome, note, operator, route_uuid, validated_at
+           FROM validation_log WHERE route_uuid IN (${upitnici}) ORDER BY id DESC LIMIT ?;`,
+        [...rute, limit]
+    );
+}
+
 // Povijest se ne cuva zauvijek — uredaj radi mjesecima, a zanimljivo je ono
 // sto je blizu. Cisti se ono starije od dva tjedna.
 export async function pruneValidationLog(dana = 14) {

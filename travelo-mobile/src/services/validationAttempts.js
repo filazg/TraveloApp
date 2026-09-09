@@ -77,6 +77,33 @@ export async function prijaviPokusaj({ ticketUuid, ticketCode, ticketType, scann
     return true;
 }
 
+// Očitanje koje uređaj odbije sam, bez pitanja poslužitelja: karta koju uopće
+// ne poznaje i karta koja nije za ovaj polazak. Zapisuje se samo na uređaj —
+// poslužitelju se ne javlja jer bi ga poziv na /validate_ticket odveo u
+// validaciju karte koju je djelatnik upravo odbio.
+export async function zabiljeziOcitanje({ ticketUuid, ticketCode, ticketType, kada, operator, outcome, note, routeUuid }) {
+    const vrijeme = kada || new Date().toISOString();
+    const imeOperatera = typeof operator === 'object' && operator !== null
+        ? (operator.name || operator.uuid || '')
+        : (operator || '');
+    try {
+        await saveValidationLog({
+            ticketUuid,
+            ticketCode,
+            ticketType,
+            outcome,
+            note,
+            operator: imeOperatera,
+            validatedAt: vrijeme,
+            routeUuid,
+        });
+        return true;
+    } catch (e) {
+        console.log('[zabiljeziOcitanje] povijest nije zapisana:', e?.message || e);
+        return false;
+    }
+}
+
 // Zapis se iz reda miče po paru (karta, vrijeme) — istom kojim je i upisan.
 async function makniIzReda(ticketUuid, kada) {
     try {

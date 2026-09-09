@@ -25,9 +25,9 @@ import {
 } from '../store/slices/validationSlice';
 import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
-import { prijaviPokusaj } from '../services/validationAttempts';
+import { prijaviPokusaj, zabiljeziOcitanje } from '../services/validationAttempts';
 import { ENDPOINTS } from '../api/config';
-import { loadRecentBuyers, saveBuyer, findTicketByUuidOrCode, loadValidationLog } from '../db/repo';
+import { loadRecentBuyers, saveBuyer, findTicketByUuidOrCode, loadValidationLogForRoutes } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
 import { startScan as akdStartScan, stopScan as akdStopScan, onCardRead as akdOnCardRead, hideKeyboard as akdHideKeyboard, akdCardAvailable } from '../device/akdCard';
 import { printReceipt as printReceiptFn, printTickets as printTicketsFn } from '../device/printSale';
@@ -241,6 +241,15 @@ export default function SaleScreen() {
             let result;
             if (!local) {
                 result = { kind: 'reject', message: 'Karta nije pronađena za ovaj polazak.' };
+                // I ocitanje koje nije nasl kartu je dogadaj na vratima: netko je
+                // nesto prislonio. Ostaje u povijesti uredaja s onim sto je
+                // procitano, da se poslije zna sto je pokusano.
+                zabiljeziOcitanje({
+                    ticketCode: ticketUuid,
+                    outcome: 'not_found',
+                    operator: imeOperatera(),
+                    routeUuid: rutaOcitanja(),
+                });
                 soundError();
             } else if (local.is_canceled) {
                 // Storno se javlja prije provjere polaska: putniku i djelatniku
@@ -263,6 +272,17 @@ export default function SaleScreen() {
                 soundError();
             } else if ((voyageMismatch || dateMismatch) && !otherVoyageSameRelation) {
                 result = { kind: 'reject', message: 'Karta nije za ovaj polazak.', ticket: local };
+                // Karta tudjeg polaska koju uredaj odbija sam. Posluzitelju se ne
+                // javlja — poziv za validaciju bi je upravo validirao — ali u
+                // povijesti uredaja mora ostati trag da je bila na vratima.
+                zabiljeziOcitanje({
+                    ticketUuid: local.ticket_uuid,
+                    ticketCode: local.ticket_code,
+                    ticketType: local.ticket_type_name,
+                    outcome: 'wrong_voyage',
+                    operator: imeOperatera(),
+                    routeUuid: rutaOcitanja(),
+                });
                 soundError();
             } else if (local.status === 'validated' || local.validate_data) {
                 result = { kind: 'already', ticket: local };
@@ -1856,6 +1876,10 @@ const ISHOD = {
     validated: { tekst: 'Validirano', boja: colors.success || '#16A34A' },
     already_validated: { tekst: 'Već validirana', boja: colors.error },
     canceled: { tekst: 'Stornirana', boja: colors.error },
+    // Ocitanja koja uredaj odbije sam — nema ih na posluzitelju, ali su dio
+    // onoga sto se dogodilo na ukrcaju.
+    not_found: { tekst: 'Nije pronađena', boja: colors.error },
+    wrong_voyage: { tekst: 'Drugi polazak', boja: colors.warning },
 };
 
 function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, onRefresh, onTicketTap, userTypingRef, fromHarbor, harbors, fromIdx, setFromIdx, voyageRouteUuids, rutaUlazneLuke }) {
@@ -1867,14 +1891,15 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
 
     useEffect(() => {
         let ziv = true;
-        loadValidationLog(200)
+        loadValidationLogForRoutes(voyageRouteUuids)
             .then((r) => { if (ziv) {setPovijest(r || []);} })
             .catch((e) => console.log('[povijest] citanje nije uspjelo:', e?.message || e));
         return () => { ziv = false; };
         // Cita se i dok je otvoren PREGLED, jer se iz istih zapisa broje karte
         // propustene s drugih polazaka. Nakon svakog očitanja parent se ponovno
         // iscrta (scanResult), pa se s njim osvježi i popis.
-    }, [kartica, scanResult]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [kartica, scanResult, voyageRouteUuids]);
 
     // Povijest se veze uz polazak na kojem je ocitano. Bez te provjere zapisi s
     // ranijeg polaska ispali bi i na svakom sljedecem — brojac i popis pokazivali
