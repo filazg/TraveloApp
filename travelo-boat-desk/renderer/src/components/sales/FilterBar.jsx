@@ -7,6 +7,10 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+// Hrvatski locale nosi weekStart: 1, pa kalendar krece od ponedjeljka, i domace
+// nazive dana i mjeseci. Bez njega dayjs pada na engleski, gdje tjedan pocinje
+// nedjeljom — blagajnik tada broji stupce da nadje pravi dan.
+import "dayjs/locale/hr";
 
 import { v4 as uuid } from "uuid";
 
@@ -69,6 +73,10 @@ export default function FilterBar() {
     const appData = useSelector(allAppData);
     const transportData = appData.transportData;
     const [day, setDay] = useState();
+    // Kalendar se dosad otvarao samo klikom na ikonu; klik na samo polje nije
+    // radio nista, pa se cinilo da polje ne reagira. Otvorenost se zato vodi
+    // ovdje i pali se s cijelog polja.
+    const [kalendarOtvoren, setKalendarOtvoren] = useState(false);
     // Podignuta kad odabir linije sam postavi polaznu luku. Polasci se računaju
     // tek u učinku ispod, pa se prvi sljedeći bira ondje. Ručna promjena luke je
     // ne diže — tada blagajnik bira polazak sam.
@@ -393,13 +401,25 @@ export default function FilterBar() {
             />
 
          <Box sx={{ gridArea: "two2" }}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="hr">
               <DatePicker
                 label="Datum putovanja"
                 format="DD.MM.YYYY"
                 disablePast
                 sx={{ width: "75%" }}
                 value={dayjs(day)}
+                open={kalendarOtvoren}
+                onOpen={() => setKalendarOtvoren(true)}
+                onClose={() => setKalendarOtvoren(false)}
+                slotProps={{
+                  textField: {
+                    onClick: () => setKalendarOtvoren(true),
+                    // Datum se bira iz kalendara, ne tipka — bez ovoga bi se uz
+                    // kalendar dizala i tipkovnica na dodirnom zaslonu.
+                    inputProps: { readOnly: true },
+                    sx: { "& .MuiInputBase-root": { cursor: "pointer" } },
+                  },
+                }}
                 onChange={(event, newValue) => {
                     handleSetDate(event.$d);
                 }}
