@@ -47,6 +47,7 @@ import DispatcherPage from './features/dispatcher/DispatcherPage';
 import SailingPage from './features/sailing/SailingPage';
 import DownloadsPage from './features/downloads/DownloadsPage';
 import TicketTemplatesPage from './features/boat/pages/ticket_templates/TicketTemplatesPage';
+import SeopPage from './features/boat/pages/seop/SeopPage';
 import KontrolaPage from './features/kontrola/KontrolaPage';
 import TicketCopyControlPage from './features/kontrola/pages/copy_control/TicketCopyControlPage';
 
@@ -89,6 +90,7 @@ function App() {
                 <Route path='boat/timetables' element={<TimetablesPage/>}></Route>
                 <Route path='boat/regions' element={<RegionsPage/>}></Route>
                 <Route path='boat/ticket_templates' element={<TicketTemplatesPage/>}></Route>
+                <Route path='boat/seop' element={<SeopPage/>}></Route>
                 <Route path='finance' element={<FinancePage/>}></Route>
                 <Route path='finance/invoices' element={<FinanceInvoicesPage/>}></Route>
                 <Route path='finance/partner_invoices' element={<PartnerInvoicesPage/>}></Route>

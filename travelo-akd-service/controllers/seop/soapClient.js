@@ -5,6 +5,18 @@ const { URL } = require('url');
 const { XMLParser } = require('fast-xml-parser');
 const { getIntegrationsConfigData } = require('../configSyncController');
 const { loadP12 } = require('./seopCrypto');
+const { dohvatiPostavke } = require('./seopSettings');
+
+// Certifikati stoje u `cert/` mapi ovog servisa. Postavka nosi samo ime
+// datoteke; starije instalacije imaju relativnu putanju iz konfiguracije, pa se
+// podnosi i to.
+const MAPA_CERT = path.join(__dirname, '..', '..', 'cert');
+const razrijesiPutanju = (ime) => {
+    if (!ime) return null;
+    return ime.includes('/') || ime.includes('\\')
+        ? path.resolve(__dirname, '..', '..', ime)
+        : path.join(MAPA_CERT, ime);
+};
 
 // Pošalje SOAP envelope na SEOP s mTLS (klijentski p12 cert).
 // Vraća { httpStatus, headers, body, parsed, fault, soapAction }.
@@ -15,14 +27,16 @@ const { loadP12 } = require('./seopCrypto');
 // targetNamespace="SEOP.AKD".
 async function callSeop({ method, bodyXml, soapAction }) {
     const cfg = getIntegrationsConfigData()?.akd?.seop || {};
-    const env = cfg.environment === 'prod' ? 'prod' : 'test';
+    // Okolina, certifikat i lozinke dolaze iz postavki koje ured uređuje u
+    // portalu; iz datoteke ostaju samo URL-ovi, koje AKD ne mijenja.
+    const postavke = await dohvatiPostavke();
+    const env = postavke.environment === 'prod' ? 'prod' : 'test';
     const url = env === 'prod' ? cfg.url_prod : cfg.url_test;
     if (!url) throw new Error('akd.seop URL nije konfiguriran u integrations_configs.json');
 
-    const p12Path = cfg.p12_path
-        ? path.resolve(__dirname, '..', '..', cfg.p12_path.startsWith('..') ? cfg.p12_path : path.resolve(cfg.p12_path))
-        : path.join(__dirname, '..', '..', 'cert', 'kapetan-luka.p12');
-    const p12Pass = cfg.p12_password || '';
+    const p12Path = razrijesiPutanju(postavke.p12_file)
+        || path.join(__dirname, '..', '..', 'cert', 'kapetan-luka.p12');
+    const p12Pass = postavke.p12_password || '';
 
     // Node 22 ne prihvaća legacy PKCS12 enkripciju (RC2-40); konvertiramo u PEM.
     const { keyPem, certPem } = loadP12(p12Path, p12Pass);
@@ -48,7 +62,7 @@ async function callSeop({ method, bodyXml, soapAction }) {
         // Demo CA nije u Node-ovom default trust storeu; radi prvog handshakea
         // dopuštamo samopotpisani SEOP server cert. Kad dobijemo aktualni
         // AKDCA-DEMO.crt, postavit ćemo ga u `ca` i ukloniti ovaj override.
-        rejectUnauthorized: cfg.tls_reject_unauthorized === true,
+        rejectUnauthorized: postavke.tls_reject_unauthorized === true,
         headers: {
             'Content-Type': 'text/xml; charset=utf-8',
             'SOAPAction': `"${action}"`,
@@ -56,12 +70,13 @@ async function callSeop({ method, bodyXml, soapAction }) {
         },
     };
 
-    if (cfg.akd_ca_cert_path) {
+    const caPath = razrijesiPutanju(postavke.ca_file);
+    if (caPath) {
         try {
-            opts.ca = fs.readFileSync(path.resolve(cfg.akd_ca_cert_path));
+            opts.ca = fs.readFileSync(caPath);
             opts.rejectUnauthorized = true;
         } catch (e) {
-            console.log('akd_ca_cert_path read error, fallback to insecure TLS:', e.message);
+            console.log('CA lanac se ne moze procitati, TLS ostaje bez provjere:', e.message);
         }
     }
 

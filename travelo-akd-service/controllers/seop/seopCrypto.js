@@ -76,8 +76,18 @@ function fmtSeopDate(d) {
     return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
 }
 
+// Novi certifikat ne vrijedi dok se ne zaboravi stari: kljuc se drzi u
+// memoriji za cijeli proces, pa bi se bez ovoga i dalje potpisivalo prethodnim.
+function resetP12Cache() {
+    cachedKey = null;
+    cachedCert = null;
+    cachedKeyPem = null;
+    cachedCertPem = null;
+}
+
 module.exports = {
     loadP12,
+    resetP12Cache,
     digSign,
     zkb,
     verifySeopSignature,

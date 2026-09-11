@@ -8,6 +8,7 @@ import SailingIcon from '@mui/icons-material/Sailing';
 import AnchorIcon from '@mui/icons-material/Anchor';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "../auth/authSlice";
@@ -91,6 +92,7 @@ export default function BoatPage() {
         { title: t("boat.regions.title"), subtitle: "Šifarnik lučkih uprava", icon: AnchorIcon, path: "/boat/regions" },
         { title: "Obavijesti", subtitle: "Obavijesti na web stranici", icon: CampaignIcon, path: "/boat/notices" },
         { title: "Predlošci karata", subtitle: "Izgled PDF karte po kanalu", icon: AssignmentIcon, path: "/boat/ticket_templates" },
+        { title: "SEOP", subtitle: "Evidencija karata prema AKD-u", icon: VerifiedUserIcon, path: "/boat/seop" },
     ];
 
     return (

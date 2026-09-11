@@ -9,6 +9,7 @@ const { getSalesRoutesController, getAllSalesRoutesController, cancelSalesRoutes
 const { getDeparturesController, getDepartureByUuidController, getRoutesByDepartureController, getRouteByUuidController } = require('../controllers/dataControllers/departuresControllers');
 const { getSailingsController, getSailingDetailsController, startSailingController, updateLegStatusController, cancelHarborArrivalController, changeBoatController } = require('../controllers/dataControllers/sailingControllers');
 const { listTicketTemplatesController, getTicketTemplateController, upsertTicketTemplateController } = require('../controllers/dataControllers/ticketTemplatesControllers');
+const { getSeopSettingsController, getSeopSettingsInternalController, updateSeopSettingsController, setSeopCertController } = require('../controllers/dataControllers/seopSettingsControllers');
 const router = express.Router();
 
 // Predlozak PDF karte po prodajnom kanalu. Postavku cita transactions servis
@@ -21,6 +22,22 @@ router
 router
     .route('/ticket_templates/:channel')
     .get(getTicketTemplateController)
+
+// SEOP (AKD) — postavke veze i odluka o tome sto se salje. Portal ih ureduje,
+// akd servis ih cita pri svakoj dojavi. Interna ruta vraca i lozinke, pa ide
+// samo servisima, ne portalu.
+router
+    .route('/seop_settings')
+    .get(getSeopSettingsController)
+    .post(updateSeopSettingsController)
+
+router
+    .route('/seop_settings/internal')
+    .get(getSeopSettingsInternalController)
+
+router
+    .route('/seop_settings/cert')
+    .post(setSeopCertController)
 
 module.exports = router
 

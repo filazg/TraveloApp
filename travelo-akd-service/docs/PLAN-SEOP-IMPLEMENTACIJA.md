@@ -21,6 +21,13 @@ ima `ProvjeriPPP` i sve graditelje stringova za potpis — ni jedna dojava se ne
 
 `akd.seop.environment` je sada `"mock"`. Redoslijed: `mock` → `test` → `prod`.
 
+**Napomena (Task #417):** postavke se više ne uređuju u datoteci nego u portalu,
+**Brod → SEOP**. Tablica `seop_settings` u boat servisu drži okolinu, OIB i
+lozinku, prekidače po dojavama i mapiranja; certifikati se učitavaju kroz isti
+ekran i ostaju kao datoteke u `travelo-akd-service/cert/`. U
+`integrations_configs.json` ostaju samo URL-ovi AKD-a i zatečene vrijednosti za
+instalacije bez tablice.
+
 **Podaci koje moramo imati u matičnim podacima prije prve dojave:**
 
 - `harbors.code` — mora biti službena oznaka luke (`HR479` i sl.). Provjeriti da
