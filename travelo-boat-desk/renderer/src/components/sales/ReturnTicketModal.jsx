@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
@@ -40,6 +40,22 @@ const vrijemeRute = (r) => samoVrijeme(r?.actual_departure || r?.departure || r?
 // pretvaranja u Date — taj oblik `new Date()` ionako ne zna procitati.
 const uEnGb = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "");
 
+// Polazak i dolazak su tekst "DD.MM.YYYY. HH:mm"; `new Date()` taj oblik ne
+// zna procitati pa se rastavlja rukom. Vraca null kad oblik nije prepoznat —
+// tada se ne zakljucuje nista o redoslijedu.
+const trenutak = (v) => {
+  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?\s+(\d{1,2}):(\d{2})/.exec(String(v || "").trim());
+  if (!m) return null;
+  const [, d, mo, y, hh, mm] = m;
+  return new Date(Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mm));
+};
+
+const sutra = (d) => {
+  const n = new Date(d);
+  n.setDate(n.getDate() + 1);
+  return n;
+};
+
 const izEnGb = (s) => {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s || ""));
   return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : new Date();
@@ -69,9 +85,53 @@ export default function ReturnTicketModal({ stavka, onClose }) {
 
   const ruta = povratneRute.find((r) => r.uuid === rutaUuid) || null;
 
-  // Prvi ponuđeni polazak se bira sam; blagajnik najčešće ionako uzima prvi
-  // povratak tog dana, a prazno polje bi tražilo dodatni klik.
+  // Sve rute povratne relacije za zadani dan, poredane po vremenu.
+  const ruteZaDan = (datum) => {
+    const sve = appData.transportData?.routes || [];
+    return sve
+      .filter((r) => r.line_code === stavka?.line_code
+        && r.departure_date === uEnGb(datum)
+        && r.departure_harbor_id === stavka?.arrival_harbor_id
+        && r.arrival_harbor_id === stavka?.departure_harbor_id)
+      .sort((a, b) => vrijemeRute(a).localeCompare(vrijemeRute(b)));
+  };
+
+  // Zadano je prvi povratak koji je stvarno moguc: onaj koji krece nakon sto
+  // polazna voznja stigne. Ako ga tog dana vise nema, uzima se prvi sutrasnji —
+  // bez toga se za voznju u 18:00 nudio povratak u 07:00 istog dana, polazak
+  // koji je vec prosao.
+  const pocetnoPostavljeno = useRef(false);
   useEffect(() => {
+    if (!stavka || pocetnoPostavljeno.current) return;
+    if (!(appData.transportData?.routes || []).length) return;
+    pocetnoPostavljeno.current = true;
+
+    const dolazak = trenutak(stavka.arrival) || trenutak(stavka.departure);
+    const danOdlaska = dolazak || izEnGb(appData.searchData?.travelDate);
+
+    const danasnje = ruteZaDan(danOdlaska);
+    const sljedeca = dolazak
+      ? danasnje.find((r) => {
+        const t = trenutak(r.actual_departure || r.departure);
+        return t && t > dolazak;
+      })
+      : danasnje[0];
+
+    if (sljedeca) {
+      setDan(danOdlaska);
+      setRutaUuid(sljedeca.uuid);
+      return;
+    }
+    const sutrasnji = sutra(danOdlaska);
+    setDan(sutrasnji);
+    setRutaUuid(ruteZaDan(sutrasnji)[0]?.uuid || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stavka, appData.transportData]);
+
+  // Kad blagajnik sam promijeni dan, bira se prvi polazak tog dana; prazno
+  // polje bi trazilo dodatni klik.
+  useEffect(() => {
+    if (!pocetnoPostavljeno.current) return;
     if (povratneRute.length && !povratneRute.some((r) => r.uuid === rutaUuid)) {
       setRutaUuid(povratneRute[0].uuid);
     }
@@ -98,8 +158,13 @@ export default function ReturnTicketModal({ stavka, onClose }) {
 
   // Početne količine prepisuju polaznu stavku. Vrsta karte koje u povratnom
   // cjeniku nema ostaje na nuli — ne izmišlja se cijena koja nije unesena.
+  const kolicinePostavljene = useRef(false);
   useEffect(() => {
     if (!stavka || !cjenik.length) return;
+    // Samo jednom po otvaranju prozora: promjena polaska ne smije pobrisati
+    // ispravak koji je blagajnik vec upisao.
+    if (kolicinePostavljene.current) return;
+    kolicinePostavljene.current = true;
     const poVrsti = {};
     for (const t of stavka.ticketsData || []) {
       poVrsti[t.ticket_type_uuid] = Number(t.quantity) || 0;
