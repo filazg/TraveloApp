@@ -1,8 +1,9 @@
 // Postavke MOSI veze i odluka o tome što se dojavljuje.
 // Isti obrazac kao kod SEOP-a: jedan redak, portal uređuje, akd servis čita.
 
+// oib_pu se ne upisuje ovdje: to je OIB tvrtke iz Administracija -> Tvrtka.
 const DOPUSTENA = [
-    "environment", "api_key_test", "api_key_prod", "oib_pu", "id_osoba_pu",
+    "environment", "api_key_test", "api_key_prod", "id_osoba_pu",
     "enabled", "send_utrosak", "send_storno", "send_from_date", "sync_crna_lista",
 ];
 
@@ -72,7 +73,6 @@ const updateMosiSettingsController = async (req, res) => {
             const kljuc = buduce.environment === "prod" ? buduce.api_key_prod : buduce.api_key_test;
             const fali = [];
             if (!kljuc) fali.push(`API ključ za ${buduce.environment}`);
-            if (!buduce.oib_pu) fali.push("OIB ustanove");
             if (!buduce.id_osoba_pu) fali.push("oznaka osobe koja dojavljuje");
             // Bez potpisnog certifikata dojava utroška ne prolazi; ostale
             // metode (katalozi, provjera statusa) se ne potpisuju.

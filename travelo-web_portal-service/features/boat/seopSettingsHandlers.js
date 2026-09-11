@@ -9,13 +9,26 @@ const { getCoreServiceConfigData } = require('../../controllers/configServices/c
 
 const url = (core, servis) => core?.services?.[servis]?.url;
 
+// OIB brodara prema AKD-u je OIB same tvrtke. Ekran ga prikazuje, ali ne dira —
+// mijenja se u Administracija -> Tvrtka, gdje mu je i mjesto.
+const oibTvrtke = async (core) => {
+    const boUrl = url(core, 'backoffice');
+    if (!boUrl) return null;
+    try {
+        const r = await axios.get(`${boUrl}/company`, { timeout: 8000, validateStatus: () => true });
+        return r.status === 200 ? (r.data?.data?.company?.legal_id || null) : null;
+    } catch (_) {
+        return null;
+    }
+};
+
 const handleGetSeopSettingsFeature = async (req, res) => {
     try {
         const core = await getCoreServiceConfigData();
         const boatUrl = url(core, 'boat');
         const akdUrl = url(core, 'akd');
 
-        const [postavke, certifikati] = await Promise.all([
+        const [postavke, certifikati, oib] = await Promise.all([
             boatUrl
                 ? axios.get(`${boatUrl}/seop_settings`, { timeout: 10000, validateStatus: () => true })
                 : Promise.resolve(null),
@@ -25,15 +38,17 @@ const handleGetSeopSettingsFeature = async (req, res) => {
                 ? axios.get(`${akdUrl}/seop/cert-info`, { timeout: 10000, validateStatus: () => true })
                     .catch(() => null)
                 : Promise.resolve(null),
+            oibTvrtke(core),
         ]);
 
+        const s = postavke?.data?.data?.settings || null;
         res.send({
             status: 200,
             data: {
                 path1: 'boatData',
                 path2: 'seopSettings',
                 data: {
-                    settings: postavke?.data?.data?.settings || null,
+                    settings: s ? { ...s, brodarev_oib: oib || s.brodarev_oib || null } : null,
                     certs: certifikati?.data?.data?.certs || null,
                     akd_dostupan: !!certifikati,
                 },
@@ -107,7 +122,7 @@ const handleGetMosiSettingsFeature = async (req, res) => {
         const boatUrl = url(core, 'boat');
         const akdUrl = url(core, 'akd');
 
-        const [postavke, cert] = await Promise.all([
+        const [postavke, cert, oib] = await Promise.all([
             boatUrl
                 ? axios.get(`${boatUrl}/mosi_settings`, { timeout: 10000, validateStatus: () => true })
                 : Promise.resolve(null),
@@ -115,15 +130,17 @@ const handleGetMosiSettingsFeature = async (req, res) => {
                 ? axios.get(`${akdUrl}/mosi/cert-info`, { timeout: 10000, validateStatus: () => true })
                     .catch(() => null)
                 : Promise.resolve(null),
+            oibTvrtke(core),
         ]);
 
+        const s = postavke?.data?.data?.settings || null;
         res.send({
             status: 200,
             data: {
                 path1: 'boatData',
                 path2: 'mosiSettings',
                 data: {
-                    settings: postavke?.data?.data?.settings || null,
+                    settings: s ? { ...s, oib_pu: oib || s.oib_pu || null } : null,
                     cert: cert?.data?.data?.cert || null,
                     akd_dostupan: !!cert,
                 },

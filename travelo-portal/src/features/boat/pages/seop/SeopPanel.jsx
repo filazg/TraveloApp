@@ -145,10 +145,15 @@ export default function SeopPanel() {
                             </TextField>
 
                             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                                {/* OIB je podatak tvrtke, ne postavka integracije — mijenja
+                                    se u Administracija → Tvrtka. */}
                                 <TextField
                                     fullWidth label="OIB brodara (korisničko ime)"
                                     value={postavke.brodarev_oib || ""}
-                                    onChange={(e) => postavi("brodarev_oib", e.target.value)}
+                                    InputProps={{ readOnly: true }}
+                                    helperText={postavke.brodarev_oib
+                                        ? "Iz Administracija → Tvrtka."
+                                        : "Nije upisan u Administracija → Tvrtka."}
                                 />
                                 <TextField
                                     fullWidth type="password" label="Lozinka za web servis"

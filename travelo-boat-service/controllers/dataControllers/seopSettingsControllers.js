@@ -7,8 +7,10 @@
 // Polja koja smije mijenjati portal. Sve ostalo (opis certifikata, vrijeme
 // učitavanja) upisuje akd servis pri uploadu — da se iz portala ne može
 // "prepisati" koji certifikat stvarno leži na disku.
+// brodarev_oib se ne upisuje ovdje: to je OIB tvrtke iz Administracija ->
+// Tvrtka, pa bi drugi upis bio drugo mjesto na kojem moze biti krivo.
 const DOPUSTENA = [
-    "environment", "brodarev_oib", "lozinka",
+    "environment", "lozinka",
     "enabled", "send_opk", "send_ppk", "send_cvikanje", "send_storno",
     "send_isplovljenje", "send_ponisti_cvikanje", "send_from_date",
     "ozn_pristup_tocke_source", "ozn_pristup_tocke_fixed",
@@ -84,7 +86,6 @@ const updateSeopSettingsController = async (req, res) => {
         const buduce = { ...red.toJSON(), ...izmjene };
         if (buduce.enabled && buduce.environment !== "mock") {
             const fali = [];
-            if (!buduce.brodarev_oib) fali.push("OIB brodara");
             if (!buduce.lozinka) fali.push("lozinka");
             if (!buduce.p12_file) fali.push("klijentski certifikat");
             if (fali.length) {

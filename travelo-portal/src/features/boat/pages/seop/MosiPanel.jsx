@@ -145,7 +145,10 @@ export default function MosiPanel() {
                                 <TextField
                                     fullWidth label="OIB ustanove (oibPU)"
                                     value={postavke.oib_pu || ""}
-                                    onChange={(e) => postavi("oib_pu", e.target.value)}
+                                    InputProps={{ readOnly: true }}
+                                    helperText={postavke.oib_pu
+                                        ? "Iz Administracija → Tvrtka."
+                                        : "Nije upisan u Administracija → Tvrtka."}
                                 />
                                 <TextField
                                     fullWidth label="Oznaka osobe koja dojavljuje (IDOsobaPU)"

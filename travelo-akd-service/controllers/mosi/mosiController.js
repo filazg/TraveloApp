@@ -4,6 +4,7 @@ const axios = require('axios');
 const forge = require('node-forge');
 
 const { getCoreServiceConfigData, getIntegrationsConfigData } = require('../configSyncController');
+const { dohvatiOibTvrtke } = require('../oibTvrtke');
 
 // MOSI (AKD) — dojava korištenja invalidskih povlastica.
 //
@@ -28,7 +29,9 @@ async function dohvatiPostavke({ svjeze = false } = {}) {
         validateStatus: () => true,
     });
     if (r.status !== 200 || !r.data?.data?.settings) throw new Error('postavke MOSI-ja nisu dostupne');
-    spremljeno = r.data.data.settings;
+    // OIB ustanove koja dojavljuje je OIB tvrtke — isti izvor kao i kod SEOP-a.
+    const oib = await dohvatiOibTvrtke();
+    spremljeno = { ...r.data.data.settings, oib_pu: oib || r.data.data.settings.oib_pu || null };
     spremljenoU = Date.now();
     return spremljeno;
 }

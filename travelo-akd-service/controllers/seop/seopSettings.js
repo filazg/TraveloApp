@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { getCoreServiceConfigData, getIntegrationsConfigData } = require('../configSyncController');
+const { dohvatiOibTvrtke } = require('../oibTvrtke');
 
 // Postavke SEOP veze. Izvor je boat servis (tablica `seop_settings`), koju ured
 // uređuje u portalu; `integrations_configs.json` ostaje samo kao zatečena
@@ -52,7 +53,9 @@ async function dohvatiPostavke({ svjeze = false } = {}) {
             });
             const s = r.status === 200 ? (r.data?.data?.settings || null) : null;
             if (s) {
-                spremljeno = { ...s, _izvor: 'baza' };
+                // OIB brodara nije postavka integracije nego podatak tvrtke.
+                const oib = await dohvatiOibTvrtke();
+                spremljeno = { ...s, brodarev_oib: oib || s.brodarev_oib || null, _izvor: 'baza' };
                 spremljenoU = Date.now();
                 return spremljeno;
             }
