@@ -3,6 +3,7 @@ const { seopSignTestController } = require('../controllers/seop/seopSignControll
 const { provjeriPPPController } = require('../controllers/seop/seopController');
 const { uploadSeopCertController, seopCertInfoController, seopTestVezeController } = require('../controllers/seop/seopCertController');
 const { uploadMosiCertController, mosiCertInfoController, mosiTestVezeController } = require('../controllers/mosi/mosiController');
+const { dojaviProdajuOpkController, dojaviProdajuPpkController, dojaviCvikanjeController, ponistiCvikanjeController, dojaviIsplovljenjeController, mosiDojaviUtrosakController } = require('../controllers/seop/seopDojaveController');
 
 const router = express.Router();
 
@@ -23,5 +24,14 @@ router.post('/seop/test-veze', seopTestVezeController);
 router.post('/mosi/cert', uploadMosiCertController);
 router.get('/mosi/cert-info', mosiCertInfoController);
 router.post('/mosi/test-veze', mosiTestVezeController);
+
+// Dojave. Zove ih transactions servis iz svog reda cekanja (outbox), pa svaki
+// poziv vraca ishod u tijelu — i kad dojava nije prosla — da red zna sto dalje.
+router.post('/seop/dojavi-prodaju-opk', dojaviProdajuOpkController);
+router.post('/seop/dojavi-prodaju-ppk', dojaviProdajuPpkController);
+router.post('/seop/dojavi-cvikanje', dojaviCvikanjeController);
+router.post('/seop/ponisti-cvikanje', ponistiCvikanjeController);
+router.post('/seop/dojavi-isplovljenje', dojaviIsplovljenjeController);
+router.post('/mosi/dojavi-utrosak', mosiDojaviUtrosakController);
 
 module.exports = router;
