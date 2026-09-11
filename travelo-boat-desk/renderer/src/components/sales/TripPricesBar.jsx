@@ -1,13 +1,21 @@
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuid } from "uuid";
 import { allAppData, resetStateData, setStateData, updateTicketsCounter } from "../../store/appSlice";
-import { Box, Button, ButtonGroup, Grid, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableRow } from "@mui/material";
+import { Box, Button, ButtonGroup, Grid, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableRow, TextField } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 
 export default function TripPricesBar() {
     const dispatch = useDispatch();
     const appData = useSelector(allAppData);
+
+    // Rucni unos kolicine. Tipkama + i - do 50 karata treba pedeset klikova, pa
+    // se klikom na brojku otvara polje za upis. Drzi se vrsta karte koja se
+    // upravo upisuje i ono sto je utipkano, jer polje mora podnijeti i prazno
+    // stanje dok blagajnik brise staru vrijednost.
+    const [uredjujeSe, setUredjujeSe] = useState(null);
+    const [upisano, setUpisano] = useState("");
 
     // Otočne karte (is_island === true) ne idu u redovnu listu — kupuju se kroz
     // POVLAŠTENE KARTICE modal jer zahtijevaju otočnu iskaznicu.
@@ -60,6 +68,28 @@ export default function TripPricesBar() {
         quantity: value,
       };
       dispatch(updateTicketsCounter({ path: price.id, value: counter }));
+    };
+
+    // Kolicina se upisuje kroz isti brojac koji pune + i -, da kosarica ne zna
+    // odakle je broj dosao. Gornja granica je zdravorazumska zastita od omaske
+    // u tipkanju; stvarni kapacitet polaska provjerava posluzitelj pri rezervaciji.
+    const upisiKolicinu = (price, tekst) => {
+      const broj = Math.max(0, Math.min(999, parseInt(tekst, 10) || 0));
+      const postojeci = appData.searchData?.ticketsCounter?.find(
+        (number) => number.data.ticket_type_uuid
+          && number.data.ticket_type_uuid === price.ticket_type_uuid
+      );
+      if (!postojeci) return;
+      dispatch(updateTicketsCounter({
+        path: price.id,
+        value: { id: price.id, data: price, quantity: broj },
+      }));
+    };
+
+    const zavrsiUnos = (price) => {
+      upisiKolicinu(price, upisano);
+      setUredjujeSe(null);
+      setUpisano("");
     };
 
     const handleAddTickets = (e) => {
@@ -250,20 +280,49 @@ export default function TripPricesBar() {
                                             <RemoveIcon />
                                           </Button>
 
-                                          <Button
-                                            variant="outlined"
-                                            color="primary"
-                                            sx={{
-                                              gridArea: "one1",
-                                              height: 65,
-                                              width: 160,
-                                              fontSize: "1.5rem",
-                                            }}
-                                          >
-                                            {showQuantity(
-                                              price.ticket_type_uuid
-                                            )}
-                                          </Button>
+                                          {uredjujeSe === price.ticket_type_uuid ? (
+                                            <TextField
+                                              autoFocus
+                                              value={upisano}
+                                              onChange={(e) => setUpisano(e.target.value.replace(/[^0-9]/g, ""))}
+                                              onFocus={(e) => e.target.select()}
+                                              onBlur={() => zavrsiUnos(price)}
+                                              onKeyDown={(e) => {
+                                                if (e.key === "Enter") { zavrsiUnos(price); }
+                                                // Escape vraca staro stanje: blagajnik koji je
+                                                // promasio brojku ne smije ostati bez kolicine.
+                                                if (e.key === "Escape") { setUredjujeSe(null); setUpisano(""); }
+                                              }}
+                                              inputProps={{
+                                                inputMode: "numeric",
+                                                style: { textAlign: "center", fontSize: "1.5rem", height: 65, padding: 0 },
+                                              }}
+                                              sx={{
+                                                width: 160,
+                                                "& .MuiOutlinedInput-root": { height: 65, borderRadius: 0 },
+                                              }}
+                                            />
+                                          ) : (
+                                            <Button
+                                              variant="outlined"
+                                              color="primary"
+                                              onClick={() => {
+                                                setUredjujeSe(price.ticket_type_uuid);
+                                                setUpisano(String(showQuantity(price.ticket_type_uuid) || ""));
+                                              }}
+                                              title="Klik za ručni unos količine"
+                                              sx={{
+                                                gridArea: "one1",
+                                                height: 65,
+                                                width: 160,
+                                                fontSize: "1.5rem",
+                                              }}
+                                            >
+                                              {showQuantity(
+                                                price.ticket_type_uuid
+                                              )}
+                                            </Button>
+                                          )}
 
                                           <Button
                                             variant="outlined"
