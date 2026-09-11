@@ -400,13 +400,15 @@ export default function FilterBar() {
               sx={{ gridArea: "two" }}
             />
 
-         <Box sx={{ gridArea: "two2" }}>
+         {/* Redak datuma mora biti tocno sirok kao polje linije iznad njega.
+             S postotcima (75/25) u blok-kutiji razmak izmedju elemenata ulazi u
+             racun pa redak ispadne uzi; flex dijeli sirinu bez ostatka. */}
+         <Box sx={{ gridArea: "two2", display: "flex", gap: 1 }}>
             <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="hr">
               <DatePicker
                 label="Datum putovanja"
                 format="DD.MM.YYYY"
                 disablePast
-                sx={{ width: "75%" }}
                 value={dayjs(day)}
                 open={kalendarOtvoren}
                 onOpen={() => setKalendarOtvoren(true)}
@@ -417,7 +419,10 @@ export default function FilterBar() {
                     // Datum se bira iz kalendara, ne tipka — bez ovoga bi se uz
                     // kalendar dizala i tipkovnica na dodirnom zaslonu.
                     inputProps: { readOnly: true },
-                    sx: { "& .MuiInputBase-root": { cursor: "pointer" } },
+                    // Sirina ide na samo polje, ne na DatePicker: sx s
+                    // DatePickera ne stigne do korijena polja, pa je polje
+                    // ostajalo zadane sirine i redak je bio uzi od linije iznad.
+                    sx: { flex: 1, minWidth: 0, "& .MuiInputBase-root": { cursor: "pointer" } },
                   },
                 }}
                 onChange={(event, newValue) => {
@@ -428,8 +433,9 @@ export default function FilterBar() {
             <Button
               variant="contained"
               sx={{
-                width: "25%",
-                height: "100%",
+                flexShrink: 0,
+                minWidth: 104,
+                height: "auto",
               }}
               onClick={handleSetToday}
             >
