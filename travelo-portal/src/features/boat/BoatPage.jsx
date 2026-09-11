@@ -92,7 +92,7 @@ export default function BoatPage() {
         { title: t("boat.regions.title"), subtitle: "Šifarnik lučkih uprava", icon: AnchorIcon, path: "/boat/regions" },
         { title: "Obavijesti", subtitle: "Obavijesti na web stranici", icon: CampaignIcon, path: "/boat/notices" },
         { title: "Predlošci karata", subtitle: "Izgled PDF karte po kanalu", icon: AssignmentIcon, path: "/boat/ticket_templates" },
-        { title: "SEOP", subtitle: "Evidencija karata prema AKD-u", icon: VerifiedUserIcon, path: "/boat/seop" },
+        { title: "Integracije — AKD", subtitle: "SEOP i MOSI", icon: VerifiedUserIcon, path: "/boat/seop" },
     ];
 
     return (

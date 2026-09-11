@@ -2,6 +2,7 @@ const express = require('express');
 const { seopSignTestController } = require('../controllers/seop/seopSignController');
 const { provjeriPPPController } = require('../controllers/seop/seopController');
 const { uploadSeopCertController, seopCertInfoController, seopTestVezeController } = require('../controllers/seop/seopCertController');
+const { uploadMosiCertController, mosiCertInfoController, mosiTestVezeController } = require('../controllers/mosi/mosiController');
 
 const router = express.Router();
 
@@ -17,5 +18,10 @@ router.post('/seop/provjeri-ppp', provjeriPPPController);
 router.post('/seop/cert', uploadSeopCertController);
 router.get('/seop/cert-info', seopCertInfoController);
 router.post('/seop/test-veze', seopTestVezeController);
+
+// MOSI (AKD) — dojava koristenja invalidskih povlastica.
+router.post('/mosi/cert', uploadMosiCertController);
+router.get('/mosi/cert-info', mosiCertInfoController);
+router.post('/mosi/test-veze', mosiTestVezeController);
 
 module.exports = router;

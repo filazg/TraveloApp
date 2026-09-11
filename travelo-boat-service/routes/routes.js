@@ -10,6 +10,7 @@ const { getDeparturesController, getDepartureByUuidController, getRoutesByDepart
 const { getSailingsController, getSailingDetailsController, startSailingController, updateLegStatusController, cancelHarborArrivalController, changeBoatController } = require('../controllers/dataControllers/sailingControllers');
 const { listTicketTemplatesController, getTicketTemplateController, upsertTicketTemplateController } = require('../controllers/dataControllers/ticketTemplatesControllers');
 const { getSeopSettingsController, getSeopSettingsInternalController, updateSeopSettingsController, setSeopCertController } = require('../controllers/dataControllers/seopSettingsControllers');
+const { getMosiSettingsController, getMosiSettingsInternalController, updateMosiSettingsController, setMosiCertController } = require('../controllers/dataControllers/mosiSettingsControllers');
 const router = express.Router();
 
 // Predlozak PDF karte po prodajnom kanalu. Postavku cita transactions servis
@@ -38,6 +39,20 @@ router
 router
     .route('/seop_settings/cert')
     .post(setSeopCertController)
+
+// MOSI (AKD) — dojava koristenja invalidskih povlastica. Isti obrazac kao SEOP.
+router
+    .route('/mosi_settings')
+    .get(getMosiSettingsController)
+    .post(updateMosiSettingsController)
+
+router
+    .route('/mosi_settings/internal')
+    .get(getMosiSettingsInternalController)
+
+router
+    .route('/mosi_settings/cert')
+    .post(setMosiCertController)
 
 module.exports = router
 

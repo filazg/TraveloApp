@@ -99,7 +99,96 @@ const handleSeopTestFeature = async (req, res) => {
     }
 };
 
+// --- MOSI ---
+// Isti raspored: postavke u boat servisu, certifikat i provjera veze u akd.
+const handleGetMosiSettingsFeature = async (req, res) => {
+    try {
+        const core = await getCoreServiceConfigData();
+        const boatUrl = url(core, 'boat');
+        const akdUrl = url(core, 'akd');
+
+        const [postavke, cert] = await Promise.all([
+            boatUrl
+                ? axios.get(`${boatUrl}/mosi_settings`, { timeout: 10000, validateStatus: () => true })
+                : Promise.resolve(null),
+            akdUrl
+                ? axios.get(`${akdUrl}/mosi/cert-info`, { timeout: 10000, validateStatus: () => true })
+                    .catch(() => null)
+                : Promise.resolve(null),
+        ]);
+
+        res.send({
+            status: 200,
+            data: {
+                path1: 'boatData',
+                path2: 'mosiSettings',
+                data: {
+                    settings: postavke?.data?.data?.settings || null,
+                    cert: cert?.data?.data?.cert || null,
+                    akd_dostupan: !!cert,
+                },
+            },
+        });
+    } catch (error) {
+        console.log('handleGetMosiSettingsFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
+const handleUpdateMosiSettingsFeature = async (req, res) => {
+    try {
+        const core = await getCoreServiceConfigData();
+        const boatUrl = url(core, 'boat');
+        if (!boatUrl) throw new Error('boat servis nije u konfiguraciji');
+        const r = await axios.post(`${boatUrl}/mosi_settings`, req.body?.body || req.body || {}, {
+            timeout: 10000,
+            validateStatus: () => true,
+        });
+        res.status(r.status).send(r.data);
+    } catch (error) {
+        console.log('handleUpdateMosiSettingsFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
+const handleUploadMosiCertFeature = async (req, res) => {
+    try {
+        const core = await getCoreServiceConfigData();
+        const akdUrl = url(core, 'akd');
+        if (!akdUrl) throw new Error('akd servis nije u konfiguraciji');
+        const r = await axios.post(`${akdUrl}/mosi/cert`, req.body?.body || req.body || {}, {
+            timeout: 20000,
+            maxBodyLength: Infinity,
+            validateStatus: () => true,
+        });
+        res.status(r.status).send(r.data);
+    } catch (error) {
+        console.log('handleUploadMosiCertFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
+const handleMosiTestFeature = async (req, res) => {
+    try {
+        const core = await getCoreServiceConfigData();
+        const akdUrl = url(core, 'akd');
+        if (!akdUrl) throw new Error('akd servis nije u konfiguraciji');
+        const r = await axios.post(`${akdUrl}/mosi/test-veze`, {}, {
+            timeout: 30000,
+            validateStatus: () => true,
+        });
+        res.status(r.status).send(r.data);
+    } catch (error) {
+        console.log('handleMosiTestFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
+    handleGetMosiSettingsFeature,
+    handleUpdateMosiSettingsFeature,
+    handleUploadMosiCertFeature,
+    handleMosiTestFeature,
     handleGetSeopSettingsFeature,
     handleUpdateSeopSettingsFeature,
     handleUploadSeopCertFeature,

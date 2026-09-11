@@ -11,7 +11,7 @@ const { handleGetBoatsFeature, handleAddBoatsFeature, handleUpdateBoatsFeature }
 const { handleGetLinesFeature, handleAddLinesFeature, handleUpdateLinesFeature } = require('../features/boat/linesHandlers');
 const { handleGetRegionsFeature, handleAddRegionFeature, handleUpdateRegionFeature } = require('../features/boat/regionsHandlers');
 const { handleGetTicketTemplatesFeature, handleUpsertTicketTemplateFeature, handleTicketTemplatePreviewFeature } = require('../features/boat/ticketTemplatesHandlers');
-const { handleGetSeopSettingsFeature, handleUpdateSeopSettingsFeature, handleUploadSeopCertFeature, handleSeopTestFeature } = require('../features/boat/seopSettingsHandlers');
+const { handleGetSeopSettingsFeature, handleUpdateSeopSettingsFeature, handleUploadSeopCertFeature, handleSeopTestFeature, handleGetMosiSettingsFeature, handleUpdateMosiSettingsFeature, handleUploadMosiCertFeature, handleMosiTestFeature } = require('../features/boat/seopSettingsHandlers');
 const { handleGetTicketTypesFeature, handleAddTicketTypesFeature, handleUpdateTicketTypesFeature } = require('../features/boat/ticketTypesHandlers');
 const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrFeature } = require('../features/backoffice/partnersHandlers');
 const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
@@ -298,6 +298,19 @@ router
 router
     .route('/boat/seop_test')
     .post(handleSeopTestFeature)
+
+router
+    .route('/boat/mosi_settings')
+    .get(handleGetMosiSettingsFeature)
+    .post(handleUpdateMosiSettingsFeature)
+
+router
+    .route('/boat/mosi_cert')
+    .post(handleUploadMosiCertFeature)
+
+router
+    .route('/boat/mosi_test')
+    .post(handleMosiTestFeature)
 
 router
     .route('/transactions/ticket_conflict_types')
