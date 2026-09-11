@@ -2,12 +2,21 @@ const axios = require('axios');
 const { getCoreServiceConfigData } = require('../configServices/configSyncController');
 
 // Proxy: terminal/check_island_card → akd-service /seop/provjeri-ppp.
-// Tijelo: { card_no, route: { line_no, departure_harbor_code, arrival_harbor_code }, date }
+//
+// Tijelo: { card_no | oib | uid | iks, route: { line_no, departure_harbor_code,
+// arrival_harbor_code }, date }
+//
+// Identifikator je bilo koji od cetiri. Ocitanje cipa daje broj kartice, ali
+// specifikacija trazi da blagajna radi i kad se cip ne da procitati — tada
+// blagajnik upisuje broj iskaznice ili OIB putnika.
 const checkIslandCardController = async (data) => {
     try {
         const cardNo = String(data?.card_no || '').trim();
-        if (!cardNo) {
-            return { status: 400, body: { status: 400, data: { message: 'card_no is required' } } };
+        const oib = String(data?.oib || '').trim();
+        const uid = String(data?.uid || '').trim();
+        const iks = String(data?.iks || '').trim();
+        if (!cardNo && !oib && !uid && !iks) {
+            return { status: 400, body: { status: 400, data: { message: 'potreban je broj kartice, OIB, UID cipa ili broj iksice' } } };
         }
         const route = data?.route || {};
         if (!route.line_no || !route.departure_harbor_code || !route.arrival_harbor_code) {
@@ -19,7 +28,10 @@ const checkIslandCardController = async (data) => {
             return { status: 500, body: { status: 500, data: { message: 'akd service URL not configured' } } };
         }
         const response = await axios.post(`${akdUrl}/seop/provjeri-ppp`, {
-            sBrOtIs: cardNo,
+            sBrOtIs: cardNo || null,
+            oznOtIs: uid || null,
+            oib: oib || null,
+            iks: iks || null,
             oznLuke1: route.departure_harbor_code,
             oznLuke2: route.arrival_harbor_code,
             brLinije: String(route.line_no),

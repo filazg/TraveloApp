@@ -10,6 +10,7 @@ import {
     DialogContent,
     DialogTitle,
     Grid,
+    MenuItem,
     Stack,
     TextField,
     ThemeProvider,
@@ -46,6 +47,9 @@ export default function WebSalesPage() {
 
     const [islandCardOpen, setIslandCardOpen] = useState(false);
     const [islandCardNumber, setIslandCardNumber] = useState("");
+    // Kupac koji broj iskaznice nema pri ruci moze se identificirati OIB-om;
+    // SEOP prima oboje, a nama je vazno da se karta uopce moze kupiti.
+    const [islandIdType, setIslandIdType] = useState("card_no");
     const [islandChecking, setIslandChecking] = useState(false);
     const [islandResult, setIslandResult] = useState(null);
     const [islandError, setIslandError] = useState(null);
@@ -56,6 +60,7 @@ export default function WebSalesPage() {
         setIslandResult(null);
         setIslandError(null);
         setIslandChecking(false);
+        setIslandIdType("card_no");
     };
 
     const verifyIslandCard = async () => {
@@ -68,7 +73,7 @@ export default function WebSalesPage() {
         try {
             const trip = selectedTrip || {};
             const resp = await axios.post(`${url}/check_island_card`, {
-                card_no: cardNo,
+                [islandIdType]: cardNo,
                 route: {
                     line_no: trip.line_code,
                     departure_harbor_code: trip.departure_harbor_id,
@@ -243,20 +248,35 @@ export default function WebSalesPage() {
                     {!islandResult && (
                         <>
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                Upišite serijski broj otočne iskaznice. Sustav provjerava pravo na povlašteni prijevoz i izračunava cijenu.
+                                Upišite serijski broj otočne iskaznice ili OIB putnika. Sustav provjerava
+                                pravo na povlašteni prijevoz i izračunava cijenu.
                             </Typography>
-                            <TextField
-                                autoFocus
-                                fullWidth
-                                label="Broj iskaznice"
-                                value={islandCardNumber}
-                                onChange={(e) => setIslandCardNumber(e.target.value.replace(/[^0-9]/g, ""))}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && islandCardNumber.trim() && !islandChecking) verifyIslandCard();
-                                }}
-                                disabled={islandChecking}
-                                inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
-                            />
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                                <TextField
+                                    select
+                                    label="Upisujem"
+                                    value={islandIdType}
+                                    onChange={(e) => { setIslandIdType(e.target.value); setIslandCardNumber(""); setIslandError(null); }}
+                                    disabled={islandChecking}
+                                    sx={{ minWidth: 190 }}
+                                >
+                                    <MenuItem value="card_no">Broj iskaznice</MenuItem>
+                                    <MenuItem value="oib">OIB putnika</MenuItem>
+                                    <MenuItem value="iks">Broj iksice</MenuItem>
+                                </TextField>
+                                <TextField
+                                    autoFocus
+                                    fullWidth
+                                    label={islandIdType === "oib" ? "OIB" : islandIdType === "iks" ? "Broj iksice" : "Broj iskaznice"}
+                                    value={islandCardNumber}
+                                    onChange={(e) => setIslandCardNumber(e.target.value.replace(/[^0-9]/g, ""))}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && islandCardNumber.trim() && !islandChecking) verifyIslandCard();
+                                    }}
+                                    disabled={islandChecking}
+                                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
+                                />
+                            </Stack>
                             {islandError && (
                                 <Typography variant="body2" color="error" sx={{ mt: 1.5 }}>
                                     {islandError}

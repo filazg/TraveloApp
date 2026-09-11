@@ -6,6 +6,8 @@ const { getCoreServiceConfigData } = require('../configSyncController');
 //
 // Body iz weba: { card_no, route, date }
 //   card_no — sBrOtIs (serijski broj otočne iskaznice; user upisuje broj)
+//   oib     — OIB putnika; sluzi kad kupac nema broj iskaznice pri ruci
+//   iks     — serijski broj iksice (studentska)
 //   route   — { line_no, departure_harbor_code, arrival_harbor_code }
 //   date    — ISO datum/vrijeme putovanja
 //
@@ -15,8 +17,10 @@ const checkIslandCardController = async (req, res) => {
     try {
         const body = req.body || {};
         const cardNo = String(body.card_no || '').trim();
-        if (!cardNo) {
-            return res.status(400).json({ status: 400, data: { message: 'card_no je obavezan' } });
+        const oib = String(body.oib || '').trim();
+        const iks = String(body.iks || '').trim();
+        if (!cardNo && !oib && !iks) {
+            return res.status(400).json({ status: 400, data: { message: 'potreban je broj iskaznice, OIB ili broj iksice' } });
         }
         const route = body.route || {};
         if (!route.line_no || !route.departure_harbor_code || !route.arrival_harbor_code) {
@@ -31,7 +35,9 @@ const checkIslandCardController = async (req, res) => {
         }
 
         const resp = await axios.post(`${akdUrl}/seop/provjeri-ppp`, {
-            sBrOtIs: cardNo,
+            sBrOtIs: cardNo || null,
+            oib: oib || null,
+            iks: iks || null,
             oznLuke1: route.departure_harbor_code,
             oznLuke2: route.arrival_harbor_code,
             brLinije: String(route.line_no),

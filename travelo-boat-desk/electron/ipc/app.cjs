@@ -4,6 +4,7 @@ const { getPairingDataService } = require("../services/pairingDataService.cjs");
 const { pairingWithBackendService, syncBasicDataService, syncTransportDataService } = require("../services/backendDataService.cjs");
 const { getLocalBasicDataService, getLocalTransportDataService } = require("../services/localDataService.cjs");
 const { getBookingDataService } = require("../services/bookingDataService.cjs");
+const { checkIslandCardService } = require("../services/islandCardService.cjs");
 const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService, reprintShiftService, syncPendingShiftsService } = require("../services/shiftsDataService.cjs");
 const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService, lookupExternalTicketService, cancelExternalTicketService } = require("../services/invoiceDataService.cjs");
 const { getBuyersDataService } = require("../services/buyersDataService.cjs");
@@ -129,6 +130,17 @@ function registerAppIpc() {
       return ok(data);
     } catch (e) {
       return fail("Failed to load initial data", e?.stack || String(e));
+    }
+  });
+  // Provjera otocnog prava upisom broja iskaznice ili OIB-a, kad se cip ne da
+  // procitati. Greska se vraca kao poruka, ne kao pad — blagajnik treba znati
+  // sto se dogodilo i moci nastaviti redovnom prodajom.
+  ipcMain.handle("app:checkIslandCardIPC", async (_event, in_data) => {
+    try {
+      const data = await checkIslandCardService(in_data);
+      return ok(data);
+    } catch (e) {
+      return fail("Provjera otocne iskaznice nije uspjela", e?.message || String(e));
     }
   });
   ipcMain.handle("app:cardPaymentIPC", async (_event, in_data) => {

@@ -86,6 +86,51 @@ export default function SubsidisedTicketsSelect() {
       setVirtualCardData(true)
     }
 
+    // Rucni upit na SEOP: broj iskaznice ili OIB putnika.
+    //
+    // Cip se ne da uvijek procitati — istrosena kartica, citac koji ne reagira,
+    // iskaznica koju putnik nema kod sebe. Specifikacija SEOP-a zato trazi da
+    // blagajna omoguci istu provjeru i upisom podatka.
+    const [rucniOblik, setRucniOblik] = useState("card_no");
+    const [rucniUnos, setRucniUnos] = useState("");
+    const [rucnaProvjera, setRucnaProvjera] = useState(null);
+
+    const provjeriRucno = async () => {
+      const vrijednost = String(rucniUnos || "").trim();
+      if (!vrijednost) return;
+
+      const relacija = appData.searchData?.selectedTrip;
+      const linija = appData.searchData?.selectedLine;
+      if (!relacija || !linija) {
+        setRucnaProvjera({ ok: false, poruka: "Odaberite polazak i odredište prije provjere." });
+        return;
+      }
+
+      setRucnaProvjera({ radi: true });
+      try {
+        const odgovor = await window.api.app.checkIslandCardIPC({
+          [rucniOblik]: vrijednost,
+          route: {
+            line_no: linija.code,
+            departure_harbor_code: relacija.departure_harbor_id,
+            arrival_harbor_code: relacija.arrival_harbor_id,
+          },
+          date: relacija.departure || new Date().toISOString(),
+        });
+        // IPC vraca { ok, data } ili { ok:false, error }.
+        const podaci = odgovor?.data ?? odgovor;
+        if (odgovor?.ok === false) {
+          setRucnaProvjera({ ok: false, poruka: odgovor.error || "Provjera nije uspjela." });
+        } else if (podaci?.ok === false) {
+          setRucnaProvjera({ ok: false, poruka: podaci.poruka || podaci.error || "Provjera nije uspjela." });
+        } else {
+          setRucnaProvjera({ ok: true, ...podaci });
+        }
+      } catch (e) {
+        setRucnaProvjera({ ok: false, poruka: e?.message || "Provjera nije uspjela." });
+      }
+    };
+
     const scanCard = async()=>{
       console.log('BRAVO')
       const getCardData = await window.api.e_getNFCCard()
@@ -760,6 +805,67 @@ function virtualCardDetails() {
                 VIRTUALNA KARTICA
               </Button>
             </Stack>
+
+            {/* Rucni upit — isti servis, samo bez citaca. */}
+            <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, mb: 2 }}>
+              <Typography sx={{ fontWeight: 800, mb: 1.5 }}>
+                Ručna provjera
+              </Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
+                <FormControl sx={{ minWidth: 200 }}>
+                  <InputLabel id="rucni-oblik">Upisuje se</InputLabel>
+                  <Select
+                    labelId="rucni-oblik"
+                    label="Upisuje se"
+                    value={rucniOblik}
+                    onChange={(e) => { setRucniOblik(e.target.value); setRucnaProvjera(null); }}
+                  >
+                    <MenuItem value="card_no">Broj iskaznice</MenuItem>
+                    <MenuItem value="oib">OIB putnika</MenuItem>
+                    <MenuItem value="iks">Broj iksice</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  fullWidth
+                  label={rucniOblik === "oib" ? "OIB" : rucniOblik === "iks" ? "Broj iksice" : "Broj iskaznice"}
+                  value={rucniUnos}
+                  onChange={(e) => setRucniUnos(e.target.value.replace(/[^0-9A-Za-z]/g, ""))}
+                  onKeyDown={(e) => { if (e.key === "Enter") provjeriRucno(); }}
+                />
+                <Button
+                  variant="contained"
+                  sx={{ height: 56, minWidth: 140, flexShrink: 0 }}
+                  onClick={provjeriRucno}
+                  disabled={!rucniUnos.trim() || rucnaProvjera?.radi}
+                >
+                  {rucnaProvjera?.radi ? "PROVJERA…" : "PROVJERI"}
+                </Button>
+              </Stack>
+
+              {rucnaProvjera && !rucnaProvjera.radi ? (
+                <Box sx={{ mt: 2 }}>
+                  <StatusPanel
+                    tone={rucnaProvjera.ok && rucnaProvjera.ima_pravo ? "success" : "error"}
+                    title={rucnaProvjera.ok
+                      ? (rucnaProvjera.ima_pravo ? "Ima pravo na povlasticu" : "Nema prava na povlasticu")
+                      : "Provjera nije prošla"}
+                  >
+                    <Typography align="center" sx={{ fontWeight: 700 }}>
+                      {rucnaProvjera.ok ? (rucnaProvjera.poruka || "") : rucnaProvjera.poruka}
+                    </Typography>
+                    {rucnaProvjera.ok && rucnaProvjera.ima_pravo ? (
+                      <Typography align="center" sx={{ mt: 1 }}>
+                        {rucnaProvjera.pravo_na_pp ? `Pravo: ${rucnaProvjera.pravo_na_pp}` : ""}
+                        {rucnaProvjera.otok ? `  ·  Otok: ${rucnaProvjera.otok}` : ""}
+                        {rucnaProvjera.popust_postotak !== null && rucnaProvjera.popust_postotak !== undefined
+                          ? `  ·  Popust: ${rucnaProvjera.popust_postotak}%`
+                          : ""}
+                      </Typography>
+                    ) : null}
+                  </StatusPanel>
+                </Box>
+              ) : null}
+            </Paper>
 
             {cardData?.cardFamily === 'SEOP_P' && !virtualCardData  ?
               seopCardDetails() :

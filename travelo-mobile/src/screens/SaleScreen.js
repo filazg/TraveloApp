@@ -110,6 +110,9 @@ export default function SaleScreen() {
     const [islandModalOpen, setIslandModalOpen] = useState(false);
     const islandInputRef = useRef(null);
     const [islandCardNo, setIslandCardNo] = useState('');
+    // Cip se ne da uvijek procitati, a putnik ponekad iskaznicu nema kod sebe.
+    // SEOP prima i OIB i broj iksice, pa se bira sto se upisuje.
+    const [islandIdType, setIslandIdType] = useState('card_no');
     const [islandChecking, setIslandChecking] = useState(false);
     const [islandResult, setIslandResult] = useState(null);
     const [islandError, setIslandError] = useState(null);
@@ -519,9 +522,10 @@ export default function SaleScreen() {
             }
             // Popuni input + odmah pokreni SEOP provjeru — korisnik ne mora ništa klikati.
             setIslandCardNo(num);
+            setIslandIdType('card_no');
             setIslandError(null);
             setIslandResult(null);
-            verifyIslandFor(num);
+            verifyIslandFor(num, 'card_no');
         });
         return () => {
             unsub();
@@ -529,15 +533,16 @@ export default function SaleScreen() {
         };
     }, [islandModalOpen]);
 
-    const verifyIslandFor = async (cardNoArg) => {
+    const verifyIslandFor = async (cardNoArg, oblikArg) => {
         const cardNo = String(cardNoArg || '').trim();
+        const oblik = oblikArg || islandIdType;
         if (!cardNo || !matchingRoute) return;
         setIslandChecking(true);
         setIslandError(null);
         setIslandResult(null);
         try {
             const resp = await api.post(ENDPOINTS.checkIslandCard, {
-                card_no: cardNo,
+                [oblik]: cardNo,
                 route: {
                     line_no: matchingRoute.line_code,
                     departure_harbor_code: matchingRoute.departure_harbor_id,
@@ -1082,10 +1087,32 @@ export default function SaleScreen() {
                                         ? 'Prislonite otočnu iskaznicu na poleđinu uređaja ili upišite broj ručno.'
                                         : 'Upišite serijski broj otočne iskaznice. Sustav provjerava pravo i izračunava cijenu.'}
                                 </Text>
+                                <View style={islandStyles.oblikRed}>
+                                    {[
+                                        { kljuc: 'card_no', naziv: 'ISKAZNICA' },
+                                        { kljuc: 'oib', naziv: 'OIB' },
+                                        { kljuc: 'iks', naziv: 'IKSICA' },
+                                    ].map((o) => (
+                                        <TouchableOpacity
+                                            key={o.kljuc}
+                                            style={[islandStyles.oblikBtn, islandIdType === o.kljuc && islandStyles.oblikBtnAktivan]}
+                                            onPress={() => {
+                                                setIslandIdType(o.kljuc);
+                                                setIslandCardNo('');
+                                                setIslandError(null);
+                                            }}
+                                            disabled={islandChecking}
+                                        >
+                                            <Text style={[islandStyles.oblikText, islandIdType === o.kljuc && islandStyles.oblikTextAktivan]}>
+                                                {o.naziv}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                                 <TextInput
                                     ref={islandInputRef}
                                     style={islandStyles.input}
-                                    placeholder="Broj iskaznice"
+                                    placeholder={islandIdType === 'oib' ? 'OIB putnika' : islandIdType === 'iks' ? 'Broj iksice' : 'Broj iskaznice'}
                                     keyboardType="number-pad"
                                     value={islandCardNo}
                                     onChangeText={(t) => setIslandCardNo(t.replace(/[^0-9]/g, ''))}
@@ -1155,6 +1182,15 @@ export default function SaleScreen() {
 }
 
 const islandStyles = StyleSheet.create({
+    // Izbor onoga sto se upisuje: broj iskaznice, OIB ili broj iksice.
+    oblikRed: { flexDirection: 'row', marginBottom: 10, gap: 8 },
+    oblikBtn: {
+        flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1,
+        borderColor: colors.border, alignItems: 'center', backgroundColor: colors.surface,
+    },
+    oblikBtnAktivan: { backgroundColor: colors.primary, borderColor: colors.primary },
+    oblikText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+    oblikTextAktivan: { color: colors.textOnPrimary },
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
     card: {
         backgroundColor: colors.surface, borderRadius: 12, padding: 20, width: '100%', maxWidth: 460,
