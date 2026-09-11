@@ -140,9 +140,14 @@ function createWindow() {
   win.setMinimumSize(CONTENT_MIN_WIDTH + (winW - contentW), minH);
   logToFile("minimalna sirina prozora:", CONTENT_MIN_WIDTH + (winW - contentW));
 
+  // Blagajna radi preko cijelog zaslona: cetiri stupca i donja traka trebaju
+  // svaki piksel, a blagajnik nema razloga drzati ispod prozora nesto drugo.
+  // Uvecava se, ne ide u pravi fullscreen — naslovna traka i taskbar ostaju
+  // dohvatljivi, za dijaloge pisaca i izlaz iz aplikacije.
   win.once("ready-to-show", () => {
     logToFile("ready-to-show");
     closeSplash();
+    win.maximize();
     win.show();
     win.focus();
   });
@@ -154,6 +159,7 @@ function createWindow() {
     if (!win.isDestroyed() && !win.isVisible()) {
       logToFile("ready-to-show nije stigao u 30s — prikazujem prozor svejedno");
       closeSplash();
+      win.maximize();
       win.show();
     }
   }, 30000);
