@@ -1,13 +1,20 @@
 import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
+import ReturnTicketModal from "./ReturnTicketModal";
 
 
 export default function SelectedTicketsBar() {
     const dispatch = useDispatch();
     const appData = useSelector(allAppData);
+
+    // Stavka za koju se otvara povratna karta. Drzi se ovdje, a ne u redux
+    // registru modala, jer prozor treba znati tocno na koju je stavku
+    // kliknuto — luke, vrste karata i kolicine citaju se iz nje.
+    const [povratnaZa, setPovratnaZa] = useState(null);
 
     const createTicketsGroup = async () => {
       //await dispatch(setStateData({path:'status', value:'loading'}))
@@ -216,7 +223,17 @@ export default function SelectedTicketsBar() {
 
                   {/* Uklanjanje stavke je sporedna radnja — mali gumb u dnu
                       desno, umjesto pune širine iznad naslova. */}
-                  <Box display="flex" justifyContent="flex-end">
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    {/* Povratak se nudi uz stavku jer se iz nje sve i izvodi:
+                        relacija u suprotnom smjeru, vrste karata i kolicine. */}
+                    <Button
+                      color="primary"
+                      size="small"
+                      startIcon={<SwapHorizIcon />}
+                      onClick={() => setPovratnaZa(row)}
+                    >
+                      POVRATNA
+                    </Button>
                     <Button
                       color="error"
                       size="small"
@@ -234,6 +251,10 @@ export default function SelectedTicketsBar() {
 
 
       </Grid>
+
+      {povratnaZa ? (
+        <ReturnTicketModal stavka={povratnaZa} onClose={() => setPovratnaZa(null)} />
+      ) : null}
     </>
     )
 }
