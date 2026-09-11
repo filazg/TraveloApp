@@ -346,6 +346,70 @@ export default function LinesPage (){
                         name="saop_cost_bearer"
                         sx={{ mt:1 }}
                     />
+
+                    {/* Povlastene kartice.
+                        Prihvacanje nije vezano uz vrstu linije: i komercijalna
+                        linija moze priznavati otocne iskaznice, a subvencionirana
+                        ih ne mora — pa se bira po liniji. */}
+                    <Typography sx={{ mt: 3, mb: 1, fontWeight: 800 }}>
+                        Povlaštene kartice
+                    </Typography>
+
+                    <TextField
+                        select
+                        fullWidth
+                        label="Otočne iskaznice (SEOP)"
+                        value={editedData?.seop_mode || "ne"}
+                        onChange={(e)=>setEditedData({...editedData, seop_mode: e.target.value})}
+                        name="seop_mode"
+                        helperText="Tko na ovoj liniji može iskoristiti otočno pravo."
+                    >
+                        <MenuItem value="ne">Ne prihvaća se</MenuItem>
+                        <MenuItem value="prebivaliste">Samo otočani s prebivalištem</MenuItem>
+                        <MenuItem value="svi">Svi otočani</MenuItem>
+                    </TextField>
+
+                    <TextField
+                        select
+                        fullWidth
+                        label="Invalidske kartice (MOSI)"
+                        value={editedData?.mosi_accepted ? "da" : "ne"}
+                        onChange={(e)=>setEditedData({...editedData, mosi_accepted: e.target.value === "da"})}
+                        name="mosi_accepted"
+                        sx={{ mt:1 }}
+                    >
+                        <MenuItem value="ne">Ne prihvaća se</MenuItem>
+                        <MenuItem value="da">Prihvaća se</MenuItem>
+                    </TextField>
+
+                    {editedData?.mosi_accepted ? (
+                        <>
+                            <TextField
+                                type="number"
+                                fullWidth
+                                label="Popust nositelju MOSI kartice (%)"
+                                value={editedData?.mosi_discount_pct ?? 0}
+                                onChange={(e)=>setEditedData({...editedData, mosi_discount_pct: e.target.value})}
+                                inputProps={{ min: 0, max: 100 }}
+                                name="mosi_discount_pct"
+                                sx={{ mt:1 }}
+                                helperText="Postotak popusta na redovnu cijenu karte."
+                            />
+                            <TextField
+                                select
+                                fullWidth
+                                label="Pratnja nositelja"
+                                value={editedData?.mosi_companion_free === false ? "placa" : "besplatno"}
+                                onChange={(e)=>setEditedData({...editedData, mosi_companion_free: e.target.value === "besplatno"})}
+                                name="mosi_companion_free"
+                                sx={{ mt:1 }}
+                                helperText="Pratnja u pravilu putuje besplatno."
+                            >
+                                <MenuItem value="besplatno">Putuje besplatno</MenuItem>
+                                <MenuItem value="placa">Plaća kao nositelj</MenuItem>
+                            </TextField>
+                        </>
+                    ) : null}
                     <Button
                         type="submit"
                         onClick={handleSubmitEdit}
