@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
@@ -69,46 +69,39 @@ export default function ReturnTicketModal({ stavka, onClose }) {
   const [rutaUuid, setRutaUuid] = useState("");
   const [kolicine, setKolicine] = useState({});
 
-  // Polasci u suprotnom smjeru za odabrani dan: iz luke dolaska polazne stavke
+  // Polasci u suprotnom smjeru za zadani dan: iz luke dolaska polazne stavke
   // natrag u luku iz koje se krenulo, na istoj liniji.
-  const povratneRute = useMemo(() => {
-    if (!stavka) return [];
-    const sve = appData.transportData?.routes || [];
-    const datum = uEnGb(dan);
-    return sve
-      .filter((r) => r.line_code === stavka.line_code
-        && r.departure_date === datum
-        && r.departure_harbor_id === stavka.arrival_harbor_id
-        && r.arrival_harbor_id === stavka.departure_harbor_id)
-      .sort((a, b) => vrijemeRute(a).localeCompare(vrijemeRute(b)));
-  }, [stavka, dan, appData.transportData]);
-
-  const ruta = povratneRute.find((r) => r.uuid === rutaUuid) || null;
-
-  // Sve rute povratne relacije za zadani dan, poredane po vremenu.
   const ruteZaDan = (datum) => {
     const sve = appData.transportData?.routes || [];
+    const trazeni = uEnGb(datum);
     return sve
       .filter((r) => r.line_code === stavka?.line_code
-        && r.departure_date === uEnGb(datum)
+        && r.departure_date === trazeni
         && r.departure_harbor_id === stavka?.arrival_harbor_id
         && r.arrival_harbor_id === stavka?.departure_harbor_id)
       .sort((a, b) => vrijemeRute(a).localeCompare(vrijemeRute(b)));
   };
 
-  // Zadano je prvi povratak koji je stvarno moguc: onaj koji krece nakon sto
-  // polazna voznja stigne. Ako ga tog dana vise nema, uzima se prvi sutrasnji —
-  // bez toga se za voznju u 18:00 nudio povratak u 07:00 istog dana, polazak
-  // koji je vec prosao.
-  const pocetnoPostavljeno = useRef(false);
-  useEffect(() => {
-    if (!stavka || pocetnoPostavljeno.current) return;
-    if (!(appData.transportData?.routes || []).length) return;
-    pocetnoPostavljeno.current = true;
+  const povratneRute = useMemo(
+    () => ruteZaDan(dan),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stavka, dan, appData.transportData]
+  );
+
+  const ruta = povratneRute.find((r) => r.uuid === rutaUuid) || null;
+
+  // Zadani povratak: prvi koji krece nakon sto polazna voznja stigne; ako ga
+  // tog dana vise nema, prvi sutrasnji. Racuna se kao cista vrijednost, ne u
+  // ucinku — React u razvoju ucinke pokrece dvaput, pa je prijasnja izvedba sa
+  // zastavicom "vec postavljeno" u drugom prolazu padala na prvi polazak dana.
+  // Tako se za voznju Split-Hvar u 11:00 nudio povratak u 10:15, prije nego
+  // brod uopce stigne.
+  const zadano = useMemo(() => {
+    if (!stavka) return null;
+    if (!(appData.transportData?.routes || []).length) return null;
 
     const dolazak = trenutak(stavka.arrival) || trenutak(stavka.departure);
     const danOdlaska = dolazak || izEnGb(appData.searchData?.travelDate);
-
     const danasnje = ruteZaDan(danOdlaska);
     const sljedeca = dolazak
       ? danasnje.find((r) => {
@@ -116,28 +109,33 @@ export default function ReturnTicketModal({ stavka, onClose }) {
         return t && t > dolazak;
       })
       : danasnje[0];
+    if (sljedeca) return { dan: danOdlaska, uuid: sljedeca.uuid };
 
-    if (sljedeca) {
-      setDan(danOdlaska);
-      setRutaUuid(sljedeca.uuid);
-      return;
-    }
     const sutrasnji = sutra(danOdlaska);
-    setDan(sutrasnji);
-    setRutaUuid(ruteZaDan(sutrasnji)[0]?.uuid || "");
+    return { dan: sutrasnji, uuid: ruteZaDan(sutrasnji)[0]?.uuid || "" };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stavka, appData.transportData]);
 
-  // Kad blagajnik sam promijeni dan, bira se prvi polazak tog dana; prazno
-  // polje bi trazilo dodatni klik.
+  // Cim blagajnik sam dirne dan ili polazak, zadano se vise ne namece.
+  const [rucniOdabir, setRucniOdabir] = useState(false);
+
   useEffect(() => {
-    if (!pocetnoPostavljeno.current) return;
+    if (rucniOdabir || !zadano) return;
+    // Postavljanje je idempotentno: ponovljeni prolaz upisuje iste vrijednosti.
+    setDan(zadano.dan);
+    setRutaUuid(zadano.uuid);
+  }, [zadano, rucniOdabir]);
+
+  // Nakon rucne promjene dana uzima se prvi polazak tog dana; prazno polje bi
+  // trazilo dodatni klik.
+  useEffect(() => {
+    if (!rucniOdabir) return;
     if (povratneRute.length && !povratneRute.some((r) => r.uuid === rutaUuid)) {
       setRutaUuid(povratneRute[0].uuid);
     }
     if (!povratneRute.length && rutaUuid) setRutaUuid("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [povratneRute]);
+  }, [povratneRute, rucniOdabir]);
 
   // Cjenik povratne relacije. Cijene su unesene za jedan smjer, pa se traži i
   // obrnuti par luka — isto kao pri odabiru odredišta.
@@ -158,13 +156,11 @@ export default function ReturnTicketModal({ stavka, onClose }) {
 
   // Početne količine prepisuju polaznu stavku. Vrsta karte koje u povratnom
   // cjeniku nema ostaje na nuli — ne izmišlja se cijena koja nije unesena.
-  const kolicinePostavljene = useRef(false);
+  // Kolicine se prepisuju s polazne stavke dok ih blagajnik ne dirne; nakon
+  // toga promjena polaska ne smije pobrisati njegov ispravak.
+  const [kolicineDirane, setKolicineDirane] = useState(false);
   useEffect(() => {
-    if (!stavka || !cjenik.length) return;
-    // Samo jednom po otvaranju prozora: promjena polaska ne smije pobrisati
-    // ispravak koji je blagajnik vec upisao.
-    if (kolicinePostavljene.current) return;
-    kolicinePostavljene.current = true;
+    if (!stavka || !cjenik.length || kolicineDirane) return;
     const poVrsti = {};
     for (const t of stavka.ticketsData || []) {
       poVrsti[t.ticket_type_uuid] = Number(t.quantity) || 0;
@@ -173,10 +169,11 @@ export default function ReturnTicketModal({ stavka, onClose }) {
     for (const p of cjenik) pocetne[p.ticket_type_uuid] = poVrsti[p.ticket_type_uuid] || 0;
     setKolicine(pocetne);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stavka, cjenik]);
+  }, [stavka, cjenik, kolicineDirane]);
 
   const postavi = (ttUuid, vrijednost) => {
     const broj = Math.max(0, Math.min(999, parseInt(vrijednost, 10) || 0));
+    setKolicineDirane(true);
     setKolicine((p) => ({ ...p, [ttUuid]: broj }));
   };
 
@@ -239,6 +236,7 @@ export default function ReturnTicketModal({ stavka, onClose }) {
         Povratna karta
         <Typography component="div" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {`Polazak: ${stavka.departure_harbor_name} → ${stavka.arrival_harbor_name}, ${stavka.departure || ""}`}
+          {stavka.arrival ? ` · dolazak ${stavka.arrival}` : " · dolazak nepoznat"}
         </Typography>
       </DialogTitle>
 
@@ -255,7 +253,7 @@ export default function ReturnTicketModal({ stavka, onClose }) {
               disablePast
               sx={{ flex: 1 }}
               value={dayjs(dan)}
-              onChange={(v) => { if (v?.$d) setDan(v.$d); }}
+              onChange={(v) => { if (v?.$d) { setRucniOdabir(true); setDan(v.$d); } }}
             />
           </LocalizationProvider>
 
@@ -264,7 +262,7 @@ export default function ReturnTicketModal({ stavka, onClose }) {
             label="Polazak"
             sx={{ flex: 1 }}
             value={rutaUuid}
-            onChange={(e) => setRutaUuid(e.target.value)}
+            onChange={(e) => { setRucniOdabir(true); setRutaUuid(e.target.value); }}
             disabled={!povratneRute.length}
           >
             {povratneRute.map((r) => (
