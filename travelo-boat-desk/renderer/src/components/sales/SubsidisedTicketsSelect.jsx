@@ -818,7 +818,7 @@ function virtualCardDetails() {
                     labelId="rucni-oblik"
                     label="Upisuje se"
                     value={rucniOblik}
-                    onChange={(e) => { setRucniOblik(e.target.value); setRucnaProvjera(null); }}
+                    onChange={(e) => { setRucniOblik(e.target.value); setRucniUnos(""); setRucnaProvjera(null); }}
                   >
                     <MenuItem value="card_no">Broj iskaznice</MenuItem>
                     <MenuItem value="oib">OIB putnika</MenuItem>
