@@ -41,6 +41,11 @@ export const fetchSailingDetailsThunk = createAsyncThunk(
                 legs: payload?.legs || [],
                 physical_legs: payload?.physical_legs || [],
                 bookings: payload?.bookings || [],
+                // Brojaci iz transactions servisa. Prije su ovdje ispadali, pa
+                // su "Ocekivano" i "Validirano na drugom polasku" na stranici
+                // ostajali na nuli iako ih je posluzitelj uredno slao.
+                validation_counts: payload?.validation_counts || {},
+                ticket_counts: payload?.ticket_counts || {},
             };
         } catch (err) { return rejectWithValue(err.response?.data || { message: err.message }); }
     }
