@@ -15,6 +15,7 @@ import {
 import DownloadIcon from "@mui/icons-material/Download";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { authSliceData } from "../auth/authSlice";
+import { useLoading } from "../loading/useLoading";
 
 const formatSize = (bytes) => {
     const n = Number(bytes) || 0;
@@ -37,6 +38,7 @@ export default function DownloadsPage() {
     const [error, setError] = useState("");
     const [busyFile, setBusyFile] = useState("");
 
+    const { tijekom } = useLoading();
     const api = useMemo(() => axios.create({
         baseURL: authData.backendURL,
         withCredentials: true,
@@ -46,7 +48,7 @@ export default function DownloadsPage() {
         setLoading(true);
         setError("");
         try {
-            const r = await api.get("/portal/downloads/list");
+            const r = await tijekom("Preuzimanje popisa datoteka", () => api.get("/portal/downloads/list"));
             // Gateway odmata jedan sloj odgovora, pa lista može doći i top-level i pod .data.
             setItems(r?.data?.downloads ?? r?.data?.data?.downloads ?? []);
         } catch (e) {
@@ -54,7 +56,7 @@ export default function DownloadsPage() {
         } finally {
             setLoading(false);
         }
-    }, [api]);
+    }, [api, tijekom]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -64,9 +66,12 @@ export default function DownloadsPage() {
         setBusyFile(item.file);
         setError("");
         try {
-            const r = await api.get(`/portal/downloads/file/${encodeURIComponent(item.file)}`, {
-                responseType: "blob",
-            });
+            const r = await tijekom(
+                `Preuzimanje datoteke ${item.title}`,
+                () => api.get(`/portal/downloads/file/${encodeURIComponent(item.file)}`, {
+                    responseType: "blob",
+                }),
+            );
             const url = window.URL.createObjectURL(new Blob([r.data]));
             const a = document.createElement("a");
             a.href = url;

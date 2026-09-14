@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
     Alert, Box, Button, Chip, Collapse, IconButton, LinearProgress, MenuItem,
@@ -11,6 +11,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { stanjeSliceData, fetchLinesThunk, fetchStanjeThunk } from "./stanjeSlice";
 import ModulZaglavlje from "../modules/ModulZaglavlje";
+import { useLoading } from "../loading/useLoading";
 
 // Boja modula — ista koja stoji u katalogu za STANJE.
 const ACCENT = "#0E7C66";
@@ -248,11 +249,24 @@ export default function StanjePage() {
     const [datum, setDatum] = useState(danas());
     const [linija, setLinija] = useState("");
     const [luka, setLuka] = useState("");
+    const { tijekom } = useLoading();
 
     useEffect(() => { dispatch(fetchLinesThunk()); }, [dispatch]);
-    useEffect(() => {
-        if (datum) dispatch(fetchStanjeThunk({ departure_date: datum, line_uuid: linija }));
-    }, [dispatch, datum, linija]);
+
+    // Dohvat ide preko globalnog prekrivaca, kao i drugdje u portalu: dan s
+    // tridesetak polazaka trazi i rezervacije za svaki, pa to zna potrajati —
+    // bez poruke izgleda kao da se nista ne dogada i covjek klikne opet.
+    const dohvati = useCallback(
+        () => tijekom(
+            "Preuzimanje stanja kapaciteta",
+            () => dispatch(fetchStanjeThunk({ departure_date: datum, line_uuid: linija })),
+        ),
+        [dispatch, tijekom, datum, linija]
+    );
+
+    // Namjerno bez `dohvati` u popisu ovisnosti: `tijekom` nastaje iznova pri
+    // svakom crtanju, pa bi ga dodavanje pretvorilo u beskonacno dohvacanje.
+    useEffect(() => { if (datum) dohvati(); }, [datum, linija]);
 
     // Luka polaska: uz pocetnu luku plovidbe racunaju se i sve usputne iz kojih
     // brod krece dalje. Djelatnik u Hvaru trazi brod koji iz Hvara vozi, bez
@@ -338,7 +352,7 @@ export default function StanjePage() {
                     </TextField>
                     <Button
                         startIcon={<RefreshIcon />}
-                        onClick={() => dispatch(fetchStanjeThunk({ departure_date: datum, line_uuid: linija }))}
+                        onClick={dohvati}
                         disabled={s.loading}
                     >
                         Osvježi
@@ -348,8 +362,6 @@ export default function StanjePage() {
 
             {s.error ? <Alert severity="error" sx={{ mb: 2 }}>{s.error}</Alert> : null}
 
-
-            {s.loading ? <LinearProgress sx={{ mb: 1 }} /> : null}
 
             <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
                 <Table size="small">
