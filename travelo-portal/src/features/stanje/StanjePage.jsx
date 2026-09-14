@@ -159,7 +159,15 @@ function RedPolaska({ sailing, kategorije }) {
                         {otvoren ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                     </IconButton>
                 </TableCell>
-                <TableCell sx={{ fontWeight: 800, fontSize: 15 }}>{vrijeme}</TableCell>
+                <TableCell sx={{ fontWeight: 800, fontSize: 15 }}>
+                    {vrijeme}
+                    {/* Stupca statusa vise nema, ali otkazan polazak ne smije
+                        izgledati kao svaki drugi — inace se rasporeduju putnici
+                        na brod koji ne vozi. */}
+                    {otkazan ? (
+                        <Chip size="small" color="error" label="otkazan" sx={{ ml: 1 }} />
+                    ) : null}
+                </TableCell>
                 <TableCell>
                     <Typography fontWeight={700} fontSize={13}>{sailing.line_code}</Typography>
                     <Typography color="text.secondary" fontSize={12}>{sailing.line_name}</Typography>
@@ -191,15 +199,10 @@ function RedPolaska({ sailing, kategorije }) {
                         </TableCell>
                     );
                 })}
-                <TableCell>
-                    {otkazan
-                        ? <Chip size="small" color="error" label="otkazan" />
-                        : <Chip size="small" variant="outlined" label={sailing.sailing_status || "—"} />}
-                </TableCell>
             </TableRow>
 
             <TableRow>
-                <TableCell sx={{ py: 0, border: 0 }} colSpan={5 + kategorije.length}>
+                <TableCell sx={{ py: 0, border: 0 }} colSpan={4 + kategorije.length}>
                     <Collapse in={otvoren} unmountOnExit>
                         <Box sx={{ py: 2, pl: 6 }}>
                             <Typography fontWeight={800} fontSize={13} sx={{ mb: 1 }}>
@@ -391,13 +394,12 @@ export default function StanjePage() {
                                     {nazivKategorije(code)}
                                 </TableCell>
                             ))}
-                            <TableCell sx={{ fontWeight: 800 }}>Status</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {polasci.length === 0 && !s.loading ? (
                             <TableRow>
-                                <TableCell colSpan={5 + kategorije.length}>
+                                <TableCell colSpan={4 + kategorije.length}>
                                     <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
                                         Za odabrani dan nema polazaka.
                                     </Typography>
