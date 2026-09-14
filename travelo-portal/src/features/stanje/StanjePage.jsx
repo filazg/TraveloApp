@@ -233,7 +233,9 @@ export default function StanjePage() {
     }, [polasci]);
 
     return (
-        <Box sx={{ p: 3 }}>
+        // Ista sirina kao kapetanski modul, s kojim dijeli i podatke — zasloni
+        // koji se gledaju jedan za drugim ne bi smjeli skakati u sirini.
+        <Box sx={{ width: "100%", maxWidth: 1400, p: 2 }}>
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
                 <Box sx={{ width: 6, height: 36, borderRadius: 1, bgcolor: ACCENT }} />
                 <Box>
