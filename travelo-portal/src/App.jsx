@@ -49,6 +49,7 @@ import DownloadsPage from './features/downloads/DownloadsPage';
 import TicketTemplatesPage from './features/boat/pages/ticket_templates/TicketTemplatesPage';
 import SeopPage from './features/boat/pages/seop/SeopPage';
 import KontrolaPage from './features/kontrola/KontrolaPage';
+import StanjePage from './features/stanje/StanjePage';
 import TicketCopyControlPage from './features/kontrola/pages/copy_control/TicketCopyControlPage';
 
 
@@ -110,6 +111,7 @@ function App() {
                 <Route path='dispatcher' element={<DispatcherPage/>}></Route>
                 <Route path='sailing' element={<SailingPage/>}></Route>
                 <Route path='downloads' element={<DownloadsPage/>}></Route>
+                <Route path='provjera_stanja' element={<StanjePage/>}></Route>
                 <Route path='kontrola' element={<KontrolaPage/>}></Route>
                 <Route path='kontrola/kopije_karata' element={<TicketCopyControlPage/>}></Route>
               </Route>

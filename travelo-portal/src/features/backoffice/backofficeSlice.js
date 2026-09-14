@@ -68,6 +68,11 @@ const initialState = {
             module_acr:'KONT',
             module_name:'Kontrola'
         },
+        {
+            id:11,
+            module_acr:'STAN',
+            module_name:'Provjera stanja'
+        },
         // BUS moduli (BUSL, BUSSALE, BUSDISP, BUSDRV, BUSPRL) su maknuti iz izbora
         // dodjele prava — bus je odvojen projekt, a i control-service ovdje vozi
         // TRAVELO_MODULES=BOAT pa se ti moduli ionako ne prikazuju na naslovnici.
