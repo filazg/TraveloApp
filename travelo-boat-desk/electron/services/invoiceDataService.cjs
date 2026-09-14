@@ -283,7 +283,12 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
             order_number: orderUUID,
             order_item_uuid:ticketGroup.ticket_uuid,
             ticket_status: ticktStatus,
-            card_data:ticketGroup.card_data
+            // Auto-validacija je ujedno i ukrcaj: karta se nikad nece posebno
+            // cvikati, pa vrijeme mora nastati ovdje. Bez njega dojava ukrcaja
+            // nema `vrRemIsc`.
+            ticket_validate_data: ticktStatus === 'VALIDATE' ? new Date() : null,
+            card_data:ticketGroup.card_data,
+            povlastica: ticketGroup.povlastica || null
           }
           ticketsData = [...ticketsData, newTicket]
         }

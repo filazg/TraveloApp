@@ -3,6 +3,7 @@ const { getSequelize } = require("../../config/database");
 const ticketsModels = require("../../dbModels/tickets.models");
 const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
 const { reserveBookings, releaseBookings } = require("../../helpers/bookingClient");
+const { poljaPovlastice } = require("../../helpers/povlastica");
 const sequelize = getSequelize();
 
 // Terminal šalje svoje retke zajedno s lokalnim `id`-em (SQLite broji od 1 po
@@ -138,6 +139,25 @@ const addTerminalSaleController = async(req,res)=>{
                     // odgovara nijednom računu — pa se postavlja ovdje, iz
                     // računa koji je stigao u istom paketu.
                     ticket.invoice_uuid = data.invoice.invoice_uuid
+
+                    // Blagajna auto-validira kartu u trenutku prodaje i tada je
+                    // to ujedno i ukrcaj — druge prilike za cvikanje nema. Status
+                    // stize njezinim rjecnikom ('VALIDATE'), pa se ovdje svodi na
+                    // nas i prepisuje vrijeme validacije; bez njega dojava ukrcaja
+                    // nema `vrRemIsc`.
+                    if (String(ticket.status || '').toUpperCase() === 'VALIDATE') {
+                        ticket.status = 'validated';
+                        ticket.validate_data = ticket.ticket_validate_data || new Date();
+                    }
+
+                    // Povlastena karta: blok koji je blagajna dobila pri provjeri
+                    // prevodi se u polja karte, ista kao na mobilnoj. `card_data`
+                    // je sirovi sadrzaj cipa i ostaje samo za prikaz.
+                    if (ticket.povlastica) {
+                        Object.assign(ticket, poljaPovlastice({ povlastica: ticket.povlastica }));
+                    }
+                    delete ticket.povlastica;
+
                     ticketsToAdd = [...ticketsToAdd, stripLocalKeys(ticket)]
                  }
                 console.log(itemsToAdd)

@@ -129,6 +129,13 @@ const ticketsModel = sequelize.define('tickets', {
     card_data:{
         type:Sequelize.JSON,
         allowNull: true
+    },
+    // Odluka posluzitelja o povlastici, onakva kakva je dobivena pri provjeri.
+    // Putuje s kartom na posluzitelj, odakle se slaze dojava SEOP-u. `card_data`
+    // je sirovi sadrzaj cipa i za dojavu ne sluzi.
+    povlastica:{
+        type:Sequelize.JSON,
+        allowNull: true
     }
 },{
     freezeTableName: true
