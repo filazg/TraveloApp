@@ -18,13 +18,17 @@ const NAZIV_KATEGORIJE = {
     PASSANGER: "Putnici",
     VIP: "VIP",
     BICYCLE: "Bicikli",
-    PETS: "Ljubimci",
+    // Na blagajni i na mobilnoj ista kategorija pise "Kavezi"; neka bude isto i ovdje.
+    PETS: "Kavezi",
 };
 const nazivKategorije = (code) => NAZIV_KATEGORIJE[code] || code;
 
 // Redoslijed stupaca je stalan, da se oko ne mora tražiti po tablici: putnici
 // prvi jer se po njima gleda je li brod pun, ostalo iza njih.
-const REDOSLIJED = ["PASSANGER", "VIP", "BICYCLE", "PETS"];
+const REDOSLIJED = ["PASSANGER", "PETS", "BICYCLE", "VIP"];
+// Tri kategorije se pokazuju uvijek, i kad su na nuli — to je trojka po kojoj se
+// brod gleda i na blagajni. VIP se pridruzi samo ako ga neki brod tog dana ima.
+const STALNE = ["PASSANGER", "PETS", "BICYCLE"];
 const poRedoslijedu = (a, b) => {
     const ia = REDOSLIJED.indexOf(a);
     const ib = REDOSLIJED.indexOf(b);
@@ -161,7 +165,12 @@ function RedPolaska({ sailing, kategorije }) {
                     <Typography color="text.secondary" fontSize={12}>{sailing.line_name}</Typography>
                 </TableCell>
                 <TableCell>
-                    {sailing.departure_harbor_name} → {sailing.arrival_harbor_name}
+                    <Typography fontWeight={700} fontSize={13}>
+                        smjer {sailing.direction || "—"}
+                    </Typography>
+                    <Typography color="text.secondary" fontSize={12}>
+                        {sailing.departure_harbor_name} → {sailing.arrival_harbor_name}
+                    </Typography>
                 </TableCell>
                 {kategorije.map((code) => {
                     const k = stanje.poSifri.get(code);
@@ -175,8 +184,8 @@ function RedPolaska({ sailing, kategorije }) {
                                     </Typography>
                                 </Stack>
                             ) : (
-                                // Brod koji tu kategoriju nema uopce — prazno je
-                                // tocnije od nule, jer nula znaci „ima mjesta, sva su prazna".
+                                // Brod tu kategoriju nema u planu — to nije isto sto i
+                                // „ima mjesta, sva su prazna", pa stoji crtica, ne nula.
                                 <Typography color="text.disabled">—</Typography>
                             )}
                         </TableCell>
@@ -234,24 +243,43 @@ export default function StanjePage() {
     const s = useSelector(stanjeSliceData);
     const [datum, setDatum] = useState(danas());
     const [linija, setLinija] = useState("");
+    const [luka, setLuka] = useState("");
 
     useEffect(() => { dispatch(fetchLinesThunk()); }, [dispatch]);
     useEffect(() => {
         if (datum) dispatch(fetchStanjeThunk({ departure_date: datum, line_uuid: linija }));
     }, [dispatch, datum, linija]);
 
+    // Luka polaska: uz pocetnu luku plovidbe racunaju se i sve usputne iz kojih
+    // brod krece dalje. Djelatnik u Hvaru trazi brod koji iz Hvara vozi, bez
+    // obzira sto je krenuo iz Splita.
+    const lukePolaska = (p) => {
+        const set = new Set();
+        if (p.departure_harbor_name) set.add(p.departure_harbor_name);
+        for (const b of (p.bookings || [])) {
+            if (jeFizickaEtapa(b) && b.departure_harbor_name) set.add(b.departure_harbor_name);
+        }
+        return set;
+    };
+
+    const sveLuke = useMemo(() => {
+        const set = new Set();
+        for (const p of (s.sailings || [])) for (const l of lukePolaska(p)) set.add(l);
+        return [...set].sort((a, b) => a.localeCompare(b, "hr"));
+    }, [s.sailings]);
+
     const polasci = useMemo(() => {
-        const kopija = [...(s.sailings || [])];
+        const kopija = (s.sailings || []).filter((p) => !luka || lukePolaska(p).has(luka));
         // Redoslijed je vremenski, jer se zaslon čita odozgo prema dolje kroz dan.
         return kopija.sort((a, b) =>
             String(a.first_departure_time || a.departure_planed || "")
                 .localeCompare(String(b.first_departure_time || b.departure_planed || "")));
-    }, [s.sailings]);
+    }, [s.sailings, luka]);
 
     // Stupci se slazu iz onoga sto brodovi tog dana stvarno imaju: linija bez
     // bicikala nema zasto nositi prazan stupac kroz cijelu tablicu.
     const kategorije = useMemo(() => {
-        const set = new Set();
+        const set = new Set(STALNE);
         for (const p of polasci) {
             for (const k of stanjePolaska(p).kategorije) set.add(k.code);
         }
@@ -312,6 +340,19 @@ export default function StanjePage() {
                             </MenuItem>
                         ))}
                     </TextField>
+                    <TextField
+                        select
+                        label="Luka polaska"
+                        size="small"
+                        value={luka}
+                        onChange={(e) => setLuka(e.target.value)}
+                        sx={{ minWidth: 200 }}
+                    >
+                        <MenuItem value="">Sve luke</MenuItem>
+                        {sveLuke.map((l) => (
+                            <MenuItem key={l} value={l}>{l}</MenuItem>
+                        ))}
+                    </TextField>
                     <Button
                         startIcon={<RefreshIcon />}
                         onClick={() => dispatch(fetchStanjeThunk({ departure_date: datum, line_uuid: linija }))}
@@ -344,7 +385,7 @@ export default function StanjePage() {
                             <TableCell />
                             <TableCell sx={{ fontWeight: 800 }}>Vrijeme</TableCell>
                             <TableCell sx={{ fontWeight: 800 }}>Linija</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Relacija</TableCell>
+                            <TableCell sx={{ fontWeight: 800 }}>Smjer</TableCell>
                             {kategorije.map((code) => (
                                 <TableCell key={code} sx={{ fontWeight: 800 }}>
                                     {nazivKategorije(code)}
