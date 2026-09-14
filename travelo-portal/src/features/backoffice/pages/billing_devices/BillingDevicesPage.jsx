@@ -1097,6 +1097,8 @@ export default function BillingDevicesPage (){
                         onChange={(v) => setEditedData((p) => ({ ...p, ticket_logo: v, ...(v ? {} : { print_ticket_logo: false }) }))}
                         onToggle={(v) => setEditedData((p) => ({ ...p, print_ticket_logo: v }))}
                     />
+                    {/* Backoffice vraca `type_name`; `type` postoji samo u obrascu
+                        za novi uredaj, pa je polje ovdje ostajalo prazno. */}
                     <TextField
                         type="text"
                         variant="outlined"
@@ -1105,7 +1107,7 @@ export default function BillingDevicesPage (){
                         label={t('backoffice.billing_devices.type')}
                         placeholder={t('backoffice.billing_devices.type')}
                         required
-                        value={editedData?.type || ""}
+                        value={editedData?.type_name || editedData?.type || ""}
                         name="type"
                         sx={{
                             mt:1
@@ -1209,6 +1211,7 @@ export default function BillingDevicesPage (){
                         <MenuItem value="false">Ne (ručno, TID i OTP)</MenuItem>
                         <MenuItem value="true">Da (po serijskom broju)</MenuItem>
                     </TextField>
+                    {/* Isto i ovdje: odgovor nosi `business_premise_name`. */}
                     <TextField
                         type="text"
                         variant="outlined"
@@ -1217,7 +1220,7 @@ export default function BillingDevicesPage (){
                         label={t('backoffice.billing_devices.business_premises')}
                         placeholder={t('backoffice.billing_devices.business_premises')}
                         required
-                        value={editedData?.business_premises || ""}
+                        value={editedData?.business_premise_name || editedData?.business_premises || ""}
                         name="business_premises"
                         sx={{
                             mt:1
