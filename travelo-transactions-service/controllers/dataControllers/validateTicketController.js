@@ -1,7 +1,7 @@
 const { podigniSignal } = require("./syncSignalsController");
 const { procitajSuffix, suffixIzQr } = require("../../helpers/ticketCopyMark");
 const { VRSTE } = require("../../helpers/ticketControlTypes");
-const { reportValidation } = require("../../helpers/bookingClient");
+const { reportValidation, releaseBookings } = require("../../helpers/bookingClient");
 
 // Sto je skener procitao. QR nosi uuid i jos sest polja, a sufiks je osmo; s
 // papira se zna prepisati i sam broj karte, gdje sufiks stoji iza razmaka.
@@ -157,6 +157,17 @@ const validateTicketController = async (req, res) => {
             && sUredaja <= new Date(Date.now() + 60 * 1000)
             && sUredaja > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const now = prihvatljivo ? sUredaja : new Date();
+        // Karta je iskoristena na drugom polasku: putnik je usao na drugi brod,
+        // na svoj nece doci. Mjesto koje mu ondje stoji rezervirano treba
+        // osloboditi — inace brod plovi s praznim sjedalom koje se nije smjelo
+        // prodati. Oslobada se samo prvi put; oslobadanje u bookingu ne staje na
+        // nuli, pa bi ponovljeni poziv otjerao zauzetost u minus.
+        const drugiPolazak = !!other_voyage
+            && !!ticket.route_uuid
+            && !!route_uuid
+            && ticket.route_uuid !== route_uuid;
+        const oslobodi = drugiPolazak && ticket.seat_released !== true && !!ticket.ticket_type_uuid;
+
         await ticket.update({
             status: "validated",
             validate_data: now,
@@ -164,7 +175,18 @@ const validateTicketController = async (req, res) => {
             // karta je propustena s drugog polaska — na svom polasku se tada
             // prikazuje zasebno i ne broji se u ukrcane.
             validated_route_uuid: route_uuid || ticket.route_uuid || null,
+            ...(oslobodi ? { seat_released: true } : {}),
         });
+
+        if (oslobodi) {
+            // Best-effort, kao i drugdje: putnik stoji na ukrcaju i validacija
+            // ne smije pasti zbog bookinga.
+            releaseBookings([{
+                route_uuid: ticket.route_uuid,
+                ticket_type_uuid: ticket.ticket_type_uuid,
+                qty: 1,
+            }]);
+        }
 
         // Na istom polasku zna raditi vise uredaja: bez ovoga bi drugi jos drzao
         // kartu nevalidiranom i pustio istu osobu drugi put.

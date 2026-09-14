@@ -110,6 +110,15 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Mjesto na vlastitom polasku je vec vraceno u slobodna. Dogodi se
+            // kad putnik ude na drugi brod: na svom polasku ga nema, pa mjesto
+            // moze dobiti netko drugi. Storno takvu kartu ne smije osloboditi
+            // jos jednom — oslobadanje ne staje na nuli.
+            seat_released:{
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: false
+            },
             deactivate_data:{
                 type: DataTypes.DATE,
                 allowNull: true

@@ -30,6 +30,10 @@ const dbConfig = {
     await sequelize.query(
       `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS validated_route_uuid VARCHAR(255);`
     );
+    // Mjesto na vlastitom polasku vraceno u slobodna (putnik je usao na drugi brod).
+    await sequelize.query(
+      `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS seat_released BOOLEAN DEFAULT FALSE;`
+    );
     // Zatecene validirane karte: uzima se prvo uspjesno ocitanje.
     const [rezultat] = await sequelize.query(`
       UPDATE tickets t

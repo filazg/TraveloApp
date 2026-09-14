@@ -362,6 +362,10 @@ const cancelTicketsController = async (req, res) => {
         // dva mjesta, a zauzimala je jedno.
         const releaseItems = karteZaPovrat
             .filter((t) => t.route_uuid && t.ticket_type_uuid)
+            // Karti koja je iskoristena na drugom polasku mjesto je vec vraceno u
+            // slobodna. Drugo oslobadanje bi zauzetost otjeralo u minus, jer
+            // booking ne staje na nuli.
+            .filter((t) => t.seat_released !== true)
             .map((t) => ({ route_uuid: t.route_uuid, ticket_type_uuid: t.ticket_type_uuid, qty: 1 }));
         if (releaseItems.length) await releaseBookings(releaseItems);
 
