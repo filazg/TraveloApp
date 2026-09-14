@@ -289,19 +289,6 @@ export default function StanjePage() {
         return [...set].sort(poRedoslijedu);
     }, [polasci]);
 
-    const sazetak = useMemo(() => {
-        let sProdajom = 0;
-        let najpuniji = null;
-        for (const p of polasci) {
-            const st = stanjePolaska(p);
-            if (st.glavna && st.glavna.zauzeto > 0) sProdajom += 1;
-            if (st.glavna && (!najpuniji || postotak(st.glavna) > postotak(najpuniji.k))) {
-                najpuniji = { p, k: st.glavna };
-            }
-        }
-        return { ukupno: polasci.length, sProdajom, najpuniji };
-    }, [polasci]);
-
     return (
         // Ista sirina kao kapetanski modul, s kojim dijeli i podatke — zasloni
         // koji se gledaju jedan za drugim ne bi smjeli skakati u sirini.
@@ -368,16 +355,6 @@ export default function StanjePage() {
 
             {s.error ? <Alert severity="error" sx={{ mb: 2 }}>{s.error}</Alert> : null}
 
-            <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-                <Chip label={`Polazaka: ${sazetak.ukupno}`} />
-                <Chip label={`S prodajom: ${sazetak.sProdajom}`} color="primary" variant="outlined" />
-                {sazetak.najpuniji ? (
-                    <Chip
-                        color={bojaPopunjenosti(postotak(sazetak.najpuniji.k))}
-                        label={`Najpopunjeniji: ${sazetak.najpuniji.p.line_code} ${sazetak.najpuniji.p.first_departure_time} — ${sazetak.najpuniji.k.zauzeto}/${sazetak.najpuniji.k.kapacitet}`}
-                    />
-                ) : null}
-            </Stack>
 
             {s.loading ? <LinearProgress sx={{ mb: 1 }} /> : null}
 
