@@ -65,6 +65,7 @@ import EmailIcon from "@mui/icons-material/Email";
 import { Checkbox, Drawer, FormControlLabel } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { authSliceData, setAuthData } from "../auth/authSlice";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 
@@ -433,6 +434,7 @@ export default function SalesPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400, p: 2 }}>
+            <ModulZaglavlje modulKey="BOAT_SALES" />
             {/* Pad dohvata plovidbenog reda inače izgleda kao da linija nema polazaka
                 — luke ostanu prazne i nigdje ne piše zašto. */}
             {sales.routesError && (

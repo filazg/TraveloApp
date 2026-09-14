@@ -40,6 +40,7 @@ import {
     updateLegStatusThunk,
 } from "./sailingSlice";
 import { setAuthData } from "../auth/authSlice";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 // VIP category currently hidden from UI but kept in data.
 const HIDDEN_CATEGORY_CODES = new Set(["VIP"]);
@@ -303,10 +304,7 @@ export default function SailingPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400, p: 2 }}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                <DirectionsBoatIcon color="primary" />
-                <Typography variant="h5" fontWeight={700}>Kapetan</Typography>
-            </Stack>
+            <ModulZaglavlje modulKey="BOAT_KAPETAN" />
 
             {/* FILTER */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>

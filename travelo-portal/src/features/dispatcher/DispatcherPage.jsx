@@ -45,6 +45,7 @@ import {
 } from "./dispatcherSlice";
 import { setAuthData } from "../auth/authSlice";
 import { useLoading } from "../loading/useLoading";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 // DD/MM/YYYY or YYYY-MM-DD -> YYYY-MM-DD
 const toIso = (s) => {
@@ -396,6 +397,7 @@ export default function DispatcherPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400, p: 2 }}>
+            <ModulZaglavlje modulKey="BOAT_DISPATCHER" />
             <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
                 <TextField
                     type="date"
