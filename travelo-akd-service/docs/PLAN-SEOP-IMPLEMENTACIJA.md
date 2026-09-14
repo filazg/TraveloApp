@@ -254,7 +254,20 @@ Jedna metoda, dvije namjene:
 - **Ukrcaj**: `vremTros` = vrijeme validacije, `voyageID` = naša oznaka plovidbe.
 - **Storno**: `vremTros = null`.
 
-Hook za ukrcaj: `validateTicketController.js` — ondje gdje se karta označava
+**Odakle dolazi ukrcaj — odluka (14.09.2026.):** cvikanje nema svoj zaslon;
+okidač je već postojeća validacija, iz jednog od dva izvora:
+
+1. **Auto-validacija pri prodaji** (postavka naplatnog uređaja, na blagajni i na
+   mobilnoj). Takva karta se nikad neće posebno cvikati — prodaja i ukrcaj su
+   isti trenutak — pa red u outboxu nastaje odmah pri prodaji. Zato karta mora
+   dobiti `validate_data` već tada: blagajna ga šalje uz kartu
+   (`ticket_validate_data`), a `finalizeTerminalSaleController` ga za mobilnu
+   upisuje sam.
+2. **Validacija na mobilnoj** — za sve ostale karte, uključujući one prodane na
+   webu, kod partnera i preko API-ja.
+
+Hook za (1): `terminalSaleControllers.js` i `finalizeTerminalSaleController.js`.
+Hook za (2): `validateTicketController.js` — ondje gdje se karta označava
 `validated` i gdje se već javlja booking servisu (`reportValidation`). Isti
 obrazac, samo red u outboxu.
 
