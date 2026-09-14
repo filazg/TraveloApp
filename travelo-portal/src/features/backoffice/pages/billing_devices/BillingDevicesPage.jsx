@@ -1149,6 +1149,29 @@ export default function BillingDevicesPage (){
                             <MenuItem value="false">Ne (samo prodaja)</MenuItem>
                         </TextField>
                     ) : null}
+                    {/* Uređaj na vratima: samo očitava karte. Nudi se tek kad
+                        uređaj uopće validira — validator koji ne validira nema
+                        smisla. */}
+                    {(editedData?.type_name === 'mobile' || editedData?.type === 'mobile')
+                        && editedData?.can_validate !== false && editedData?.can_validate !== 'false' ? (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Namjena uređaja"
+                            select
+                            value={
+                                editedData?.validator_only === true || editedData?.validator_only === 'true'
+                                    ? 'true' : 'false'
+                            }
+                            onChange={handleChangeEdit}
+                            name="validator_only"
+                            sx={{ mt: 1 }}
+                            helperText="Samo validator ne otvara smjenu, ne prodaje i ne izdaje račune."
+                        >
+                            <MenuItem value="false">Prodaja i validacija</MenuItem>
+                            <MenuItem value="true">Samo validator</MenuItem>
+                        </TextField>
+                    ) : null}
                     {/* Automatska validacija ima smisla samo ako uređaj uopće
                         validira, pa stoji ispod te postavke i nestaje s njom —
                         inače bi se nudilo podešavanje koje nigdje ne djeluje. */}
