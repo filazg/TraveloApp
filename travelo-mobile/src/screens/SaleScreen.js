@@ -1074,11 +1074,20 @@ export default function SaleScreen() {
                             <Text style={styles.islandBtnText}>+ Kupi otočnu kartu</Text>
                         </TouchableOpacity>
                         {islandTickets.map((t, i) => (
-                            <View key={`${t.seop_card_no}-${i}`} style={styles.islandRow}>
+                            <View key={`${t.povlastica?.identifikator?.vrijednost || 'x'}-${i}`} style={styles.islandRow}>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.islandRowTitle}>Otočna karta — {t.seop_card_no}</Text>
+                                    <Text style={styles.islandRowTitle}>
+                                        {t.ticket_type_name} — {t.povlastica?.identifikator?.vrijednost || ''}
+                                    </Text>
                                     <Text style={styles.islandRowSub}>
-                                        {[t.seop_otok, t.seop_pravo, `-${t.seop_discount_pct}%`].filter(Boolean).join(' · ')}
+                                        {[
+                                            t.povlastica?.otok,
+                                            t.povlastica?.pravo,
+                                            t.povlastica?.uvijek_prodaj
+                                                ? (t.povlastica?.offline ? 'bez provjere' : 'bez prava — puna cijena')
+                                                : (t.povlastica?.popust_postotak ? `-${t.povlastica.popust_postotak}%` : null),
+                                            t.povlastica?.pratnja ? 'pratnja' : null,
+                                        ].filter(Boolean).join(' · ')}
                                     </Text>
                                 </View>
                                 <Text style={styles.islandRowPrice}>{fmtEUR(t.single_price)}</Text>
