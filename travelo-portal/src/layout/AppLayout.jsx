@@ -40,7 +40,7 @@ export default function AppLayout() {
   return (
     <Box sx={{ minHeight: "100vh",  width: "100%", display: "flex", flexDirection: "column" }}>
       <Topbar />
-      <Box sx={{ flex: 1, p: 3 }}>
+      <Box sx={{ flex: 1, px: { xs: 1, sm: 3 }, py: { xs: 1, sm: 3 } }}>
         <Stack
           alignItems="center"
         >
