@@ -582,7 +582,7 @@ export default function SaleScreen() {
     // Blok koji putuje uz stavku prodaje. Blagajna ga ne tumaci: `token` je
     // zapecaceni zapis provjere s posluzitelja i ovdje se samo prenosi dalje.
     // Zato nova polja u dojavi ne traze izmjenu mobilne.
-    const blokPovlastice = ({ ishod, pratnja = false, uvijekProdaj = false, offline = false, redovna }) => ({
+    const blokPovlastice = ({ ishod, pratnja = false, uvijekProdaj = false, offline = false, redovna, cijenaRed }) => ({
         sustav: ishod?.sustav || 'SEOP',
         token: ishod?.token || null,
         identifikator: {
@@ -592,7 +592,9 @@ export default function SaleScreen() {
         pravo: ishod?.pravo_na_pp || null,
         otok: ishod?.otok || null,
         popust_postotak: uvijekProdaj ? 0 : Number(ishod?.popust_postotak || 0),
-        namjena: islandPriceRow?.seop_type || null,
+        // Namjena se uzima s reda cjenika koji se stvarno prodaje: povlastena
+        // karta i karta punom cijenom nisu ista vrsta u SEOP-u.
+        namjena: (cijenaRed || islandPriceRow)?.seop_type || null,
         redovna_cijena: redovna,
         odobrenje: ishod?.odobrenje || null,
         uvijek_prodaj: uvijekProdaj,
@@ -615,7 +617,7 @@ export default function SaleScreen() {
             ticket_type_uuid: islandPriceRow.ticket_type_uuid,
             ticket_type_name: islandPriceRow.ticket_type_name || 'Otočna karta',
             single_price: unit,
-            povlastica: blokPovlastice({ ishod: islandResult, redovna }),
+            povlastica: blokPovlastice({ ishod: islandResult, redovna, cijenaRed: islandPriceRow }),
         });
 
         // MOSI: vlasnik putuje s popustom, pratnja besplatno. Odluku je donio
@@ -625,7 +627,7 @@ export default function SaleScreen() {
                 ticket_type_uuid: islandPriceRow.ticket_type_uuid,
                 ticket_type_name: `${islandPriceRow.ticket_type_name || 'Otočna karta'} — pratnja`,
                 single_price: 0,
-                povlastica: blokPovlastice({ ishod: islandResult, pratnja: true, redovna }),
+                povlastica: blokPovlastice({ ishod: islandResult, pratnja: true, redovna, cijenaRed: islandPriceRow }),
             });
         }
         closeIslandModal();
@@ -646,6 +648,7 @@ export default function SaleScreen() {
                 uvijekProdaj: true,
                 offline: islandOffline,
                 redovna: Number(red.price),
+                cijenaRed: red,
             }),
         });
         closeIslandModal();
