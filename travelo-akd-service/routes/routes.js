@@ -4,6 +4,7 @@ const { provjeriPPPController } = require('../controllers/seop/seopController');
 const { uploadSeopCertController, seopCertInfoController, seopTestVezeController } = require('../controllers/seop/seopCertController');
 const { uploadMosiCertController, mosiCertInfoController, mosiTestVezeController } = require('../controllers/mosi/mosiController');
 const { dojaviProdajuOpkController, dojaviProdajuPpkController, dojaviCvikanjeController, ponistiCvikanjeController, dojaviIsplovljenjeController, mosiDojaviUtrosakController } = require('../controllers/seop/seopDojaveController');
+const { provjeriPovlasticuController, otvoriPovlasticuController } = require('../controllers/povlastica/povlasticaController');
 
 const router = express.Router();
 
@@ -13,6 +14,13 @@ router.get('/health', (_req, res) => {
 
 router.post('/seop/sign-test', seopSignTestController);
 router.post('/seop/provjeri-ppp', provjeriPPPController);
+
+// Povlastica — jedini poziv koji prodajni kanali koriste. Ispod njega su i SEOP
+// i MOSI, i pravila linije; blagajna dobiva gotovu odluku i zapecaceni zapis
+// koji vraca uz prodaju. Sto dojava trazi, dodaje se u taj zapis ovdje, pa se
+// klijenti zbog novih polja ne moraju mijenjati.
+router.post('/povlastica/provjeri', provjeriPovlasticuController);
+router.post('/povlastica/otvori', otvoriPovlasticuController);
 
 // Administracija iz portala: ucitavanje certifikata, pregled onoga sto je na
 // disku i provjera veze dijagnostickom metodom SEOP-a.

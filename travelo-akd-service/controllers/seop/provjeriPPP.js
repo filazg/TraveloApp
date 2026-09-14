@@ -7,10 +7,14 @@ const { getIntegrationsConfigData } = require('../configSyncController');
 //   6xxxxxx — javna služba ili specijalno pravo (TR5KM, 100% popust)
 //   7xxxxxx — vozilo (12P, 50%)
 //   ostali — "nema prava".
-function mockProvjeriPPP({ sBrOtIs, oznOtIs }) {
-    const id = sBrOtIs ? String(sBrOtIs).trim() : (oznOtIs || '').trim();
-    const seven = /^[0-9]{7}$/.test(id) ? id : null;
-    const lead = seven ? seven[0] : null;
+function mockProvjeriPPP({ sBrOtIs, oznOtIs, iks, oib, regOzn }) {
+    // Uzima se onaj identifikator koji je stigao — blagajna smije upisati broj
+    // iskaznice, iksice ili OIB, pa mock mora reagirati na sve, inace se OIB na
+    // testu uvijek vraca kao „nema prava" i ispada da je greska u aplikaciji.
+    const id = String(sBrOtIs || oznOtIs || iks || oib || regOzn || '').trim();
+    // Prva znamenka odlucuje o ishodu. Duljina je slobodna jer OIB ima 11
+    // znamenki, a broj iskaznice sedam.
+    const lead = /^[0-9]{6,13}$/.test(id) ? id[0] : null;
 
     if (lead === '5') {
         return {
@@ -119,12 +123,19 @@ async function provjeriPPP({
     // razvoja frontend flow-a. Uključuje se postavljanjem akd.seop.environment="mock".
     const cfg = getIntegrationsConfigData()?.akd?.seop || {};
     if (cfg.environment === 'mock') {
-        return mockProvjeriPPP({ sBrOtIs, oznOtIs });
+        return mockProvjeriPPP({ sBrOtIs, oznOtIs, iks, oib, regOzn });
     }
 
+    // Redoslijed elemenata prati specifikaciju (oznOtIs, sBrOtIs, regOzn, iks,
+    // oib, pa relacija). Sva cetiri rezervna identifikatora moraju ici van —
+    // bez njih bi upis OIB-a ili broja iksice na blagajni tiho ostao neposlan i
+    // SEOP bi uvijek odgovarao da prava nema.
     const bodyXml = `<seop:ProvjeriPPP>
         ${nilOr('oznOtIs', oznOtIs)}
         ${nilOr('sBrOtIs', sBrOtIs)}
+        ${nilOr('regOzn', regOzn)}
+        ${nilOr('iks', iks)}
+        ${nilOr('oib', oib)}
         <seop:oznLuke1>${x(oznLuke1)}</seop:oznLuke1>
         <seop:oznLuke2>${x(oznLuke2)}</seop:oznLuke2>
         <seop:BrLinije>${x(brLinije)}</seop:BrLinije>

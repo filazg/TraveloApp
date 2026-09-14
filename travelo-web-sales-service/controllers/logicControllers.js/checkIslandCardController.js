@@ -34,15 +34,24 @@ const checkIslandCardController = async (req, res) => {
             return res.status(500).json({ status: 500, data: { message: 'akd service URL not configured' } });
         }
 
-        const resp = await axios.post(`${akdUrl}/seop/provjeri-ppp`, {
-            sBrOtIs: cardNo || null,
-            oib: oib || null,
-            iks: iks || null,
-            oznLuke1: route.departure_harbor_code,
-            oznLuke2: route.arrival_harbor_code,
-            brLinije: String(route.line_no),
-            datPut: dateIso,
-        }, { timeout: 8000, validateStatus: () => true });
+        // Ide na /povlastica/provjeri, ne izravno na ProvjeriPPP: ondje se
+        // primjenjuju pravila linije i nastaje zapečaćeni zapis koji web vraća
+        // uz narudžbu. Zapis je potpisan jer ovdje prolazi kroz preglednik
+        // kupca — inače bi se postotak popusta dao prepisati.
+        const identifikator = cardNo
+            ? { vrsta: 'card_no', vrijednost: cardNo }
+            : (oib ? { vrsta: 'oib', vrijednost: oib } : { vrsta: 'iks', vrijednost: iks });
+
+        const resp = await axios.post(`${akdUrl}/povlastica/provjeri`, {
+            sustav: 'SEOP',
+            identifikator,
+            ruta: {
+                line_no: String(route.line_no),
+                departure_harbor_code: route.departure_harbor_code,
+                arrival_harbor_code: route.arrival_harbor_code,
+            },
+            datum: dateIso,
+        }, { timeout: 12000, validateStatus: () => true });
 
         if (resp.status >= 400) {
             return res.status(resp.status).json({ status: resp.status, data: resp.data?.data || resp.data });
