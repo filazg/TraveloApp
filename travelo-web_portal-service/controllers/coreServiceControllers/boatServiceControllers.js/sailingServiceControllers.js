@@ -72,9 +72,15 @@ const validatedCountsForVoyage = async (legs, departurePlaned) => {
         : [];
     const categoryByType = new Map(mappings.map((m) => [m.ticket_type_uuid, m.category_code]));
 
+    // Karte ocitane na drugom polasku ne ulaze: putnik je usao na drugi brod, a
+    // ovdje se broji tko je stvarno na ovome. Takva karta se broji na polasku na
+    // kojem je ocitana (validated_other), i zasebno se pokazuje na svom.
+    const nasRute = new Set(routeUuids);
+
     const counts = {};
     for (const t of tickets) {
         if (t.is_canceled) continue;
+        if (t.validated_route_uuid && !nasRute.has(t.validated_route_uuid)) continue;
         const category = categoryByType.get(t.ticket_type_uuid);
         if (!category) continue;
         const harbor = t.departure_harbor_id;
