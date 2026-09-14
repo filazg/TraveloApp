@@ -12,6 +12,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "../auth/authSlice";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 const ACCENT = "#EFBA3E";
 
@@ -107,6 +108,7 @@ export default function FinancePage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400 }}>
+            <ModulZaglavlje modulKey="FINANCE" />
             <Box
                 sx={{
                     display: "grid",

@@ -12,6 +12,7 @@ import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "../auth/authSlice";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 const ACCENT = "#175BD0";
 
@@ -97,6 +98,7 @@ export default function BoatPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400 }}>
+            <ModulZaglavlje modulKey="BOAT" />
             <Box
                 sx={{
                     display: "grid",

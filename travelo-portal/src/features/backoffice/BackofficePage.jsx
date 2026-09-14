@@ -14,6 +14,7 @@ import StorefrontIcon from "@mui/icons-material/Storefront";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "../auth/authSlice";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 const ACCENT = "#0D9488"; // teal
 
@@ -102,6 +103,7 @@ export default function BackofficePage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400 }}>
+            <ModulZaglavlje modulKey="BACKOFFICE" />
             <Box
                 sx={{
                     display: "grid",

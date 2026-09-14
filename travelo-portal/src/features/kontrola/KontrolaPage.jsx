@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setAuthData } from "../auth/authSlice";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 // Boja modula — ista koja stoji u katalogu za KONTROLA.
 const ACCENT = "#B3261E";
@@ -98,6 +99,7 @@ export default function KontrolaPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400 }}>
+            <ModulZaglavlje modulKey="KONTROLA" />
             <Box
                 sx={{
                     display: "grid",

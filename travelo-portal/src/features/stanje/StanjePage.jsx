@@ -10,6 +10,7 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { stanjeSliceData, fetchLinesThunk, fetchStanjeThunk } from "./stanjeSlice";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 // Boja modula — ista koja stoji u katalogu za STANJE.
 const ACCENT = "#0E7C66";
@@ -293,15 +294,7 @@ export default function StanjePage() {
         // Ista sirina kao kapetanski modul, s kojim dijeli i podatke — zasloni
         // koji se gledaju jedan za drugim ne bi smjeli skakati u sirini.
         <Box sx={{ width: "100%", maxWidth: 1400, p: 2 }}>
-            <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-                <Box sx={{ width: 6, height: 36, borderRadius: 1, bgcolor: ACCENT }} />
-                <Box>
-                    <Typography variant="h5" fontWeight={800}>Provjera stanja</Typography>
-                    <Typography color="text.secondary" fontSize={13}>
-                        Popunjenost polazaka po danu
-                    </Typography>
-                </Box>
-            </Stack>
+            <ModulZaglavlje modulKey="STANJE" />
 
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
