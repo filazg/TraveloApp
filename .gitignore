@@ -40,3 +40,6 @@ old/
 
 # pm2 (in case anyone runs pm2 inside the repo dir)
 .pm2/
+
+# jednokratne backfill skripte za nazive luka — ne u repo
+**/backfill_harbor_names.js
