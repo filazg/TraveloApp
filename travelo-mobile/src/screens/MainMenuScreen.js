@@ -19,12 +19,19 @@ export default function MainMenuScreen() {
     // spominje validaciju.
     const partnerskoMjesto = sync.basicData?.business_premise_own === 'PARTNER_BP';
     const smijeValidirati = sync.basicData?.billing_device_can_validate !== false;
-    const naslovProdaje = partnerskoMjesto ? 'Prodaja' : 'Plovidba';
-    const podnaslovProdaje = smijeValidirati ? 'Prodaja i validacija karata' : 'Prodaja karata';
+    // Uredaj na vratima: samo ocitava karte. Nema prodaje, pa ni smjene ni
+    // racuna — djelatnik na ulazu inace mora otvarati smjenu da bi uopce dosao
+    // do ocitavanja, a zakljucak te smjene poslije nema sto pokazati.
+    const samoValidator = sync.basicData?.billing_device_validator_only === true && smijeValidirati;
+    const naslovProdaje = samoValidator ? 'Validacija' : (partnerskoMjesto ? 'Prodaja' : 'Plovidba');
+    const podnaslovProdaje = samoValidator
+        ? 'Očitavanje karata'
+        : (smijeValidirati ? 'Prodaja i validacija karata' : 'Prodaja karata');
     const hasOpenShift = !!shifts.currentOpen?.shift_uuid;
+    const trebaSmjenu = !samoValidator;
 
     const onVoyagePress = () => {
-        if (!hasOpenShift) {
+        if (trebaSmjenu && !hasOpenShift) {
             Alert.alert(
                 'Smjena nije otvorena',
                 'Prije prodaje ili validacije karata morate otvoriti smjenu.',
@@ -60,47 +67,60 @@ export default function MainMenuScreen() {
                         {auth.operator?.user_name} {auth.operator?.user_surname}
                     </Text>
 
-                    <View style={[styles.shiftBadge, hasOpenShift ? styles.shiftBadgeOpen : styles.shiftBadgeClosed]}>
-                        <View style={[styles.shiftDot, { backgroundColor: hasOpenShift ? colors.success : colors.textMuted }]} />
-                        <Text style={[styles.shiftBadgeText, { color: hasOpenShift ? colors.success : colors.textSecondary }]}>
-                            {hasOpenShift ? 'Smjena otvorena' : 'Smjena nije otvorena'}
-                        </Text>
-                    </View>
+                    {samoValidator ? (
+                        <View style={[styles.shiftBadge, styles.shiftBadgeOpen]}>
+                            <View style={[styles.shiftDot, { backgroundColor: colors.success }]} />
+                            <Text style={[styles.shiftBadgeText, { color: colors.success }]}>
+                                Uređaj za validaciju
+                            </Text>
+                        </View>
+                    ) : (
+                        <View style={[styles.shiftBadge, hasOpenShift ? styles.shiftBadgeOpen : styles.shiftBadgeClosed]}>
+                            <View style={[styles.shiftDot, { backgroundColor: hasOpenShift ? colors.success : colors.textMuted }]} />
+                            <Text style={[styles.shiftBadgeText, { color: hasOpenShift ? colors.success : colors.textSecondary }]}>
+                                {hasOpenShift ? 'Smjena otvorena' : 'Smjena nije otvorena'}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Akcijski tiles */}
                 <View style={styles.tilesGrid}>
                     {/* Plovidba — primary CTA */}
                     <TouchableOpacity
-                        style={[styles.tile, styles.tilePrimary, !hasOpenShift && styles.tileDisabled]}
+                        style={[styles.tile, styles.tilePrimary, trebaSmjenu && !hasOpenShift && styles.tileDisabled]}
                         onPress={onVoyagePress}
                         activeOpacity={0.85}
                     >
                         <Text style={styles.tilePrimaryTitle}>{naslovProdaje}</Text>
                         <Text style={styles.tilePrimarySub}>
-                            {hasOpenShift ? podnaslovProdaje : 'Otvorite smjenu za prodaju'}
+                            {(!trebaSmjenu || hasOpenShift) ? podnaslovProdaje : 'Otvorite smjenu za prodaju'}
                         </Text>
                     </TouchableOpacity>
 
-                    {/* Sekundarne akcije — outlined u sekundarnoj plavoj */}
-                    <TouchableOpacity
-                        style={styles.tileSecondary}
-                        onPress={() => dispatch(setSection('shifts'))}
-                        activeOpacity={0.85}
-                    >
-                        <Text style={styles.tileSecondaryTitle}>Zaključci smjena</Text>
-                        <Text style={styles.tileSecondarySub}>
-                            {hasOpenShift ? 'Zatvori smjenu' : 'Otvori smjenu'}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.tileSecondary}
-                        onPress={() => dispatch(setSection('documents'))}
-                        activeOpacity={0.85}
-                    >
-                        <Text style={styles.tileSecondaryTitle}>Dokumenti</Text>
-                        <Text style={styles.tileSecondarySub}>Računi i izvještaji</Text>
-                    </TouchableOpacity>
+                    {/* Smjena i racuni postoje zbog prodaje; validator ih nema. */}
+                    {samoValidator ? null : (
+                        <>
+                            <TouchableOpacity
+                                style={styles.tileSecondary}
+                                onPress={() => dispatch(setSection('shifts'))}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.tileSecondaryTitle}>Zaključci smjena</Text>
+                                <Text style={styles.tileSecondarySub}>
+                                    {hasOpenShift ? 'Zatvori smjenu' : 'Otvori smjenu'}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.tileSecondary}
+                                onPress={() => dispatch(setSection('documents'))}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.tileSecondaryTitle}>Dokumenti</Text>
+                                <Text style={styles.tileSecondarySub}>Računi i izvještaji</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
             </View>
         </SafeAreaView>

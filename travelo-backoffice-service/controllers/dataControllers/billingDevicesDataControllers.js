@@ -161,6 +161,7 @@ const getBillingDevicesController = async(req,res)=>{
                 auto_validate:billingDevice.auto_validate,
                 future_sale:billingDevice.future_sale,
                 can_validate:billingDevice.can_validate,
+                validator_only:billingDevice.validator_only,
                 description:billingDevice.description,
                 type_uuid:billingDevice.type_uuid,
                 type_name:billingDevice.type_name,
@@ -285,6 +286,11 @@ const addBillingDeviceController = async(req,res)=>{
                         can_validate: isMobile
                             ? !(data.can_validate === false || data.can_validate === 'false')
                             : true,
+                        // Samo validacija — ima smisla samo na pokretnom uredaju
+                        // koji uopce validira.
+                        validator_only: isMobile
+                            && (data.validator_only === true || data.validator_only === 'true')
+                            && !(data.can_validate === false || data.can_validate === 'false'),
                         description:data.description,
                         type_uuid:data.type,
                         type_name:data.type,
@@ -426,6 +432,8 @@ const updateBillingDeviceController = async(req,res)=>{
                         auto_validate: (data.auto_validate === true || data.auto_validate === 'true'),
                         future_sale: (data.future_sale === true || data.future_sale === 'true'),
                         can_validate: !(data.can_validate === false || data.can_validate === 'false'),
+                        validator_only: (data.validator_only === true || data.validator_only === 'true')
+                            && !(data.can_validate === false || data.can_validate === 'false'),
                         description:data.description,
                         header:data.header,
                         footer:data.footer,

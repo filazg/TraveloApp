@@ -97,7 +97,9 @@ export default function SaleScreen() {
     // Uredaj koji ne validira nema sto prebacivati — ostaje samo prodaja.
     // Zadano je da smije, jer je to dosadasnje ponasanje svih uredaja.
     const smijeValidirati = sync.basicData?.billing_device_can_validate !== false;
-    const nacin = smijeValidirati ? mode : 'sale';
+    // Uredaj na vratima radi obrnuto: samo ocitava, prodaje nema.
+    const samoValidator = sync.basicData?.billing_device_validator_only === true && smijeValidirati;
+    const nacin = samoValidator ? 'validate' : (smijeValidirati ? mode : 'sale');
 
     const harbors = useMemo(() => harborsFromVoyage(v), [v]);
     const [fromIdx, setFromIdx] = useState(0);
@@ -936,7 +938,14 @@ export default function SaleScreen() {
                     <Text style={styles.backText}>‹</Text>
                 </TouchableOpacity>
                 {/* MODE TOGGLE — Prodaja / Validacija */}
-                {smijeValidirati ? (
+                {samoValidator ? (
+                    // Validator nema sto birati; naslov drzi prostor zaglavlja.
+                    <View style={styles.modeToggle}>
+                        <View style={[styles.modeBtn, styles.modeBtnActive]}>
+                            <Text style={[styles.modeBtnText, styles.modeBtnTextActive]}>Validacija</Text>
+                        </View>
+                    </View>
+                ) : smijeValidirati ? (
                     <View style={styles.modeToggle}>
                         <TouchableOpacity
                             style={[styles.modeBtn, nacin === 'sale' && styles.modeBtnActive]}

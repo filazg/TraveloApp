@@ -65,6 +65,17 @@ module.exports =  (sequelize) =>{
             allowNull:false,
             defaultValue:true
         },
+        // Uredaj koji samo validira, bez prodaje.
+        //
+        // Na brodu se uz blagajnu drzi i drugi telefon na vratima: ondje se karte
+        // samo ocitavaju. Takav uredaj ne otvara smjenu, ne izdaje racune i nema
+        // prodajni zaslon — inace bi djelatnik na ulazu morao otvarati smjenu da
+        // bi uopce dosao do ocitavanja.
+        validator_only:{
+            type:DataTypes.BOOLEAN,
+            allowNull:false,
+            defaultValue:false
+        },
         // Prodaja za buduce datume. Pokretna blagajna radi na brodu i najcesce
         // prodaje za polazak koji upravo krece, pa je dopustenje iznimka koja se
         // svjesno ukljucuje — ne zeli se da djelatnik greskom proda kartu za

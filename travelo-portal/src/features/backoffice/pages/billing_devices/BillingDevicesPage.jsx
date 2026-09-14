@@ -462,6 +462,7 @@ export default function BillingDevicesPage (){
         { field: 'auto_validate', type: 'boolean', headerName: 'Automatska validacija', flex: 2},
         { field: 'future_sale', type: 'boolean', headerName: 'Budući datumi', flex: 2},
         { field: 'can_validate', type: 'boolean', headerName: 'Validacija', flex: 2},
+        { field: 'validator_only', type: 'boolean', headerName: 'Samo validator', flex: 2},
         { field: 'auto_pair', type: 'boolean', headerName: 'Auto uparivanje', flex: 2},
         { field: 'is_active', type: 'boolean', headerName:t('backoffice.billing_devices.is_active'), flex: 2},
     ];
@@ -710,6 +711,29 @@ export default function BillingDevicesPage (){
                             <MenuItem value="false">Ne (samo prodaja)</MenuItem>
                         </TextField>
                     )}
+                    {/* Uređaj na vratima: samo očitava karte. Nudi se tek kad
+                        uređaj uopće validira — validator koji ne validira nema
+                        smisla. */}
+                    {newData.type === 'mobile'
+                        && newData.can_validate !== false && newData.can_validate !== 'false' ? (
+                        <TextField
+                            variant="outlined"
+                            fullWidth
+                            label="Namjena uređaja"
+                            select
+                            value={
+                                newData.validator_only === true || newData.validator_only === 'true'
+                                    ? 'true' : 'false'
+                            }
+                            onChange={handleChange}
+                            name="validator_only"
+                            sx={{ mt: 1 }}
+                            helperText="Samo validator ne otvara smjenu, ne prodaje i ne izdaje račune."
+                        >
+                            <MenuItem value="false">Prodaja i validacija</MenuItem>
+                            <MenuItem value="true">Samo validator</MenuItem>
+                        </TextField>
+                    ) : null}
                     {/* Automatska validacija ovisi o tome validira li uređaj
                         uopće — nudi se tek kad je validacija uključena. */}
                     {newData.type === 'mobile'
