@@ -29,15 +29,21 @@ export default function SelectedTicketsBar() {
             const ticeketsForRoute = appData.saleData.addedTickets.filter(
                 (ticket) => ticket.sales_route_uuid === salesRoute.sales_route_uuid
             );
+            // Grupira se po tipu karte, ali povlastene karte i po iskaznici:
+            // dvije razlicite iskaznice istog tipa inace zavrse u jednoj grupi i
+            // obje karte ponesu podatke prve — u dojavi SEOP-u bi druga karta
+            // glasila na tudju iskaznicu. Za obicne karte kljuc ostaje isti kao
+            // prije, pa se nista ne mijenja.
+            const kljucTipa = (t) =>
+                `${t.ticket_type_uuid}|${t.povlastica?.identifikator?.vrijednost || ''}`;
             const uniqueTicketType = ticeketsForRoute.filter(
-                (v, i, a) =>
-                a.findIndex((t) => t.ticket_type_uuid === v.ticket_type_uuid) === i
+                (v, i, a) => a.findIndex((t) => kljucTipa(t) === kljucTipa(v)) === i
             );
             let ticketsGroupTicketType = [];
             for (const ticketType of uniqueTicketType) {
                 console.log('OVO JE TICKET TYPE', ticketType)
                 const ticketsType = ticeketsForRoute.filter(
-                (ticket) => ticket.ticket_type_uuid === ticketType.ticket_type_uuid
+                (ticket) => kljucTipa(ticket) === kljucTipa(ticketType)
                 );
                 const subtotalTotalPrice = ticketsType
                 .map(({ total_price }) => total_price)
@@ -65,7 +71,12 @@ export default function SelectedTicketsBar() {
                 total_vat: Number(subtotalVat.toFixed(2)),
                 total_harbor_tax: Number(subtotalHarborTax.toFixed(2)),
                 quantity: subtotalQuantity,
-                card_data:ticketType.card_data
+                card_data:ticketType.card_data,
+                // Odluka posluzitelja o povlastici. Ovdje se stavke prepisuju
+                // polje po polje, pa sve sto se ne navede tiho nestane — blok je
+                // tako ispadao iz prodaje i karta je na posluzitelju zavrsavala
+                // bez ijednog SEOP podatka.
+                povlastica: ticketType.povlastica || null
                 };
                 ticketsGroupTicketType = [...ticketsGroupTicketType, addTicketsGroupTicketType];
             }
