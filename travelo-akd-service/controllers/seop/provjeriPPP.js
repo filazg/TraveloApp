@@ -138,7 +138,7 @@ async function provjeriPPP({
         ${nilOr('oib', oib)}
         <seop:oznLuke1>${x(oznLuke1)}</seop:oznLuke1>
         <seop:oznLuke2>${x(oznLuke2)}</seop:oznLuke2>
-        <seop:BrLinije>${x(brLinije)}</seop:BrLinije>
+        <seop:brLinije>${x(brLinije)}</seop:brLinije>
         <seop:datPut>${fmtSeopDate(datPut)}</seop:datPut>
       </seop:ProvjeriPPP>`;
 
@@ -146,40 +146,56 @@ async function provjeriPPP({
     return interpretResponse(resp);
 }
 
-// SEOP vraća Tuple<bool, int, int, string, string, string> u DataContract
-// shape-u: m_Item1..m_Item6. Iz spec-a (StanjePPP):
-//  Item1: ImaPravoNaPP (bool)        — ima pravo i nije potrošeno
-//  Item2: BrojOsn (int)              — iskorišteno OSNOVNO pravo
-//  Item3: BrojDod (int)              — iskorišteno DODATNO pravo
-//  Item4: Otok (string)              — naziv domicilnog otoka
-//  Item5: PravoNaPP (string)         — šifra prava (npr. "02P")
-//  Item6: Poruka (string)            — slobodna poruka, sufiks TR5KM/SXVC3/MXRF1
-// (IznosPopusta, MaxOsn, MaxDod su navedeni u dokumentaciji ali ne pojavljuju se
-// kao tuple komponente — vjerojatno drugi response format za SEOP v2.0+.)
+// `ProvjeriPPPResult` je klasa StanjePPP s imenovanim poljima — tako stoji u
+// WSDL-u servisa (BrojDod, BrojOsn, ImaPravoNaPP, IznosPopusta, MaxDod, MaxOsn,
+// Otok, OznOtoka, Poruka, PravoNaPP). Dojave prodaje jesu Tuple (m_Item1…), ali
+// provjera nije; kod je dotad čitao tuple i na pravom servisu ne bi pročitao
+// ništa.
+//
+// Stariji oblik ostaje kao rezerva, da se ne izgubi ono što je već radilo na
+// zatečenoj okolini.
+const prazno = (v) => v === null || v === undefined
+    || (typeof v === 'object' && (v['@_nil'] === 'true' || v['@_xsi:nil'] === 'true'));
+const vrijednost = (v) => (prazno(v) ? null : v);
+const broj = (v) => {
+    const n = parseInt(vrijednost(v), 10);
+    return Number.isFinite(n) ? n : null;
+};
+
 function interpretResponse(resp) {
     const r = resp.parsed?.Envelope?.Body?.ProvjeriPPPResponse?.ProvjeriPPPResult;
     if (!r) {
         return { ok: false, raw: resp, error: resp.fault?.reason || 'unexpected response shape' };
     }
+
+    const imaPravo = vrijednost(r.ImaPravoNaPP) ?? vrijednost(r.m_Item1);
+    const poruka = String(vrijednost(r.Poruka) ?? vrijednost(r.m_Item6) ?? '');
+
     const popusti = ['TR5KM', 'SXVC3', 'MXRF1'];
-    const poruka = String(r.m_Item6 || '');
     let kategorija = null;
     for (const p of popusti) if (poruka.endsWith(p)) { kategorija = p; break; }
-    const popust =
+
+    // Postotak dolazi iz `IznosPopusta` kad ga servis pošalje; sufiks poruke
+    // ostaje rezerva, jer je polje u specifikaciju dodano naknadno.
+    const izPolja = broj(r.IznosPopusta);
+    const izSufiksa =
         kategorija === 'TR5KM' ? 100 :
         kategorija === 'SXVC3' ? 50 :
         kategorija === 'MXRF1' ? 0 : null;
 
     return {
         ok: !resp.fault,
-        ima_pravo: r.m_Item1 === true || r.m_Item1 === 'true',
-        broj_osn_iskoristen: parseInt(r.m_Item2, 10) || 0,
-        broj_dod_iskoristen: parseInt(r.m_Item3, 10) || 0,
-        otok: r.m_Item4 || null,
-        pravo_na_pp: r.m_Item5 || null,
+        ima_pravo: imaPravo === true || imaPravo === 'true',
+        broj_osn_iskoristen: broj(r.BrojOsn) ?? broj(r.m_Item2) ?? 0,
+        broj_dod_iskoristen: broj(r.BrojDod) ?? broj(r.m_Item3) ?? 0,
+        max_osn: broj(r.MaxOsn),
+        max_dod: broj(r.MaxDod),
+        otok: vrijednost(r.Otok) ?? vrijednost(r.m_Item4) ?? null,
+        ozn_otoka: broj(r.OznOtoka),
+        pravo_na_pp: vrijednost(r.PravoNaPP) ?? vrijednost(r.m_Item5) ?? null,
         poruka,
         kategorija_popusta: kategorija,
-        popust_postotak: popust,
+        popust_postotak: izPolja !== null ? izPolja : izSufiksa,
         raw: { httpStatus: resp.httpStatus, fault: resp.fault },
     };
 }

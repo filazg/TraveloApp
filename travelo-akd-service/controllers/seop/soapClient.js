@@ -1,4 +1,5 @@
 const https = require('https');
+const tls = require('tls');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
@@ -40,7 +41,9 @@ async function callSeop({ method, bodyXml, soapAction }) {
 
     // Node 22 ne prihvaća legacy PKCS12 enkripciju (RC2-40); konvertiramo u PEM.
     const { keyPem, certPem } = loadP12(p12Path, p12Pass);
-    const action = soapAction || `SEOP.AKD/${method}`;
+    // Oblik akcije je iz WSDL-a servisa: SEOP.AKD/IPlovKarte/<Metoda>. Bez
+    // naziva sucelja WCF poziv odbija.
+    const action = soapAction || `SEOP.AKD/IPlovKarte/${method}`;
 
     const envelope = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:seop="SEOP.AKD" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -59,9 +62,6 @@ async function callSeop({ method, bodyXml, soapAction }) {
         // SEOP je stari WCF servis — forsiramo TLS 1.2 i ciphers koje on podržava.
         minVersion: 'TLSv1.2',
         maxVersion: 'TLSv1.2',
-        // Demo CA nije u Node-ovom default trust storeu; radi prvog handshakea
-        // dopuštamo samopotpisani SEOP server cert. Kad dobijemo aktualni
-        // AKDCA-DEMO.crt, postavit ćemo ga u `ca` i ukloniti ovaj override.
         rejectUnauthorized: postavke.tls_reject_unauthorized === true,
         headers: {
             'Content-Type': 'text/xml; charset=utf-8',
@@ -70,13 +70,19 @@ async function callSeop({ method, bodyXml, soapAction }) {
         },
     };
 
+    // AKD-ov CA se DODAJE ugrađenim korijenima, ne zamjenjuje ih.
+    //
+    // Poslužitelj SEOP-a nosi javni Sectigo certifikat (*.akd.hr), a AKDCA-DEMO
+    // je izdavatelj NAŠEG klijentskog certifikata. Postavljanje samo njega u `ca`
+    // izbacuje javne korijene iz povjerenja, pa handshake padne na
+    // „unable to get local issuer certificate" — server se nema čime provjeriti.
     const caPath = razrijesiPutanju(postavke.ca_file);
     if (caPath) {
         try {
-            opts.ca = fs.readFileSync(caPath);
+            opts.ca = [...tls.rootCertificates, fs.readFileSync(caPath, 'utf8')];
             opts.rejectUnauthorized = true;
         } catch (e) {
-            console.log('CA lanac se ne moze procitati, TLS ostaje bez provjere:', e.message);
+            console.log('CA lanac se ne moze procitati, ostaju samo ugradeni korijeni:', e.message);
         }
     }
 
