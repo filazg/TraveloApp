@@ -9,6 +9,67 @@ ima `ProvjeriPPP` i sve graditelje stringova za potpis — ni jedna dojava se ne
 
 ---
 
+## 0a. Granica prema prodajnim kanalima (napravljeno 14.09.2026.)
+
+Blagajna, mobilna i web **ne odlučuju** o povlastici i **ne znaju** što dojava
+traži. Time se postiže ono zbog čega je ovo i posloženo: kad stignu ključevi,
+mijenja se samo pozadina.
+
+**Provjera** — jedan poziv za sve kanale:
+
+```
+POST {akd}/povlastica/provjeri
+{
+  sustav: "SEOP" | "MOSI",
+  identifikator: { vrsta: "card_no|oib|iks|uid|reg_oznaka", vrijednost },
+  ruta: { line_no, departure_harbor_code, arrival_harbor_code },
+  datum,
+  kartica: {...}            // ono što je čitač pročitao, za MOSI
+}
+→ {
+  smije_se_prodati, ima_pravo, pravo_postoji,
+  popust_postotak, besplatno, pratnja_besplatno,
+  pravo_na_pp, pravo_opis, razred, otok, kategorija_popusta, poruka, razlog,
+  brojaci: { osn_iskoristen, dod_iskoristen, max_osn, max_dod },
+  linija: { seop_mode, mosi_accepted, mosi_discount_pct, mosi_companion_free },
+  token,                    // zapečaćeni zapis provjere
+  vrijedi_do
+}
+```
+
+Unutra su: `ProvjeriPPP`, katalog prava iz poglavlja 3. (`katalogPrava.js` —
+odlučuje što znači „samo otočani s prebivalištem") i pravila linije iz portala.
+
+**Prodaja** — svaka stavka nosi blok `povlastica`:
+
+```
+{ sustav, token, identifikator: { vrsta, vrijednost },
+  pravo, otok, popust_postotak, namjena, redovna_cijena,
+  odobrenje, uvijek_prodaj, offline, pratnja }
+```
+
+Blok se prepisuje na kartu (`helpers/povlastica.js` → `tickets.seop_*`), pa
+outbox ima iz čega složiti `DojaviProdajuPPK_3Eur`: redovna i povlaštena cijena,
+identifikator koji je stvarno upotrijebljen, `oznOdobrenja`, `uvijekProdaj`.
+
+Što još treba znati:
+
+- **Cijena.** Otočna cijena iz cjenika je već povlaštena cijena relacije;
+  postotak s provjere se na nju ne množi, nego odlučuje ide li karta besplatno
+  (100 %). U dojavu ide `redovCijenaEur` = redovna cijena relacije,
+  `povlaCijenaEur` = naplaćeno.
+- **`uvijek_prodaj`.** Prava nema ili se ne može provjeriti (nema mreže) —
+  blagajnik prodaje punom cijenom, a iskaznica se svejedno dojavljuje. To je
+  `uvijekProdaj` iz specifikacije.
+- **Pečat.** `token` je HMAC-potpisan jer isti put koristi i web prodaja, gdje
+  sadržaj prolazi kroz preglednik kupca. Otvara ga samo akd servis
+  (`POST /povlastica/otvori`).
+- **Ostaje za pozadinu:** prodaja još ne provjerava token prije nego izda kartu.
+  Kad se uvede outbox, `finalize` treba otvoriti token i uzeti popust iz njega,
+  a ne iz onoga što je klijent poslao.
+
+---
+
 ## 0. Preduvjeti (bez ovoga se ne može ni testirati)
 
 | Što | Od koga | Gdje ide |
