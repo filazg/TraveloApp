@@ -75,6 +75,9 @@ export default function SubsidisedTicketsSelect() {
         setCardData(null);
         setSelectedCode("")
         setTextValue("")
+        setProvjera(null)
+        setRucniUnos("")
+        setPratnjaOdabrana(false)
         dispatch(setStateData({path:'modalsStates/showSubsidisedTickets', value: false}))
     };
 
@@ -86,30 +89,42 @@ export default function SubsidisedTicketsSelect() {
       setVirtualCardData(true)
     }
 
-    // Rucni upit na SEOP: broj iskaznice ili OIB putnika.
+    // Provjera prava ide na posluzitelj — i kad je kartica procitana, i kad se
+    // broj upisuje rucno.
     //
-    // Cip se ne da uvijek procitati — istrosena kartica, citac koji ne reagira,
-    // iskaznica koju putnik nema kod sebe. Specifikacija SEOP-a zato trazi da
-    // blagajna omoguci istu provjeru i upisom podatka.
+    // Prije se odluka donosila ovdje, iz sadrzaja cipa i lokalne tablice prava.
+    // To znaci da svaka promjena pravila (druga linija, drugi postotak, novo
+    // pravo u Pravilniku) trazi novi build blagajne. Sada blagajna pita, a
+    // posluzitelj odgovara smije li se prodati, koliki je popust i putuje li
+    // pratnja besplatno — i uz to vraca zapecaceni zapis koji ide s prodajom.
+    //
+    // Rucni upis postoji jer se cip ne da uvijek procitati: istrosena kartica,
+    // citac koji ne reagira, iskaznica koju putnik nema kod sebe.
     const [rucniOblik, setRucniOblik] = useState("card_no");
     const [rucniUnos, setRucniUnos] = useState("");
-    const [rucnaProvjera, setRucnaProvjera] = useState(null);
+    const [provjera, setProvjera] = useState(null);
+    const [provjeraRadi, setProvjeraRadi] = useState(false);
+    const [pratnjaOdabrana, setPratnjaOdabrana] = useState(false);
 
-    const provjeriRucno = async () => {
-      const vrijednost = String(rucniUnos || "").trim();
-      if (!vrijednost) return;
+    const provjeriNaPosluzitelju = async ({ vrsta, vrijednost, sustav = "SEOP", kartica = null }) => {
+      const broj = String(vrijednost || "").trim();
+      if (!broj) return null;
 
       const relacija = appData.searchData?.selectedTrip;
       const linija = appData.searchData?.selectedLine;
       if (!relacija || !linija) {
-        setRucnaProvjera({ ok: false, poruka: "Odaberite polazak i odredište prije provjere." });
-        return;
+        const ishod = { ok: false, smije_se_prodati: false, poruka: "Odaberite polazak i odredište prije provjere." };
+        setProvjera(ishod);
+        return ishod;
       }
 
-      setRucnaProvjera({ radi: true });
+      setProvjeraRadi(true);
+      setPratnjaOdabrana(false);
       try {
         const odgovor = await window.api.app.checkIslandCardIPC({
-          [rucniOblik]: vrijednost,
+          sustav,
+          [vrsta]: broj,
+          kartica,
           route: {
             line_no: linija.code,
             departure_harbor_code: relacija.departure_harbor_id,
@@ -119,16 +134,35 @@ export default function SubsidisedTicketsSelect() {
         });
         // IPC vraca { ok, data } ili { ok:false, error }.
         const podaci = odgovor?.data ?? odgovor;
+        let ishod;
         if (odgovor?.ok === false) {
-          setRucnaProvjera({ ok: false, poruka: odgovor.error || "Provjera nije uspjela." });
+          // Nema odgovora posluzitelja — karta se svejedno moze prodati punom
+          // cijenom, a dojava ide kasnije.
+          ishod = { ok: false, offline: true, smije_se_prodati: false, poruka: odgovor.error || "Provjera nije uspjela." };
         } else if (podaci?.ok === false) {
-          setRucnaProvjera({ ok: false, poruka: podaci.poruka || podaci.error || "Provjera nije uspjela." });
+          ishod = { ok: false, offline: true, smije_se_prodati: false, poruka: podaci.poruka || podaci.error || "Provjera nije uspjela." };
         } else {
-          setRucnaProvjera({ ok: true, ...podaci });
+          ishod = { ok: true, offline: false, ...podaci, identifikator: podaci.identifikator || { vrsta, vrijednost: broj } };
         }
+        setProvjera(ishod);
+        return ishod;
       } catch (e) {
-        setRucnaProvjera({ ok: false, poruka: e?.message || "Provjera nije uspjela." });
+        const ishod = { ok: false, offline: true, smije_se_prodati: false, poruka: e?.message || "Provjera nije uspjela." };
+        setProvjera(ishod);
+        return ishod;
+      } finally {
+        setProvjeraRadi(false);
       }
+    };
+
+    const provjeriRucno = () => provjeriNaPosluzitelju({ vrsta: rucniOblik, vrijednost: rucniUnos });
+
+    // Identifikator s procitane kartice: SEOP nosi broj iskaznice, MOSI serijski broj.
+    const identifikatorSKartice = (k) => {
+      if (!k?.F2) return null;
+      if (k.cardFamily === "SEOP_P") return { sustav: "SEOP", vrsta: "card_no", vrijednost: k.F2.CardNumber };
+      if (k.cardFamily === "MOSI") return { sustav: "MOSI", vrsta: "card_no", vrijednost: k.F2.SBr };
+      return null;
     };
 
     const scanCard = async()=>{
@@ -161,6 +195,14 @@ export default function SubsidisedTicketsSelect() {
       setCardData(res.data.data);
       console.log("Kartica:", res.meta);
       console.log("Podaci:", res.data);
+      // Cip kaze tko je putnik; smije li povlastenu kartu na ovoj liniji, kaze
+      // posluzitelj.
+      const ident = identifikatorSKartice(res.data.data);
+      if (ident) {
+        await provjeriNaPosluzitelju({ ...ident, kartica: res.data.data.F2 || null });
+      } else {
+        setProvjera(null);
+      }
       await dispatch(setStateData({path:'status', value:'ready'}))
     }
 function cardDataToShow() {
@@ -181,6 +223,35 @@ function cardDataToShow() {
         )
       }
     }
+}
+
+// Redovna cijena relacije — ide u dojavu kao redovCijenaEur, a sluzi i kao
+// cijena karte kad se prodaje bez potvrdenog prava.
+function redovnaCijenaRelacije() {
+  const cijene = appData.searchData?.selectedTripPrices || [];
+  const redovna = cijene.find((c) => c.is_island !== true && /redov/i.test(c.ticket_type_name || ""));
+  return redovna || cijene.find((c) => c.is_island !== true) || null;
+}
+
+// Blok koji putuje uz stavku prodaje. Blagajna ga ne tumaci — `token` je
+// zapecaceni zapis provjere s posluzitelja i ovdje se samo prenosi dalje. Zato
+// nova polja u dojavi ne traze izmjenu blagajne.
+function blokPovlastice({ ishod, cijenaRed, pratnja = false, uvijekProdaj = false }) {
+  const redovna = redovnaCijenaRelacije();
+  return {
+    sustav: ishod?.sustav || "SEOP",
+    token: ishod?.token || null,
+    identifikator: ishod?.identifikator || null,
+    pravo: ishod?.pravo_na_pp || null,
+    otok: ishod?.otok || null,
+    popust_postotak: uvijekProdaj ? 0 : Number(ishod?.popust_postotak || 0),
+    namjena: cijenaRed?.seop_type || null,
+    redovna_cijena: Number(redovna?.price ?? cijenaRed?.price ?? 0),
+    odobrenje: ishod?.odobrenje || null,
+    uvijek_prodaj: uvijekProdaj,
+    offline: ishod?.offline === true,
+    pratnja,
+  };
 }
 
 //DODAVANJE KARATA
@@ -229,11 +300,31 @@ const handleAddTickets = async(data) => {
       uuid: uuid(),
       code: uuid(),
     }],
-    card_data:cardDataToAdd
+    card_data:cardDataToAdd,
+    is_island: true,
+    // Sve sto dojava prodaje treba, u obliku u kojem je posluzitelj odlucio.
+    povlastica: data.povlastica || null
   }
   console.log('NEW TICEKT', newTicket)
   let ticketsToAdd = []
   ticketsToAdd = [...ticketsToAdd, newTicket];
+
+  // MOSI: vlasnik kartice putuje s popustom, pratnja besplatno. Odluku je donio
+  // posluzitelj prema postavkama linije; ovdje se samo doda druga karta.
+  if (data.pratnja) {
+    ticketsToAdd = [...ticketsToAdd, {
+      ...newTicket,
+      ticket_group_uuid: uuid(),
+      ticket_type_name: `${newTicket.ticket_type_name} — pratnja`,
+      single_price: 0,
+      total_price: 0,
+      total_vat_base: 0,
+      total_vat: 0,
+      total_harbor_tax: 0,
+      tickets: [{ uuid: uuid(), code: uuid() }],
+      povlastica: { ...(data.povlastica || {}), pratnja: true },
+    }];
+  }
   dispatch(setStateData({path:'saleData/addedTickets' ,value: ticketsToAdd }));
   handleCloseSubsidizedModal()
   dispatch(resetStateData({path:'searchData/selectedTrip'}))
@@ -566,15 +657,13 @@ const virtualSeopCards =[
 
 
 function seopCardDetails() {
-  let message = ''
-  let haveValidRight = false
-  let freeTicket = false
+  // Odluku donosi posluzitelj (SEOP + postavke linije); kartica sluzi za prikaz
+  // podataka o vlasniku i za identifikaciju.
   const rightOnCard = seopRights.find((right) => right.code === cardData.F2.BasicRight)
-  const isValidIsland = appData.searchData?.lineHarbors.find((harbor) =>   cardData.F2.IslandName === harbor.seop_harbor || cardData.F2.IslandName === 'Svi otoci')
   const priceForSeopTicket = appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true)
-  console.log('priceForSeopTicket',priceForSeopTicket)
+  const smije = provjera?.smije_se_prodati === true
   return(
-    <StatusPanel tone={isValidIsland ? "success" : "error"} title="Otočna kartica SEOP_P">
+    <StatusPanel tone={smije ? "success" : "error"} title="Otočna kartica SEOP_P">
       <Stack direction="row" spacing={2}>
         <InfoCard title="Podaci o vlasniku">
           <DetailRow label="Ime i prezime" value={`${cardData.F2.FirstName} ${cardData.F2.Surname}`} />
@@ -596,35 +685,97 @@ function seopCardDetails() {
       <Box sx={{ mt: 2 }}>
         <InfoCard title="Prava">
           <Typography align="center" sx={{ fontWeight: 600, py: 1 }}>
-            {rightOnCard
-              ? (isValidIsland ? rightOnCard.description : 'Pravo na kartici nije važeće za odabranu relaciju.')
-              : 'Nema odgovarajućeg prava na kartici.'}
+            {rightOnCard ? rightOnCard.description : 'Pravo s kartice nije u lokalnom šifrarniku.'}
           </Typography>
-          {isValidIsland ? (
-            <>
-              <Typography
-                align="center"
-                color="success.main"
-                sx={{ fontWeight: 800, py: 1 }}
-              >
-                {rightOnCard?.freeTicket ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU' : 'KORISNIK IMA PRAVO NA KARTU SA POPUSTOM'}
-              </Typography>
-              <Button
-                disabled={!priceForSeopTicket && !rightOnCard?.freeTicket}
-                variant="contained"
-                color="success"
-                onClick={()=>handleAddTickets({price:priceForSeopTicket, rights:rightOnCard, type:'SEOP', free:rightOnCard.freeTicket})}
-                sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}
-              >
-                {rightOnCard?.freeTicket
-                  ? 'BESPLATNA KARTA'
-                  : `IZNOS ZA PLAĆANJE ${priceForSeopTicket?.price.toFixed(2)} EUR`}
-              </Button>
-            </>
-          ) : null}
+          {odlukaIGumbi(priceForSeopTicket, 'SEOP')}
         </InfoCard>
       </Box>
     </StatusPanel>
+  )
+}
+
+// Ishod provjere i gumbi za prodaju — isti za očitanu karticu, ručni upis i
+// MOSI, jer je odluka u svim slučajevima došla s istog mjesta.
+function odlukaIGumbi(cijenaRed, sustav) {
+  if (provjeraRadi) {
+    return <Typography align="center" sx={{ fontWeight: 800, py: 2 }}>PROVJERA…</Typography>
+  }
+  if (!provjera) {
+    return (
+      <Typography align="center" color="text.secondary" sx={{ fontWeight: 700, py: 2 }}>
+        Provjera prava još nije napravljena.
+      </Typography>
+    )
+  }
+
+  const smije = provjera.smije_se_prodati === true
+  const besplatno = provjera.besplatno === true
+  const redovna = redovnaCijenaRelacije()
+  // Otočna cijena iz cjenika već je povlaštena cijena relacije; postotak s
+  // provjere se na nju ne množi, nego odlučuje ide li karta besplatno.
+  const iznos = besplatno ? 0 : Number(cijenaRed?.price ?? 0)
+
+  return (
+    <>
+      <Typography align="center" sx={{ fontWeight: 800, py: 1 }} color={smije ? "success.main" : "error.main"}>
+        {smije
+          ? (besplatno ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU' : `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%`)
+          : 'NEMA PRAVA NA POVLAŠTENU KARTU NA OVOJ RELACIJI'}
+      </Typography>
+      {(provjera.poruka || provjera.razlog) ? (
+        <Typography align="center" color="text.secondary" sx={{ py: 0.5 }}>
+          {provjera.razlog || provjera.poruka}
+        </Typography>
+      ) : null}
+
+      {smije && provjera.pratnja_besplatno ? (
+        <Button
+          variant={pratnjaOdabrana ? "contained" : "outlined"}
+          color="success"
+          onClick={() => setPratnjaOdabrana((v) => !v)}
+          sx={{ mt: 1, width: "100%" }}
+        >
+          {pratnjaOdabrana ? '☑' : '☐'}  DODAJ PRATNJU (BESPLATNO)
+        </Button>
+      ) : null}
+
+      {smije ? (
+        <Button
+          disabled={!cijenaRed && !besplatno}
+          variant="contained"
+          color="success"
+          onClick={() => {
+            handleAddTickets({
+              price: cijenaRed, rights: {}, type: sustav, free: besplatno,
+              povlastica: blokPovlastice({ ishod: provjera, cijenaRed }),
+              pratnja: pratnjaOdabrana && provjera.pratnja_besplatno,
+              pratnjaCijena: cijenaRed,
+            })
+          }}
+          sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}
+        >
+          {besplatno ? 'BESPLATNA KARTA' : `IZNOS ZA PLAĆANJE ${iznos.toFixed(2)} EUR`}
+        </Button>
+      ) : (
+        // Prava nema ili se ne može provjeriti. Specifikacija to zove
+        // uvijekProdaj: karta se izdaje punom cijenom, a iskaznica se svejedno
+        // dojavljuje, da se vidi da je pokušaj bio.
+        <Button
+          disabled={!redovna}
+          variant="contained"
+          color="warning"
+          onClick={() => {
+            handleAddTickets({
+              price: redovna, rights: {}, type: sustav, free: false,
+              povlastica: blokPovlastice({ ishod: provjera, cijenaRed: redovna, uvijekProdaj: true }),
+            })
+          }}
+          sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}
+        >
+          {redovna ? `PUNA CIJENA ${Number(redovna.price).toFixed(2)} EUR` : 'NEMA REDOVNE CIJENE ZA RELACIJU'}
+        </Button>
+      )}
+    </>
   )
 }
 
@@ -651,17 +802,12 @@ function mosiCardDetails() {
           </Stack>
           <Box sx={{ mt: 2 }}>
             <InfoCard title="Prava">
-              <Typography align="center" color="success.main" sx={{ fontWeight: 800, py: 1 }}>
-                KORISNIK IMA PRAVO NA BESPLATNU KARTU
-              </Typography>
-              <Button
-                variant="contained"
-                color="success"
-                onClick={()=>handleAddTickets({price:{}, rights:{}, type:'MOSI', free:true})}
-                sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}
-              >
-                BESPLATNA KARTA
-              </Button>
+              {/* Popust i pravo pratnje na besplatnu kartu odreduju se po liniji
+                  u portalu, pa odluka stize s posluzitelja kao i kod SEOP-a. */}
+              {odlukaIGumbi(
+                appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true),
+                'MOSI'
+              )}
             </InfoCard>
           </Box>
         </>
@@ -818,7 +964,7 @@ function virtualCardDetails() {
                     labelId="rucni-oblik"
                     label="Upisuje se"
                     value={rucniOblik}
-                    onChange={(e) => { setRucniOblik(e.target.value); setRucniUnos(""); setRucnaProvjera(null); }}
+                    onChange={(e) => { setRucniOblik(e.target.value); setRucniUnos(""); setProvjera(null); }}
                   >
                     <MenuItem value="card_no">Broj iskaznice</MenuItem>
                     <MenuItem value="oib">OIB putnika</MenuItem>
@@ -836,32 +982,33 @@ function virtualCardDetails() {
                   variant="contained"
                   sx={{ height: 56, minWidth: 140, flexShrink: 0 }}
                   onClick={provjeriRucno}
-                  disabled={!rucniUnos.trim() || rucnaProvjera?.radi}
+                  disabled={!rucniUnos.trim() || provjeraRadi}
                 >
-                  {rucnaProvjera?.radi ? "PROVJERA…" : "PROVJERI"}
+                  {provjeraRadi ? "PROVJERA…" : "PROVJERI"}
                 </Button>
               </Stack>
 
-              {rucnaProvjera && !rucnaProvjera.radi ? (
+              {/* Ručni upis završava na istom mjestu kao očitana kartica: ista
+                  odluka, isti gumbi za prodaju. */}
+              {!cardData && (provjera || provjeraRadi) ? (
                 <Box sx={{ mt: 2 }}>
                   <StatusPanel
-                    tone={rucnaProvjera.ok && rucnaProvjera.ima_pravo ? "success" : "error"}
-                    title={rucnaProvjera.ok
-                      ? (rucnaProvjera.ima_pravo ? "Ima pravo na povlasticu" : "Nema prava na povlasticu")
-                      : "Provjera nije prošla"}
+                    tone={provjera?.smije_se_prodati ? "success" : "error"}
+                    title={provjera?.identifikator
+                      ? `Provjera — ${provjera.identifikator.vrijednost}`
+                      : "Provjera"}
                   >
-                    <Typography align="center" sx={{ fontWeight: 700 }}>
-                      {rucnaProvjera.ok ? (rucnaProvjera.poruka || "") : rucnaProvjera.poruka}
-                    </Typography>
-                    {rucnaProvjera.ok && rucnaProvjera.ima_pravo ? (
-                      <Typography align="center" sx={{ mt: 1 }}>
-                        {rucnaProvjera.pravo_na_pp ? `Pravo: ${rucnaProvjera.pravo_na_pp}` : ""}
-                        {rucnaProvjera.otok ? `  ·  Otok: ${rucnaProvjera.otok}` : ""}
-                        {rucnaProvjera.popust_postotak !== null && rucnaProvjera.popust_postotak !== undefined
-                          ? `  ·  Popust: ${rucnaProvjera.popust_postotak}%`
-                          : ""}
+                    {provjera?.pravo_na_pp || provjera?.otok ? (
+                      <Typography align="center" sx={{ mb: 1 }}>
+                        {provjera.pravo_na_pp ? `Pravo: ${provjera.pravo_na_pp}` : ""}
+                        {provjera.pravo_opis ? ` (${provjera.pravo_opis})` : ""}
+                        {provjera.otok ? `  ·  Otok: ${provjera.otok}` : ""}
                       </Typography>
                     ) : null}
+                    {odlukaIGumbi(
+                      appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true),
+                      provjera?.sustav || 'SEOP'
+                    )}
                   </StatusPanel>
                 </Box>
               ) : null}

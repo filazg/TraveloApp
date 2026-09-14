@@ -113,6 +113,11 @@ export default function SaleScreen() {
     // Cip se ne da uvijek procitati, a putnik ponekad iskaznicu nema kod sebe.
     // SEOP prima i OIB i broj iksice, pa se bira sto se upisuje.
     const [islandIdType, setIslandIdType] = useState('card_no');
+    // Provjera koja nije uspjela zbog mreze nije isto sto i odbijena
+    // provjera: putnik stoji na vratima, a karta se mora prodati. SEOP to
+    // predvida (uvijekProdaj), pa se pamti zasto prava nema.
+    const [islandOffline, setIslandOffline] = useState(false);
+    const [islandPratnja, setIslandPratnja] = useState(false);
     const [islandChecking, setIslandChecking] = useState(false);
     const [islandResult, setIslandResult] = useState(null);
     const [islandError, setIslandError] = useState(null);
@@ -487,6 +492,8 @@ export default function SaleScreen() {
             setIslandResult(null);
             setIslandError(null);
             setIslandChecking(false);
+            setIslandOffline(false);
+            setIslandPratnja(false);
             if (akdCardAvailable) akdStopScan().catch(() => {});
             // Još jedan native hide nakon unmount-a (re-fokus na hidden scan).
             setTimeout(() => { akdHideKeyboard().catch(() => {}); }, 150);
@@ -540,6 +547,7 @@ export default function SaleScreen() {
         setIslandChecking(true);
         setIslandError(null);
         setIslandResult(null);
+        setIslandOffline(false);
         try {
             const resp = await api.post(ENDPOINTS.checkIslandCard, {
                 [oblik]: cardNo,
@@ -552,6 +560,10 @@ export default function SaleScreen() {
             });
             setIslandResult(resp.data?.data || resp.data);
         } catch (err) {
+            // Bez odgovora posluzitelja prava se ne mogu utvrditi. Karta se
+            // svejedno moze prodati punom cijenom, a dojava ce iz outboxa otici
+            // kad mreza dode.
+            setIslandOffline(!err?.response);
             setIslandError(err?.response?.data?.data?.message || err?.message || 'Greška u provjeri');
         } finally {
             setIslandChecking(false);
@@ -560,21 +572,82 @@ export default function SaleScreen() {
 
     const handleVerifyIsland = () => verifyIslandFor(islandCardNo);
 
+    // Redovna cijena relacije — sluzi dvaput: kao `redovCijenaEur` u dojavi i
+    // kao cijena karte kad se prodaje bez potvrdenog prava.
+    const redovniRed = useMemo(
+        () => pricesForPair.find((p) => /redov/i.test(p.ticket_type_name || '')) || pricesForPair[0] || null,
+        [pricesForPair]
+    );
+
+    // Blok koji putuje uz stavku prodaje. Blagajna ga ne tumaci: `token` je
+    // zapecaceni zapis provjere s posluzitelja i ovdje se samo prenosi dalje.
+    // Zato nova polja u dojavi ne traze izmjenu mobilne.
+    const blokPovlastice = ({ ishod, pratnja = false, uvijekProdaj = false, offline = false, redovna }) => ({
+        sustav: ishod?.sustav || 'SEOP',
+        token: ishod?.token || null,
+        identifikator: {
+            vrsta: ishod?.identifikator?.vrsta || islandIdType,
+            vrijednost: ishod?.identifikator?.vrijednost || islandCardNo,
+        },
+        pravo: ishod?.pravo_na_pp || null,
+        otok: ishod?.otok || null,
+        popust_postotak: uvijekProdaj ? 0 : Number(ishod?.popust_postotak || 0),
+        namjena: islandPriceRow?.seop_type || null,
+        redovna_cijena: redovna,
+        odobrenje: ishod?.odobrenje || null,
+        uvijek_prodaj: uvijekProdaj,
+        offline,
+        pratnja,
+    });
+
+    const dodajKartu = (karta) => setIslandTickets((arr) => [...arr, karta]);
+
     const confirmIslandPurchase = () => {
-        if (!islandResult?.ima_pravo || !islandPriceRow) return;
-        const pct = Number(islandResult.popust_postotak || 0);
-        const factor = 1 - pct / 100;
-        const unit = +(Number(islandPriceRow.price) * factor).toFixed(2);
-        const newTicket = {
+        const smije = islandResult?.smije_se_prodati ?? islandResult?.ima_pravo;
+        if (!smije || !islandPriceRow) return;
+        const redovna = Number(redovniRed?.price ?? islandPriceRow.price);
+        // Otocna cijena iz cjenika vec JE povlastena cijena relacije, pa se
+        // postotak s provjere na nju ne mnozi — on odlucuje ide li karta
+        // besplatno. Blagajna racuna isto.
+        const unit = islandResult.besplatno ? 0 : +Number(islandPriceRow.price).toFixed(2);
+
+        dodajKartu({
             ticket_type_uuid: islandPriceRow.ticket_type_uuid,
             ticket_type_name: islandPriceRow.ticket_type_name || 'Otočna karta',
             single_price: unit,
-            seop_card_no: islandCardNo,
-            seop_pravo: islandResult.pravo_na_pp || null,
-            seop_otok: islandResult.otok || null,
-            seop_discount_pct: pct,
-        };
-        setIslandTickets((arr) => [...arr, newTicket]);
+            povlastica: blokPovlastice({ ishod: islandResult, redovna }),
+        });
+
+        // MOSI: vlasnik putuje s popustom, pratnja besplatno. Odluku je donio
+        // posluzitelj prema postavkama linije — ovdje je samo gumb.
+        if (islandPratnja && islandResult.pratnja_besplatno) {
+            dodajKartu({
+                ticket_type_uuid: islandPriceRow.ticket_type_uuid,
+                ticket_type_name: `${islandPriceRow.ticket_type_name || 'Otočna karta'} — pratnja`,
+                single_price: 0,
+                povlastica: blokPovlastice({ ishod: islandResult, pratnja: true, redovna }),
+            });
+        }
+        closeIslandModal();
+    };
+
+    // Prodaja punom cijenom kad prava nema ili se ne moze provjeriti.
+    // Specifikacija to zove uvijekProdaj: karta se izdaje, a SEOP-u se dojavljuje
+    // kao obicna — ali s iskaznicom, da se vidi da je pokusaj bio.
+    const prodajPunuCijenu = () => {
+        const red = redovniRed || islandPriceRow;
+        if (!red) return;
+        dodajKartu({
+            ticket_type_uuid: red.ticket_type_uuid,
+            ticket_type_name: red.ticket_type_name || 'Redovna',
+            single_price: Number(red.price),
+            povlastica: blokPovlastice({
+                ishod: islandResult,
+                uvijekProdaj: true,
+                offline: islandOffline,
+                redovna: Number(red.price),
+            }),
+        });
         closeIslandModal();
     };
 
@@ -680,10 +753,7 @@ export default function SaleScreen() {
                 qty: 1,
                 unit_price: Number(it.single_price),
                 is_island: true,
-                seop_card_no: it.seop_card_no,
-                seop_pravo: it.seop_pravo,
-                seop_otok: it.seop_otok,
-                seop_discount_pct: it.seop_discount_pct,
+                povlastica: it.povlastica,
                 route,
             });
         }
@@ -1122,14 +1192,23 @@ export default function SaleScreen() {
                             </>
                         )}
 
-                        {islandResult && !islandResult.ima_pravo && (
+                        {islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo) && (
                             <View style={islandStyles.resultErr}>
-                                <Text style={islandStyles.resultErrTitle}>Iskaznica nema pravo na povlašteni prijevoz.</Text>
-                                {!!islandResult.poruka && <Text style={islandStyles.resultMsg}>{islandResult.poruka}</Text>}
+                                <Text style={islandStyles.resultErrTitle}>
+                                    {islandResult.pravo_postoji
+                                        ? 'Iskaznica ima pravo, ali ne na ovoj liniji.'
+                                        : 'Iskaznica nema pravo na povlašteni prijevoz.'}
+                                </Text>
+                                {!!(islandResult.razlog || islandResult.poruka) && (
+                                    <Text style={islandStyles.resultMsg}>{islandResult.razlog || islandResult.poruka}</Text>
+                                )}
+                                <Text style={islandStyles.resultMsg}>
+                                    Karta se može izdati punom cijenom; iskaznica se svejedno dojavljuje.
+                                </Text>
                             </View>
                         )}
 
-                        {islandResult && islandResult.ima_pravo && (
+                        {islandResult && (islandResult.smije_se_prodati ?? islandResult.ima_pravo) && (
                             <View style={islandStyles.resultOk}>
                                 <Text style={islandStyles.resultOkTitle}>
                                     Pravo potvrđeno — popust {islandResult.popust_postotak}%
@@ -1141,16 +1220,24 @@ export default function SaleScreen() {
                                 {!!islandResult.pravo_na_pp && (
                                     <Text style={islandStyles.resultLine}>Pravo: <Text style={islandStyles.b}>{islandResult.pravo_na_pp}</Text></Text>
                                 )}
+                                {islandResult.pratnja_besplatno && (
+                                    <TouchableOpacity
+                                        style={[islandStyles.pratnjaRed, islandPratnja && islandStyles.pratnjaRedAktivan]}
+                                        onPress={() => setIslandPratnja((v) => !v)}
+                                    >
+                                        <Text style={[islandStyles.pratnjaText, islandPratnja && islandStyles.pratnjaTextAktivan]}>
+                                            {islandPratnja ? '☑' : '☐'}  Dodaj pratnju (besplatno)
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                                     <Text style={{ marginRight: 8 }}>Cijena:</Text>
-                                    <Text style={[islandStyles.priceOld, islandResult.popust_postotak > 0 && { textDecorationLine: 'line-through' }]}>
-                                        {Number(islandPriceRow?.price || 0).toFixed(2)} €
+                                    <Text style={[islandStyles.priceOld, { textDecorationLine: 'line-through' }]}>
+                                        {Number(redovniRed?.price ?? islandPriceRow?.price ?? 0).toFixed(2)} €
                                     </Text>
-                                    {islandResult.popust_postotak > 0 && (
-                                        <Text style={islandStyles.priceNew}>
-                                            {(Number(islandPriceRow?.price || 0) * (1 - islandResult.popust_postotak / 100)).toFixed(2)} €
-                                        </Text>
-                                    )}
+                                    <Text style={islandStyles.priceNew}>
+                                        {(islandResult.besplatno ? 0 : Number(islandPriceRow?.price || 0)).toFixed(2)} €
+                                    </Text>
                                 </View>
                             </View>
                         )}
@@ -1168,9 +1255,16 @@ export default function SaleScreen() {
                                     <Text style={islandStyles.btnPrimaryText}>{islandChecking ? 'Provjera…' : 'Provjeri pravo'}</Text>
                                 </TouchableOpacity>
                             )}
-                            {islandResult && islandResult.ima_pravo && (
+                            {islandResult && (islandResult.smije_se_prodati ?? islandResult.ima_pravo) && (
                                 <TouchableOpacity style={islandStyles.btnPrimary} onPress={confirmIslandPurchase}>
                                     <Text style={islandStyles.btnPrimaryText}>Potvrdi</Text>
+                                </TouchableOpacity>
+                            )}
+                            {/* Prava nema ili se ne moze provjeriti — karta ide punom cijenom,
+                                a pokusaj se svejedno dojavljuje (uvijekProdaj iz specifikacije). */}
+                            {((islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo)) || (islandOffline && islandCardNo)) && (
+                                <TouchableOpacity style={islandStyles.btnPuna} onPress={prodajPunuCijenu}>
+                                    <Text style={islandStyles.btnPrimaryText}>Puna cijena</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -1191,6 +1285,17 @@ const islandStyles = StyleSheet.create({
     oblikBtnAktivan: { backgroundColor: colors.primary, borderColor: colors.primary },
     oblikText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
     oblikTextAktivan: { color: colors.textOnPrimary },
+    pratnjaRed: {
+        marginTop: 10, paddingVertical: 8, paddingHorizontal: 10,
+        borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+    },
+    pratnjaRedAktivan: { borderColor: colors.primary, backgroundColor: colors.surfaceAlt || '#EEF4FF' },
+    pratnjaText: { fontWeight: '700', color: colors.textSecondary },
+    pratnjaTextAktivan: { color: colors.primary },
+    btnPuna: {
+        paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10,
+        backgroundColor: colors.warning || '#B26A00', marginLeft: 8,
+    },
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
     card: {
         backgroundColor: colors.surface, borderRadius: 12, padding: 20, width: '100%', maxWidth: 460,
