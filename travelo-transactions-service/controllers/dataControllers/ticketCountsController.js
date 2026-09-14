@@ -5,10 +5,12 @@
 // luke to ispadne točno, ali je izvedenica: broji rezervirana mjesta, a ne
 // karte. Ovdje se broje karte.
 //
-// Ne ulaze:
-//   - stornirane i deaktivirane karte,
-//   - karte kojima je mjesto oslobođeno jer je putnik ušao na drugi polazak —
-//     njega se na ovom brodu više ne očekuje.
+// Broje se sve prodane karte tog polaska, uključujući one koje su u međuvremenu
+// iskorištene na drugom polasku: za taj polazak su prodane i kapetan mora vidjeti
+// koliko ih je. Koliko ih od toga neće doći, govori zaseban redak „Validirano na
+// drugom polasku", a mjesta su im ionako vraćena u slobodna.
+//
+// Ne ulaze samo stornirane i deaktivirane karte — one nisu prodane.
 const { Op } = require("sequelize");
 const { getModels } = require("../../dbModels");
 
@@ -25,7 +27,6 @@ const ticketCountsController = async (req, res) => {
             where: {
                 route_uuid: { [Op.in]: rute },
                 is_canceled: { [Op.not]: true },
-                [Op.or]: [{ seat_released: { [Op.not]: true } }, { seat_released: null }],
             },
             attributes: ["ticket_uuid", "route_uuid", "ticket_type_uuid", "departure_harbor_id"],
         });
