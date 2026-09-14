@@ -236,6 +236,14 @@ module.exports =  (sequelize) =>{
                 allowNull: true,
                 defaultValue: false
             },
+            // Ide li prodaja u SEOP. Linija moze koristiti SEOP samo za provjeru
+            // iskaznice, bez dojave — tada karta postoji kod nas, a u SEOP
+            // obracun ne ulazi. Red cekanja to cita odavde.
+            seop_dojava:{
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: true
+            },
             // Račun s kojeg je karta prodana. Kanal prodaje i sredstvo plaćanja
             // stoje na računu, a ne na karti — bez ove veze se po njima ne može
             // ni filtrirati ni izvještavati. `order_uuid` za to ne služi: POS

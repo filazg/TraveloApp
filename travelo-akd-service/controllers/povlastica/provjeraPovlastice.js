@@ -68,10 +68,23 @@ async function provjeriPovlasticu(ulaz = {}) {
         linija: {
             nadena: pravila.nadena === true,
             seop_mode: pravila.seop_mode,
+            seop_report_sales: pravila.seop_report_sales,
+            seop_apply_discount: pravila.seop_apply_discount,
             mosi_accepted: pravila.mosi_accepted,
             mosi_discount_pct: pravila.mosi_discount_pct,
             mosi_companion_free: pravila.mosi_companion_free,
         },
+        // Dvije odluke koje blagajna samo posluša:
+        //
+        //   dojava_seop     — ide li prodaja u SEOP. Iskljuceno znaci da se SEOP
+        //                     koristi samo za provjeru iskaznice; karta se izdaje
+        //                     i ostaje izvan SEOP obracuna.
+        //   primjeni_popust — mnozi li se otocna cijena iz cjenika postotkom sa
+        //                     SEOP-a, ili je ta cijena vec konacna.
+        //
+        // MOSI ne ide u SEOP ni u kojem slucaju — ima svoju dojavu utroska.
+        dojava_seop: sustav === "SEOP" && pravila.seop_report_sales !== false,
+        primjeni_popust: sustav === "MOSI" ? true : pravila.seop_apply_discount === true,
     };
 
     const ishod = sustav === "MOSI"
@@ -93,6 +106,8 @@ async function provjeriPovlasticu(ulaz = {}) {
             popust_postotak: odgovor.popust_postotak,
             besplatno: odgovor.besplatno,
             pratnja_besplatno: odgovor.pratnja_besplatno,
+            dojava_seop: odgovor.dojava_seop,
+            primjeni_popust: odgovor.primjeni_popust,
             pravo_na_pp: odgovor.pravo_na_pp || null,
             otok: odgovor.otok || null,
             kategorija_popusta: odgovor.kategorija_popusta || null,

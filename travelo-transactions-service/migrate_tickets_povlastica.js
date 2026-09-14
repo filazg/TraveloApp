@@ -31,6 +31,7 @@ const dbConfig = {
     `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS seop_uvijek_prodaj BOOLEAN DEFAULT FALSE;`,
     `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS seop_offline BOOLEAN DEFAULT FALSE;`,
     `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS seop_pratnja BOOLEAN DEFAULT FALSE;`,
+    `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS seop_dojava BOOLEAN DEFAULT TRUE;`,
   ];
   try {
     await sequelize.authenticate();

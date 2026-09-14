@@ -106,6 +106,8 @@ const povlastice = (d) => {
     if (d.seop_mode !== undefined) {
         o.seop_mode = NACINI_SEOP.includes(d.seop_mode) ? d.seop_mode : "ne";
     }
+    if (d.seop_report_sales !== undefined) o.seop_report_sales = !!d.seop_report_sales;
+    if (d.seop_apply_discount !== undefined) o.seop_apply_discount = !!d.seop_apply_discount;
     if (d.mosi_accepted !== undefined) o.mosi_accepted = !!d.mosi_accepted;
     if (d.mosi_discount_pct !== undefined) {
         const n = parseInt(d.mosi_discount_pct, 10);

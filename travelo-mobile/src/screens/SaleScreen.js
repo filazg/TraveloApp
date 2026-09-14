@@ -600,7 +600,22 @@ export default function SaleScreen() {
         uvijek_prodaj: uvijekProdaj,
         offline,
         pratnja,
+        // Linija moze koristiti SEOP samo za provjeru, bez dojave prodaje.
+        dojava_seop: ishod?.dojava_seop !== false,
     });
+
+    // Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu):
+    // ili je otocna cijena iz cjenika vec konacna, ili je osnovica na koju se
+    // primjenjuje postotak sa SEOP-a. Odluku donosi posluzitelj, ovdje se samo
+    // racuna.
+    const cijenaPovlastene = (ishod, red) => {
+        const osnovica = Number(red?.price || 0);
+        if (ishod?.besplatno) return 0;
+        if (ishod?.primjeni_popust) {
+            return +(osnovica * (1 - Number(ishod.popust_postotak || 0) / 100)).toFixed(2);
+        }
+        return +osnovica.toFixed(2);
+    };
 
     const dodajKartu = (karta) => setIslandTickets((arr) => [...arr, karta]);
 
@@ -608,10 +623,7 @@ export default function SaleScreen() {
         const smije = islandResult?.smije_se_prodati ?? islandResult?.ima_pravo;
         if (!smije || !islandPriceRow) return;
         const redovna = Number(redovniRed?.price ?? islandPriceRow.price);
-        // Otocna cijena iz cjenika vec JE povlastena cijena relacije, pa se
-        // postotak s provjere na nju ne mnozi — on odlucuje ide li karta
-        // besplatno. Blagajna racuna isto.
-        const unit = islandResult.besplatno ? 0 : +Number(islandPriceRow.price).toFixed(2);
+        const unit = cijenaPovlastene(islandResult, islandPriceRow);
 
         dodajKartu({
             ticket_type_uuid: islandPriceRow.ticket_type_uuid,
@@ -1248,7 +1260,7 @@ export default function SaleScreen() {
                                         {Number(redovniRed?.price ?? islandPriceRow?.price ?? 0).toFixed(2)} €
                                     </Text>
                                     <Text style={islandStyles.priceNew}>
-                                        {(islandResult.besplatno ? 0 : Number(islandPriceRow?.price || 0)).toFixed(2)} €
+                                        {cijenaPovlastene(islandResult, islandPriceRow).toFixed(2)} €
                                     </Text>
                                 </View>
                             </View>

@@ -32,6 +32,7 @@ const poljaPovlastice = (stavka = {}) => {
             seop_uvijek_prodaj: false,
             seop_offline: false,
             seop_pratnja: false,
+            seop_dojava: stavka.is_island === true,
         };
     }
 
@@ -50,6 +51,8 @@ const poljaPovlastice = (stavka = {}) => {
         seop_uvijek_prodaj: p.uvijek_prodaj === true,
         seop_offline: p.offline === true,
         seop_pratnja: p.pratnja === true,
+        // Linija moze koristiti SEOP samo za provjeru; tada karta ne ide u dojavu.
+        seop_dojava: p.dojava_seop !== false,
     };
 };
 

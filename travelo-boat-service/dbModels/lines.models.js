@@ -65,6 +65,28 @@ module.exports =  (sequelize) =>{
             allowNull: false,
             defaultValue: "ne"
         },
+        // Dojavljuje li se prodaja SEOP-u.
+        //
+        // Brodar ponekad zeli dati povlastenu cijenu otocanima bez da karta ude
+        // u SEOP obracun — tada se SEOP koristi samo za provjeru je li iskaznica
+        // valjana i ima li pravo, a dojava prodaje i cvikanja se ne salje.
+        seop_report_sales: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true
+        },
+        // Primjenjuje li se postotak popusta sa SEOP-a na otocnu cijenu iz
+        // cjenika.
+        //
+        // Dvije su prakse: cjenik vec sadrzi povlastenu cijenu relacije (tada se
+        // postotak ne primjenjuje, on samo kaze ide li karta besplatno), ili
+        // cjenik nosi osnovicu na koju se popust racuna. Postavlja se po liniji
+        // jer ovisi o tome kako je cjenik slozen.
+        seop_apply_discount: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
+        },
         // MOSI (invalidske povlastice): prihvaca li ih linija i koliki je
         // popust nositelju. Pratnja putuje besplatno, pa za nju popusta nema.
         mosi_accepted: {

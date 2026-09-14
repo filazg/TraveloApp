@@ -14,6 +14,10 @@ let spremljenoU = 0;
 
 const ZADANO = {
     seop_mode: "ne",
+    // Dojava je uključena dok se izrijekom ne isključi — tiho neprijavljena
+    // prodaja je gora greška od suvišne dojave.
+    seop_report_sales: true,
+    seop_apply_discount: false,
     mosi_accepted: false,
     mosi_discount_pct: 0,
     mosi_companion_free: false,
@@ -58,6 +62,8 @@ async function pravilaZaLiniju(sifraLinije) {
         line_uuid: linija.uuid || null,
         line_name: linija.name || null,
         seop_mode: linija.seop_mode || "ne",
+        seop_report_sales: linija.seop_report_sales !== false,
+        seop_apply_discount: linija.seop_apply_discount === true,
         mosi_accepted: linija.mosi_accepted === true,
         mosi_discount_pct: Number.isFinite(Number(linija.mosi_discount_pct)) ? Number(linija.mosi_discount_pct) : 0,
         mosi_companion_free: linija.mosi_companion_free === true,

@@ -251,7 +251,21 @@ function blokPovlastice({ ishod, cijenaRed, pratnja = false, uvijekProdaj = fals
     uvijek_prodaj: uvijekProdaj,
     offline: ishod?.offline === true,
     pratnja,
+    // Linija moze koristiti SEOP samo za provjeru, bez dojave prodaje.
+    dojava_seop: ishod?.dojava_seop !== false,
   };
+}
+
+// Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu): ili je
+// otocna cijena iz cjenika vec konacna, ili je osnovica na koju se primjenjuje
+// postotak sa SEOP-a. Odluku donosi posluzitelj, ovdje se samo racuna.
+function cijenaPovlastene(ishod, cijenaRed) {
+  const osnovica = Number(cijenaRed?.price || 0);
+  if (ishod?.besplatno) return 0;
+  if (ishod?.primjeni_popust) {
+    return +(osnovica * (1 - Number(ishod.popust_postotak || 0) / 100)).toFixed(2);
+  }
+  return +osnovica.toFixed(2);
 }
 
 //DODAVANJE KARATA
@@ -290,8 +304,9 @@ const handleAddTickets = async(data) => {
     ticket_type_id: data?.type  ? data.type :data.price.ticket_type_id,
     ticket_type_uuid: data?.type  ? data.type :data.price.ticket_type_uuid,
     ticket_group_uuid: uuid(),
-    single_price: data.free ? 0 : data.price.price,
-    total_price: data.free ? 0 : data.price.price ,
+    // Iznos je izracunat po pravilu linije; `price.price` je samo osnovica.
+    single_price: data.free ? 0 : (data.iznos ?? data.price.price),
+    total_price: data.free ? 0 : (data.iznos ?? data.price.price),
     total_vat_base: data.free ? 0 : data.price.vat_base ,
     total_vat: data.free ? 0 : data.price.vat_amount ,
     total_harbor_tax: data.free ? 0 : data.price.port_tax ,
@@ -711,15 +726,15 @@ function odlukaIGumbi(cijenaRed, sustav) {
   const smije = provjera.smije_se_prodati === true
   const besplatno = provjera.besplatno === true
   const redovna = redovnaCijenaRelacije()
-  // Otočna cijena iz cjenika već je povlaštena cijena relacije; postotak s
-  // provjere se na nju ne množi, nego odlučuje ide li karta besplatno.
-  const iznos = besplatno ? 0 : Number(cijenaRed?.price ?? 0)
+  const iznos = cijenaPovlastene(provjera, cijenaRed)
 
   return (
     <>
       <Typography align="center" sx={{ fontWeight: 800, py: 1 }} color={smije ? "success.main" : "error.main"}>
         {smije
-          ? (besplatno ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU' : `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%`)
+          ? (besplatno
+              ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU'
+              : `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%${provjera.primjeni_popust ? '' : ' (cijena po cjeniku)'}`)
           : 'NEMA PRAVA NA POVLAŠTENU KARTU NA OVOJ RELACIJI'}
       </Typography>
       {(provjera.poruka || provjera.razlog) ? (
@@ -747,9 +762,9 @@ function odlukaIGumbi(cijenaRed, sustav) {
           onClick={() => {
             handleAddTickets({
               price: cijenaRed, rights: {}, type: sustav, free: besplatno,
+              iznos,
               povlastica: blokPovlastice({ ishod: provjera, cijenaRed }),
               pratnja: pratnjaOdabrana && provjera.pratnja_besplatno,
-              pratnjaCijena: cijenaRed,
             })
           }}
           sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}

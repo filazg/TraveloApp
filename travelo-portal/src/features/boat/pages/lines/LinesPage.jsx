@@ -369,6 +369,41 @@ export default function LinesPage (){
                         <MenuItem value="svi">Svi otočani</MenuItem>
                     </TextField>
 
+                    {/* Dvije odluke koje se drze uz SEOP, a nisu isto:
+                        - koristi li se SEOP samo za provjeru (bez dojave prodaje)
+                        - je li otocna cijena iz cjenika konacna ili osnovica za popust */}
+                    {editedData?.seop_mode && editedData.seop_mode !== "ne" ? (
+                        <>
+                            <TextField
+                                select
+                                fullWidth
+                                label="Dojava prodaje SEOP-u"
+                                value={editedData?.seop_report_sales === false ? "ne" : "da"}
+                                onChange={(e)=>setEditedData({...editedData, seop_report_sales: e.target.value === "da"})}
+                                name="seop_report_sales"
+                                sx={{ mt:1 }}
+                                helperText="Isključeno: SEOP se koristi samo za provjeru iskaznice, karta se izdaje i ostaje izvan SEOP obračuna."
+                            >
+                                <MenuItem value="da">Dojavljuje se</MenuItem>
+                                <MenuItem value="ne">Samo provjera, bez dojave</MenuItem>
+                            </TextField>
+
+                            <TextField
+                                select
+                                fullWidth
+                                label="Obračun otočne cijene"
+                                value={editedData?.seop_apply_discount ? "popust" : "cjenik"}
+                                onChange={(e)=>setEditedData({...editedData, seop_apply_discount: e.target.value === "popust"})}
+                                name="seop_apply_discount"
+                                sx={{ mt:1 }}
+                                helperText="Cijena iz cjenika je već povlaštena, ili je osnovica na koju se primjenjuje postotak sa SEOP-a. Pravo na besplatan prijevoz (100 %) daje 0,00 € u oba slučaja."
+                            >
+                                <MenuItem value="cjenik">Naplaćuje se cijena iz cjenika</MenuItem>
+                                <MenuItem value="popust">Na cjenik se primjenjuje popust sa SEOP-a</MenuItem>
+                            </TextField>
+                        </>
+                    ) : null}
+
                     <TextField
                         select
                         fullWidth
