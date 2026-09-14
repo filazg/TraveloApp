@@ -30,6 +30,7 @@ const { emailInvoiceTicketsController } = require('../controllers/dataController
 const { managementReportController } = require('../controllers/dataControllers/managementReportController');
 const { validateTicketController } = require('../controllers/dataControllers/validateTicketController');
 const { validationCountsController } = require('../controllers/dataControllers/validationCountsController');
+const { ticketCountsController } = require('../controllers/dataControllers/ticketCountsController');
 const { listBuyersController } = require('../controllers/dataControllers/buyersListController');
 const { yescorHealthController } = require('../controllers/dataControllers/yescorHealthController');
 const { yescorTestSubmitController } = require('../controllers/dataControllers/yescorTestSubmitController');
@@ -156,6 +157,12 @@ router
 router
     .route('/validation_counts')
     .get(validationCountsController)
+
+// Koliko je karata prodano po nozi polaska. Kapetanskom modulu za "Ocekivano",
+// da broji karte umjesto da racuna razliku zauzetosti.
+router
+    .route('/ticket_counts')
+    .get(ticketCountsController)
 
 router
     .route('/ticket_copy_prints')

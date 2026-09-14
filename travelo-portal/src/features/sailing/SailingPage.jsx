@@ -480,24 +480,51 @@ function SailingDetailView({
                 arrStats.validated_out += Number(b.validated_out) || 0;
             }
         }
-        // Derive planned boarding/disembarking from running occupancy deltas.
-        //   onboard(H) = onboard(prev) + board_planned(H) - disembark_planned(H)
-        //   We only know onboard and disembark_scanned; approximate planned as scanned for now
-        //   (exact planned would require joining tickets, which we can add later).
-        for (const code of categoryCodes) {
-            let prevOnboard = 0;
-            for (let i = 0; i < harbors.length; i++) {
-                const cur = stats[harbors[i].harbor_id][code];
-                const onboard = cur.onboard;
-                // planned disembark at this harbor approximated by scanned (or prev - onboard delta)
-                cur.disembark_planned = cur.disembark_scanned;
-                cur.board_planned = onboard + cur.disembark_planned - prevOnboard;
-                if (cur.board_planned < 0) cur.board_planned = 0;
-                prevOnboard = onboard;
+        // Očekivani ukrcaj su prebrojane karte: poslužitelj ih broji po nozi i
+        // kategoriji (`ticket_counts`), a ovdje se zbrajaju po luci iz koje ta
+        // noga kreće — putnik za Korčulu i putnik za Hvar oboje ulaze u Splitu.
+        //
+        // Karta kojoj je mjesto oslobođeno (putnik ušao na drugi polazak) u tom
+        // brojaču više nije — njega se ovdje ne očekuje.
+        const brojaciKarata = selected?.ticket_counts || {};
+        const rutaVidjena = new Set();
+        for (const b of bookings) {
+            if (!b.route_uuid || rutaVidjena.has(b.route_uuid)) continue;
+            rutaVidjena.add(b.route_uuid);
+            const poKategoriji = brojaciKarata[b.route_uuid];
+            if (!poKategoriji) continue;
+            for (const [code, n] of Object.entries(poKategoriji)) {
+                const cur = stats[b.departure_harbor_id]?.[code];
+                if (cur) cur.board_planned += Number(n) || 0;
+            }
+        }
+
+        // Rezerva za slučaj da brojač karata nije stigao (stariji poslužitelj,
+        // greška u dohvatu): tada vrijedi stari izračun iz zauzetosti, da polje
+        // ne ostane prazno.
+        const imaBrojace = Object.keys(brojaciKarata).length > 0;
+        if (!imaBrojace) {
+            for (const code of categoryCodes) {
+                let prevOnboard = 0;
+                for (let i = 0; i < harbors.length; i++) {
+                    const cur = stats[harbors[i].harbor_id][code];
+                    const onboard = cur.onboard;
+                    cur.disembark_planned = cur.disembark_scanned;
+                    cur.board_planned = onboard + cur.disembark_planned - prevOnboard;
+                    if (cur.board_planned < 0) cur.board_planned = 0;
+                    prevOnboard = onboard;
+                }
+            }
+        } else {
+            for (const code of categoryCodes) {
+                for (const h of harbors) {
+                    const cur = stats[h.harbor_id][code];
+                    cur.disembark_planned = cur.disembark_scanned;
+                }
             }
         }
         return stats;
-    }, [harbors, bookings, categoryCodes]);
+    }, [harbors, bookings, categoryCodes, selected]);
 
     // Karte ovog polaska koje su ocitane na drugom polasku: putnik je kupio ovaj
     // brod, a usao na drugi. U brojkama ove voznje stoje kao "jos nisu dosli",

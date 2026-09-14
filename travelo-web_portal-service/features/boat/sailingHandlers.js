@@ -44,11 +44,61 @@ const brojaciValidacija = async (bookings) => {
     }
 };
 
+// Koliko je karata stvarno prodano po nozi, razvrstano po kategoriji kapaciteta.
+//
+// Karte znaju samo za tip karte (Redovna, Djeca, Bicikl...), a kapetanski modul
+// racuna po kategorijama (PASSANGER, BICYCLE...) — preslikavanje drzi booking
+// servis, pa se ovdje spaja jedno s drugim.
+const brojaciKarata = async (bookings) => {
+    try {
+        const rute = [...new Set((bookings || []).map((b) => b.route_uuid).filter(Boolean))];
+        if (!rute.length) return {};
+        const core = await getCoreServiceConfigData();
+        const urlT = core?.services?.transactions?.url;
+        const urlB = core?.services?.booking?.url;
+        if (!urlT || !urlB) return {};
+
+        const [karte, preslike] = await Promise.all([
+            axios.get(`${urlT}/ticket_counts`, {
+                params: { route_uuids: rute.join(',') },
+                timeout: 10000, validateStatus: () => true,
+            }),
+            axios.get(`${urlB}/ticket_type_mappings`, { timeout: 10000, validateStatus: () => true }),
+        ]);
+
+        const poRuti = karte.data?.data?.counts || {};
+        const mapa = new Map(
+            (preslike.data?.data?.mappings || [])
+                .map((m) => [m.ticket_type_uuid, m.category_code || m.category_uuid])
+        );
+
+        const izlaz = {};
+        for (const [ruta, zapis] of Object.entries(poRuti)) {
+            const poKategoriji = {};
+            for (const [tip, n] of Object.entries(zapis.po_tipu || {})) {
+                const kategorija = mapa.get(tip);
+                // Tip bez preslikavanja ne pripada nijednoj kategoriji kapaciteta;
+                // takva karta se ne broji u ocekivane, kao sto se ne broji ni u
+                // zauzetost.
+                if (!kategorija) continue;
+                poKategoriji[kategorija] = (poKategoriji[kategorija] || 0) + n;
+            }
+            izlaz[ruta] = poKategoriji;
+        }
+        return izlaz;
+    } catch (error) {
+        // Kao i brojaci ocitanja: dodatak pregledu, ne uvjet.
+        console.log('brojaci karata nisu dohvaceni:', error?.message || error);
+        return {};
+    }
+};
+
 const handleGetSailingDetailsFeature = async (req, res) => {
     try {
         const raw = await getSailingDetailsController(req.params.uuid);
         const payload = raw?.data || { sailing: null, legs: [], bookings: [] };
         payload.validation_counts = await brojaciValidacija(payload.bookings);
+        payload.ticket_counts = await brojaciKarata(payload.bookings);
         res.send({ status: 200, data: payload });
     } catch (error) {
         res.status(500).send({ status: 500, error: error.message });
