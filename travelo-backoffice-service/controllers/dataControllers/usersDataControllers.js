@@ -326,9 +326,42 @@ const updateUserDataController = async(req,res)=>{
     }
 }
 
+// Promjena vlastite lozinke s portala. Backoffice je izvor istine za korisnike
+// (auth-service se resinkronizira na `update_users`), pa nova lozinka mora sjesti
+// ovdje — inace bi je prvi resync prebrisao. Provjera stare lozinke ide upravo
+// ovdje, nad mjerodavnim hashom. Poziva ga auth-service, koji je iz sesijskog
+// kolacica vec utvrdio da username pripada prijavljenom korisniku.
+const changeUserPasswordDataController = async (req, res) => {
+    const { UsersModel } = req.app.locals.models;
+    try {
+        const { username, oldPassword, newPassword } = req.body || {};
+        if (!username || !oldPassword || !newPassword) {
+            return res.status(400).send({ status: 400, msg: 'username/oldPassword/newPassword required' });
+        }
+        const user = await UsersModel.findOne({ where: { username } });
+        if (!user) return res.status(404).send({ status: 404, msg: 'user not exist' });
+        if (!user.is_active) return res.status(403).send({ status: 403, msg: 'user disabled' });
+
+        const ok = await bcrypt.compare(oldPassword, user.password);
+        if (!ok) return res.status(401).send({ status: 401, msg: 'Trenutna lozinka nije ispravna.' });
+
+        const hash = await hashedPassword(newPassword);
+        await UsersModel.update({ password: hash }, { where: { uuid: user.uuid } });
+        // Resync auth-servisa (i ostalih koji drze kopiju korisnika).
+        publishBackofficeEvent('update_users');
+        return res.status(200).send({ status: 200, msg: 'password changed' });
+    } catch (error) {
+        console.log('changeUserPasswordDataController error:', error?.message || error);
+        if (!res.headersSent) {
+            res.status(500).send({ status: 500, msg: error?.message || 'change password failed' });
+        }
+    }
+}
+
 module.exports = {
     getUsersDataController,
     getINTUsersDataController,
     addUserDataController,
-    updateUserDataController
+    updateUserDataController,
+    changeUserPasswordDataController
 }

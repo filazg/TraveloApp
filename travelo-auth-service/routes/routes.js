@@ -2,6 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { webPortalLoginController } = require('../controllers/webPortalControllers/webPortalLoginController');
 const { checkWebPortalLoginController, checkMeController } = require('../controllers/webPortalControllers/checkWebPortalLoginController');
+const { changePasswordController } = require('../controllers/webPortalControllers/changePasswordController');
 const { terminalLoginController } = require('../controllers/terminalsControllers/terminalLoginController');
 const { checkTerminalLoginController } = require('../controllers/terminalsControllers/checkTerminalLoginController');
 const { terminalCheckPairingController } = require('../controllers/terminalsControllers/terminalCheckPairingController');
@@ -45,6 +46,10 @@ router
 router
     .route('/login/webPortalCheckLogin')
     .post(checkLimiter, checkWebPortalLoginController)
+
+router
+    .route('/login/changePassword')
+    .post(loginLimiter, changePasswordController)
 
 //TERMINALS LOGIN
 

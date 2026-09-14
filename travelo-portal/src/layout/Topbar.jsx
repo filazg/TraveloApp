@@ -18,10 +18,13 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import HomeIcon from '@mui/icons-material/Home';
 import MenuIcon from '@mui/icons-material/Menu';
 import LanguageIcon from '@mui/icons-material/Menu';
+import LockResetIcon from '@mui/icons-material/LockReset';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import BrandMark from "./BrandMark";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { authSliceData, resetAuthData, setAuthData } from "../features/auth/authSlice";
+import ChangePasswordDialog from "../features/auth/ChangePasswordDialog";
 import { useState } from "react";
 
 // Modules from the catalog use `groups` + `{hr,en}` labels; legacy hardcoded
@@ -54,6 +57,8 @@ export default function Topbar() {
   const [anchorElMenu, setAnchorElMenu] = useState(null);
   const [openLangMenu, setOpenLangMenu] = useState(false);
   const [anchorElLang, setAnchorElLang] = useState(null);
+  const [anchorElUser, setAnchorElUser] = useState(null);
+  const [openPwdDialog, setOpenPwdDialog] = useState(false);
 
   const lang = authData?.selectedLanguage?.code || "hr";
   const feature = authData.selectedFeature;
@@ -213,9 +218,37 @@ export default function Topbar() {
         {/* RIGHT */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifySelf: "end" }}>
           {authData.loggedUserData?.username && (
-            <Typography variant="body2" sx={{ opacity: 0.85 }}>
-              {authData.loggedUserData?.username}
-            </Typography>
+            <>
+              {/* Klik na korisnicko ime otvara izbornik s promjenom lozinke. */}
+              <Button
+                color="inherit"
+                onClick={(e) => setAnchorElUser(e.currentTarget)}
+                startIcon={<AccountCircleIcon />}
+                sx={{ textTransform: "none", opacity: 0.9, fontWeight: 600 }}
+              >
+                {authData.loggedUserData?.username}
+              </Button>
+              <Menu
+                anchorEl={anchorElUser}
+                open={Boolean(anchorElUser)}
+                onClose={() => setAnchorElUser(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+                PaperProps={{ sx: { mt: 1, borderRadius: 2, minWidth: 220 } }}
+              >
+                <MenuItem
+                  onClick={() => { setAnchorElUser(null); setOpenPwdDialog(true); }}
+                >
+                  <ListItemIcon><LockResetIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText primary="Promijeni lozinku" />
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={() => { setAnchorElUser(null); handleLogout(); }}>
+                  <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
+                  <ListItemText primary="Odjava" />
+                </MenuItem>
+              </Menu>
+            </>
           )}
 
           <Tooltip >
@@ -269,6 +302,7 @@ export default function Topbar() {
           </Tooltip>
         </Box>
       </Toolbar>
+      <ChangePasswordDialog open={openPwdDialog} onClose={() => setOpenPwdDialog(false)} />
     </AppBar>
   );
 }
