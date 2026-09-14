@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-    Alert, Box, Button, Chip, Collapse, IconButton, LinearProgress, MenuItem,
+    Alert, Box, Button, Chip, Collapse, LinearProgress, MenuItem,
     Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     TextField, Typography,
 } from "@mui/material";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { stanjeSliceData, fetchLinesThunk, fetchStanjeThunk } from "./stanjeSlice";
@@ -155,12 +153,16 @@ function RedPolaska({ sailing, kategorije }) {
 
     return (
         <>
-            <TableRow hover sx={{ opacity: otkazan ? 0.5 : 1 }}>
-                <TableCell sx={{ width: 48 }}>
-                    <IconButton size="small" onClick={() => setOtvoren((v) => !v)} disabled={!stanje.etape.length}>
-                        {otvoren ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                    </IconButton>
-                </TableCell>
+            {/* Razrada po etapama otvara se klikom na sam redak — strelica je bila
+                jos jedan stupac, a red je ionako cijeli dohvatljiv mišem. */}
+            <TableRow
+                hover
+                onClick={() => stanje.etape.length && setOtvoren((v) => !v)}
+                sx={{
+                    opacity: otkazan ? 0.5 : 1,
+                    cursor: stanje.etape.length ? "pointer" : "default",
+                }}
+            >
                 <TableCell sx={{ fontWeight: 800, fontSize: 15 }}>
                     {vrijeme}
                     {/* Stupca statusa vise nema, ali otkazan polazak ne smije
@@ -204,9 +206,9 @@ function RedPolaska({ sailing, kategorije }) {
             </TableRow>
 
             <TableRow>
-                <TableCell sx={{ py: 0, border: 0 }} colSpan={4 + kategorije.length}>
+                <TableCell sx={{ py: 0, border: 0 }} colSpan={3 + kategorije.length}>
                     <Collapse in={otvoren} unmountOnExit>
-                        <Box sx={{ py: 2, pl: 6 }}>
+                        <Box sx={{ py: 2, pl: 2 }}>
                             <Typography fontWeight={800} fontSize={13} sx={{ mb: 1 }}>
                                 Po etapama
                             </Typography>
@@ -322,32 +324,36 @@ export default function StanjePage() {
                         sx={{ minWidth: 180 }}
                     />
                     <Button variant="outlined" onClick={() => setDatum(danas())}>Danas</Button>
+                    {/* Luka je uvjet: pitanje je uvijek „ima li mjesta iz ove luke",
+                        pa popis svih polazaka u danu nikome ne koristi. Linija samo
+                        dodatno suzava, kad iz iste luke vozi vise linija. */}
                     <TextField
                         select
-                        label="Linija"
+                        required
+                        label="Luka polaska"
+                        size="small"
+                        value={luka}
+                        onChange={(e) => setLuka(e.target.value)}
+                        sx={{ minWidth: 220 }}
+                    >
+                        <MenuItem value="">Odaberite luku</MenuItem>
+                        {sveLuke.map((l) => (
+                            <MenuItem key={l} value={l}>{l}</MenuItem>
+                        ))}
+                    </TextField>
+                    <TextField
+                        select
+                        label="Linija (nije obavezno)"
                         size="small"
                         value={linija}
                         onChange={(e) => setLinija(e.target.value)}
-                        sx={{ minWidth: 320 }}
+                        sx={{ minWidth: 300 }}
                     >
                         <MenuItem value="">Sve linije</MenuItem>
                         {(s.lines || []).map((l) => (
                             <MenuItem key={l.uuid} value={l.uuid}>
                                 {l.code} · {l.name}
                             </MenuItem>
-                        ))}
-                    </TextField>
-                    <TextField
-                        select
-                        label="Luka polaska"
-                        size="small"
-                        value={luka}
-                        onChange={(e) => setLuka(e.target.value)}
-                        sx={{ minWidth: 200 }}
-                    >
-                        <MenuItem value="">Sve luke</MenuItem>
-                        {sveLuke.map((l) => (
-                            <MenuItem key={l} value={l}>{l}</MenuItem>
                         ))}
                     </TextField>
                     <Button
@@ -367,7 +373,6 @@ export default function StanjePage() {
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell />
                             <TableCell sx={{ fontWeight: 800 }}>Vrijeme</TableCell>
                             <TableCell sx={{ fontWeight: 800 }}>Linija</TableCell>
                             <TableCell sx={{ fontWeight: 800 }}>Smjer</TableCell>
@@ -379,9 +384,17 @@ export default function StanjePage() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {polasci.length === 0 && !s.loading ? (
+                        {!luka ? (
                             <TableRow>
-                                <TableCell colSpan={4 + kategorije.length}>
+                                <TableCell colSpan={3 + kategorije.length}>
+                                    <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
+                                        Odaberite luku polaska.
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : polasci.length === 0 && !s.loading ? (
+                            <TableRow>
+                                <TableCell colSpan={3 + kategorije.length}>
                                     <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
                                         Za odabrani dan nema polazaka.
                                     </Typography>
