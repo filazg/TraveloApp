@@ -731,13 +731,6 @@ function SailingDetailView({
                                 </Stack>
                             )}
 
-                            {!h.is_last && drugdjeOcitanePoLuci[h.harbor_id] > 0 && (
-                                <Typography fontSize={13} color="text.secondary" sx={{ mb: 1 }}>
-                                    Validirano na drugom polasku: <b>{drugdjeOcitanePoLuci[h.harbor_id]}</b>
-                                    {" — te karte se ne ukrcavaju ovdje."}
-                                </Typography>
-                            )}
-
                             {categoryCodes.length > 0 && (
                                 <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 1.5 }}>
                                     {categoryCodes.map((code) => {
@@ -752,7 +745,7 @@ function SailingDetailView({
                                                 <Stack spacing={0.25}>
                                                     {!h.is_last && (
                                                         <RowInfo
-                                                            label="Ukrcava se"
+                                                            label="Očekivano"
                                                             value={`${st.board_planned}`}
                                                             color="success.main"
                                                             bold
@@ -780,6 +773,21 @@ function SailingDetailView({
                                                         <RowInfo
                                                             label="S drugih polazaka"
                                                             value={`${st.validated_other}`}
+                                                            color="warning.main"
+                                                        />
+                                                    )}
+                                                    {/* Karta ovog polaska ocitana na drugom: putnik je
+                                                        usao na drugi brod, ovdje ga nema. Mjesto mu je
+                                                        oslobodeno, pa ne ulazi ni u ocekivane ni u
+                                                        zauzete — stoji zasebno, da se vidi gdje je
+                                                        covjek zavrsio. Brojac je po luci, ne po
+                                                        kategoriji, pa se ispisuje samo uz prvu. */}
+                                                    {!h.is_last
+                                                        && code === categoryCodes[0]
+                                                        && drugdjeOcitanePoLuci[h.harbor_id] > 0 && (
+                                                        <RowInfo
+                                                            label="Validirano na drugom polasku"
+                                                            value={`${drugdjeOcitanePoLuci[h.harbor_id]}`}
                                                             color="warning.main"
                                                         />
                                                     )}
