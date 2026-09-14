@@ -22,6 +22,15 @@ const NAZIV_KATEGORIJE = {
 };
 const nazivKategorije = (code) => NAZIV_KATEGORIJE[code] || code;
 
+// Redoslijed stupaca je stalan, da se oko ne mora tražiti po tablici: putnici
+// prvi jer se po njima gleda je li brod pun, ostalo iza njih.
+const REDOSLIJED = ["PASSANGER", "VIP", "BICYCLE", "PETS"];
+const poRedoslijedu = (a, b) => {
+    const ia = REDOSLIJED.indexOf(a);
+    const ib = REDOSLIJED.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || String(a).localeCompare(String(b));
+};
+
 const danas = () => new Date().toISOString().slice(0, 10);
 
 // Kapacitet se troši po etapi, ne po polasku: putnik koji ide od prve do zadnje
@@ -40,10 +49,24 @@ function stanjePolaska(sailing) {
     // se tada čita s plovidbenog reda, a zauzeto je nula.
     if (!redci.length) {
         const kap = Number(sailing.base_capacity) || 0;
+        const sveKategorije = [];
+        if (kap) sveKategorije.push({ code: "PASSANGER", kapacitet: kap, zauzeto: 0, slobodno: kap });
+        // Plovidbeni red nosi i ostale kapacitete broda, pa se i oni vide dok
+        // prodaje još nema — inače bi stupci bili prazni bez razloga.
+        const dodatni = [
+            ["VIP", sailing.base_vip_capacity],
+            ["BICYCLE", sailing.base_bicycle_capacity],
+            ["PETS", sailing.base_pets_capacity],
+        ];
+        for (const [code, v] of dodatni) {
+            const n = Number(v) || 0;
+            if (n > 0) sveKategorije.push({ code, kapacitet: n, zauzeto: 0, slobodno: n });
+        }
         return {
-            kategorije: kap ? [{ code: "PASSANGER", kapacitet: kap, zauzeto: 0, slobodno: kap }] : [],
+            kategorije: sveKategorije,
+            poSifri: new Map(sveKategorije.map((k) => [k.code, k])),
             etape: [],
-            glavna: kap ? { code: "PASSANGER", kapacitet: kap, zauzeto: 0, slobodno: kap } : null,
+            glavna: sveKategorije[0] || null,
         };
     }
 
@@ -78,6 +101,8 @@ function stanjePolaska(sailing) {
 
     return {
         kategorije,
+        // Za brzo vađenje po šifri pri crtanju stupaca.
+        poSifri: new Map(kategorije.map((k) => [k.code, k])),
         etape: [...poEtapi.values()].sort((a, b) => a.red - b.red),
         // Glavna brojka je kategorija s najvećim kapacitetom — na brodu su to putnici.
         glavna: kategorije[0] || null,
@@ -96,7 +121,8 @@ function Popunjenost({ kategorija }) {
     if (!kategorija) return <Typography color="text.secondary">—</Typography>;
     const p = postotak(kategorija);
     return (
-        <Box sx={{ minWidth: 180 }}>
+        // Uze nego prije, jer sada svaka kategorija ima svoj stupac.
+        <Box sx={{ minWidth: 130 }}>
             <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
                 <Typography fontWeight={700} fontSize={13}>
                     {kategorija.zauzeto} / {kategorija.kapacitet}
@@ -113,7 +139,7 @@ function Popunjenost({ kategorija }) {
     );
 }
 
-function RedPolaska({ sailing }) {
+function RedPolaska({ sailing, kategorije }) {
     const [otvoren, setOtvoren] = useState(false);
     const stanje = useMemo(() => stanjePolaska(sailing), [sailing]);
     const otkazan = sailing.sale_status === "CANCELED" || sailing.sailing_status === "CANCELED";
@@ -137,22 +163,25 @@ function RedPolaska({ sailing }) {
                 <TableCell>
                     {sailing.departure_harbor_name} → {sailing.arrival_harbor_name}
                 </TableCell>
-                <TableCell><Popunjenost kategorija={stanje.glavna} /></TableCell>
-                <TableCell sx={{ fontWeight: 800 }}>
-                    {stanje.glavna ? stanje.glavna.slobodno : "—"}
-                </TableCell>
-                <TableCell>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                        {stanje.kategorije.slice(1).map((k) => (
-                            <Chip
-                                key={k.code}
-                                size="small"
-                                variant="outlined"
-                                label={`${nazivKategorije(k.code)} ${k.zauzeto}/${k.kapacitet}`}
-                            />
-                        ))}
-                    </Stack>
-                </TableCell>
+                {kategorije.map((code) => {
+                    const k = stanje.poSifri.get(code);
+                    return (
+                        <TableCell key={code}>
+                            {k ? (
+                                <Stack spacing={0.25}>
+                                    <Popunjenost kategorija={k} />
+                                    <Typography fontSize={11} color="text.secondary">
+                                        slobodno {k.slobodno}
+                                    </Typography>
+                                </Stack>
+                            ) : (
+                                // Brod koji tu kategoriju nema uopce — prazno je
+                                // tocnije od nule, jer nula znaci „ima mjesta, sva su prazna".
+                                <Typography color="text.disabled">—</Typography>
+                            )}
+                        </TableCell>
+                    );
+                })}
                 <TableCell>
                     {otkazan
                         ? <Chip size="small" color="error" label="otkazan" />
@@ -161,7 +190,7 @@ function RedPolaska({ sailing }) {
             </TableRow>
 
             <TableRow>
-                <TableCell sx={{ py: 0, border: 0 }} colSpan={8}>
+                <TableCell sx={{ py: 0, border: 0 }} colSpan={5 + kategorije.length}>
                     <Collapse in={otvoren} unmountOnExit>
                         <Box sx={{ py: 2, pl: 6 }}>
                             <Typography fontWeight={800} fontSize={13} sx={{ mb: 1 }}>
@@ -218,6 +247,16 @@ export default function StanjePage() {
             String(a.first_departure_time || a.departure_planed || "")
                 .localeCompare(String(b.first_departure_time || b.departure_planed || "")));
     }, [s.sailings]);
+
+    // Stupci se slazu iz onoga sto brodovi tog dana stvarno imaju: linija bez
+    // bicikala nema zasto nositi prazan stupac kroz cijelu tablicu.
+    const kategorije = useMemo(() => {
+        const set = new Set();
+        for (const p of polasci) {
+            for (const k of stanjePolaska(p).kategorije) set.add(k.code);
+        }
+        return [...set].sort(poRedoslijedu);
+    }, [polasci]);
 
     const sazetak = useMemo(() => {
         let sProdajom = 0;
@@ -306,22 +345,26 @@ export default function StanjePage() {
                             <TableCell sx={{ fontWeight: 800 }}>Vrijeme</TableCell>
                             <TableCell sx={{ fontWeight: 800 }}>Linija</TableCell>
                             <TableCell sx={{ fontWeight: 800 }}>Relacija</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Popunjenost (najopterećenija etapa)</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Slobodno</TableCell>
-                            <TableCell sx={{ fontWeight: 800 }}>Ostale kategorije</TableCell>
+                            {kategorije.map((code) => (
+                                <TableCell key={code} sx={{ fontWeight: 800 }}>
+                                    {nazivKategorije(code)}
+                                </TableCell>
+                            ))}
                             <TableCell sx={{ fontWeight: 800 }}>Status</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {polasci.length === 0 && !s.loading ? (
                             <TableRow>
-                                <TableCell colSpan={8}>
+                                <TableCell colSpan={5 + kategorije.length}>
                                     <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
                                         Za odabrani dan nema polazaka.
                                     </Typography>
                                 </TableCell>
                             </TableRow>
-                        ) : polasci.map((p) => <RedPolaska key={p.uuid} sailing={p} />)}
+                        ) : polasci.map((p) => (
+                            <RedPolaska key={p.uuid} sailing={p} kategorije={kategorije} />
+                        ))}
                     </TableBody>
                 </Table>
             </TableContainer>
