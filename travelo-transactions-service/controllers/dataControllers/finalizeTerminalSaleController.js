@@ -6,6 +6,7 @@ const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
 const { podigniSignal } = require("./syncSignalsController");
 
 const { jedinstvenBroj } = require("../../helpers/ticketCode");
+const { poljaPovlastice } = require("../../helpers/povlastica");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — port tax 6%, VAT 25% on the rest (matches legacy + web-sale).
@@ -353,13 +354,9 @@ const finalizeTerminalSaleController = async (req, res) => {
                     status: autoValidate ? "validated" : "created",
                     validate_data: autoValidate ? new Date() : null,
                     ticket_qr,
-                    // Otočna karta — SEOP metadata za ispis na karti i kasniju
-                    // dojavu prodaje SEOP-u pri uvođenju produkcijskog flow-a.
-                    is_island: it.is_island === true,
-                    seop_card_no: it.seop_card_no || null,
-                    seop_pravo: it.seop_pravo || null,
-                    seop_otok: it.seop_otok || null,
-                    seop_discount_pct: it.seop_discount_pct ?? null,
+                    // Otočna/povlaštena karta — sve što dojava prodaje traži, u
+                    // obliku u kojem je blagajna dobila od akd servisa.
+                    ...poljaPovlastice(it),
                 });
             }
         }
@@ -597,6 +594,13 @@ const finalizeTerminalSaleController = async (req, res) => {
                     seop_pravo: t.seop_pravo,
                     seop_otok: t.seop_otok,
                     seop_discount_pct: t.seop_discount_pct,
+                    // Ispis karte pokazuje po čemu je povlastica priznata i
+                    // koliko je redovna cijena — putnik i kontrola na vratima
+                    // inače vide samo umanjeni iznos.
+                    seop_sustav: t.seop_sustav,
+                    seop_id_vrsta: t.seop_id_vrsta,
+                    seop_redovna_cijena: t.seop_redovna_cijena,
+                    seop_pratnja: t.seop_pratnja,
                 })),
             },
         });

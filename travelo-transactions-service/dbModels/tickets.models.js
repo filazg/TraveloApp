@@ -192,6 +192,50 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Ostatak onoga što dojava prodaje traži, a zna se tek na blagajni.
+            // Bez ovih polja se DojaviProdajuPPK_3Eur poslije nema iz čega
+            // složiti: cijena na karti je već umanjena, pa se redovna ne može
+            // izračunati unatrag, a ni jedan drugi zapis ne pamti je li
+            // blagajnik prodao kartu unatoč odbijenoj provjeri.
+            seop_sustav:{                 // SEOP ili MOSI
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+            seop_id_vrsta:{               // card_no | oib | iks | uid | reg_oznaka
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+            seop_token:{                  // zapečaćeni zapis provjere iz akd servisa
+                type: DataTypes.TEXT,
+                allowNull: true
+            },
+            seop_namjena:{                // šifra namjene karte (`namjena` iz specifikacije)
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+            seop_redovna_cijena:{         // redovCijenaEur — cijena bez povlastice
+                type: DataTypes.DECIMAL(10, 2),
+                allowNull: true
+            },
+            seop_odobrenje:{              // oznOdobrenja, za virtualne iskaznice
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+            seop_uvijek_prodaj:{          // uvijekProdaj — prodano i bez potvrđenog prava
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: false
+            },
+            seop_offline:{                // provjera nije bila moguća u trenutku prodaje
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: false
+            },
+            seop_pratnja:{                // MOSI: karta pratnje uz vlasnika kartice
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: false
+            },
             // Račun s kojeg je karta prodana. Kanal prodaje i sredstvo plaćanja
             // stoje na računu, a ne na karti — bez ove veze se po njima ne može
             // ni filtrirati ni izvještavati. `order_uuid` za to ne služi: POS

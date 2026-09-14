@@ -9,6 +9,7 @@ const { reserveBookings } = require("../../helpers/bookingClient");
 const { podigniSignal } = require("./syncSignalsController");
 
 const { jedinstvenBroj } = require("../../helpers/ticketCode");
+const { poljaPovlastice } = require("../../helpers/povlastica");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — matches the legacy template:
@@ -242,13 +243,10 @@ const finalizeWebSaleController = async (req, res) => {
                         ticket_qr: qrSaSuffixom(ticket_uuid, ticket_code_suffix),
                         passanger_email: buyer.summary_buyer_email || null,
                         passanger_name: buyer.summary_buyer_name || null,
-                        // Otočna karta: SEOP podaci putuju s itemom kroz orders → finalize
-                        // i ispisuju se na karti za vizualnu provjeru pri ukrcaju.
-                        is_island: it.is_island === true,
-                        seop_card_no: it.seop_card_no || null,
-                        seop_pravo: it.seop_pravo || null,
-                        seop_otok: it.seop_otok || null,
-                        seop_discount_pct: it.seop_discount_pct ?? null,
+                        // Otočna karta: blok povlastice putuje s itemom kroz
+                        // orders → finalize, ispisuje se na karti za vizualnu
+                        // provjeru pri ukrcaju i nosi sve za dojavu SEOP-u.
+                        ...poljaPovlastice(it),
                     });
                 }
             }
