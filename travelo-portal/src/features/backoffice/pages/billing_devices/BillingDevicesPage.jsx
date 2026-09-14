@@ -531,20 +531,6 @@ export default function BillingDevicesPage (){
                         type="text"
                         variant="outlined"
                         fullWidth
-                        label={t('backoffice.billing_devices.mark')}
-                        placeholder={t('backoffice.billing_devices.mark')}
-                        required
-                        value={newData.mark || ""}
-                        onChange={handleChange}
-                        name="mark"
-                        sx={{
-                            mt:1
-                        }}
-                    />
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
                         label={t('backoffice.billing_devices.fiscal_mark')}
                         placeholder={t('backoffice.billing_devices.fiscal_mark')}
                         
@@ -921,20 +907,6 @@ export default function BillingDevicesPage (){
                         value={editedData?.name || ""}
                         onChange={handleChangeEdit}
                         name="name"
-                    />
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        disabled
-                        label={t('backoffice.billing_devices.mark')}
-                        placeholder={t('backoffice.billing_devices.mark')}
-                        required
-                        value={editedData?.mark || ""}
-                        name="mark"
-                        sx={{
-                            mt:1
-                        }}
                     />
                     <TextField
                         type="text"
