@@ -160,6 +160,10 @@ const validateTicketController = async (req, res) => {
         await ticket.update({
             status: "validated",
             validate_data: now,
+            // Gdje je covjek stvarno usao. Kad se ne poklapa s rutom karte,
+            // karta je propustena s drugog polaska — na svom polasku se tada
+            // prikazuje zasebno i ne broji se u ukrcane.
+            validated_route_uuid: route_uuid || ticket.route_uuid || null,
         });
 
         // Na istom polasku zna raditi vise uredaja: bez ovoga bi drugi jos drzao

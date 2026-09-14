@@ -2109,12 +2109,26 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
     // Re-komputiramo listu i brojila na svaki render — cache se ažurira tijekom
     // scan-a pa će parent re-render (zbog scanResult promjene) osvježiti prikaz.
     const allTickets = listCachedTickets().filter(zaUlaznuLuku);
+
+    // Karta ovog polaska koja je ocitana na drugom: putnik je propustio brod i
+    // usao na sljedeci sa starom kartom. Ovdje ga nema, pa se takva karta ne
+    // smije brojati u ukrcane — samo se oznaci, da je djelatnik ne ceka.
+    const validiranaDrugdje = (t) => {
+        const gdje = t.validated_route_uuid;
+        if (!gdje) return false;
+        if (Array.isArray(voyageRouteUuids) && voyageRouteUuids.length) {
+            return !voyageRouteUuids.includes(gdje);
+        }
+        return !!t.route_uuid && gdje !== t.route_uuid;
+    };
+
     // Brojač govori koliko se putnika ukrcava, pa stornirane ne ulaze — one
     // ostaju u popisu samo da se vidi da su nevažeće.
     const total = allTickets.filter((t) => !t.is_canceled).length;
     const validatedCount = allTickets.filter(
-        (t) => !t.is_canceled && (t.status === 'validated' || t.validate_data)
+        (t) => !t.is_canceled && (t.status === 'validated' || t.validate_data) && !validiranaDrugdje(t)
     ).length;
+    const drugdjeCount = allTickets.filter((t) => !t.is_canceled && validiranaDrugdje(t)).length;
 
     const filtered = search.trim()
         ? allTickets.filter((t) => {
@@ -2179,11 +2193,15 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
                     {/* Bez rijeci "Karte": natpis se s trecim brojem lomio u dva
                         reda, a iznad njega ionako stoji popis karata. */}
                     <Text style={vs.statLabel} numberOfLines={1}>
-                        {sDrugihPolazaka > 0 ? 'UKUPNO / VALIDIRANO / DRUGI POLAZAK' : 'UKUPNO / VALIDIRANO'}
+                        {(sDrugihPolazaka > 0 || drugdjeCount > 0)
+                            ? 'UKUPNO / VALIDIRANO / DRUGI POLAZAK'
+                            : 'UKUPNO / VALIDIRANO'}
                     </Text>
                     <Text style={vs.statValue}>
                         {total}/{validatedCount}
-                        {sDrugihPolazaka > 0 ? <Text style={vs.statDrugi}>{` / ${sDrugihPolazaka}`}</Text> : null}
+                        {(sDrugihPolazaka > 0 || drugdjeCount > 0)
+                            ? <Text style={vs.statDrugi}>{` / ${sDrugihPolazaka + drugdjeCount}`}</Text>
+                            : null}
                     </Text>
                 </View>
                 <TouchableOpacity
@@ -2234,7 +2252,10 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
                         // dodirom — nevažeća je, a djelatnik mora vidjeti zašto.
                         const isCanceled = !!t.is_canceled;
                         const isValidated = t.status === 'validated' || t.validate_data;
-                        const markerColor = isCanceled ? colors.error : (isValidated ? colors.error : colors.primary);
+                        const drugdje = validiranaDrugdje(t);
+                        const markerColor = isCanceled
+                            ? colors.error
+                            : drugdje ? colors.warning : (isValidated ? colors.error : colors.primary);
                         const Row = (isValidated || isCanceled) ? View : TouchableOpacity;
                         return (
                             <Row
@@ -2252,9 +2273,18 @@ function ValidationPanel({ voyage, validation, scanResult, onScan, onClearScan, 
                                         {String(t.ticket_type_name || '')}
                                         {jeStaraKarta(t) ? '  ·  STARA' : ''}
                                     </Text>
+                                    {drugdje ? (
+                                        <Text style={vs.napomenaPolaska}>⚠ validirana na drugom polasku</Text>
+                                    ) : null}
                                 </View>
-                                <Text style={[vs.ticketStatus, isCanceled && vs.ticketStatusCanceled]}>
-                                    {isCanceled ? 'STORNIRANA' : (isValidated ? 'VALIDIRANO' : 'AKTIVNA')}
+                                <Text style={[
+                                    vs.ticketStatus,
+                                    isCanceled && vs.ticketStatusCanceled,
+                                    !isCanceled && drugdje && vs.ticketStatusDrugdje,
+                                ]}>
+                                    {isCanceled
+                                        ? 'STORNIRANA'
+                                        : drugdje ? 'DRUGI POLAZAK' : (isValidated ? 'VALIDIRANO' : 'AKTIVNA')}
                                 </Text>
                             </Row>
                         );
@@ -2503,6 +2533,9 @@ const vs = StyleSheet.create({
     ticketRowCanceled: { opacity: 0.65 },
     ticketTextCanceled: { textDecorationLine: 'line-through' },
     ticketStatusCanceled: { color: colors.error },
+    // Karta ovog polaska koja je ocitana na drugom — ista boja kao i tuda karta
+    // propustena na ovaj brod, jer je rijec o istoj pojavi, samo s druge strane.
+    ticketStatusDrugdje: { color: colors.warning },
     emptyText: { color: colors.textMuted, textAlign: 'center', padding: 30, fontStyle: 'italic' },
     scanBtn: {
         marginHorizontal: 12, marginTop: 14,

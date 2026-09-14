@@ -101,6 +101,15 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.DATE,
                 allowNull: true
             },
+            // Polazak NA KOJEM je karta ocitana. Za vecinu karata je to njihov
+            // vlastiti polazak, ali putnik koji je propustio brod ude na
+            // sljedeci sa starom kartom — i tada karta na svom polasku izgleda
+            // kao obican ukrcaj, iako covjeka ondje nema. Bez ovog zapisa se ta
+            // razlika iz same karte ne vidi.
+            validated_route_uuid:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             deactivate_data:{
                 type: DataTypes.DATE,
                 allowNull: true
