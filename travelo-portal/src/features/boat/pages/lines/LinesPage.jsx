@@ -396,7 +396,7 @@ export default function LinesPage (){
                                 onChange={(e)=>setEditedData({...editedData, seop_apply_discount: e.target.value === "popust"})}
                                 name="seop_apply_discount"
                                 sx={{ mt:1 }}
-                                helperText="Cijena iz cjenika je već povlaštena, ili je osnovica na koju se primjenjuje postotak sa SEOP-a. Pravo na besplatan prijevoz (100 %) daje 0,00 € u oba slučaja."
+                                helperText="Ili se primjenjuje popust sa SEOP-a, ili vrijedi cijena iz cjenika — bez iznimke, pa i za pravo na besplatan prijevoz."
                             >
                                 <MenuItem value="cjenik">Naplaćuje se cijena iz cjenika</MenuItem>
                                 <MenuItem value="popust">Na cjenik se primjenjuje popust sa SEOP-a</MenuItem>

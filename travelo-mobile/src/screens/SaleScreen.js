@@ -604,13 +604,14 @@ export default function SaleScreen() {
         dojava_seop: ishod?.dojava_seop !== false,
     });
 
-    // Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu):
-    // ili je otocna cijena iz cjenika vec konacna, ili je osnovica na koju se
-    // primjenjuje postotak sa SEOP-a. Odluku donosi posluzitelj, ovdje se samo
-    // racuna.
+    // Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu), i
+    // to je striktno ili-ili:
+    //   primjeni_popust — na cijenu iz cjenika primijeni postotak sa SEOP-a
+    //   inace           — naplati cijenu iz cjenika, kakva jest
+    // Nema iznimke za pravo na besplatan prijevoz: kad se popust ne primjenjuje,
+    // vrijedi cjenik i za njega.
     const cijenaPovlastene = (ishod, red) => {
         const osnovica = Number(red?.price || 0);
-        if (ishod?.besplatno) return 0;
         if (ishod?.primjeni_popust) {
             return +(osnovica * (1 - Number(ishod.popust_postotak || 0) / 100)).toFixed(2);
         }

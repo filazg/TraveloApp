@@ -256,12 +256,14 @@ function blokPovlastice({ ishod, cijenaRed, pratnja = false, uvijekProdaj = fals
   };
 }
 
-// Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu): ili je
-// otocna cijena iz cjenika vec konacna, ili je osnovica na koju se primjenjuje
-// postotak sa SEOP-a. Odluku donosi posluzitelj, ovdje se samo racuna.
+// Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu), i to je
+// striktno ili-ili:
+//   primjeni_popust — na cijenu iz cjenika primijeni postotak sa SEOP-a
+//   inace           — naplati cijenu iz cjenika, kakva jest
+// Nema iznimke za pravo na besplatan prijevoz: kad se popust ne primjenjuje,
+// vrijedi cjenik i za njega.
 function cijenaPovlastene(ishod, cijenaRed) {
   const osnovica = Number(cijenaRed?.price || 0);
-  if (ishod?.besplatno) return 0;
   if (ishod?.primjeni_popust) {
     return +(osnovica * (1 - Number(ishod.popust_postotak || 0) / 100)).toFixed(2);
   }
@@ -724,17 +726,19 @@ function odlukaIGumbi(cijenaRed, sustav) {
   }
 
   const smije = provjera.smije_se_prodati === true
-  const besplatno = provjera.besplatno === true
   const redovna = redovnaCijenaRelacije()
   const iznos = cijenaPovlastene(provjera, cijenaRed)
+  // Karta je besplatna kad je takav izracun, a ne kad SEOP javi pravo 100 %:
+  // na liniji koja ne primjenjuje popust vrijedi cjenik i za takvo pravo.
+  const gratis = iznos === 0
 
   return (
     <>
       <Typography align="center" sx={{ fontWeight: 800, py: 1 }} color={smije ? "success.main" : "error.main"}>
         {smije
-          ? (besplatno
+          ? (gratis
               ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU'
-              : `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%${provjera.primjeni_popust ? '' : ' (cijena po cjeniku)'}`)
+              : `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%${provjera.primjeni_popust ? '' : ' — naplaćuje se cijena iz cjenika'}`)
           : 'NEMA PRAVA NA POVLAŠTENU KARTU NA OVOJ RELACIJI'}
       </Typography>
       {(provjera.poruka || provjera.razlog) ? (
@@ -756,12 +760,12 @@ function odlukaIGumbi(cijenaRed, sustav) {
 
       {smije ? (
         <Button
-          disabled={!cijenaRed && !besplatno}
+          disabled={!cijenaRed}
           variant="contained"
           color="success"
           onClick={() => {
             handleAddTickets({
-              price: cijenaRed, rights: {}, type: sustav, free: besplatno,
+              price: cijenaRed, rights: {}, type: sustav, free: gratis,
               iznos,
               povlastica: blokPovlastice({ ishod: provjera, cijenaRed }),
               pratnja: pratnjaOdabrana && provjera.pratnja_besplatno,
@@ -769,7 +773,7 @@ function odlukaIGumbi(cijenaRed, sustav) {
           }}
           sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}
         >
-          {besplatno ? 'BESPLATNA KARTA' : `IZNOS ZA PLAĆANJE ${iznos.toFixed(2)} EUR`}
+          {gratis ? 'BESPLATNA KARTA' : `IZNOS ZA PLAĆANJE ${iznos.toFixed(2)} EUR`}
         </Button>
       ) : (
         // Prava nema ili se ne može provjeriti. Specifikacija to zove
