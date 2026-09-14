@@ -146,6 +146,39 @@ async function provjeriPPP({
     return interpretResponse(resp);
 }
 
+// SEOP i poslovni ishod javlja kao SOAP Fault (poglavlje 5.9): nepostojeća ili
+// poništena iskaznica nije kvar servisa nego odgovor na pitanje. Bez ovoga bi
+// blagajna na takvu karticu pokazala „provjera nije prošla" i operater bi mislio
+// da je pukla veza, umjesto da vidi da kartica ne vrijedi.
+//
+// Kodovi dolaze iz `SeopGreska.Kod`; popis raste kako ih susrećemo. Nepoznat kod
+// ostaje tehnička greška — bolje nego tumačiti ga napamet.
+const POSLOVNE_GRESKE = {
+    50405: 'Iskaznica nije pronađena ili nije aktivna.',
+};
+
+function odgovorIzGreske(fault) {
+    const poruka = POSLOVNE_GRESKE[fault.seop_kod];
+    if (!poruka) return null;
+    return {
+        ok: true,
+        ima_pravo: false,
+        broj_osn_iskoristen: 0,
+        broj_dod_iskoristen: 0,
+        max_osn: null,
+        max_dod: null,
+        otok: null,
+        ozn_otoka: null,
+        pravo_na_pp: null,
+        // Opis sa SEOP-a je konkretniji od našeg (kaže i koji je broj očitan),
+        // pa ide putniku, a naš tekst ostaje kad opisa nema.
+        poruka: fault.seop_opis || poruka,
+        kategorija_popusta: null,
+        popust_postotak: 0,
+        seop_kod: fault.seop_kod,
+    };
+}
+
 // `ProvjeriPPPResult` je klasa StanjePPP s imenovanim poljima — tako stoji u
 // WSDL-u servisa (BrojDod, BrojOsn, ImaPravoNaPP, IznosPopusta, MaxDod, MaxOsn,
 // Otok, OznOtoka, Poruka, PravoNaPP). Dojave prodaje jesu Tuple (m_Item1…), ali
@@ -163,9 +196,18 @@ const broj = (v) => {
 };
 
 function interpretResponse(resp) {
+    if (resp.fault) {
+        const poslovni = odgovorIzGreske(resp.fault);
+        if (poslovni) return poslovni;
+    }
     const r = resp.parsed?.Envelope?.Body?.ProvjeriPPPResponse?.ProvjeriPPPResult;
     if (!r) {
-        return { ok: false, raw: resp, error: resp.fault?.reason || 'unexpected response shape' };
+        return {
+            ok: false,
+            raw: resp,
+            error: resp.fault?.seop_opis || resp.fault?.reason || 'unexpected response shape',
+            seop_kod: resp.fault?.seop_kod || null,
+        };
     }
 
     const imaPravo = vrijednost(r.ImaPravoNaPP) ?? vrijednost(r.m_Item1);

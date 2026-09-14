@@ -103,10 +103,19 @@ async function callSeop({ method, bodyXml, soapAction }) {
                     parsed = parser.parse(body);
                     const f = parsed?.Envelope?.Body?.Fault;
                     if (f) {
+                        // SEOP ne zamata greške u statuse nego ih vraća kao SOAP
+                        // Fault, a u detalju stoji klasa SeopGreska { Kod, Opis }
+                        // (poglavlje 5.9 specifikacije). Ondje je i poslovni
+                        // ishod — npr. „iskaznica ne postoji" — pa se mora
+                        // izvući, inače blagajna vidi samo „Baza podataka".
+                        const detalj = f.Detail || f.detail || null;
+                        const greska = detalj?.SeopGreska || null;
                         fault = {
                             code: f.Code?.Value || f.faultcode || null,
                             reason: f.Reason?.Text || f.faultstring || null,
-                            detail: f.Detail || f.detail || null,
+                            detail: detalj,
+                            seop_kod: greska ? (parseInt(greska.Kod, 10) || null) : null,
+                            seop_opis: greska ? String(greska.Opis || '').trim() : null,
                         };
                     }
                 } catch (e) {
