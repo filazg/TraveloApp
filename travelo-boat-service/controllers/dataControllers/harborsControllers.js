@@ -90,7 +90,7 @@ const addHarborDataController = async (req, res) =>{
 
 const updateHarborDataController = async (req, res) =>{
     const sequelize = getSequelize();
-    const { HarborsModel } = req.app.locals.models;    
+    const { HarborsModel, RoutesModel, DeparturesModel, TimetablePricesModel, LinesModel } = req.app.locals.models;
     const user = req.body.header
     const data = req.body.body;
     let responseData = {
@@ -114,7 +114,25 @@ const updateHarborDataController = async (req, res) =>{
                         updated_by_uuid:user.updated_by_uuid,
                         updated_by_username:user.updated_by_username
                     },
-                    {where:{code:data.code}});
+                    {where:{code:data.code}, transaction:t});
+
+                    // Naziv luke stoji denormalizirano na vise mjesta koja ga
+                    // prikazuju bez zivog dohvata iz `harbors`: plovidbeni red
+                    // (routes/departures) i cijene (timetable_prices) vezu luku
+                    // po KODU, a linije po UUID-u. Bez ovoga preimenovanje ostane
+                    // samo na luci, a plovidbeni red pokazuje stari naziv.
+                    const kod = data.code;
+                    const noviNaziv = data.name;
+                    const uuid = harborExist.uuid;
+                    await RoutesModel.update({ departure_harbor_name: noviNaziv }, { where:{ departure_harbor_id: kod }, transaction:t });
+                    await RoutesModel.update({ arrival_harbor_name: noviNaziv }, { where:{ arrival_harbor_id: kod }, transaction:t });
+                    await DeparturesModel.update({ departure_harbor_name: noviNaziv }, { where:{ departure_harbor_id: kod }, transaction:t });
+                    await DeparturesModel.update({ arrival_harbor_name: noviNaziv }, { where:{ arrival_harbor_id: kod }, transaction:t });
+                    await TimetablePricesModel.update({ harbor_from: noviNaziv }, { where:{ harbor_from_code: kod }, transaction:t });
+                    await TimetablePricesModel.update({ harbor_to: noviNaziv }, { where:{ harbor_to_code: kod }, transaction:t });
+                    await LinesModel.update({ first_harbor_name: noviNaziv }, { where:{ first_harbor_id: uuid }, transaction:t });
+                    await LinesModel.update({ last_harbor_name: noviNaziv }, { where:{ last_harbor_id: uuid }, transaction:t });
+
                     responseData = {
                         status:200,
                         msg:'Harbor updated successfully'
