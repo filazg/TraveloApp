@@ -11,8 +11,10 @@
 // Tvrtka, pa bi drugi upis bio drugo mjesto na kojem moze biti krivo.
 const DOPUSTENA = [
     "environment", "lozinka",
-    "enabled", "send_opk", "send_ppk", "send_cvikanje", "send_storno",
-    "send_isplovljenje", "send_ponisti_cvikanje", "send_from_date",
+    "enabled", "send_opk", "send_ppk",
+    "send_cvikanje_obicna", "send_cvikanje_povlastena", "send_storno",
+    "send_isplovljenje",
+    "send_ponisti_cvikanje_obicna", "send_ponisti_cvikanje_povlastena", "send_from_date",
     "ozn_pristup_tocke_source", "ozn_pristup_tocke_fixed",
     "line_no_source", "jop_source", "tls_reject_unauthorized",
 ];

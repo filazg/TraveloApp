@@ -23,10 +23,12 @@ const izConfiga = () => {
         enabled: false,
         send_opk: true,
         send_ppk: true,
-        send_cvikanje: true,
+        send_cvikanje_obicna: true,
+        send_cvikanje_povlastena: true,
         send_storno: true,
         send_isplovljenje: false,
-        send_ponisti_cvikanje: false,
+        send_ponisti_cvikanje_obicna: false,
+        send_ponisti_cvikanje_povlastena: false,
         send_from_date: null,
         ozn_pristup_tocke_source: 'billing_device',
         ozn_pristup_tocke_fixed: null,
@@ -86,19 +88,22 @@ function urlZaOkolinu(postavke) {
 
 // Smije li se konkretna dojava poslati. Jedno mjesto za sve provjere, da se
 // prekidači ne tumače različito na dva kraja.
-function smijeSlati(postavke, metoda) {
+function smijeSlati(postavke, metoda, { povlastena = false } = {}) {
     if (!postavke?.enabled) return { smije: false, razlog: 'SEOP dojava je isključena u postavkama' };
     if (postavke.environment === 'mock') return { smije: false, razlog: 'okolina je mock' };
-    const prekidac = {
+    let prekidac = {
         DojaviProdajuOPKEur: 'send_opk',
         DojaviProdajuOPKKn: 'send_opk',
         DojaviProdajuPPK_3Eur: 'send_ppk',
         DojaviProdajuPPK_3Kn: 'send_ppk',
-        DojaviCvikanje: 'send_cvikanje',
         Storno: 'send_storno',
-        PonistiCvikanjePojedinacna: 'send_ponisti_cvikanje',
         DojaviIsplovljenje: 'send_isplovljenje',
     }[metoda];
+    // Cvikanje i poništenje cvika imaju zaseban prekidač za običnu i povlaštenu
+    // kartu — sama SEOP metoda je ista, ali brodar smije uključiti samo jednu
+    // vrstu (npr. dok se povlaštene tek uvode).
+    if (metoda === 'DojaviCvikanje') prekidac = povlastena ? 'send_cvikanje_povlastena' : 'send_cvikanje_obicna';
+    if (metoda === 'PonistiCvikanjePojedinacna') prekidac = povlastena ? 'send_ponisti_cvikanje_povlastena' : 'send_ponisti_cvikanje_obicna';
     if (prekidac && postavke[prekidac] === false) {
         return { smije: false, razlog: `dojava ${metoda} je isključena u postavkama` };
     }

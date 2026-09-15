@@ -35,6 +35,19 @@ const nilOr = (naziv, v) => (v === null || v === undefined || v === ''
     ? `<seop:${naziv} xsi:nil="true"/>`
     : `<seop:${naziv}>${x(v)}</seop:${naziv}>`);
 
+// Prazan (nil) element SEOP vraća kao objekt (`{ '@_nil': 'true' }`), a ne kao
+// prazninu — pa je `String(m_Item)` davao „[object Object]". Ovo izvlači stvarnu
+// vrijednost ili null (za nil ili prazan objekt).
+const izVrijednosti = (v) => {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'object') {
+        if (v['@_nil'] === 'true' || v['@_xsi:nil'] === 'true') return null;
+        if ('#text' in v) return String(v['#text']).trim();
+        return null;
+    }
+    return String(v).trim();
+};
+
 function kljuc(postavke) {
     const ime = postavke.p12_file || 'kapetan-luka.p12';
     const putanja = ime.includes('/') || ime.includes('\\')
@@ -60,9 +73,9 @@ function provjeriPotpisOdgovora(postavke, dijelovi, potpis) {
 }
 
 // Zajednička priprema: postavke, prekidači, OIB i lozinka.
-async function pripremi(metoda) {
+async function pripremi(metoda, opcije = {}) {
     const postavke = await dohvatiPostavke();
-    const dopusteno = smijeSlati(postavke, metoda);
+    const dopusteno = smijeSlati(postavke, metoda, opcije);
     if (!dopusteno.smije) {
         return { postavke, preskoci: { ok: false, preskoceno: true, poruka: dopusteno.razlog } };
     }
@@ -160,18 +173,21 @@ function citajProdaju(odgovor, imeOdgovora, imeRezultata, postavke, zastitniKod)
     if (!r) {
         return {
             ok: false,
-            poruka: odgovor.fault?.opis || odgovor.fault?.reason || 'neočekivan oblik odgovora',
+            // Poslovni razlog stoji u SeopGreska.Opis (fault.seop_opis); SOAP
+            // `reason` je generički ("Baza podataka") i k tome objekt, pa se ne
+            // smije vraćati sirov — inače blagajna vidi „[object Object]".
+            poruka: odgovor.fault?.seop_opis || odgovor.fault?.reason?.['#text'] || odgovor.fault?.reason || 'neočekivan oblik odgovora',
+            seop_kod: odgovor.fault?.seop_kod || null,
             http: odgovor.httpStatus,
         };
     }
     // OPK vraća par (transakcija, ipk) + potpis; PPK uz to i oznaku da je karta
     // evidentirana kao obična.
-    const stavke = [r.m_Item1, r.m_Item2, r.m_Item3, r.m_Item4]
-        .map((v) => (v === undefined ? null : v));
+    const stavke = [r.m_Item1, r.m_Item2, r.m_Item3, r.m_Item4].map(izVrijednosti);
     const imaZastavicu = stavke[3] !== null;
-    const transakcija = stavke[0] !== null ? String(stavke[0]).trim() : null;
-    const ipk = stavke[1] !== null ? String(stavke[1]).trim() : null;
-    const obicna = imaZastavicu ? (String(stavke[2]).trim() === 'true') : false;
+    const transakcija = stavke[0];
+    const ipk = stavke[1];
+    const obicna = imaZastavicu ? (stavke[2] === 'true') : false;
     const potpis = imaZastavicu ? stavke[3] : stavke[2];
 
     return {
@@ -193,9 +209,11 @@ function citajProdaju(odgovor, imeOdgovora, imeRezultata, postavke, zastitniKod)
 
 // Ista metoda za oboje: utrošak nosi vrijeme, storno ga nema. Zato i dva
 // različita stringa za potpis.
-async function dojaviCvikanje({ ipk, vremTros = null, voyageID = null }) {
+async function dojaviCvikanje({ ipk, vremTros = null, voyageID = null, povlastena = false }) {
     const metoda = vremTros ? 'DojaviCvikanje' : 'Storno';
-    const { postavke, preskoci } = await pripremi(metoda);
+    // Storno koristi svoj prekidač (`send_storno`); cvikanje se dijeli na
+    // običnu/povlaštenu po `povlastena`.
+    const { postavke, preskoci } = await pripremi(metoda, { povlastena });
     if (preskoci) return preskoci;
 
     const osnova = { ipk, vremTros, voyageID, brodarevOIB: postavke.brodarev_oib };
@@ -215,8 +233,8 @@ async function dojaviCvikanje({ ipk, vremTros = null, voyageID = null }) {
     return citajTrojku(odgovor, 'DojaviCvikanjeResponse', 'DojaviCvikanjeResult', postavke);
 }
 
-async function ponistiCvikanje({ ipk }) {
-    const { postavke, preskoci } = await pripremi('PonistiCvikanjePojedinacna');
+async function ponistiCvikanje({ ipk, povlastena = false }) {
+    const { postavke, preskoci } = await pripremi('PonistiCvikanjePojedinacna', { povlastena });
     if (preskoci) return preskoci;
 
     const k = kljuc(postavke);
@@ -268,13 +286,14 @@ function citajTrojku(odgovor, imeOdgovora, imeRezultata, postavke) {
     if (!r) {
         return {
             ok: false,
-            poruka: odgovor.fault?.opis || odgovor.fault?.reason || 'neočekivan oblik odgovora',
+            poruka: odgovor.fault?.seop_opis || odgovor.fault?.reason?.['#text'] || odgovor.fault?.reason || 'neočekivan oblik odgovora',
+            seop_kod: odgovor.fault?.seop_kod || null,
             http: odgovor.httpStatus,
         };
     }
-    const transakcija = r.m_Item1 !== undefined && r.m_Item1 !== null ? String(r.m_Item1).trim() : null;
-    const poruka = r.m_Item2 ? String(r.m_Item2).trim() : null;
-    const potpis = r.m_Item3 ? String(r.m_Item3).trim() : null;
+    const transakcija = izVrijednosti(r.m_Item1);
+    const poruka = izVrijednosti(r.m_Item2);
+    const potpis = izVrijednosti(r.m_Item3);
 
     return {
         // SEOP javlja neuspjeh praznom transakcijom i porukom o razlogu, ne

@@ -210,6 +210,13 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Transakcija vraćena iz DojaviCvikanje — dokaz da je karta cvikana
+            // (ukrcaj dojavljen). Bez nje se poništenje ukrcaja ne smije poslati;
+            // poništenjem se briše (pravo vraćeno, karta opet samo „prodano").
+            seop_cvikanje_transakcija:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             // Ostatak onoga što dojava prodaje traži, a zna se tek na blagajni.
             // Bez ovih polja se DojaviProdajuPPK_3Eur poslije nema iz čega
             // složiti: cijena na karti je već umanjena, pa se redovna ne može

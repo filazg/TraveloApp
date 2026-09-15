@@ -7,6 +7,7 @@ const { podigniSignal } = require("./syncSignalsController");
 
 const { jedinstvenBroj } = require("../../helpers/ticketCode");
 const { poljaPovlastice } = require("../../helpers/povlastica");
+const { dispatchProdaja } = require("../../helpers/seopDispatch");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — port tax 6%, VAT 25% on the rest (matches legacy + web-sale).
@@ -474,6 +475,21 @@ const finalizeTerminalSaleController = async (req, res) => {
         await InvoiceItemsModel.bulkCreate(invoiceItemsToAdd);
         await InvoiceItemDetailsModel.bulkCreate(invoiceItemDetailsToAdd);
         await TicketsModel.bulkCreate(ticketsToAdd);
+
+        // SEOP dojava prodaje — best-effort, u pozadini: NE blokira odgovor
+        // blagajni i NE smije srušiti prodaju. Šalju se samo karte označene za
+        // SEOP (`seop_dojava=true`); gard (seopLifecycle) preskoči već dojavljene.
+        try {
+            const datIzd = new Date().toISOString();
+            const oznPristupTocke = bd?.mark || "";
+            for (const t of ticketsToAdd) {
+                if (t.seop_dojava === true) {
+                    dispatchProdaja(TicketsModel, t, { datIzd, oznPristupTocke }).catch(() => {});
+                }
+            }
+        } catch (e) {
+            console.log("[seop] hook prodaje nije pokrenut:", e?.message || e);
+        }
 
         // F2 fiskalizacija — async (fire-and-forget nakon što invoice postoji).
         // Ne blokira response jer POS-u je bitno samo da račun postoji; YesCor

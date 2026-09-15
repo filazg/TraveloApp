@@ -736,12 +736,20 @@ function odlukaIGumbi(cijenaRed, sustav) {
     <>
       <Typography align="center" sx={{ fontWeight: 800, py: 1 }} color={smije ? "success.main" : "error.main"}>
         {smije
-          ? (gratis
-              ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU'
-              : `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%${provjera.primjeni_popust ? '' : ' — naplaćuje se cijena iz cjenika'}`)
+          ? (provjera.primjeni_popust
+              // Popust stvarno dolazi sa SEOP-a → pokaži postotak / besplatno.
+              ? (gratis
+                  ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU'
+                  : `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%`)
+              // Cijena ide iz cjenika — postotak/„besplatno" bi zbunjivao jer
+              // popust nije od SEOP-a; samo potvrdi pravo na povlaštenu.
+              : 'KORISNIK IMA PRAVO NA POVLAŠTENU KARTU')
           : 'NEMA PRAVA NA POVLAŠTENU KARTU NA OVOJ RELACIJI'}
       </Typography>
-      {(provjera.poruka || provjera.razlog) ? (
+      {/* Poruka sa SEOP-a (npr. „…besplatno… 100%") pokazuje se samo kad SEOP
+          stvarno daje popust, ili kad prava nema (razlog). Kad cijena ide iz
+          cjenika, ta napomena samo zbunjuje. */}
+      {(provjera.poruka || provjera.razlog) && (!smije || provjera.primjeni_popust) ? (
         <Typography align="center" color="text.secondary" sx={{ py: 0.5 }}>
           {provjera.razlog || provjera.poruka}
         </Typography>

@@ -32,10 +32,12 @@ const OKOLINE = [
 const DOJAVE = [
     { key: "send_opk", naslov: "Prodaja obične karte", opis: "DojaviProdajuOPKEur — svaka prodana karta" },
     { key: "send_ppk", naslov: "Prodaja povlaštene karte", opis: "DojaviProdajuPPK_3Eur — karte na otočnu iskaznicu" },
-    { key: "send_cvikanje", naslov: "Ukrcaj (cvikanje)", opis: "DojaviCvikanje pri validaciji karte" },
+    { key: "send_cvikanje_obicna", naslov: "Ukrcaj — obična karta", opis: "DojaviCvikanje pri validaciji obične karte" },
+    { key: "send_cvikanje_povlastena", naslov: "Ukrcaj — povlaštena karta", opis: "DojaviCvikanje pri validaciji povlaštene karte" },
     { key: "send_storno", naslov: "Storno karte", opis: "DojaviCvikanje bez vremena utroška" },
     { key: "send_isplovljenje", naslov: "Isplovljenje broda", opis: "DojaviIsplovljenje po polasku" },
-    { key: "send_ponisti_cvikanje", naslov: "Poništenje ukrcaja", opis: "PonistiCvikanjePojedinacna" },
+    { key: "send_ponisti_cvikanje_obicna", naslov: "Poništenje ukrcaja — obična", opis: "PonistiCvikanjePojedinacna za običnu kartu" },
+    { key: "send_ponisti_cvikanje_povlastena", naslov: "Poništenje ukrcaja — povlaštena", opis: "PonistiCvikanjePojedinacna za povlaštenu kartu" },
 ];
 
 const CERTIFIKATI = [

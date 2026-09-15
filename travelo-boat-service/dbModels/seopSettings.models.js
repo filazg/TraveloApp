@@ -40,10 +40,14 @@ module.exports = (sequelize) => {
             enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
             send_opk: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
             send_ppk: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
-            send_cvikanje: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+            // Cvikanje i poništenje cvika imaju zaseban prekidač za običnu i
+            // povlaštenu kartu — kao što je i prodaja razdvojena na OPK/PPK.
+            send_cvikanje_obicna: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+            send_cvikanje_povlastena: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
             send_storno: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
             send_isplovljenje: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-            send_ponisti_cvikanje: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+            send_ponisti_cvikanje_obicna: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+            send_ponisti_cvikanje_povlastena: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 
             // Od kojeg datuma se dojavljuje. Karte izdane prije toga se ne
             // šalju — retroaktivna dojava nije dogovorena s AZOLPP-om.
