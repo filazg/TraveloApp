@@ -49,6 +49,10 @@ module.exports = (sequelize)=>{
                 type:DataTypes.STRING,
                 allowNull:true
             },
+            buyer_tel:{
+                type:DataTypes.STRING,
+                allowNull:true
+            },
             buyer_is_active:{
                 type:DataTypes.BOOLEAN,
                 allowNull:true

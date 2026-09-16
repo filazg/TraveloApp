@@ -1,5 +1,6 @@
 const { getSequelize } = require("../../config/database");
 const seyforClient = require("../integrations/seyforClient");
+const { publishBackofficeEvent } = require("../../message_broker/publisher");
 
 const sequelize = getSequelize();
 
@@ -92,12 +93,15 @@ const addAddressbookDataController = async (req, res) => {
                 buyer_postal_code: data.buyer_postal_code,
                 buyer_country: data.buyer_country,
                 buyer_email: data.buyer_email,
+                buyer_tel: data.buyer_tel,
                 f2_required: data.f2_required ?? false,
                 buyer_is_active: true,
             });
         });
         // Out of transaction: SAOP push je best-effort, ne smije rušiti DB.
         pushToSaop(AddressbookModel, created.toJSON(), { isUpdate: false });
+        // Propagacija: desk/mobile osvjeze lokalni adresar na ovaj signal.
+        publishBackofficeEvent("update_addressbook");
         res.send({ status: 201 });
     } catch (error) {
         console.log(error);
@@ -124,6 +128,7 @@ const updateAddressbookDataController = async (req, res) => {
                     buyer_postal_code: data.buyer_postal_code,
                     buyer_country: data.buyer_country,
                     buyer_email: data.buyer_email,
+                    buyer_tel: data.buyer_tel,
                     f2_required: data.f2_required ?? false,
                     buyer_is_active: data.buyer_is_active,
                 },
@@ -135,6 +140,7 @@ const updateAddressbookDataController = async (req, res) => {
             return res.send({ status: 404, data: { msg: "Buyer not exist" } });
         }
         pushToSaop(AddressbookModel, updated.toJSON(), { isUpdate: true });
+        publishBackofficeEvent("update_addressbook");
         res.send({ status: 201 });
     } catch (error) {
         console.log(error);
@@ -142,8 +148,62 @@ const updateAddressbookDataController = async (req, res) => {
     }
 };
 
+// Write-through sa svih kanala (desk/mobile/web): kupac s OIB-om koji se izda
+// na racunu upisuje se u centralni adresar. Idempotentno po OIB-u — ako vec
+// postoji, popuni samo prazna/poslana polja (ne gazi postojece praznima).
+// Kanali salju razlicite nazive OIB polja (buyer_vat_id / buyer_oib), pa se
+// oba prihvacaju.
+const upsertAddressbookDataController = async (req, res) => {
+    const { AddressbookModel } = req.app.locals.models;
+    try {
+        const d = req.body.body || req.body || {};
+        const oib = String(d.buyer_vat_id || d.buyer_oib || "").trim();
+        if (!oib) {
+            return res.send({ status: 400, data: { error: "OIB (buyer_vat_id) je obavezan" } });
+        }
+        const polja = {
+            buyer_name: d.buyer_name,
+            buyer_company_name: d.buyer_company_name,
+            buyer_legal_id: d.buyer_legal_id,
+            buyer_vat_id: oib,
+            buyer_address: d.buyer_address,
+            buyer_town: d.buyer_town,
+            buyer_postal_code: d.buyer_postal_code,
+            buyer_country: d.buyer_country,
+            buyer_email: d.buyer_email,
+            buyer_tel: d.buyer_tel,
+        };
+        const rez = await sequelize.transaction(async () => {
+            const postoji = await AddressbookModel.findOne({ where: { buyer_vat_id: oib } });
+            if (postoji) {
+                const azurirano = {};
+                for (const [k, v] of Object.entries(polja)) {
+                    if (v !== undefined && v !== null && String(v).trim() !== "") azurirano[k] = v;
+                }
+                await AddressbookModel.update(azurirano, { where: { uuid: postoji.uuid } });
+                const r = await AddressbookModel.findOne({ where: { uuid: postoji.uuid } });
+                return { record: r, created: false };
+            }
+            const r = await AddressbookModel.create({
+                uuid: crypto.randomUUID(),
+                ...polja,
+                f2_required: d.f2_required ?? false,
+                buyer_is_active: true,
+            });
+            return { record: r, created: true };
+        });
+        pushToSaop(AddressbookModel, rez.record.toJSON(), { isUpdate: !rez.created });
+        publishBackofficeEvent("update_addressbook");
+        res.send({ status: 200, data: { uuid: rez.record.uuid, created: rez.created } });
+    } catch (error) {
+        console.log("upsertAddressbook error:", error?.message || error);
+        res.send({ status: 500, data: { error: error?.message || String(error) } });
+    }
+};
+
 module.exports = {
     getAddressbookDataController,
     addAddressbookDataController,
     updateAddressbookDataController,
+    upsertAddressbookDataController,
 };
