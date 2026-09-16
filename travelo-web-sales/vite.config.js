@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [react()],
   // Isti popis vrijedi i za posluženi build (`vite preview`).
   preview: {
-    allowedHosts: ['bookingtest.krilo.hr'],
+    allowedHosts: ['bookingtest.krilo.hr', 'webbookingtest.krilo.hr'],
   },
   server: {
-    allowedHosts: ['bookingtest.krilo.hr'],
+    allowedHosts: ['bookingtest.krilo.hr', 'webbookingtest.krilo.hr'],
   },
   build: {
     chunkSizeWarningLimit: 1500

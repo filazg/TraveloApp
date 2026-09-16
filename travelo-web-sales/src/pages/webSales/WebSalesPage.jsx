@@ -94,8 +94,14 @@ export default function WebSalesPage() {
         if (!islandResult?.ima_pravo || !islandUnitPrice) return;
         const trip = selectedTrip || {};
         const pct = Number(islandResult.popust_postotak || 0);
-        const factor = 1 - pct / 100;
-        const unit = +(islandUnitPrice * factor).toFixed(2);
+        // Cijena otočne karte: strogo ili-ili, kao na desku/mobilnoj.
+        //   primjeni_popust=true  → otočnu cijenu iz cjenika množi SEOP postotkom
+        //   primjeni_popust=false → cijena iz cjenika je konačna (bez SEOP popusta)
+        // Prije se popust primjenjivao uvijek, pa je npr. Split→Hvar dobivao SEOP
+        // umanjenje iako linija cijenu definira iz cjenika.
+        const unit = islandResult.primjeni_popust
+            ? +(islandUnitPrice * (1 - pct / 100)).toFixed(2)
+            : +Number(islandUnitPrice).toFixed(2);
         // Po iskaznici uvijek samo 1 karta — ne pita se za količinu.
         const qty = 1;
         const port = +(unit * 0.06).toFixed(2);
@@ -129,7 +135,9 @@ export default function WebSalesPage() {
             is_island: true,
             seop_type: islandPriceRow?.seop_type || null,
             seop_card_no: islandCardNumber,
-            seop_discount_pct: pct,
+            // Stvarno primijenjeni popust — 0 kad linija cijenu daje iz cjenika,
+            // da summary/ispis ne pokazuju popust koji nije dan.
+            seop_discount_pct: islandResult.primjeni_popust ? pct : 0,
             seop_pravo: islandResult?.pravo_na_pp || null,
             seop_otok: islandResult?.otok || null,
             quantity: qty,
@@ -302,7 +310,9 @@ export default function WebSalesPage() {
                         <>
                             <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: '#e8f5e9', border: '1px solid #a5d6a7', mb: 2 }}>
                                 <Typography variant="subtitle2" sx={{ color: '#1b5e20', fontWeight: 700 }}>
-                                    Pravo potvrđeno — popust {islandResult.popust_postotak}%
+                                    {islandResult.primjeni_popust && Number(islandResult.popust_postotak) > 0
+                                        ? `Pravo potvrđeno — popust ${islandResult.popust_postotak}%`
+                                        : 'Pravo potvrđeno — povlaštena karta'}
                                     {islandResult.mock ? ' (MOCK)' : ''}
                                 </Typography>
                                 {islandResult.otok && (
@@ -314,10 +324,10 @@ export default function WebSalesPage() {
                             </Box>
                             <Stack direction="row" spacing={2} alignItems="center">
                                 <Typography>Cijena karte:</Typography>
-                                <Typography sx={{ textDecoration: islandResult.popust_postotak > 0 ? 'line-through' : 'none', color: 'text.secondary' }}>
+                                <Typography sx={{ textDecoration: (islandResult.primjeni_popust && islandResult.popust_postotak > 0) ? 'line-through' : 'none', color: 'text.secondary' }}>
                                     {Number(islandUnitPrice).toFixed(2)} EUR
                                 </Typography>
-                                {islandResult.popust_postotak > 0 && (
+                                {islandResult.primjeni_popust && islandResult.popust_postotak > 0 && (
                                     <Typography sx={{ fontWeight: 700, color: '#1b5e20', fontSize: 18 }}>
                                         {(Number(islandUnitPrice) * (1 - islandResult.popust_postotak / 100)).toFixed(2)} EUR
                                     </Typography>
