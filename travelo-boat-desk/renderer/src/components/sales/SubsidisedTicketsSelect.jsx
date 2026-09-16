@@ -5,6 +5,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuid } from "uuid";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
 
+// Razlozi izdavanja otočne bez provjere (Kontrola → Greške s povlaštenim
+// karticama). Ključevi moraju odgovarati onima na backendu/portalu i mobilnoj.
+const RAZLOZI_GRESKE = [
+    { kljuc: "nemoguce_ocitati", naziv: "Nemoguće očitati karticu" },
+    { kljuc: "kartica_ostecena", naziv: "Kartica oštećena" },
+    { kljuc: "greska_oprema", naziv: "Greška na opremi" },
+    { kljuc: "prekid_komunikacije", naziv: "Prekid u komunikaciji" },
+];
+
 // Ploha koja nosi ishod provjere kartice. Ton zamjenjuje zatečene tvrdo
 // kodirane boje (#ffeb3b za važeću, #f28b82 za nevažeću, lightgray za MOSI) —
 // one su bile iste u svijetloj i tamnoj temi, pa je tekst na njima znao nestati.
@@ -78,6 +87,8 @@ export default function SubsidisedTicketsSelect() {
         setProvjera(null)
         setRucniUnos("")
         setPratnjaOdabrana(false)
+        setGreskaRazlog(null)
+        setGreskaNapomena("")
         dispatch(setStateData({path:'modalsStates/showSubsidisedTickets', value: false}))
     };
 
@@ -105,6 +116,10 @@ export default function SubsidisedTicketsSelect() {
     const [provjera, setProvjera] = useState(null);
     const [provjeraRadi, setProvjeraRadi] = useState(false);
     const [pratnjaOdabrana, setPratnjaOdabrana] = useState(false);
+    // Kad se pravo ne može potvrditi (kartica se ne da očitati/provjeriti), otočna
+    // se izdaje na povjerenje po povlaštenoj cijeni, ali uz obavezan razlog.
+    const [greskaRazlog, setGreskaRazlog] = useState(null);
+    const [greskaNapomena, setGreskaNapomena] = useState("");
 
     const provjeriNaPosluzitelju = async ({ vrsta, vrijednost, sustav = "SEOP", kartica = null }) => {
       const broj = String(vrijednost || "").trim();
@@ -120,6 +135,8 @@ export default function SubsidisedTicketsSelect() {
 
       setProvjeraRadi(true);
       setPratnjaOdabrana(false);
+      setGreskaRazlog(null);
+      setGreskaNapomena("");
       try {
         const odgovor = await window.api.app.checkIslandCardIPC({
           sustav,
@@ -302,9 +319,17 @@ const handleAddTickets = async(data) => {
     arrival: salesRoute.arrival,
     arrival_harbor_id: salesRoute.arrival_harbor_id,
     arrival_harbor_name: salesRoute.arrival_harbor_name,
-    ticket_type_name: data?.type  ? data.type :data.price.ticket_type_name,
-    ticket_type_id: data?.type  ? data.type :data.price.ticket_type_id,
-    ticket_type_uuid: data?.type  ? data.type :data.price.ticket_type_uuid,
+    // Povlaštena karta zauzima normalno putničko mjesto (cjenik: tip "Otočani" →
+    // kategorija PASSANGER), pa MORA nositi stvarni ticket_type iz cjenika
+    // (data.price). Prije se ovdje upisivao doslovni "SEOP"/"MOSI"/"VIRTUAL CARD" u
+    // ticket_type_uuid — a taj "tip" nema mapping na kapacitetnu kategoriju: booking
+    // rezervacija pukne (no category mapping for ticket_type SEOP), karta nestane iz
+    // Provjere stanja (nema booking retka) i iz Kapetana (ticket_counts bucket koji
+    // UI ne poznaje). Oznaku povlastice zadržavamo samo u nazivu za prikaz; status
+    // povlastice nose polja `povlastica` + `is_island` + `card_data`.
+    ticket_type_name: data?.type ? data.type : data.price.ticket_type_name,
+    ticket_type_id: data.price.ticket_type_id,
+    ticket_type_uuid: data.price.ticket_type_uuid,
     ticket_group_uuid: uuid(),
     // Iznos je izracunat po pravilu linije; `price.price` je samo osnovica.
     single_price: data.free ? 0 : (data.iznos ?? data.price.price),
@@ -784,23 +809,58 @@ function odlukaIGumbi(cijenaRed, sustav) {
           {gratis ? 'BESPLATNA KARTA' : `IZNOS ZA PLAĆANJE ${iznos.toFixed(2)} EUR`}
         </Button>
       ) : (
-        // Prava nema ili se ne može provjeriti. Specifikacija to zove
-        // uvijekProdaj: karta se izdaje punom cijenom, a iskaznica se svejedno
-        // dojavljuje, da se vidi da je pokušaj bio.
-        <Button
-          disabled={!redovna}
-          variant="contained"
-          color="warning"
-          onClick={() => {
-            handleAddTickets({
-              price: redovna, rights: {}, type: sustav, free: false,
-              povlastica: blokPovlastice({ ishod: provjera, cijenaRed: redovna, uvijekProdaj: true }),
-            })
-          }}
-          sx={{ height: 88, mt: 2, width: "100%", fontSize: "1.25rem" }}
-        >
-          {redovna ? `PUNA CIJENA ${Number(redovna.price).toFixed(2)} EUR` : 'NEMA REDOVNE CIJENE ZA RELACIJU'}
-        </Button>
+        // Prava nema ili se ne može provjeriti (kartica se ne da očitati, kvar
+        // opreme, prekid veze…). Otočna se izdaje na povjerenje po povlaštenoj
+        // (otočnoj) cijeni, ali djelatnik MORA odabrati razlog; SEOP dojava ide s
+        // uvijekProdaj, a razlog+napomena (`greska` blok) idu u Kontrolu.
+        <Box sx={{ mt: 2 }}>
+          <Typography sx={{ fontWeight: 800, mb: 1 }}>
+            Izdaj otočnu bez provjere — obavezan razlog:
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+            {RAZLOZI_GRESKE.map((r) => (
+              <Button
+                key={r.kljuc}
+                size="small"
+                variant={greskaRazlog === r.kljuc ? "contained" : "outlined"}
+                color="error"
+                onClick={() => setGreskaRazlog(r.kljuc)}
+              >
+                {r.naziv}
+              </Button>
+            ))}
+          </Stack>
+          <TextField
+            fullWidth
+            multiline
+            minRows={1}
+            size="small"
+            label="Napomena (opcionalno)"
+            value={greskaNapomena}
+            onChange={(e) => setGreskaNapomena(e.target.value)}
+            sx={{ mb: 1.5 }}
+          />
+          <Button
+            disabled={!cijenaRed || !greskaRazlog}
+            variant="contained"
+            color="warning"
+            onClick={() => {
+              handleAddTickets({
+                price: cijenaRed, rights: {}, type: sustav, free: false,
+                iznos: cijenaPovlastene(provjera, cijenaRed),
+                povlastica: {
+                  ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true }),
+                  greska: { razlog: greskaRazlog, napomena: greskaNapomena.trim() || null },
+                },
+              })
+            }}
+            sx={{ height: 88, width: "100%", fontSize: "1.25rem" }}
+          >
+            {cijenaRed
+              ? `IZDAJ OTOČNU ${Number(cijenaRed.price).toFixed(2)} EUR`
+              : 'NEMA OTOČNE CIJENE ZA RELACIJU'}
+          </Button>
+        </Box>
       )}
     </>
   )
@@ -991,7 +1051,7 @@ function virtualCardDetails() {
                     labelId="rucni-oblik"
                     label="Upisuje se"
                     value={rucniOblik}
-                    onChange={(e) => { setRucniOblik(e.target.value); setRucniUnos(""); setProvjera(null); }}
+                    onChange={(e) => { setRucniOblik(e.target.value); setRucniUnos(""); setProvjera(null); setGreskaRazlog(null); setGreskaNapomena(""); }}
                   >
                     <MenuItem value="card_no">Broj iskaznice</MenuItem>
                     <MenuItem value="oib">OIB putnika</MenuItem>

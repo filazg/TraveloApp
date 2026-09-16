@@ -402,15 +402,23 @@ const printTickets = async ({ tickets,copy }) => {
             printer.leftRight("Passanger/Putnik", tickets[t].ticket_type_name);
             printer.leftRight("Line/Linija", tickets[t].line_name);
             printer.drawLine();
+            // Podaci s iskaznice mogu izostati kad se pravo nije moglo provjeriti
+            // (SEOP ne nađe karticu, oštećena, kvar opreme…) — tada je card_data
+            // prazan. Pristup `card_data.F2.X` bi tada bacio TypeError i cijeli
+            // ispis karte bi pukao. Zato safe pristup: što fali ide kao „Nepoznato".
+            const cd = tickets[t].card_data || {};
+            const F2 = cd.F2 || {};
+            const nz = (v) => (v === undefined || v === null || v === "" ? "Nepoznato" : v);
+            const datum = (d) => (d && (d.Day || d.Month || d.Year) ? `${d.Day}/${d.Month}/${d.Year}` : "Nepoznato");
             if(tickets[t].ticket_type_name === "MOSI"){
                 printer.alignCenter();
                 printer.println("PODACI O POVLAŠTENOJ KARTI");
                 printer.println("MOSI");
-                printer.leftRight("Ime i prezime:", tickets[t].card_data.F2.Ime + ' ' + tickets[t].card_data.F2.Prezime)
-                printer.leftRight("OIB:", tickets[t].card_data.F2.OIB)
-                printer.leftRight("Ser. br. iskaznice:", tickets[t].card_data.F2.SBr)
-                printer.leftRight("Datum izdavanja:", tickets[t].card_data.F2.DatIzdavanja.Day+'/'+tickets[t].card_data.F2.DatIzdavanja.Month+'/'+tickets[t].card_data.F2.DatIzdavanja.Year)
-                printer.leftRight("Vrijedi do:", tickets[t].card_data.F2.DatIsteka.Day+'/'+tickets[t].card_data.F2.DatIsteka.Month+'/'+tickets[t].card_data.F2.DatIsteka.Year)
+                printer.leftRight("Ime i prezime:", nz([F2.Ime, F2.Prezime].filter(Boolean).join(' ')))
+                printer.leftRight("OIB:", nz(F2.OIB))
+                printer.leftRight("Ser. br. iskaznice:", nz(F2.SBr))
+                printer.leftRight("Datum izdavanja:", datum(F2.DatIzdavanja))
+                printer.leftRight("Vrijedi do:", datum(F2.DatIsteka))
                 printer.newLine();
                 printer.drawLine();
             }
@@ -418,15 +426,15 @@ const printTickets = async ({ tickets,copy }) => {
                 printer.alignCenter();
                 printer.println("PODACI O POVLAŠTENOJ KARTI");
                 printer.println("SEOP");
-                printer.leftRight("Ime i prezime:", tickets[t].card_data.F2.FirstName + ' ' + tickets[t].card_data.F2.Surname)
-                printer.leftRight("OIB:", tickets[t].card_data.F2.OIB)
-                printer.leftRight("Adresa:", tickets[t].card_data.F2.PermResAddress)
-                printer.leftRight("Mjesto:", tickets[t].card_data.F2.PermResName)
-                printer.leftRight("Otok:", tickets[t].card_data.F2.IslandName)
-                printer.leftRight("Ser. br. iskaznice:", tickets[t].card_data.F2.CardNumber)
-                printer.leftRight("Osnovno pravo:", tickets[t].card_data.F2.BasicRight)
-                printer.leftRight("Datum izdavanja:", tickets[t].card_data.F2.IssuanceDate.Day+'/'+tickets[t].card_data.F2.IssuanceDate.Month+'/'+tickets[t].card_data.F2.IssuanceDate.Year)
-                printer.leftRight("Vrijedi do:", tickets[t].card_data.F2.ExpirationDate.Day+'/'+tickets[t].card_data.F2.ExpirationDate.Month+'/'+tickets[t].card_data.F2.ExpirationDate.Year)
+                printer.leftRight("Ime i prezime:", nz([F2.FirstName, F2.Surname].filter(Boolean).join(' ')))
+                printer.leftRight("OIB:", nz(F2.OIB))
+                printer.leftRight("Adresa:", nz(F2.PermResAddress))
+                printer.leftRight("Mjesto:", nz(F2.PermResName))
+                printer.leftRight("Otok:", nz(F2.IslandName))
+                printer.leftRight("Ser. br. iskaznice:", nz(F2.CardNumber))
+                printer.leftRight("Osnovno pravo:", nz(F2.BasicRight))
+                printer.leftRight("Datum izdavanja:", datum(F2.IssuanceDate))
+                printer.leftRight("Vrijedi do:", datum(F2.ExpirationDate))
                 printer.newLine();
                 printer.drawLine();
             }
@@ -434,12 +442,12 @@ const printTickets = async ({ tickets,copy }) => {
                 printer.alignCenter();
                 printer.println("PODACI O POVLAŠTENOJ KARTI");
                 printer.println("VIRTUALNA KARTICA");
-                printer.leftRight("Kod:", tickets[t].card_data.code)
-                printer.leftRight("Osnovno pravo:", tickets[t].card_data.label)
-                printer.leftRight("Broj odobrenja:", tickets[t].card_data.odobrenje)
+                printer.leftRight("Kod:", nz(cd.code))
+                printer.leftRight("Osnovno pravo:", nz(cd.label))
+                printer.leftRight("Broj odobrenja:", nz(cd.odobrenje))
                 printer.alignLeft();
                 printer.println("Opis:")
-                printer.println(tickets[t].card_data.description)
+                printer.println(nz(cd.description))
                 printer.newLine();
                 printer.drawLine();
             }
