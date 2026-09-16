@@ -141,6 +141,19 @@ export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid
         total_harbor_tax += port;
 
         const r = it.route || {};
+        // Otočna/povlaštena karta nosi podatke iskaznice na ispis. Kad se pravo
+        // nije moglo provjeriti (SEOP ne nađe karticu, kartica oštećena…), polja
+        // koja fale idu kao „Nepoznato" — inače otočna sekcija ispadne s ispisa
+        // pa karta izgleda kao da se nije ni ispisala.
+        const p = it.povlastica || null;
+        const seopPolja = (it.is_island || p) ? {
+            is_island: true,
+            card_data: p?.card_data || null,
+            seop_sustav: p?.sustav || 'SEOP',
+            seop_card_no: p?.identifikator?.vrijednost || p?.seop_card_no || 'Nepoznato',
+            seop_otok: p?.otok || 'Nepoznato',
+            seop_pravo: p?.pravo || 'Nepoznato',
+        } : {};
         for (let i = 0; i < qty; i++) {
             const tuuid = uuidv4();
             // Tri znaka koja razlikuju original od kopije. Idu uz broj karte na
@@ -175,6 +188,7 @@ export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid
                 status: autoValidated ? 'validated' : 'created',
                 validate_data: autoValidated ? new Date().toISOString() : null,
                 route_uuid: r.route_uuid,
+                ...seopPolja,
             });
         }
     }

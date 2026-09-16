@@ -32,6 +32,15 @@ import { scanOnce, onScan } from '../device/scanner';
 import { startScan as akdStartScan, stopScan as akdStopScan, onCardRead as akdOnCardRead, hideKeyboard as akdHideKeyboard, akdCardAvailable } from '../device/akdCard';
 import { printReceipt as printReceiptFn, printTickets as printTicketsFn } from '../device/printSale';
 import { playSuccess as soundSuccess, playPrompt as soundPrompt, playError as soundError } from '../device/sound';
+
+// Razlozi izdavanja otočne bez provjere (Kontrola → Greške s povlaštenim
+// karticama). Ključevi moraju odgovarati onima na backendu/portalu.
+const RAZLOZI_GRESKE = [
+    { kljuc: 'nemoguce_ocitati', naziv: 'Nemoguće očitati karticu' },
+    { kljuc: 'kartica_ostecena', naziv: 'Kartica oštećena' },
+    { kljuc: 'greska_oprema', naziv: 'Greška na opremi' },
+    { kljuc: 'prekid_komunikacije', naziv: 'Prekid u komunikaciji' },
+];
 import HomeButton from '../components/HomeButton';
 import {
     ALIGN, STYLE, bindPrinter, commitPrinterBuffer, cutPaper, enterPrinterBuffer, exitPrinterBuffer,
@@ -123,6 +132,12 @@ export default function SaleScreen() {
     const [islandChecking, setIslandChecking] = useState(false);
     const [islandResult, setIslandResult] = useState(null);
     const [islandError, setIslandError] = useState(null);
+    // Podaci nositelja s očitane iskaznice (kao na desku): ime, OIB, otok, pravo.
+    const [islandCardInfo, setIslandCardInfo] = useState(null);
+    // Kad se pravo ne može potvrditi (kartica se ne da očitati/provjeriti), otočna
+    // se izdaje na povjerenje, ali djelatnik mora upisati razlog + napomenu.
+    const [greskaRazlog, setGreskaRazlog] = useState(null);
+    const [greskaNapomena, setGreskaNapomena] = useState('');
 
     // Sve route_uuid-ovi koji pripadaju odabranom polasku — koristi se za fetch
     // svih karata polaska iz svih prodajnih kanala (validacija scope).
@@ -496,6 +511,9 @@ export default function SaleScreen() {
             setIslandChecking(false);
             setIslandOffline(false);
             setIslandPratnja(false);
+            setIslandCardInfo(null);
+            setGreskaRazlog(null);
+            setGreskaNapomena('');
             if (akdCardAvailable) akdStopScan().catch(() => {});
             // Još jedan native hide nakon unmount-a (re-fokus na hidden scan).
             setTimeout(() => { akdHideKeyboard().catch(() => {}); }, 150);
@@ -522,13 +540,24 @@ export default function SaleScreen() {
             console.log('[island] akdCardRead', JSON.stringify(payload));
             if (payload?.error) {
                 setIslandError(payload.error);
+                soundError();
                 return;
             }
             const num = String(payload?.cardNumber || '').trim();
             if (!num) {
                 setIslandError('Kartica pročitana ali nema broja iskaznice');
+                soundError();
                 return;
             }
+            // Zapamti podatke nositelja s čipa da se prikažu u modalu (kao na desku).
+            setIslandCardInfo({
+                cardFamily: payload?.cardFamily || null,
+                firstName: payload?.firstName || null,
+                surname: payload?.surname || null,
+                oib: payload?.oib || null,
+                islandName: payload?.islandName || null,
+                basicRight: payload?.basicRight || null,
+            });
             // Popuni input + odmah pokreni SEOP provjeru — korisnik ne mora ništa klikati.
             setIslandCardNo(num);
             setIslandIdType('card_no');
@@ -560,13 +589,19 @@ export default function SaleScreen() {
                 },
                 date: matchingRoute.departure || `${matchingRoute.departure_date} ${matchingRoute.departure_time}`,
             });
-            setIslandResult(resp.data?.data || resp.data);
+            const ishod = resp.data?.data || resp.data;
+            setIslandResult(ishod);
+            // Zvučni signal ishoda provjere — potvrđeno pravo daje uspješan ton,
+            // odbijena iskaznica neuspješan (operater ne mora gledati u ekran).
+            if (ishod?.smije_se_prodati ?? ishod?.ima_pravo) soundSuccess();
+            else soundError();
         } catch (err) {
             // Bez odgovora posluzitelja prava se ne mogu utvrditi. Karta se
             // svejedno moze prodati punom cijenom, a dojava ce iz outboxa otici
             // kad mreza dode.
             setIslandOffline(!err?.response);
             setIslandError(err?.response?.data?.data?.message || err?.message || 'Greška u provjeri');
+            soundError();
         } finally {
             setIslandChecking(false);
         }
@@ -665,6 +700,31 @@ export default function SaleScreen() {
                 redovna: Number(red.price),
                 cijenaRed: red,
             }),
+        });
+        closeIslandModal();
+    };
+
+    // Izdavanje otočne bez potvrđenog prava — na povjerenje, uz obavezan razlog.
+    // Cijena je otočna iz cjenika (kao povlaštena), SEOP dojava ide s uvijekProdaj,
+    // a `greska` blok (razlog+napomena) ide u Kontrolu na portalu.
+    const izdajUzRazlog = () => {
+        if (!greskaRazlog || !islandPriceRow) return;
+        const red = islandPriceRow;
+        const redovna = Number(redovniRed?.price ?? red.price);
+        dodajKartu({
+            ticket_type_uuid: red.ticket_type_uuid,
+            ticket_type_name: red.ticket_type_name || 'Otočna karta',
+            single_price: Number(red.price),
+            povlastica: {
+                ...blokPovlastice({
+                    ishod: islandResult,
+                    uvijekProdaj: true,
+                    offline: islandOffline,
+                    redovna,
+                    cijenaRed: red,
+                }),
+                greska: { razlog: greskaRazlog, napomena: greskaNapomena.trim() || null },
+            },
         });
         closeIslandModal();
     };
@@ -1184,7 +1244,37 @@ export default function SaleScreen() {
                     <View style={islandStyles.card}>
                         <Text style={islandStyles.title}>Otočna iskaznica</Text>
 
-                        {!islandResult && (
+                        {islandCardInfo && (
+                            <View style={islandStyles.cardInfo}>
+                                {(islandCardInfo.firstName || islandCardInfo.surname) ? (
+                                    <Text style={islandStyles.cardInfoName}>
+                                        {[islandCardInfo.firstName, islandCardInfo.surname].filter(Boolean).join(' ')}
+                                    </Text>
+                                ) : null}
+                                {!!islandCardInfo.oib && (
+                                    <Text style={islandStyles.cardInfoLine}>OIB: <Text style={islandStyles.b}>{islandCardInfo.oib}</Text></Text>
+                                )}
+                                {!!islandCardInfo.islandName && (
+                                    <Text style={islandStyles.cardInfoLine}>Otok: <Text style={islandStyles.b}>{islandCardInfo.islandName}</Text></Text>
+                                )}
+                                {!!islandCardInfo.basicRight && (
+                                    <Text style={islandStyles.cardInfoLine}>Pravo: <Text style={islandStyles.b}>{islandCardInfo.basicRight}</Text></Text>
+                                )}
+                                {!!islandCardInfo.cardFamily && (
+                                    <Text style={islandStyles.cardInfoLine}>Vrsta: <Text style={islandStyles.b}>{islandCardInfo.cardFamily}</Text></Text>
+                                )}
+                            </View>
+                        )}
+
+                        {islandChecking && (
+                            <View style={islandStyles.checking}>
+                                <ActivityIndicator size="large" color={colors.primary} />
+                                <Text style={islandStyles.checkingText}>PROVJERA ISKAZNICE…</Text>
+                                <Text style={islandStyles.checkingSub}>Pričekaj trenutak</Text>
+                            </View>
+                        )}
+
+                        {!islandResult && !islandChecking && (
                             <>
                                 <Text style={islandStyles.help}>
                                     {akdCardAvailable
@@ -1276,6 +1366,32 @@ export default function SaleScreen() {
                             </View>
                         )}
 
+                        {(!islandChecking && ((islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo)) || islandOffline || !!islandError)) && (
+                            <View style={islandStyles.greska}>
+                                <Text style={islandStyles.greskaNaslov}>Izdaj otočnu bez provjere — obavezan razlog:</Text>
+                                <View style={islandStyles.razlogRed}>
+                                    {RAZLOZI_GRESKE.map((r) => (
+                                        <TouchableOpacity
+                                            key={r.kljuc}
+                                            style={[islandStyles.razlogBtn, greskaRazlog === r.kljuc && islandStyles.razlogBtnAktivan]}
+                                            onPress={() => setGreskaRazlog(r.kljuc)}
+                                        >
+                                            <Text style={[islandStyles.razlogText, greskaRazlog === r.kljuc && islandStyles.razlogTextAktivan]}>
+                                                {r.naziv}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                                <TextInput
+                                    style={islandStyles.napomenaInput}
+                                    placeholder="Napomena (opcionalno)"
+                                    value={greskaNapomena}
+                                    onChangeText={setGreskaNapomena}
+                                    multiline
+                                />
+                            </View>
+                        )}
+
                         <View style={islandStyles.actions}>
                             <TouchableOpacity style={islandStyles.btnGhost} onPress={closeIslandModal}>
                                 <Text style={islandStyles.btnGhostText}>Zatvori</Text>
@@ -1294,11 +1410,16 @@ export default function SaleScreen() {
                                     <Text style={islandStyles.btnPrimaryText}>Potvrdi</Text>
                                 </TouchableOpacity>
                             )}
-                            {/* Prava nema ili se ne moze provjeriti — karta ide punom cijenom,
-                                a pokusaj se svejedno dojavljuje (uvijekProdaj iz specifikacije). */}
-                            {((islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo)) || (islandOffline && islandCardNo)) && (
-                                <TouchableOpacity style={islandStyles.btnPuna} onPress={prodajPunuCijenu}>
-                                    <Text style={islandStyles.btnPrimaryText}>Puna cijena</Text>
+                            {/* Prava nema ili se ne moze provjeriti — otočna se izdaje na
+                                povjerenje po povlaštenoj cijeni, uz obavezan razlog; SEOP
+                                dojava ide s uvijekProdaj, a razlog+napomena u Kontrolu. */}
+                            {(!islandChecking && ((islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo)) || islandOffline || !!islandError)) && (
+                                <TouchableOpacity
+                                    style={[islandStyles.btnPuna, !greskaRazlog && { opacity: 0.5 }]}
+                                    disabled={!greskaRazlog}
+                                    onPress={izdajUzRazlog}
+                                >
+                                    <Text style={islandStyles.btnPrimaryText}>Izdaj otočnu</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -1318,6 +1439,14 @@ const islandStyles = StyleSheet.create({
     },
     oblikBtnAktivan: { backgroundColor: colors.primary, borderColor: colors.primary },
     oblikText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+    greska: { marginTop: 4, marginBottom: 8, backgroundColor: colors.errorLight, borderColor: colors.error, borderWidth: 1, borderRadius: 8, padding: 12 },
+    greskaNaslov: { fontSize: 13, fontWeight: '800', color: colors.error, marginBottom: 8 },
+    razlogRed: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+    razlogBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+    razlogBtnAktivan: { backgroundColor: colors.error, borderColor: colors.error },
+    razlogText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+    razlogTextAktivan: { color: colors.textOnPrimary },
+    napomenaInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, fontSize: 14, minHeight: 44, color: colors.textPrimary, backgroundColor: colors.surface, textAlignVertical: 'top' },
     oblikTextAktivan: { color: colors.textOnPrimary },
     pratnjaRed: {
         marginTop: 10, paddingVertical: 8, paddingHorizontal: 10,
@@ -1338,6 +1467,12 @@ const islandStyles = StyleSheet.create({
     },
     title: { fontSize: 18, fontWeight: 'bold', marginBottom: 12, color: colors.success },
     help: { fontSize: 14, color: colors.textSecondary, marginBottom: 12 },
+    checking: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36 },
+    checkingText: { marginTop: 18, fontSize: 18, fontWeight: '800', letterSpacing: 1, color: colors.primary },
+    checkingSub: { marginTop: 6, fontSize: 14, color: colors.textSecondary },
+    cardInfo: { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+    cardInfoName: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
+    cardInfoLine: { fontSize: 14, color: colors.textPrimary, marginTop: 2 },
     input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 18, marginBottom: 8, color: colors.textPrimary, backgroundColor: colors.surface },
     error: { color: colors.error, marginTop: 8 },
     resultOk: { backgroundColor: colors.successLight, borderColor: colors.success, borderWidth: 1, padding: 12, borderRadius: 8 },
