@@ -1,5 +1,6 @@
 const { provjeriPPP } = require("../seop/provjeriPPP");
 const { pravilaZaLiniju } = require("./pravilaLinije");
+const { seopOtociRute } = require("./harboriSeop");
 const { pravoJeRezidentsko, opisPrava, razredPrava } = require("./katalogPrava");
 const { zapecati, TRAJANJE_MS } = require("./pecat");
 
@@ -164,17 +165,41 @@ async function provjeriSeop({ vrsta, vrijednost, ruta, datum, pravila }) {
 
     // „Samo otočani s prebivalištem" — SEOP na to ne odgovara izravno, nego se
     // čita iz šifre prava (katalogPrava.js, poglavlje 3. specifikacije).
-    if (pravila.seop_mode === "prebivaliste" && !pravoJeRezidentsko(pravo)) {
-        // `ima_pravo` ostaje false: iskaznica pravo ima, ali ne na ovoj liniji,
-        // a stariji klijent koji gleda samo to polje ne smije prodati povlašteno.
-        // Da se razlika ipak vidi, ide zasebno polje.
-        return {
-            ...odbij(
-                `Linija priznaje samo otočane s prebivalištem, a iskaznica nosi pravo ${pravo || "?"}.`,
-                osnovica
-            ),
-            pravo_postoji: true,
-        };
+    if (pravila.seop_mode === "prebivaliste") {
+        const otokKartice = String(sirovo.otok || "").trim();
+        // Izuzetak prije svega ostalog: iskaznica s pravom za „Svi otoci" vrijedi
+        // na svakoj liniji — ne traži se ni rezidentsko pravo ni poklapanje otoka.
+        const sviOtoci = /^svi\s*otoci$/i.test(otokKartice);
+        if (!sviOtoci) {
+            // 1) Pravo mora biti rezidentsko (prebivalište), a ne npr. samo posjed.
+            // `ima_pravo` ostaje false: iskaznica pravo ima, ali ne na ovoj liniji,
+            // a stariji klijent koji gleda samo to polje ne smije prodati
+            // povlašteno. Da se razlika ipak vidi, ide zasebno polje `pravo_postoji`.
+            if (!pravoJeRezidentsko(pravo)) {
+                return {
+                    ...odbij(
+                        `Linija priznaje samo otočane s prebivalištem, a iskaznica nosi pravo ${pravo || "?"}.`,
+                        osnovica
+                    ),
+                    pravo_postoji: true,
+                };
+            }
+            // 2) Otok s iskaznice mora biti otok jedne od luka relacije (SEOP-otok
+            // luke iz portala). Bez ove provjere otočanin s jednog otoka kupovao bi
+            // povlašteno na liniji koja njegov otok uopće ne dodiruje — što je i bio
+            // propust: kartica s drugog otoka prolazila je kao ispravna.
+            const { otoci } = await seopOtociRute(ruta);
+            const poklapa = otoci.some((o) => o.toLowerCase() === otokKartice.toLowerCase());
+            if (otoci.length && !poklapa) {
+                return {
+                    ...odbij(
+                        `Iskaznica je za otok „${sirovo.otok || "?"}", a linija priznaje samo otočane s prebivalištem na: ${otoci.join(", ")}.`,
+                        osnovica
+                    ),
+                    pravo_postoji: true,
+                };
+            }
+        }
     }
 
     const popust = Number(sirovo.popust_postotak ?? 0);
