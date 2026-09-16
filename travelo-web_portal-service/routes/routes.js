@@ -25,7 +25,7 @@ const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature
 const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
 const { handleGetCommissionReportPdfFeature, handleGetPartnerInvoicePdfFeature, handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature, handleGetPartnerCommissionReportsFeature, handleGetPartnerCommissionReportDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
-const { handleGetConflictTypesFeature, handleGetTicketCopyConflictsFeature, handleGetTicketValidationsFeature, handleGetTicketCopyPrintsFeature } = require('../features/transactions/ticketControlHandlers');
+const { handleGetConflictTypesFeature, handleGetTicketCopyConflictsFeature, handleGetTicketValidationsFeature, handleGetTicketCopyPrintsFeature, handleGetSeopCardErrorsFeature } = require('../features/transactions/ticketControlHandlers');
 const { handleSearchTicketsFeature, handleCancelTicketsFeature, handleTransferTicketsFeature, handleGetTicketsPdfFeature } = require('../features/transactions/ticketsHandlers');
 const { handleGetHarborTaxReportFeature, handleGetHarborTaxReportPdfFeature } = require('../features/transactions/harborTaxReportHandler');
 const { handleFinalizeTerminalSaleFeature, handleGetSalesRoutesFeature, handleGetSalesPricesFeature } = require('../features/transactions/terminalSaleHandler');
@@ -323,6 +323,10 @@ router
 router
     .route('/transactions/ticket_validations')
     .get(handleGetTicketValidationsFeature)
+
+router
+    .route('/transactions/seop_card_errors')
+    .get(handleGetSeopCardErrorsFeature)
 
 router
     .route('/transactions/ticket_copy_prints')

@@ -13,6 +13,7 @@ const { getInvoiceDetailsController } = require('../controllers/dataControllers/
 const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController, fiscalizePartnerInvoiceController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
 const { logTicketCopyPrintController, listTicketCopyPrintsController } = require('../controllers/dataControllers/ticketCopyPrintController');
 const { listTicketValidationsController, listCopyConflictsController, listConflictTypesController } = require('../controllers/dataControllers/ticketValidationsController');
+const { listSeopCardErrorsController } = require('../controllers/dataControllers/seopCardErrorsController');
 const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
 const {
     listPartnerCommissionReportsController,
@@ -179,6 +180,11 @@ router
 router
     .route('/ticket_copy_conflicts')
     .get(listCopyConflictsController)
+
+// Otocne karte izdane bez provjere (greske s povlastenim karticama).
+router
+    .route('/seop_card_errors')
+    .get(listSeopCardErrorsController)
 
 // Vrste sukoba za kartice u portalu — nazivi zive ovdje da se sucelje i pravila
 // ne raziđu.

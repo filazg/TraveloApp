@@ -69,10 +69,28 @@ export const fetchCopyPrintsThunk = createAsyncThunk(
     }
 );
 
+// Otočne karte izdane bez provjere iskaznice — greške s povlaštenim karticama.
+export const fetchSeopCardErrorsThunk = createAsyncThunk(
+    "kontrola/fetchSeopCardErrors",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/seop_card_errors", { params });
+            const payload = unwrapBff(resp) || {};
+            return { errors: payload.errors || [], counts: payload.counts || {} };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
 const kontrolaSlice = createSlice({
     name: "kontrola",
     initialState: {
         conflicts: [],
+        seopCardErrors: [],
+        seopCardCounts: {},
+        seopCardErrorsLoading: false,
+        seopCardErrorsError: null,
         // Brojači po vrsti — kartice pokazuju koliko ih je gdje. Pune se samo
         // kad se dohvaća bez filtra; s odabranom vrstom brojači drugih kartica
         // ne bi bili točni pa se namjerno ne diraju.
@@ -133,6 +151,19 @@ const kontrolaSlice = createSlice({
             })
             .addCase(fetchCopyPrintsThunk.rejected, (s) => {
                 s.copyPrints = [];
+            })
+            .addCase(fetchSeopCardErrorsThunk.pending, (s) => {
+                s.seopCardErrorsLoading = true;
+                s.seopCardErrorsError = null;
+            })
+            .addCase(fetchSeopCardErrorsThunk.fulfilled, (s, a) => {
+                s.seopCardErrorsLoading = false;
+                s.seopCardErrors = a.payload.errors;
+                if (Object.keys(a.payload.counts || {}).length) s.seopCardCounts = a.payload.counts;
+            })
+            .addCase(fetchSeopCardErrorsThunk.rejected, (s, a) => {
+                s.seopCardErrorsLoading = false;
+                s.seopCardErrorsError = a.payload?.message || "Greška pri dohvatu";
             });
     },
 });

@@ -3,6 +3,7 @@ const {
     getTicketCopyConflictsController,
     getTicketValidationsController,
     getTicketCopyPrintsController,
+    getSeopCardErrorsController,
 } = require('../../controllers/coreServiceControllers/transactionsServiceControllers.js/ticketControlServiceControllers');
 
 // Modul KONTROLA → kartica "Kontrola kopija karata".
@@ -64,9 +65,23 @@ const handleGetConflictTypesFeature = async (req, res) => {
     }
 };
 
+const handleGetSeopCardErrorsFeature = async (req, res) => {
+    try {
+        const payload = await getSeopCardErrorsController(req.query || {});
+        res.send({
+            status: 200,
+            data: { path1: 'kontrolaData', path2: 'seopCardErrors', data: payload },
+        });
+    } catch (error) {
+        console.log('handleGetSeopCardErrorsFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
     handleGetConflictTypesFeature,
     handleGetTicketCopyConflictsFeature,
     handleGetTicketValidationsFeature,
     handleGetTicketCopyPrintsFeature,
+    handleGetSeopCardErrorsFeature,
 };

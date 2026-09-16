@@ -53,6 +53,21 @@ const getTicketCopyPrintsController = async (params = {}) => {
     }
 };
 
+// Otočne karte izdane bez provjere — greške s povlaštenim karticama.
+const getSeopCardErrorsController = async (params = {}) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(
+            coreConfigData.services.transactions.url + '/seop_card_errors',
+            { params }
+        );
+        return response.data?.data || { errors: [], counts: {} };
+    } catch (error) {
+        console.log('getSeopCardErrorsController error:', error?.message || error);
+        return { errors: [], counts: {} };
+    }
+};
+
 // Vrste sukoba za kartice u portalu.
 const getConflictTypesController = async () => {
     try {
@@ -72,4 +87,5 @@ module.exports = {
     getTicketCopyConflictsController,
     getTicketValidationsController,
     getTicketCopyPrintsController,
+    getSeopCardErrorsController,
 };

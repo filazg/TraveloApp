@@ -1,5 +1,6 @@
 import { Box, Card, CardActionArea, Chip, Stack, Typography } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CreditCardOffIcon from "@mui/icons-material/CreditCardOff";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -78,6 +79,13 @@ const CARDS = [
         subtitle: "Sukobi original/kopija i ispisane kopije",
         icon: ContentCopyIcon,
         path: "/kontrola/kopije_karata",
+        enabled: true,
+    },
+    {
+        label: "Greške s povlaštenim karticama",
+        subtitle: "Otočne izdane bez provjere iskaznice",
+        icon: CreditCardOffIcon,
+        path: "/kontrola/greske_povlastenih",
         enabled: true,
     },
 ];

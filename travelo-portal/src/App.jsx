@@ -51,6 +51,7 @@ import SeopPage from './features/boat/pages/seop/SeopPage';
 import KontrolaPage from './features/kontrola/KontrolaPage';
 import StanjePage from './features/stanje/StanjePage';
 import TicketCopyControlPage from './features/kontrola/pages/copy_control/TicketCopyControlPage';
+import SeopCardErrorsPage from './features/kontrola/pages/seop_card_errors/SeopCardErrorsPage';
 
 
 function App() {
@@ -114,6 +115,7 @@ function App() {
                 <Route path='provjera_stanja' element={<StanjePage/>}></Route>
                 <Route path='kontrola' element={<KontrolaPage/>}></Route>
                 <Route path='kontrola/kopije_karata' element={<TicketCopyControlPage/>}></Route>
+                <Route path='kontrola/greske_povlastenih' element={<SeopCardErrorsPage/>}></Route>
               </Route>
             </Route>
           </Route>
