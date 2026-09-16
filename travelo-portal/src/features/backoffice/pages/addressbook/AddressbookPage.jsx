@@ -33,7 +33,8 @@ export default function AddressbookPage (){
     };
 
     const handleCheckOib = async () => {
-        const oib = String(newData.buyer_vat_id || '').trim();
+        // OIB je u portalu buyer_legal_id ("OIB kupca"); buyer_vat_id je "VATID".
+        const oib = String(newData.buyer_legal_id || '').trim();
         if (!validOib(oib)) return;
         setSudregLoading(true);
         // Ocisti polja koja lookup popunjava PRIJE primjene rezultata, da stari
@@ -58,6 +59,8 @@ export default function AddressbookPage (){
                     buyer_town: result.mjesto,
                     buyer_country: result.drzava || 'Hrvatska',
                     buyer_email: result.email || prev.buyer_email || "",
+                    // Za HR subjekte je VATID isti broj kao OIB — popuni i njega.
+                    buyer_vat_id: prev.buyer_vat_id || oib,
                 }));
                 setSnack({ open: true, severity: "success", message: "Popunjeno iz sudskog registra." });
             } else {
@@ -266,41 +269,41 @@ export default function AddressbookPage (){
                         mt:1
                     }}
                 />
-                <TextField
-                    type="text"
-                    variant="outlined"
-                    fullWidth
-                    label={t('backoffice.addressbook.buyer_legal_id')}
-                    placeholder={t('backoffice.addressbook.buyer_legal_id')}
-                    required
-                    value={newData.buyer_legal_id || ""}
-                    onChange={handleChange}
-                    name="buyer_legal_id"
-                    sx={{
-                        mt:1
-                    }}
-                />
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                     <TextField
                         type="text"
                         variant="outlined"
                         fullWidth
-                        label={t('backoffice.addressbook.buyer_vat_id')}
-                        placeholder={t('backoffice.addressbook.buyer_vat_id')}
-                        value={newData.buyer_vat_id || ""}
+                        label={t('backoffice.addressbook.buyer_legal_id')}
+                        placeholder={t('backoffice.addressbook.buyer_legal_id')}
+                        required
+                        value={newData.buyer_legal_id || ""}
                         onChange={handleChange}
-                        name="buyer_vat_id"
+                        name="buyer_legal_id"
                     />
                     <Button
                         variant="outlined"
                         size="small"
                         onClick={handleCheckOib}
-                        disabled={!validOib(newData.buyer_vat_id) || sudregLoading}
+                        disabled={!validOib(newData.buyer_legal_id) || sudregLoading}
                         sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
                     >
                         {sudregLoading ? "..." : "Provjeri OIB"}
                     </Button>
                 </Stack>
+                <TextField
+                    type="text"
+                    variant="outlined"
+                    fullWidth
+                    label={t('backoffice.addressbook.buyer_vat_id')}
+                    placeholder={t('backoffice.addressbook.buyer_vat_id')}
+                    value={newData.buyer_vat_id || ""}
+                    onChange={handleChange}
+                    name="buyer_vat_id"
+                    sx={{
+                        mt:1
+                    }}
+                />
                 <TextField
                     type="text"
                     variant="outlined"

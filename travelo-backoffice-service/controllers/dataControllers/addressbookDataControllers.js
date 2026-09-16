@@ -164,7 +164,11 @@ const upsertAddressbookDataController = async (req, res) => {
         const polja = {
             buyer_name: d.buyer_name,
             buyer_company_name: d.buyer_company_name,
-            buyer_legal_id: d.buyer_legal_id,
+            // buyer_legal_id je u portalu "OIB kupca", a buyer_vat_id "VATID".
+            // Racuni/desk salju OIB kao buyer_oib/buyer_vat_id, pa bez ovoga
+            // portalov OIB stupac ostaje prazan. Za HR subjekte je to isti broj,
+            // pa OIB upisujemo u oba (osim ako je legal_id izricito poslan).
+            buyer_legal_id: d.buyer_legal_id || oib,
             buyer_vat_id: oib,
             buyer_address: d.buyer_address,
             buyer_town: d.buyer_town,
