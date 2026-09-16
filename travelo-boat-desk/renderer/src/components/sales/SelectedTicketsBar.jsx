@@ -34,8 +34,12 @@ export default function SelectedTicketsBar() {
             // obje karte ponesu podatke prve — u dojavi SEOP-u bi druga karta
             // glasila na tudju iskaznicu. Za obicne karte kljuc ostaje isti kao
             // prije, pa se nista ne mijenja.
+            //
+            // Pratnja (MOSI) ima isti tip I istu iskaznicu kao nositelj, pa bi bez
+            // zasebne oznake pala u istu grupu i izgubila svoj naziv „— pratnja",
+            // oznaku pratnje i besplatnu cijenu (nositeljeva bi se prepisala na obje).
             const kljucTipa = (t) =>
-                `${t.ticket_type_uuid}|${t.povlastica?.identifikator?.vrijednost || ''}`;
+                `${t.ticket_type_uuid}|${t.povlastica?.identifikator?.vrijednost || ''}|${t.povlastica?.pratnja ? 'pratnja' : ''}`;
             const uniqueTicketType = ticeketsForRoute.filter(
                 (v, i, a) => a.findIndex((t) => kljucTipa(t) === kljucTipa(v)) === i
             );

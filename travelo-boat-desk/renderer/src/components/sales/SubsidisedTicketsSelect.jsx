@@ -890,11 +890,11 @@ function mosiCardDetails() {
           <Box sx={{ mt: 2 }}>
             <InfoCard title="Prava">
               {/* Popust i pravo pratnje na besplatnu kartu odreduju se po liniji
-                  u portalu, pa odluka stize s posluzitelja kao i kod SEOP-a. */}
-              {odlukaIGumbi(
-                appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true),
-                'MOSI'
-              )}
+                  u portalu, pa odluka stize s posluzitelja kao i kod SEOP-a.
+                  MOSI popust racuna se s REDOVNE cijene relacije (kako je
+                  definiran na liniji), ne s otocne — MOSI-only linije nemaju
+                  otocnu cijenu pa bi cijenaRed inace bio null i gumb onemogucen. */}
+              {odlukaIGumbi(redovnaCijenaRelacije(), 'MOSI')}
             </InfoCard>
           </Box>
         </>

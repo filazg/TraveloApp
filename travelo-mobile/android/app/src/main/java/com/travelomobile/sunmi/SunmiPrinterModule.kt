@@ -1141,6 +1141,21 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     printMeta(p, "Linija / Line", lineLabel, desnoUNastavku = false)
                     dline(p)
 
+                    // Karta za pratnju (MOSI: pratnja putuje besplatno) — jasno
+                    // oznaci da se na vratima odmah vidi da je rijec o pratnji.
+                    val jePratnja = safeBool(t, "seop_pratnja") ||
+                        safeString(t, "ticket_type_name").contains("pratnja", ignoreCase = true)
+                    if (jePratnja) {
+                        p.setAlignment(1, null)
+                        p.setPrinterStyle(1000, 1)
+                        p.setFontSize(30f, null)
+                        p.printText("PRATNJA\n", null)
+                        p.setFontSize(24f, null)
+                        p.setPrinterStyle(1000, 0)
+                        p.setAlignment(0, null)
+                        dline(p)
+                    }
+
                     // ----- POVLAŠTENA KARTA -----
                     // Mobile API šalje SEOP polja direktno na ticket objektu (is_island,
                     // seop_card_no, seop_otok, seop_pravo) — boat-desk koristi card_data.F2
@@ -1150,11 +1165,16 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     val cardF2 = if (cardData != null && cardData.hasKey("F2") && !cardData.isNull("F2")) cardData.getMap("F2") else null
 
                     val isSeop = safeBool(t, "is_island") || ticketTypeUpper.contains("SEOP")
+                    // MOSI (invalidska) kartica se prepoznaje po sustavu, ne po
+                    // nazivu karte (koji je otočni tip iz cjenika) - inace bi MOSI
+                    // karta na ispisu ispala kao "SEOP".
+                    val jeMosi = safeString(t, "seop_sustav").equals("MOSI", ignoreCase = true) ||
+                        ticketTypeUpper.contains("MOSI")
                     val seopCardNo = safeString(t, "seop_card_no")
                     val seopOtok = safeString(t, "seop_otok")
                     val seopPravo = safeString(t, "seop_pravo")
 
-                    if (cardF2 != null && ticketTypeUpper.contains("MOSI")) {
+                    if (cardF2 != null && jeMosi) {
                         p.setAlignment(1, null)
                         p.printText("PODACI O POVLAŠTENOJ KARTI\n", null)
                         p.printText("MOSI\n", null)
@@ -1169,10 +1189,10 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                         if (de != null) p.printText(lrLine("Vrijedi do:", "${safeString(de, "Day")}/${safeString(de, "Month")}/${safeString(de, "Year")}") + "\n", null)
                         p.lineWrap(1, null)
                         dline(p)
-                    } else if (isSeop && (cardF2 != null || seopCardNo.isNotEmpty() || seopOtok.isNotEmpty())) {
+                    } else if ((isSeop || jeMosi) && (cardF2 != null || seopCardNo.isNotEmpty() || seopOtok.isNotEmpty())) {
                         p.setAlignment(1, null)
                         p.printText("PODACI O POVLAŠTENOJ KARTI\n", null)
-                        p.printText("SEOP\n", null)
+                        p.printText((if (jeMosi) "MOSI" else "SEOP") + "\n", null)
                         p.setAlignment(0, null)
                         if (cardF2 != null) {
                             // Bogati card_data oblik (sa akdCard reader-a)

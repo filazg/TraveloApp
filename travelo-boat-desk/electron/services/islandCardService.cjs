@@ -25,6 +25,11 @@ async function checkIslandCardService(data) {
             oib: data?.oib || null,
             uid: data?.uid || null,
             iks: data?.iks || null,
+            // Sustav (SEOP ili MOSI) i sirovi sadržaj čipa — bez `sustav`
+            // poslužitelj MOSI karticu provjerava kao SEOP (default) i popust
+            // nositelju + pratnja s linije nikad se ne primijene.
+            sustav: data?.sustav || null,
+            kartica: data?.kartica || null,
             route: data?.route || {},
             date: data?.date || new Date().toISOString(),
         },

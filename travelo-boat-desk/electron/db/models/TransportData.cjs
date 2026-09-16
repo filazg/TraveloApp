@@ -234,7 +234,34 @@ const linesDataModel = sequelize.define('lines',{
     subsidised_line: {
         type: Sequelize.BOOLEAN,
         allowNull: true
-    },  
+    },
+    // Prihvacanje povlastenih kartica na liniji — propagirano iz backenda
+    // (sales /lines). Bez ovih kolona bulkCreate ih tiho odbaci, pa blagajna
+    // ne zna smije li otvoriti POVLASTENE KARTICE (otocni/MOSI popust).
+    seop_mode: {
+        type: Sequelize.STRING,
+        allowNull: true
+    },
+    seop_report_sales: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true
+    },
+    seop_apply_discount: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true
+    },
+    mosi_accepted: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true
+    },
+    mosi_discount_pct: {
+        type: Sequelize.INTEGER,
+        allowNull: true
+    },
+    mosi_companion_free: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true
+    },
 },{
     freezeTableName:true
 })

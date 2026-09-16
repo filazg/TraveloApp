@@ -402,6 +402,20 @@ const printTickets = async ({ tickets,copy }) => {
             printer.leftRight("Passanger/Putnik", tickets[t].ticket_type_name);
             printer.leftRight("Line/Linija", tickets[t].line_name);
             printer.drawLine();
+            // Karta za pratnju (MOSI: pratnja putuje besplatno) - jasno oznaci da
+            // se na vratima odmah vidi da je rijec o pratnji, a ne o nositelju.
+            const jePratnja = tickets[t].povlastica?.pratnja || tickets[t].seop_pratnja
+                || /pratnja/i.test(tickets[t].ticket_type_name || "");
+            if (jePratnja) {
+                printer.alignCenter();
+                printer.setTextDoubleHeight();
+                printer.bold(true);
+                printer.println("PRATNJA");
+                printer.bold(false);
+                printer.setTextNormal();
+                printer.alignLeft();
+                printer.drawLine();
+            }
             // Podaci s iskaznice mogu izostati kad se pravo nije moglo provjeriti
             // (SEOP ne nađe karticu, oštećena, kvar opreme…) — tada je card_data
             // prazan. Pristup `card_data.F2.X` bi tada bacio TypeError i cijeli

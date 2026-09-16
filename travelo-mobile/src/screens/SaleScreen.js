@@ -563,7 +563,9 @@ export default function SaleScreen() {
             setIslandIdType('card_no');
             setIslandError(null);
             setIslandResult(null);
-            verifyIslandFor(num, 'card_no');
+            // MOSI kartica ide kroz MOSI provjeru (popust nositelju + pratnja s
+            // linije); SEOP obitelji idu na uobičajenu SEOP provjeru.
+            verifyIslandFor(num, 'card_no', payload?.cardFamily === 'MOSI' ? 'MOSI' : 'SEOP');
         });
         return () => {
             unsub();
@@ -571,9 +573,13 @@ export default function SaleScreen() {
         };
     }, [islandModalOpen]);
 
-    const verifyIslandFor = async (cardNoArg, oblikArg) => {
+    const verifyIslandFor = async (cardNoArg, oblikArg, sustavArg) => {
         const cardNo = String(cardNoArg || '').trim();
         const oblik = oblikArg || islandIdType;
+        // Sustav (SEOP/MOSI) određuje koji put provjere ide: MOSI kartica dobiva
+        // popust nositelju + pratnju s linije, a bez `sustav` bi se provjerila kao
+        // SEOP (default) i ništa od toga se ne bi primijenilo.
+        const sustav = sustavArg || 'SEOP';
         if (!cardNo || !matchingRoute) return;
         setIslandChecking(true);
         setIslandError(null);
@@ -581,6 +587,7 @@ export default function SaleScreen() {
         setIslandOffline(false);
         try {
             const resp = await api.post(ENDPOINTS.checkIslandCard, {
+                sustav,
                 [oblik]: cardNo,
                 route: {
                     line_no: matchingRoute.line_code,
@@ -615,6 +622,15 @@ export default function SaleScreen() {
         () => pricesForPair.find((p) => /redov/i.test(p.ticket_type_name || '')) || pricesForPair[0] || null,
         [pricesForPair]
     );
+
+    // Linija koja prihvaća MOSI, čak i ako nema otočnu cijenu u cjeniku. Tada se
+    // gumb "Povlaštene karte" svejedno nudi, a MOSI popust ide na redovnu cijenu
+    // (invalidski popust vrijedi za normalnu kartu, ne za otočnu osnovicu).
+    const odabranaLinija = useMemo(
+        () => (sync.lines || []).find((l) => String(l.code) === String(v?.line_code || '')),
+        [sync.lines, v]
+    );
+    const linijaPrihvacaMosi = odabranaLinija?.mosi_accepted === true;
 
     // Blok koji putuje uz stavku prodaje. Blagajna ga ne tumaci: `token` je
     // zapecaceni zapis provjere s posluzitelja i ovdje se samo prenosi dalje.
@@ -659,25 +675,29 @@ export default function SaleScreen() {
 
     const confirmIslandPurchase = () => {
         const smije = islandResult?.smije_se_prodati ?? islandResult?.ima_pravo;
-        if (!smije || !islandPriceRow) return;
-        const redovna = Number(redovniRed?.price ?? islandPriceRow.price);
-        const unit = cijenaPovlastene(islandResult, islandPriceRow);
+        // Osnovica: MOSI (invalidnost) popust ide na REDOVNU cijenu, SEOP (otočna)
+        // na otočnu cijenu iz cjenika. MOSI-only linije nemaju otočnu cijenu, pa je
+        // za MOSI osnovica uvijek redovna.
+        const baza = islandResult?.sustav === 'MOSI' ? redovniRed : islandPriceRow;
+        if (!smije || !baza) return;
+        const redovna = Number(redovniRed?.price ?? baza.price);
+        const unit = cijenaPovlastene(islandResult, baza);
 
         dodajKartu({
-            ticket_type_uuid: islandPriceRow.ticket_type_uuid,
-            ticket_type_name: islandPriceRow.ticket_type_name || 'Otočna karta',
+            ticket_type_uuid: baza.ticket_type_uuid,
+            ticket_type_name: baza.ticket_type_name || 'Povlaštena karta',
             single_price: unit,
-            povlastica: blokPovlastice({ ishod: islandResult, redovna, cijenaRed: islandPriceRow }),
+            povlastica: blokPovlastice({ ishod: islandResult, redovna, cijenaRed: baza }),
         });
 
         // MOSI: vlasnik putuje s popustom, pratnja besplatno. Odluku je donio
         // posluzitelj prema postavkama linije — ovdje je samo gumb.
         if (islandPratnja && islandResult.pratnja_besplatno) {
             dodajKartu({
-                ticket_type_uuid: islandPriceRow.ticket_type_uuid,
-                ticket_type_name: `${islandPriceRow.ticket_type_name || 'Otočna karta'} — pratnja`,
+                ticket_type_uuid: baza.ticket_type_uuid,
+                ticket_type_name: `${baza.ticket_type_name || 'Povlaštena karta'} — pratnja`,
                 single_price: 0,
-                povlastica: blokPovlastice({ ishod: islandResult, pratnja: true, redovna, cijenaRed: islandPriceRow }),
+                povlastica: blokPovlastice({ ishod: islandResult, pratnja: true, redovna, cijenaRed: baza }),
             });
         }
         closeIslandModal();
@@ -708,12 +728,13 @@ export default function SaleScreen() {
     // Cijena je otočna iz cjenika (kao povlaštena), SEOP dojava ide s uvijekProdaj,
     // a `greska` blok (razlog+napomena) ide u Kontrolu na portalu.
     const izdajUzRazlog = () => {
-        if (!greskaRazlog || !islandPriceRow) return;
-        const red = islandPriceRow;
+        // MOSI-only linije nemaju otočnu cijenu — tada je osnovica redovna.
+        const red = islandPriceRow || redovniRed;
+        if (!greskaRazlog || !red) return;
         const redovna = Number(redovniRed?.price ?? red.price);
         dodajKartu({
             ticket_type_uuid: red.ticket_type_uuid,
-            ticket_type_name: red.ticket_type_name || 'Otočna karta',
+            ticket_type_name: red.ticket_type_name || 'Povlaštena karta',
             single_price: Number(red.price),
             povlastica: {
                 ...blokPovlastice({
@@ -1148,15 +1169,16 @@ export default function SaleScreen() {
                     })
                 )}
 
-                {/* OTOČNA KARTA — gumb i lista dodanih otočnih karata u košarici */}
-                {islandPriceRow && (
+                {/* POVLAŠTENE KARTE — gumb i lista dodanih povlaštenih karata (otočne SEOP + MOSI).
+                    Nudi se i kad nema otočne cijene ako linija prihvaća MOSI. */}
+                {(islandPriceRow || linijaPrihvacaMosi) && (
                     <View style={styles.islandSection}>
-                        <Text style={styles.sectionLabel}>OTOČNA KARTA</Text>
+                        <Text style={styles.sectionLabel}>POVLAŠTENE KARTE</Text>
                         <TouchableOpacity
                             style={styles.islandBtn}
                             onPress={() => setIslandModalOpen(true)}
                         >
-                            <Text style={styles.islandBtnText}>+ Kupi otočnu kartu</Text>
+                            <Text style={styles.islandBtnText}>+ Kupi povlaštenu kartu</Text>
                         </TouchableOpacity>
                         {islandTickets.map((t, i) => (
                             <View key={`${t.povlastica?.identifikator?.vrijednost || 'x'}-${i}`} style={styles.islandRow}>
@@ -1242,7 +1264,7 @@ export default function SaleScreen() {
             <Modal visible={islandModalOpen} transparent animationType="fade" onRequestClose={closeIslandModal}>
                 <View style={islandStyles.backdrop}>
                     <View style={islandStyles.card}>
-                        <Text style={islandStyles.title}>Otočna iskaznica</Text>
+                        <Text style={islandStyles.title}>Povlaštena kartica</Text>
 
                         {islandCardInfo && (
                             <View style={islandStyles.cardInfo}>

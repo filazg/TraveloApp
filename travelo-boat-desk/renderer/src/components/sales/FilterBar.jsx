@@ -199,9 +199,10 @@ export default function FilterBar() {
             return;
         }
         if (akcija === 'subsidised') {
-            // Isti uvjet kao na gumbu: bez otočne cijene na odabranoj relaciji
-            // modal nema cjenovni stavak i otvarati ga nema smisla.
-            if (hasIslandPrice) handleOpenSubsidizedModal();
+            // Isti uvjet kao na gumbu (canScan): otocna cijena na odabranoj
+            // relaciji ILI linija prihvaca MOSI. Inace modal nema cjenovni
+            // stavak i otvarati ga nema smisla.
+            if (canScan) handleOpenSubsidizedModal();
             return;
         }
     }, [shortcutSignal]);
@@ -340,13 +341,21 @@ export default function FilterBar() {
     }, [appData.searchData.selectedFromHarbor, appData.searchData.selectedLine, appData.searchData.travelDate, appData.transportData]);
 
 
-    // Otočna karta postoji u cjeniku samo za određene relacije (is_island === true).
-    // Gumb POVLAŠTENE KARTICE smije biti aktivan SAMO kad korisnik odabere konkretnu
-    // relaciju (selectedTrip) i ta relacija ima otočnu cijenu — inače modal nema
-    // cjenovni stavak za "kartu sa popustom".
-    const hasIslandPrice = !!appData.searchData?.selectedTrip
-      && !!appData.searchData?.selectedTripPrices?.some((price) => price?.is_island === true);
-    const canScan = hasIslandPrice;
+    // Gumb POVLAŠTENE KARTICE smije biti aktivan kad je odabrana konkretna relacija
+    // (selectedTrip) i vrijedi barem jedno:
+    //   - linija ima otočni prihvat (seop_mode !== "ne") I relacija ima otočnu
+    //     cijenu (is_island === true) — inače modal nema cjenovni stavak za otočnu;
+    //   - linija prihvaća MOSI (mosi_accepted) — MOSI-only linije nemaju otočnu
+    //     cijenu, pa se za njih popust računa s redovne cijene relacije.
+    const linija = appData.searchData?.selectedLine;
+    const linijaPrihvacaMosi = linija?.mosi_accepted === true;
+    // Otocni prihvat: sve osim eksplicitnog "ne". Ako polje nije postavljeno
+    // (starija linija), ne blokiramo — postojanje otocne cijene i dalje odlucuje.
+    const linijaPrihvacaOtok = !!linija && linija.seop_mode !== "ne";
+    const hasIslandPrice = !!appData.searchData?.selectedTripPrices
+      ?.some((price) => price?.is_island === true);
+    const canScan = !!appData.searchData?.selectedTrip
+      && ((linijaPrihvacaOtok && hasIslandPrice) || linijaPrihvacaMosi);
 
   return (
     <Box
@@ -529,12 +538,14 @@ export default function FilterBar() {
            <Button
             disabled={!canScan}
             variant="contained"
-            color={hasIslandPrice ? "warning" : "primary"}
+            // Naglaseno (narancasto, podebljano) kad je gumb aktivan — bez
+            // obzira je li rijec o otocnoj ili MOSI-only liniji.
+            color={canScan ? "warning" : "primary"}
             sx={{
               // Isti font kao gumbi u stupcu Plaćanje i donjoj traci.
               gridArea: "eight",
               fontSize: "1.1rem",
-              fontWeight: hasIslandPrice ? 800 : 500,
+              fontWeight: canScan ? 800 : 500,
             }}
             onClick={handleOpenSubsidizedModal}
           >
