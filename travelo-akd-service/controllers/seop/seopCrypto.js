@@ -73,11 +73,13 @@ function verifySeopSignature(plaintext, signatureBase64, seopCertPem) {
 function fmtSeopDate(d) {
     const pad = (n) => String(n).padStart(2, '0');
     // Blagajna šalje datum polaska u hrvatskom formatu "DD.MM.YYYY. HH:mm"
-    // (i varijante bez razmaka / sa sekundama), a `new Date()` ga ne parsira pa
-    // je izlazio NaN i SEOP bi za krivi datum javio „nema prava". Prepoznaje se
+    // (i varijante bez razmaka / sa sekundama), a WEB prodaja u "DD/MM/YYYY HH:mm"
+    // (kose crte). `new Date()` ih ne parsira ispravno — kose crte tumači kao
+    // MM/DD/YYYY, pa 16/09 postane Invalid Date → NaN, i SEOP je javljao
+    // `datPut 'NaN-NaN-NaN…'`. Zato se separator (točka ILI kosa crta) prepoznaje
     // ručno; ISO nizovi i Date objekti idu dalje kroz Date.
     if (typeof d === 'string') {
-        const m = d.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        const m = d.trim().match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})\.?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
         if (m) {
             const [, dd, mm, yyyy, hh, min, ss] = m;
             return `${yyyy}-${pad(mm)}-${pad(dd)}T${pad(hh)}:${pad(min)}:${pad(ss || 0)}`;

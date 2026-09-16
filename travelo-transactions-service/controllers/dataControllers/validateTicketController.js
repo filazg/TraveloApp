@@ -2,6 +2,7 @@ const { podigniSignal } = require("./syncSignalsController");
 const { procitajSuffix, suffixIzQr } = require("../../helpers/ticketCopyMark");
 const { VRSTE } = require("../../helpers/ticketControlTypes");
 const { reportValidation, releaseBookings } = require("../../helpers/bookingClient");
+const { dispatchCvikanje } = require("../../helpers/seopDispatch");
 
 // Sto je skener procitao. QR nosi uuid i jos sest polja, a sufiks je osmo; s
 // papira se zna prepisati i sam broj karte, gdje sufiks stoji iza razmaka.
@@ -211,6 +212,16 @@ const validateTicketController = async (req, res) => {
             other_voyage: !!other_voyage,
             arrival_harbor_id: ticket.arrival_harbor_id,
         });
+
+        // SEOP ukrcaj (cvikanje). Best-effort i u pozadini — validacija ne smije
+        // pasti zbog dojave. Brana (seopLifecycle) preskoči kartu bez seop_ipk,
+        // pa se ne zove za karte koje nikad nisu dojavljene kao prodaja.
+        if (ticket.seop_ipk) {
+            dispatchCvikanje(TicketsModel, ticket, {
+                vremTros: now,
+                voyageID: other_voyage ? route_uuid : (ticket.departure_uuid || ticket.route_uuid),
+            }).catch((e) => console.log("[seop] cvikanje hook nije pokrenut:", e?.message || e));
+        }
 
         return res.status(200).json({
             status: 200,

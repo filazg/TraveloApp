@@ -4,6 +4,8 @@ const ticketsModels = require("../../dbModels/tickets.models");
 const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
 const { reserveBookings, releaseBookings } = require("../../helpers/bookingClient");
 const { poljaPovlastice } = require("../../helpers/povlastica");
+const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatch");
+const { zabiljeziGreskuKartice } = require("../../helpers/seopGreske");
 const sequelize = getSequelize();
 
 // Terminal šalje svoje retke zajedno s lokalnim `id`-em (SQLite broji od 1 po
@@ -40,6 +42,11 @@ const addTerminalSaleController = async(req,res)=>{
         const { InvoiceModel, InvoiceItemsModel, InvoiceItemDetailsModel, TicketsModel} = req.app.locals.models;
         const data = req.body?.body || req.body || {}
         let createdNewInvoice = false;
+        // Podignuto iz transakcije da SEOP dojava (nakon commita) ima karte.
+        let ticketsToAdd = [];
+        // Otočne karte izdane bez provjere (greška s karticom) — upisuju se u
+        // Kontrolu nakon commita, uz karte kojima pripadaju.
+        let greskeKartica = [];
         await sequelize.transaction(async (t)=>{
             const invoiceExist = await InvoiceModel.findOne({
                 where:{
@@ -104,7 +111,7 @@ const addTerminalSaleController = async(req,res)=>{
                 }
                 let itemsToAdd = []
                 let itemDetailsToAdd = []
-                let ticketsToAdd = []
+                ticketsToAdd = []
                 for(const item of data.items){
                     item.route_uuid = item.sales_route_uuid
                     itemsToAdd = [...itemsToAdd, stripLocalKeys(item)]
@@ -153,12 +160,19 @@ const addTerminalSaleController = async(req,res)=>{
                     // Povlastena karta: blok koji je blagajna dobila pri provjeri
                     // prevodi se u polja karte, ista kao na mobilnoj. `card_data`
                     // je sirovi sadrzaj cipa i ostaje samo za prikaz.
+                    // Zapamti blok prije brisanja — treba za evidenciju greške s
+                    // karticom (razlog+napomena kad je izdano bez provjere).
+                    const povlasticaBloka = ticket.povlastica || null;
                     if (ticket.povlastica) {
                         Object.assign(ticket, poljaPovlastice({ povlastica: ticket.povlastica }));
                     }
                     delete ticket.povlastica;
 
-                    ticketsToAdd = [...ticketsToAdd, stripLocalKeys(ticket)]
+                    const zaBazu = stripLocalKeys(ticket);
+                    ticketsToAdd = [...ticketsToAdd, zaBazu];
+                    if (povlasticaBloka?.greska?.razlog) {
+                        greskeKartica.push({ ticket: zaBazu, povlastica: povlasticaBloka });
+                    }
                  }
                 console.log(itemsToAdd)
                 await InvoiceModel.create(invoiceToAdd, { transaction: t })
@@ -168,6 +182,55 @@ const addTerminalSaleController = async(req,res)=>{
                 createdNewInvoice = true;
             }
         })
+
+        // SEOP dojava prodaje — best-effort, van transakcije i u pozadini: NE
+        // blokira odgovor blagajni i NE ruši prodaju (karta je već lokalno
+        // izdana). Šalju se samo karte označene za SEOP (`seop_dojava=true`);
+        // gard (seopLifecycle) preskoči već dojavljene.
+        if (createdNewInvoice) {
+            try {
+                const datIzd = new Date().toISOString();
+                for (const t of ticketsToAdd) {
+                    if (t.seop_dojava === true) {
+                        // Kad terminal auto-validira pri prodaji (flag na uređaju,
+                        // mobilni i desk), karta stigne već `validated` i drugog
+                        // poziva za validaciju nema — pa se cvikanje mora okinuti
+                        // odmah nakon prodaje, s upravo dobivenim IPK-om. Ako
+                        // terminal NE auto-validira, karta je `active` i cvikanje
+                        // ide kasnije kroz /validate_ticket. Lifecycle brana
+                        // (traži seop_ipk, a da još nije cvikano) drži oboje
+                        // idempotentnim.
+                        const jeUkrcan = String(t.status || "").toLowerCase() === "validated";
+                        dispatchProdaja(TicketsModel, t, { datIzd, oznPristupTocke: "" })
+                            .then((ipk) => {
+                                if (jeUkrcan && ipk) {
+                                    return dispatchCvikanje(TicketsModel, { ...t, seop_ipk: ipk }, {
+                                        vremTros: t.validate_data || datIzd,
+                                        voyageID: t.route_uuid,
+                                    });
+                                }
+                            })
+                            .catch(() => {});
+                    }
+                }
+            } catch (e) {
+                console.log("[seop] hook (add_invoices) nije pokrenut:", e?.message || e);
+            }
+        }
+
+        // Greške s povlaštenim karticama — otočne izdane bez provjere (razlog +
+        // napomena). Best-effort, van transakcije; upisuje se u Kontrolu.
+        if (createdNewInvoice && greskeKartica.length) {
+            const ctx = {
+                operator: data.invoice?.invoice_operator_name || null,
+                terminal_uuid: data.invoice?.invoice_billing_device_uuid || null,
+                invoice_uuid: data.invoice?.invoice_uuid || null,
+                izdano_u: new Date().toISOString(),
+            };
+            for (const g of greskeKartica) {
+                zabiljeziGreskuKartice(g.ticket, g.povlastica, ctx).catch(() => {});
+            }
+        }
 
         // Booking-service rezervacija/oslobađanje kapaciteta. Boat-desk je
         // autoritativno već lokalno ispisao karte, pa ovdje samo sinkroniziramo

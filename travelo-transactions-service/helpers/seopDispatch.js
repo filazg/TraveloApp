@@ -81,6 +81,9 @@ async function dispatchProdaja(TicketsModel, t, ctx = {}) {
         if (odgovor?.ok && odgovor.ipk) {
             await TicketsModel.update({ seop_ipk: odgovor.ipk }, { where: { ticket_uuid: t.ticket_uuid } });
             zapisi("prodaja OK:", t.ticket_code, "IPK", odgovor.ipk);
+            // Vraćamo IPK da ga pozivatelj može odmah ulančati u cvikanje kad je
+            // karta auto-validirana pri prodaji (sale = ukrcaj).
+            return odgovor.ipk;
         } else {
             zapisi("prodaja odbijena:", t.ticket_code, "-", odgovor?.poruka || odgovor?.seop_kod || "nepoznato");
         }

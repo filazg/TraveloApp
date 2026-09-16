@@ -10,6 +10,7 @@ const { podigniSignal } = require("./syncSignalsController");
 
 const { jedinstvenBroj } = require("../../helpers/ticketCode");
 const { poljaPovlastice } = require("../../helpers/povlastica");
+const { dispatchProdaja } = require("../../helpers/seopDispatch");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — matches the legacy template:
@@ -392,6 +393,21 @@ const finalizeWebSaleController = async (req, res) => {
             } catch (err) {
                 console.log("web-sale finalize booking reserve failed:", err?.message || err);
             }
+        }
+
+        // SEOP dojava prodaje — web otočne karte. Best-effort, u pozadini: NE
+        // blokira odgovor ni ruši prodaju. Šalju se samo karte označene za SEOP
+        // (`seop_dojava=true`); gard (seopLifecycle) preskoči već dojavljene. Web
+        // karte se ne validiraju pri prodaji, pa cvikanje ide kasnije na vratima.
+        try {
+            const datIzd = invoiceDate || new Date().toISOString();
+            for (const t of ticketsToAdd) {
+                if (t.seop_dojava === true) {
+                    dispatchProdaja(TicketsModel, t, { datIzd, oznPristupTocke: "" }).catch(() => {});
+                }
+            }
+        } catch (e) {
+            console.log("[seop] web-sale prodaja hook nije pokrenut:", e?.message || e);
         }
 
         // Fire-and-forget email with both PDFs attached. Email failures must not

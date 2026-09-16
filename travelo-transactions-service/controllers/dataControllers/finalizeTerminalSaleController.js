@@ -7,7 +7,8 @@ const { podigniSignal } = require("./syncSignalsController");
 
 const { jedinstvenBroj } = require("../../helpers/ticketCode");
 const { poljaPovlastice } = require("../../helpers/povlastica");
-const { dispatchProdaja } = require("../../helpers/seopDispatch");
+const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatch");
+const { zabiljeziGreskuKartice } = require("../../helpers/seopGreske");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 
 // Fiscal split — port tax 6%, VAT 25% on the rest (matches legacy + web-sale).
@@ -255,6 +256,8 @@ const finalizeTerminalSaleController = async (req, res) => {
         const invoiceItemsToAdd = [];
         const invoiceItemDetailsToAdd = [];
         const ticketsToAdd = [];
+        // Otočne izdane bez provjere (greška s karticom) — u Kontrolu nakon spremanja.
+        const greskeKartica = [];
 
         for (const it of items) {
             const qty = Math.max(0, parseInt(it.qty, 10) || 0);
@@ -323,7 +326,7 @@ const finalizeTerminalSaleController = async (req, res) => {
                 const ticket_code_suffix =
                     ct?.ticket_code_suffix || suffixOriginala(ticket_uuid);
                 const ticket_qr = qrSaSuffixom(ct?.ticket_qr || fallback_qr, ticket_code_suffix);
-                ticketsToAdd.push({
+                const noviTicket = {
                     ticket_uuid,
                     ticket_code_suffix,
                     // Veza na račun — kanal prodaje i sredstvo plaćanja stoje
@@ -358,7 +361,12 @@ const finalizeTerminalSaleController = async (req, res) => {
                     // Otočna/povlaštena karta — sve što dojava prodaje traži, u
                     // obliku u kojem je blagajna dobila od akd servisa.
                     ...poljaPovlastice(it),
-                });
+                };
+                ticketsToAdd.push(noviTicket);
+                // Izdano bez provjere (greška s karticom) — u Kontrolu, uz karticu.
+                if (it.povlastica?.greska?.razlog) {
+                    greskeKartica.push({ ticket: noviTicket, povlastica: it.povlastica });
+                }
             }
         }
 
@@ -484,11 +492,41 @@ const finalizeTerminalSaleController = async (req, res) => {
             const oznPristupTocke = bd?.mark || "";
             for (const t of ticketsToAdd) {
                 if (t.seop_dojava === true) {
-                    dispatchProdaja(TicketsModel, t, { datIzd, oznPristupTocke }).catch(() => {});
+                    // Kad terminal auto-validira pri prodaji (mobilni/POS flag
+                    // billing_device_auto_validate), karta stigne već `validated` i
+                    // drugog poziva za validaciju nema — pa se cvikanje mora okinuti
+                    // odmah nakon prodaje, s upravo dobivenim IPK-om. Ako terminal
+                    // NE auto-validira, karta je `created` i cvikanje ide kasnije
+                    // kroz /validate_ticket. Lifecycle brana drži oboje idempotentnim.
+                    const jeUkrcan = String(t.status || "").toLowerCase() === "validated";
+                    dispatchProdaja(TicketsModel, t, { datIzd, oznPristupTocke })
+                        .then((ipk) => {
+                            if (jeUkrcan && ipk) {
+                                return dispatchCvikanje(TicketsModel, { ...t, seop_ipk: ipk }, {
+                                    vremTros: t.validate_data || datIzd,
+                                    voyageID: t.route_uuid,
+                                });
+                            }
+                        })
+                        .catch(() => {});
                 }
             }
         } catch (e) {
             console.log("[seop] hook prodaje nije pokrenut:", e?.message || e);
+        }
+
+        // Greške s povlaštenim karticama — otočne izdane bez provjere (razlog +
+        // napomena). Best-effort; upisuje se u Kontrolu, uz karticu.
+        if (greskeKartica.length) {
+            const ctx = {
+                operator: operator?.name || operator?.uuid || null,
+                terminal_uuid,
+                invoice_uuid,
+                izdano_u: new Date().toISOString(),
+            };
+            for (const g of greskeKartica) {
+                zabiljeziGreskuKartice(g.ticket, g.povlastica, ctx).catch(() => {});
+            }
         }
 
         // F2 fiskalizacija — async (fire-and-forget nakon što invoice postoji).
