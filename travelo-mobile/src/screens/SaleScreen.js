@@ -1548,6 +1548,11 @@ const COUNTRIES = [
     { code: 'OTHER', name: 'Ostalo' },
 ];
 
+// Validacija hrvatskog OIB-a (ISO 7064, MOD 11,10). Vraća true samo za
+// ispravnu 11-znamenkastu kontrolnu znamenku — koristi se da gumb za provjeru
+// Sudskog registra bude aktivan tek kad OIB uopće ima smisla poslati.
+const validOib = (o) => { const s = String(o || '').trim(); if (!/^\d{11}$/.test(s)) return false; let r = 10; for (let i = 0; i < 10; i++) { r = (r + +s[i]) % 10; if (r === 0) r = 10; r = (r * 2) % 11; } return ((11 - r) % 10) === +s[10]; };
+
 function CountryPicker({ value, onChange }) {
     const [open, setOpen] = useState(false);
     const current = COUNTRIES.find((c) => c.code === value) || COUNTRIES[0];
@@ -1595,10 +1600,51 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
     const [buyerEmail, setBuyerEmail] = useState('');
     const [addrOpen, setAddrOpen] = useState(false);
     const [recentBuyers, setRecentBuyers] = useState([]);
+    // Provjera OIB-a u Sudskom registru — loading dok traje poziv + poruka ispod
+    // gumba. Offline-tolerantno: greška u pozivu daje samo poruku, ne ruši formu.
+    const [sudregLoading, setSudregLoading] = useState(false);
+    const [sudregMsg, setSudregMsg] = useState('');
 
     useEffect(() => {
         loadRecentBuyers(500).then(setRecentBuyers).catch(() => setRecentBuyers([]));
     }, []);
+
+    // Dohvat podataka pravne osobe iz Sudskog registra i auto-popuna polja kupca.
+    // Isti mehanizam kao ostali pozivi ekrana: `api` instanca + ENDPOINTS. Gateway
+    // zna umotati odgovor, pa tolerira i top-level i `.data` razinu.
+    const handleSudregLookup = async () => {
+        const oib = buyerOib.trim();
+        if (!validOib(oib) || sudregLoading) return;
+        setSudregLoading(true);
+        setSudregMsg('');
+        // Prije primjene rezultata očisti polja koja lookup popunjava, da stari
+        // podaci ne ostanu ako se ništa ne nađe. OIB i poštanski broj se ne diraju.
+        setBuyerName('');
+        setBuyerAddress('');
+        setBuyerTown('');
+        setBuyerEmail('');
+        setBuyerCountry('HR');
+        try {
+            const resp = await api.get(ENDPOINTS.sudreg, { params: { oib } });
+            const r = resp?.data?.data ?? resp?.data ?? resp;
+            if (r?.found) {
+                setBuyerName(r.naziv || r.skraceni_naziv || '');
+                setBuyerAddress(r.adresa || '');
+                setBuyerTown(r.mjesto || '');
+                setBuyerEmail(r.email || '');
+                setBuyerCountry('HR');
+                setSudregMsg('Popunjeno iz sudskog registra.');
+            } else {
+                setSudregMsg('Nije pronađeno u registru — unesite ručno.');
+            }
+        } catch (err) {
+            // Bez veze / greška posluzitelja — R1 se svejedno moze izdati ručnim
+            // unosom, provjera je samo pomoć pri popuni.
+            setSudregMsg('Provjera nije uspjela (nema veze?) — unesite ručno.');
+        } finally {
+            setSudregLoading(false);
+        }
+    };
 
     const applyBuyer = (b) => {
         setBuyerName(b.name || '');
@@ -1735,6 +1781,18 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                             placeholderTextColor={colors.textMuted}
                             maxLength={20}
                         />
+                        <TouchableOpacity
+                            style={[issueStyles.sudregBtn, (!validOib(buyerOib) || sudregLoading) && issueStyles.sudregBtnDisabled]}
+                            disabled={!validOib(buyerOib) || sudregLoading}
+                            onPress={handleSudregLookup}
+                        >
+                            {sudregLoading ? (
+                                <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                            ) : (
+                                <Text style={issueStyles.sudregBtnText}>Provjeri OIB</Text>
+                            )}
+                        </TouchableOpacity>
+                        {sudregMsg ? <Text style={issueStyles.sudregMsg}>{sudregMsg}</Text> : null}
                         <Text style={issueStyles.fieldLabel}>Adresa</Text>
                         <TextInput
                             value={buyerAddress}
@@ -1863,6 +1921,14 @@ const issueStyles = StyleSheet.create({
         borderRadius: 6, marginLeft: 8,
     },
     addrBtnText: { color: colors.textOnPrimary, fontWeight: '800', fontSize: 13 },
+    sudregBtn: {
+        alignSelf: 'flex-start', marginTop: 4,
+        backgroundColor: colors.primary, paddingHorizontal: 14, paddingVertical: 8,
+        borderRadius: 6, minHeight: 34, alignItems: 'center', justifyContent: 'center',
+    },
+    sudregBtnDisabled: { backgroundColor: colors.border },
+    sudregBtnText: { color: colors.textOnPrimary, fontWeight: '800', fontSize: 13 },
+    sudregMsg: { color: colors.textSecondary, fontSize: 12, marginTop: 6 },
     addrBox: {
         backgroundColor: colors.surfaceAlt, borderRadius: 8,
         padding: 10, marginBottom: 12,

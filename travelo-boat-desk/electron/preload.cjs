@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("api", {
     getLocalTransportDataIpc: () => ipcRenderer.invoke("app:getLocalTransportDataIpc"),
     getOnlineBookingDataIPC: (data) => ipcRenderer.invoke("app:getOnlineBookingDataIPC",data),
     checkIslandCardIPC: (data) => ipcRenderer.invoke("app:checkIslandCardIPC", data),
+    sudregLookup: (oib) => ipcRenderer.invoke("app:sudregLookup", oib),
     getBuyersIPC: (params) => ipcRenderer.invoke("app:getBuyersIPC", params),
     cardPaymentIPC: (data) => ipcRenderer.invoke("app:cardPaymentIPC",data),
     getInvoiceIPC: (data) => ipcRenderer.invoke("app:getInvoiceIPC", data),

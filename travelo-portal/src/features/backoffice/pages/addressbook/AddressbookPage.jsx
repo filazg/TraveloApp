@@ -1,7 +1,7 @@
-import { Box, Button, Drawer, Grid, MenuItem, Modal, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, Grid, MenuItem, Modal, Snackbar, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useDispatch, useSelector } from "react-redux";
-import { backofficeSliceData, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
+import { backofficeSliceData, fetchSudregByOibThunk, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
 import { useT } from "../../../../i18n/useT";
 import { useEffect, useRef, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
@@ -19,6 +19,56 @@ export default function AddressbookPage (){
     const [newData, setNewData] = useState({})
     const [editedData, setEditedData] = useState({})
     const [rowToActivate, setRowsToActivate] = useState(null);
+
+    const [sudregLoading, setSudregLoading] = useState(false);
+    const [snack, setSnack] = useState({ open: false, severity: "info", message: "" });
+
+    // Validacija OIB-a (MOD 11,10)
+    const validOib = (o) => {
+        const s = String(o || '').trim();
+        if (!/^\d{11}$/.test(s)) return false;
+        let r = 10;
+        for (let i = 0; i < 10; i++) { r = (r + +s[i]) % 10; if (r === 0) r = 10; r = (r * 2) % 11; }
+        return ((11 - r) % 10) === +s[10];
+    };
+
+    const handleCheckOib = async () => {
+        const oib = String(newData.buyer_vat_id || '').trim();
+        if (!validOib(oib)) return;
+        setSudregLoading(true);
+        // Ocisti polja koja lookup popunjava PRIJE primjene rezultata, da stari
+        // podaci ne ostanu ako se nista ne nade. OIB, legal_id i postal_code ostaju.
+        setNewData((prev) => ({
+            ...prev,
+            buyer_company_name: "",
+            buyer_name: "",
+            buyer_address: "",
+            buyer_town: "",
+            buyer_email: "",
+            buyer_country: "Hrvatska",
+        }));
+        try {
+            const resp = await dispatch(fetchSudregByOibThunk(oib)).unwrap();
+            const result = resp?.data?.result;
+            if (result && result.found) {
+                setNewData((prev) => ({
+                    ...prev,
+                    buyer_company_name: result.naziv,
+                    buyer_address: result.adresa,
+                    buyer_town: result.mjesto,
+                    buyer_country: result.drzava || 'Hrvatska',
+                    buyer_email: result.email || prev.buyer_email || "",
+                }));
+                setSnack({ open: true, severity: "success", message: "Popunjeno iz sudskog registra." });
+            } else {
+                setSnack({ open: true, severity: "warning", message: "Nije pronađeno u sudskom registru — unesite ručno." });
+            }
+        } catch (error) {
+            setSnack({ open: true, severity: "warning", message: "Nije pronađeno u sudskom registru — unesite ručno." });
+        } finally {
+            setSudregLoading(false);
+        }
+    };
 
     const syncData = async () =>{
         await dispatch(setAuthData({path:'loading', value:true}))
@@ -230,19 +280,27 @@ export default function AddressbookPage (){
                         mt:1
                     }}
                 />
-                <TextField
-                    type="text"
-                    variant="outlined"
-                    fullWidth
-                    label={t('backoffice.addressbook.buyer_vat_id')}
-                    placeholder={t('backoffice.addressbook.buyer_vat_id')}                    
-                    value={newData.buyer_vat_id || ""}
-                    onChange={handleChange}
-                    name="buyer_vat_id"
-                    sx={{
-                        mt:1
-                    }}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                    <TextField
+                        type="text"
+                        variant="outlined"
+                        fullWidth
+                        label={t('backoffice.addressbook.buyer_vat_id')}
+                        placeholder={t('backoffice.addressbook.buyer_vat_id')}
+                        value={newData.buyer_vat_id || ""}
+                        onChange={handleChange}
+                        name="buyer_vat_id"
+                    />
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleCheckOib}
+                        disabled={!validOib(newData.buyer_vat_id) || sudregLoading}
+                        sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                    >
+                        {sudregLoading ? "..." : "Provjeri OIB"}
+                    </Button>
+                </Stack>
                 <TextField
                     type="text"
                     variant="outlined"
@@ -513,6 +571,21 @@ export default function AddressbookPage (){
         
                 </Box>
                 </Modal>
-        </>    
+            <Snackbar
+                open={snack.open}
+                autoHideDuration={4000}
+                onClose={() => setSnack((s) => ({ ...s, open: false }))}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            >
+                <Alert
+                    severity={snack.severity}
+                    variant="filled"
+                    onClose={() => setSnack((s) => ({ ...s, open: false }))}
+                    sx={{ width: "100%" }}
+                >
+                    {snack.message}
+                </Alert>
+            </Snackbar>
+        </>
     )
 }

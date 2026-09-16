@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { v4 as uuid } from 'uuid'
 import { useDispatch, useSelector } from 'react-redux'
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -49,6 +50,19 @@ import visa from '../../../assets/Visa 2015 50.gif'
 import amex from '../../../assets/AmericanExpress50.jpg'
 
 const subtotal = (tickets) => tickets.reduce((sum, t) => sum + (t.total_price || 0), 0)
+
+// OIB validacija (MOD 11,10)
+const validOib = (o) => {
+  const s = String(o || '').trim()
+  if (!/^\d{11}$/.test(s)) return false
+  let r = 10
+  for (let i = 0; i < 10; i++) {
+    r = (r + +s[i]) % 10
+    if (r === 0) r = 10
+    r = (r * 2) % 11
+  }
+  return (11 - r) % 10 === +s[10]
+}
 
 // Pure helper: build preparedTickets[] from raw tickets. Same logic as the
 // useEffect below, usable from submit handlers where we can't rely on redux
@@ -129,7 +143,42 @@ export default function SelectedTicketsSummaryComponent() {
     return () => { alive = false }
   }, [])
   const [submitting, setSubmitting] = useState(false)
+  const [oibLoading, setOibLoading] = useState(false)
+  const [oibMessage, setOibMessage] = useState(null)
   const isNonMobile = useMediaQuery('(min-width:600px)')
+
+  const handleCheckOib = async () => {
+    const oib = String(buyerData.summary_buyer_company_vat_id || '').trim()
+    if (!validOib(oib)) return
+    setOibLoading(true)
+    setOibMessage(null)
+    // Očisti polja koja lookup popunjava, da stari podaci ne ostanu ako se ništa ne nađe.
+    // OIB i summary_buyer_email se NE diraju (email služi i putniku).
+    dispatch(setBuyerData({ path: 'summary_buyer_company_name', value: '' }))
+    dispatch(setBuyerData({ path: 'summary_buyer_company_address', value: '' }))
+    dispatch(setBuyerData({ path: 'summary_buyer_company_town', value: '' }))
+    dispatch(setBuyerData({ path: 'summary_buyer_company_country', value: 'Hrvatska' }))
+    try {
+      const resp = await axios.get(`${url}/sudreg?oib=${oib}`)
+      const r = resp.data || {}
+      if (r.found) {
+        dispatch(setBuyerData({ path: 'summary_buyer_company_name', value: r.naziv }))
+        dispatch(setBuyerData({ path: 'summary_buyer_company_address', value: r.adresa }))
+        dispatch(setBuyerData({ path: 'summary_buyer_company_town', value: r.mjesto }))
+        dispatch(setBuyerData({ path: 'summary_buyer_company_country', value: r.drzava || 'Hrvatska' }))
+        if (!buyerData.summary_buyer_email && r.email) {
+          dispatch(setBuyerData({ path: 'summary_buyer_email', value: r.email }))
+        }
+        setOibMessage({ severity: 'success', text: 'Popunjeno iz sudskog registra.' })
+      } else {
+        setOibMessage({ severity: 'warning', text: 'Nije pronađeno u sudskom registru — unesite ručno.' })
+      }
+    } catch (err) {
+      setOibMessage({ severity: 'warning', text: 'Nije pronađeno u sudskom registru — unesite ručno.' })
+    } finally {
+      setOibLoading(false)
+    }
+  }
 
 
   const handleTimeOut = () => {
@@ -399,15 +448,32 @@ export default function SelectedTicketsSummaryComponent() {
                   fullWidth
                   sx={{ gridColumn: 'span 2' }}
                 />
-                <TextField
-                  name="summary_buyer_company_vat_id"
-                  label={t('summary.buyer_company_vat_id')}
-                  value={buyerData.summary_buyer_company_vat_id || ''}
-                  onChange={handleBuyerField}
-                  required
-                  fullWidth
-                  sx={{ gridColumn: 'span 4' }}
-                />
+                <Box sx={{ gridColumn: 'span 4' }}>
+                  <Stack direction="row" alignItems="flex-start" spacing={1}>
+                    <TextField
+                      name="summary_buyer_company_vat_id"
+                      label={t('summary.buyer_company_vat_id')}
+                      value={buyerData.summary_buyer_company_vat_id || ''}
+                      onChange={handleBuyerField}
+                      required
+                      fullWidth
+                    />
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleCheckOib}
+                      disabled={!validOib(buyerData.summary_buyer_company_vat_id) || oibLoading}
+                      sx={{ whiteSpace: 'nowrap', mt: 1 }}
+                    >
+                      {oibLoading ? '…' : 'Provjeri OIB'}
+                    </Button>
+                  </Stack>
+                  {oibMessage && (
+                    <Alert severity={oibMessage.severity} sx={{ mt: 1 }}>
+                      {oibMessage.text}
+                    </Alert>
+                  )}
+                </Box>
                 <TextField
                   select
                   name="summary_buyer_company_country"

@@ -113,6 +113,17 @@ export const postBackofficeThunk = createAsyncThunk('backoffice/postBackofficeTh
     }
 })
 
+// Dohvat podataka o tvrtki iz sudskog registra po OIB-u. BFF vraca
+// { status, data:{ result:{ found, ... } } }, pa je result === resp.data.data.result.
+export const fetchSudregByOibThunk = createAsyncThunk('backoffice/fetchSudregByOibThunk', async (oib) => {
+    try {
+        const response = await api.get('/portal/backoffice/sudreg', { params: { oib } })
+        return (response.data)
+    } catch (error) {
+        console.log(error)
+    }
+})
+
 export const patchBackofficeThunk = createAsyncThunk('backoffice/patchBackofficeThunk', async (arg) => {
     const data = arg.data
     const path = arg.path

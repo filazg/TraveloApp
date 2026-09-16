@@ -5,6 +5,7 @@ const { pairingWithBackendService, syncBasicDataService, syncTransportDataServic
 const { getLocalBasicDataService, getLocalTransportDataService } = require("../services/localDataService.cjs");
 const { getBookingDataService } = require("../services/bookingDataService.cjs");
 const { checkIslandCardService } = require("../services/islandCardService.cjs");
+const { lookupSudreg } = require("../services/sudregService.cjs");
 const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService, reprintShiftService, syncPendingShiftsService } = require("../services/shiftsDataService.cjs");
 const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService, lookupExternalTicketService, cancelExternalTicketService } = require("../services/invoiceDataService.cjs");
 const { getBuyersDataService } = require("../services/buyersDataService.cjs");
@@ -141,6 +142,16 @@ function registerAppIpc() {
       return ok(data);
     } catch (e) {
       return fail("Provjera otocne iskaznice nije uspjela", e?.message || String(e));
+    }
+  });
+  // Dohvat podataka o kupcu iz Sudskog registra po OIB-u pri unosu novog R1
+  // kupca. Greska se vraca kao poruka, ne kao pad — blagajnik nastavi rucnim
+  // unosom.
+  ipcMain.handle("app:sudregLookup", async (_event, oib) => {
+    try {
+      return ok(await lookupSudreg(oib));
+    } catch (e) {
+      return fail("Provjera OIB-a u Sudskom registru nije uspjela", e?.message || String(e));
     }
   });
   ipcMain.handle("app:cardPaymentIPC", async (_event, in_data) => {

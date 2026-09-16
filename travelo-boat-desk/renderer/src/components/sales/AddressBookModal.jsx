@@ -33,6 +33,20 @@ const emptyForm = {
     buyer_tel: "",
 };
 
+// Provjera kontrolne znamenke OIB-a (ISO 7064, MOD 11,10) — bez toga bi svaki
+// niz od 11 znamenki pokrenuo uzaludan upit na Sudski registar.
+const validOib = (o) => {
+    const s = String(o || "").trim();
+    if (!/^\d{11}$/.test(s)) return false;
+    let r = 10;
+    for (let i = 0; i < 10; i++) {
+        r = (r + +s[i]) % 10;
+        if (r === 0) r = 10;
+        r = (r * 2) % 11;
+    }
+    return ((11 - r) % 10) === +s[10];
+};
+
 const fromBackend = (b, f2Required) => ({
     buyer_uuid: "",
     buyer_company_name: b.name || "",
@@ -63,12 +77,17 @@ export default function AddressBookModal() {
     // vrijedi za oba puta (odabir iz liste i unos novog). Bez oznake je to
     // običan R1: fiskalizira se kao F1 i ispisuje na blagajni.
     const [f2Required, setF2Required] = useState(false);
+    // Provjera OIB-a u Sudskom registru — vlastita poruka (info/greška), da se
+    // ne miješa s validacijskim `error` iznad forme.
+    const [sudregLoading, setSudregLoading] = useState(false);
+    const [sudregMsg, setSudregMsg] = useState(null);
 
     useEffect(() => {
         if (!open) return;
         setMode("list");
         setForm(emptyForm);
         setError("");
+        setSudregMsg(null);
         setF2Required(!!selected?.f2_required);
         let cancelled = false;
         (async () => {
@@ -111,6 +130,44 @@ export default function AddressBookModal() {
     const handleClear = () => {
         dispatch(setStateData({ path: "saleData/selectedBuyer", value: null }));
         handleClose();
+    };
+
+    const handleSudregLookup = async () => {
+        setSudregMsg(null);
+        setSudregLoading(true);
+        // Ocisti polja koja lookup popunjava PRIJE upita — inace bi stari podaci
+        // (npr. iz prethodne provjere) ostali ako se za novi OIB nista ne nadje.
+        // Zadrzava se samo OIB koji se provjerava.
+        setForm((f) => ({
+            ...f,
+            buyer_company_name: "",
+            buyer_name: "",
+            buyer_address: "",
+            buyer_town: "",
+            buyer_country: "Hrvatska",
+            buyer_email: "",
+        }));
+        try {
+            const res = await window.api.app.sudregLookup(form.buyer_vat_id);
+            const r = res?.ok ? res.data : null;
+            if (r?.found) {
+                setForm((f) => ({
+                    ...f,
+                    buyer_company_name: r.naziv || f.buyer_company_name,
+                    buyer_address: r.adresa || f.buyer_address,
+                    buyer_town: r.mjesto || f.buyer_town,
+                    buyer_country: r.drzava || f.buyer_country || "Hrvatska",
+                    buyer_email: r.email || f.buyer_email,
+                }));
+                setSudregMsg({ severity: "info", text: "Popunjeno iz sudskog registra." });
+            } else {
+                setSudregMsg({ severity: "info", text: "Nije pronađeno u sudskom registru — unesite ručno." });
+            }
+        } catch (e) {
+            setSudregMsg({ severity: "error", text: "Greška pri provjeri OIB-a: " + (e?.message || e) });
+        } finally {
+            setSudregLoading(false);
+        }
     };
 
     const handleSaveNew = () => {
@@ -240,9 +297,16 @@ export default function AddressBookModal() {
                                     onChange={(e) => setForm({ ...form, buyer_company_name: e.target.value })} />
                             </Grid>
                             <Grid size={{ xs: 4 }}>
-                                <TextField label="OIB *" fullWidth size="small"
-                                    value={form.buyer_vat_id}
-                                    onChange={(e) => setForm({ ...form, buyer_vat_id: e.target.value.replace(/\D/g, "") })} />
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <TextField label="OIB *" fullWidth size="small"
+                                        value={form.buyer_vat_id}
+                                        onChange={(e) => setForm({ ...form, buyer_vat_id: e.target.value.replace(/\D/g, "") })} />
+                                    <Button variant="outlined" size="small" sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                                        disabled={!validOib(form.buyer_vat_id) || sudregLoading}
+                                        onClick={handleSudregLookup}>
+                                        Provjeri OIB
+                                    </Button>
+                                </Stack>
                             </Grid>
                             <Grid size={{ xs: 12 }}>
                                 <TextField label="Ime i prezime (osoba — opcionalno)" fullWidth size="small"
@@ -280,6 +344,11 @@ export default function AddressBookModal() {
                                     onChange={(e) => setForm({ ...form, buyer_tel: e.target.value })} />
                             </Grid>
                         </Grid>
+                        {sudregMsg && (
+                            <Alert severity={sudregMsg.severity} onClose={() => setSudregMsg(null)}>
+                                {sudregMsg.text}
+                            </Alert>
+                        )}
                         <Divider />
                         <Stack direction="row" spacing={2} justifyContent="flex-end">
                             <Button onClick={() => setMode("list")}>Natrag</Button>

@@ -20,6 +20,8 @@ export const ENDPOINTS = {
     validateTicket: '/terminals/terminal/validate_ticket',
     // Adresar kupaca — sync iz invoices.
     buyers: '/terminals/terminal/buyers',
+    // Provjera OIB-a u Sudskom registru (proxy → backoffice /sudreg).
+    sudreg: '/terminals/terminal/sudreg',
     // SEOP provjera otočne iskaznice (proxy → akd-service).
     checkIslandCard: '/terminals/terminal/check_island_card',
     // Storno karata — proxy na transactions /cancel_tickets.
