@@ -68,11 +68,21 @@ const getStornoPercentagesController = async()=>{
     }
 }
 
+// Provjera OIB-a u Sudskom registru — proxy prema backoffice servisu.
+// Vraća cijeli odgovor ({ status, data: { result: {...} } }); raspakiravanje
+// radi handler.
+const getSudregLookupController = async (oib) => {
+    const coreConfigData = await getCoreServiceConfigData()
+    const response = await axios.get(coreConfigData.services.backoffice.url + '/sudreg', { params: { oib } })
+    return (response.data)
+}
+
 module.exports = {
     getCompanyController,
     getBusinessPremisesController,
     getBillingDevicesController,
     getUsersController,
     getPaymentMethodsController,
-    getStornoPercentagesController
+    getStornoPercentagesController,
+    getSudregLookupController
 }

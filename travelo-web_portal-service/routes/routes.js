@@ -15,6 +15,7 @@ const { handleGetSeopSettingsFeature, handleUpdateSeopSettingsFeature, handleUpl
 const { handleGetTicketTypesFeature, handleAddTicketTypesFeature, handleUpdateTicketTypesFeature } = require('../features/boat/ticketTypesHandlers');
 const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrFeature } = require('../features/backoffice/partnersHandlers');
 const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
+const { handleGetSudregFeature } = require('../features/backoffice/sudregHandlers');
 const { handleGetHolidaysFeature, handleAddHolidaysFeature, handleUpdateHolidaysFeature } = require('../features/backoffice/holidaysHandlers');
 const { handleGetWebNoticesFeature, handleAddWebNoticeFeature, handleUpdateWebNoticeFeature } = require('../features/backoffice/webNoticesHandlers');
 const { handleGetStornoPercentagesFeature, handleAddStornoPercentageFeature, handleUpdateStornoPercentageFeature } = require('../features/backoffice/stornoPercentagesHandlers');
@@ -131,6 +132,10 @@ router
     .get(handleGetAddressbookFeature)
     .post(handleAddAddressbookFeature)
     .patch(handleUpdateAddressbookFeature)
+
+router
+    .route('/backoffice/sudreg')
+    .get(handleGetSudregFeature)
 
 router
     .route('/backoffice/holidays')

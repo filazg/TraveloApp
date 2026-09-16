@@ -13,6 +13,7 @@ const { invoicePdfProxyController } = require('../controllers/logicControllers.j
 const { getCountriesController } = require('../controllers/dataControllers/countriesControllers');
 const { cancelRoutesBatchController, rescheduleRoutesBatchController } = require('../controllers/dataControllers/routesController');
 const { checkIslandCardController } = require('../controllers/logicControllers.js/checkIslandCardController');
+const { sudregLookupHandler } = require('../controllers/coreServiceControllers/sudregControllers');
 const router = express.Router();
 
 // Kljucevi za web stranicu i partnere. Vise njih se odvaja zarezom, da svaki
@@ -224,6 +225,13 @@ router
 router
     .route('/check_island_card')
     .post(webPublicLimiter, checkIslandCardController)
+
+// Provjera OIB-a u Sudskom registru — zove nasa web prodaja iz preglednika pri
+// unosu podataka kupca (pravna osoba). Javno kao ostale shop rute, isti
+// per-IP limiter; nije dio /web_page_* sucelja prema vanjskoj stranici.
+router
+    .route('/sudreg')
+    .get(webPublicLimiter, sudregLookupHandler)
 
 router
   .route('/web_page_redirect')

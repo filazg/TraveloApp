@@ -11,6 +11,7 @@ const { handleUpsertTerminalShiftFeature, handleListShiftsFeature } = require('.
 const { handleExternalTicketFeature } = require('../features/deskTerminals/externalTicketFeature');
 const { handleGetSyncSignalsFeature } = require('../features/deskTerminals/syncSignalFeature');
 const { handleSyncStreamFeature } = require('../features/deskTerminals/syncStreamFeature');
+const { handleSudregLookupFeature } = require('../features/deskTerminals/sudregFeature');
 const router = express.Router();
 
 router
@@ -62,6 +63,11 @@ router
 router
     .route('/terminal/buyers')
     .get(handleBuyersListFeature)
+
+// Provjera OIB-a u Sudskom registru (proxy na backoffice /sudreg).
+router
+    .route('/terminal/sudreg')
+    .get(handleSudregLookupFeature)
 
 router
     .route('/terminal/check_island_card')

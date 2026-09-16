@@ -12,6 +12,7 @@ const { getWebNoticesDataController, getActiveWebNoticesDataController, addWebNo
 const { getPaymentMethodsDataController, addPaymentMethodDataController, updatePaymentMethodDataController } = require('../controllers/dataControllers/paymentMethodsDataControllers');
 const { getPaymentTypesDataController } = require('../controllers/dataControllers/paymentTypeDataControllers');
 const { getAddressbookDataController, addAddressbookDataController, updateAddressbookDataController } = require('../controllers/dataControllers/addressbookDataControllers');
+const { getSudregLookupController } = require('../controllers/integrations/sudregController');
 const { getCountriesDataController, addCountryDataController, updateCountryDataController } = require('../controllers/dataControllers/countriesDataControllers');
 const { getAccountsDataController, addAccountDataController, updateAccountDataController, getAccountMappingsDataController, upsertAccountMappingDataController } = require('../controllers/dataControllers/accountsDataControllers');
 const router = express.Router();
@@ -122,6 +123,12 @@ router
     .get(getAddressbookDataController)
     .post(addAddressbookDataController)
     .patch(updateAddressbookDataController)
+
+// Provjera OIB-a u Sudskom registru (auto-popuna kupca). Dijeli je cijeli
+// sustav preko gatewaya svakog kanala; portal je zove direktno.
+router
+    .route('/sudreg')
+    .get(getSudregLookupController)
 
 router
     .route('/countries')
