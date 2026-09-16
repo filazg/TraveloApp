@@ -12,6 +12,7 @@ const { jedinstvenBroj } = require("../../helpers/ticketCode");
 const { poljaPovlastice } = require("../../helpers/povlastica");
 const { dispatchProdaja } = require("../../helpers/seopDispatch");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
+const { upsertKupcaUAdresar } = require("../../helpers/addressbookWriteThrough");
 
 // Fiscal split — matches the legacy template:
 //   port tax = 6% of amount
@@ -326,6 +327,20 @@ const finalizeWebSaleController = async (req, res) => {
         await InvoiceItemsModel.bulkCreate(invoiceItemsToAdd);
         await InvoiceItemDetailsModel.bulkCreate(invoiceItemDetailsToAdd);
         await TicketsModel.bulkCreate(ticketsToAdd);
+
+        // Write-through kupca u centralni adresar — samo ako kupac ima OIB.
+        // Fire-and-forget: NE blokira odgovor ni ruši prodaju.
+        upsertKupcaUAdresar({
+            buyer_oib: buyer.summary_buyer_company_vat_id || null,
+            buyer_name: buyer.summary_buyer_name || null,
+            buyer_company_name: buyer.summary_buyer_company_name || null,
+            buyer_address: buyer.summary_buyer_company_address || null,
+            buyer_town: buyer.summary_buyer_company_town || null,
+            buyer_postal_code: buyer.summary_buyer_company_postal_code || null,
+            buyer_country: buyer.summary_buyer_company_country || null,
+            buyer_email: buyer.summary_buyer_email || null,
+            buyer_tel: buyer.summary_buyer_phone || null,
+        }).catch(() => {});
 
         // F2 fiskalizacija preko YesCor — ako je buyer dao OIB.
         if (fiskalRequired) {

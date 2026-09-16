@@ -6,6 +6,7 @@ const { reserveBookings, releaseBookings } = require("../../helpers/bookingClien
 const { poljaPovlastice } = require("../../helpers/povlastica");
 const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatch");
 const { zabiljeziGreskuKartice } = require("../../helpers/seopGreske");
+const { upsertKupcaUAdresar } = require("../../helpers/addressbookWriteThrough");
 const sequelize = getSequelize();
 
 // Terminal šalje svoje retke zajedno s lokalnim `id`-em (SQLite broji od 1 po
@@ -47,6 +48,8 @@ const addTerminalSaleController = async(req,res)=>{
         // Otočne karte izdane bez provjere (greška s karticom) — upisuju se u
         // Kontrolu nakon commita, uz karte kojima pripadaju.
         let greskeKartica = [];
+        // Za write-through kupca u centralni adresar nakon commita (fire-and-forget).
+        let invoiceZaAdresar = null;
         await sequelize.transaction(async (t)=>{
             const invoiceExist = await InvoiceModel.findOne({
                 where:{
@@ -180,6 +183,7 @@ const addTerminalSaleController = async(req,res)=>{
                 await InvoiceItemDetailsModel.bulkCreate(itemDetailsToAdd, { transaction: t })
                 await TicketsModel.bulkCreate(ticketsToAdd, { transaction: t })
                 createdNewInvoice = true;
+                invoiceZaAdresar = invoiceToAdd;
             }
         })
 
@@ -216,6 +220,12 @@ const addTerminalSaleController = async(req,res)=>{
             } catch (e) {
                 console.log("[seop] hook (add_invoices) nije pokrenut:", e?.message || e);
             }
+        }
+
+        // Write-through kupca u centralni adresar — samo ako kupac ima OIB.
+        // Fire-and-forget: NE blokira odgovor ni ruši prodaju.
+        if (createdNewInvoice && invoiceZaAdresar) {
+            upsertKupcaUAdresar(invoiceZaAdresar).catch(() => {});
         }
 
         // Greške s povlaštenim karticama — otočne izdane bez provjere (razlog +

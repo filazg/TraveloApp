@@ -10,6 +10,7 @@ const { poljaPovlastice } = require("../../helpers/povlastica");
 const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatch");
 const { zabiljeziGreskuKartice } = require("../../helpers/seopGreske");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
+const { upsertKupcaUAdresar } = require("../../helpers/addressbookWriteThrough");
 
 // Fiscal split — port tax 6%, VAT 25% on the rest (matches legacy + web-sale).
 const HARBOR_RATE = 0.06;
@@ -483,6 +484,20 @@ const finalizeTerminalSaleController = async (req, res) => {
         await InvoiceItemsModel.bulkCreate(invoiceItemsToAdd);
         await InvoiceItemDetailsModel.bulkCreate(invoiceItemDetailsToAdd);
         await TicketsModel.bulkCreate(ticketsToAdd);
+
+        // Write-through kupca u centralni adresar — samo ako kupac ima OIB.
+        // Fire-and-forget: NE blokira odgovor ni ruši prodaju.
+        upsertKupcaUAdresar({
+            buyer_oib: buyer.buyer_oib || buyer.buyer_vat_id || null,
+            buyer_name: buyer.buyer_name || null,
+            buyer_company_name: buyer.buyer_company_name || null,
+            buyer_address: buyer.buyer_address || null,
+            buyer_town: buyer.buyer_town || null,
+            buyer_postal_code: buyer.buyer_postal_code || null,
+            buyer_country: buyer.buyer_country || null,
+            buyer_email: buyer.buyer_email || null,
+            buyer_tel: buyer.buyer_tel || null,
+        }).catch(() => {});
 
         // SEOP dojava prodaje — best-effort, u pozadini: NE blokira odgovor
         // blagajni i NE smije srušiti prodaju. Šalju se samo karte označene za

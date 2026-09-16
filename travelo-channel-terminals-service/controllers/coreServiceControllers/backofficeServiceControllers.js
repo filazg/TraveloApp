@@ -77,6 +77,24 @@ const getSudregLookupController = async (oib) => {
     return (response.data)
 }
 
+// Centralni adresar — proxy prema backoffice GET /addressbook.
+// Vraća cijeli odgovor ({ status, data: { addressbook: [...] } }); raspakiravanje
+// radi handler.
+const getAddressbookController = async () => {
+    const coreConfigData = await getCoreServiceConfigData()
+    const response = await axios.get(coreConfigData.services.backoffice.url + '/addressbook')
+    return (response.data)
+}
+
+// Upis/ažuriranje kupca u centralnom adresaru — proxy prema backoffice
+// POST /addressbook/upsert. `body` je cijeli objekt oblika { body: {...} } koji
+// se prosljeđuje kakav jest (idempotentno po OIB-u).
+const upsertAddressbookController = async (body) => {
+    const coreConfigData = await getCoreServiceConfigData()
+    const response = await axios.post(coreConfigData.services.backoffice.url + '/addressbook/upsert', body)
+    return (response.data)
+}
+
 module.exports = {
     getCompanyController,
     getBusinessPremisesController,
@@ -84,5 +102,7 @@ module.exports = {
     getUsersController,
     getPaymentMethodsController,
     getStornoPercentagesController,
-    getSudregLookupController
+    getSudregLookupController,
+    getAddressbookController,
+    upsertAddressbookController
 }

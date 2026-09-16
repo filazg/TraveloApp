@@ -12,6 +12,7 @@ const { handleExternalTicketFeature } = require('../features/deskTerminals/exter
 const { handleGetSyncSignalsFeature } = require('../features/deskTerminals/syncSignalFeature');
 const { handleSyncStreamFeature } = require('../features/deskTerminals/syncStreamFeature');
 const { handleSudregLookupFeature } = require('../features/deskTerminals/sudregFeature');
+const { handleGetAddressbookFeature, handleUpsertAddressbookFeature } = require('../features/deskTerminals/addressbookFeature');
 const router = express.Router();
 
 router
@@ -68,6 +69,16 @@ router
 router
     .route('/terminal/sudreg')
     .get(handleSudregLookupFeature)
+
+// Centralni adresar kupaca (proxy na backoffice /addressbook).
+router
+    .route('/terminal/addressbook')
+    .get(handleGetAddressbookFeature)
+
+// Upis/ažuriranje kupca u adresaru (proxy na backoffice /addressbook/upsert).
+router
+    .route('/terminal/addressbook_upsert')
+    .post(handleUpsertAddressbookFeature)
 
 router
     .route('/terminal/check_island_card')
