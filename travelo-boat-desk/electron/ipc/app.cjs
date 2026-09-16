@@ -6,6 +6,7 @@ const { getLocalBasicDataService, getLocalTransportDataService } = require("../s
 const { getBookingDataService } = require("../services/bookingDataService.cjs");
 const { checkIslandCardService } = require("../services/islandCardService.cjs");
 const { lookupSudreg } = require("../services/sudregService.cjs");
+const { getAddressbook } = require("../services/addressbookService.cjs");
 const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService, reprintShiftService, syncPendingShiftsService } = require("../services/shiftsDataService.cjs");
 const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService, lookupExternalTicketService, cancelExternalTicketService } = require("../services/invoiceDataService.cjs");
 const { getBuyersDataService } = require("../services/buyersDataService.cjs");
@@ -152,6 +153,15 @@ function registerAppIpc() {
       return ok(await lookupSudreg(oib));
     } catch (e) {
       return fail("Provjera OIB-a u Sudskom registru nije uspjela", e?.message || String(e));
+    }
+  });
+  // Centralni adresar R1 kupaca s poslužitelja. Greska se vraca kao poruka, ne
+  // kao pad — modal prikaze upozorenje, a blagajnik moze unijeti kupca rucno.
+  ipcMain.handle("app:getAddressbook", async () => {
+    try {
+      return ok(await getAddressbook());
+    } catch (e) {
+      return fail("Dohvat adresara nije uspio", e?.message || String(e));
     }
   });
   ipcMain.handle("app:cardPaymentIPC", async (_event, in_data) => {

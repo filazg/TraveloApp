@@ -93,9 +93,24 @@ export default function AddressBookModal() {
         (async () => {
             setLoading(true);
             try {
-                const res = await window.api.app.getBuyersIPC({ limit: 500 });
-                const list = res?.ok ? res.data : [];
-                if (!cancelled) setBuyers(Array.isArray(list) ? list : []);
+                // Centralni adresar vraca kupce s buyer_* poljima; normaliziramo
+                // ih u oblik { name, oib, address, ... } koji lista/pretraga/odabir
+                // vec koriste, i prikazujemo samo aktivne kupce.
+                const res = await window.api.app.getAddressbook();
+                const raw = res?.ok ? res.data : [];
+                const list = (Array.isArray(raw) ? raw : [])
+                    .filter((b) => b.buyer_is_active !== false)
+                    .map((b) => ({
+                        name: b.buyer_company_name || b.buyer_name || "",
+                        oib: b.buyer_vat_id || "",
+                        address: b.buyer_address || "",
+                        postal_code: b.buyer_postal_code || "",
+                        town: b.buyer_town || "",
+                        email: b.buyer_email || "",
+                        company_name: b.buyer_company_name || "",
+                        tel: b.buyer_tel || "",
+                    }));
+                if (!cancelled) setBuyers(list);
             } catch (e) {
                 if (!cancelled) setError("Greška pri dohvatu adresara: " + (e?.message || e));
             } finally {

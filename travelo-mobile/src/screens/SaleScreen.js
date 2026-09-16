@@ -27,7 +27,7 @@ import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
 import { prijaviPokusaj, zabiljeziOcitanje } from '../services/validationAttempts';
 import { ENDPOINTS } from '../api/config';
-import { loadRecentBuyers, saveBuyer, findTicketByUuidOrCode, loadValidationLogForRoutes } from '../db/repo';
+import { loadRecentBuyers, saveBuyer, syncAddressbook, findTicketByUuidOrCode, loadValidationLogForRoutes } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
 import { startScan as akdStartScan, stopScan as akdStopScan, onCardRead as akdOnCardRead, hideKeyboard as akdHideKeyboard, akdCardAvailable } from '../device/akdCard';
 import { printReceipt as printReceiptFn, printTickets as printTicketsFn } from '../device/printSale';
@@ -1606,7 +1606,14 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
     const [sudregMsg, setSudregMsg] = useState('');
 
     useEffect(() => {
+        // Prvo prikaži lokalni adresar bez čekanja mreže (offline-first).
         loadRecentBuyers(500).then(setRecentBuyers).catch(() => setRecentBuyers([]));
+        // Best-effort povuci CENTRALNI adresar pa osvježi listu kad stigne.
+        // Greška (offline) se tiho proguta unutar syncAddressbook — lista ostaje
+        // ono što je već lokalno učitano.
+        syncAddressbook()
+            .then((n) => { if (n) return loadRecentBuyers(500).then(setRecentBuyers); })
+            .catch(() => {});
     }, []);
 
     // Dohvat podataka pravne osobe iz Sudskog registra i auto-popuna polja kupca.

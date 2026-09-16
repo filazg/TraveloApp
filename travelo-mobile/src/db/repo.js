@@ -504,6 +504,64 @@ export async function loadRecentBuyers(limit = 50) {
     return rows.map((r) => JSON.parse(r.payload));
 }
 
+// Sync CENTRALNOG adresara kupaca — čita centralni adresar s gatewaya
+// (GET /terminals/terminal/addressbook, `data` je NIZ) i UPSERT-a svaki
+// zapis s OIB-om u lokalnu buyers tablicu (po OIB-u). Ostaje offline-first:
+// mrežna greška se tiho proguta, lokalno stanje se ne dira.
+//
+// Api klijent se učitava lazy (require unutar funkcije) jer client.js već
+// importa iz ovog modula — statički import bi napravio kružnu ovisnost.
+export async function syncAddressbook() {
+    try {
+        // eslint-disable-next-line global-require
+        const api = require('../api/client').default;
+        // eslint-disable-next-line global-require
+        const { ENDPOINTS } = require('../api/config');
+        const resp = await api.get(ENDPOINTS.addressbook, { timeout: 15000 });
+        const list = resp?.data?.data ?? resp?.data ?? [];
+        if (!Array.isArray(list) || !list.length) return 0;
+        let count = 0;
+        for (const c of list) {
+            // Preskoči neaktivne i zapise bez OIB-a (OIB je primarni ključ).
+            if (c?.buyer_is_active === false) continue;
+            const oib = c?.buyer_vat_id;
+            if (!oib) continue;
+            const payload = {
+                name: c.buyer_company_name || c.buyer_name || '',
+                oib,
+                address: c.buyer_address || '',
+                postal_code: c.buyer_postal_code || '',
+                town: c.buyer_town || '',
+                email: c.buyer_email || '',
+            };
+            await exec(
+                `INSERT OR REPLACE INTO buyers
+                 (oib, name, address, postal_code, town, email, last_used_at, payload)
+                 VALUES (?, ?, ?, ?, ?,
+                         ?,
+                         COALESCE((SELECT last_used_at FROM buyers WHERE oib = ?), ?),
+                         ?);`,
+                [
+                    payload.oib,
+                    payload.name,
+                    payload.address,
+                    payload.postal_code,
+                    payload.town,
+                    payload.email,
+                    payload.oib,
+                    nowIso(),
+                    JSON.stringify(payload),
+                ]
+            );
+            count += 1;
+        }
+        return count;
+    } catch {
+        // Offline / mrežna greška — best-effort, ostaje lokalno stanje.
+        return 0;
+    }
+}
+
 // Batch upsert buyers iz backend sync-a (listBuyers endpoint).
 export async function upsertBuyersFromSync(buyers) {
     if (!Array.isArray(buyers) || !buyers.length) return 0;

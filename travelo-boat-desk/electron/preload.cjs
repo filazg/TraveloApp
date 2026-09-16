@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("api", {
     checkIslandCardIPC: (data) => ipcRenderer.invoke("app:checkIslandCardIPC", data),
     sudregLookup: (oib) => ipcRenderer.invoke("app:sudregLookup", oib),
     getBuyersIPC: (params) => ipcRenderer.invoke("app:getBuyersIPC", params),
+    getAddressbook: () => ipcRenderer.invoke("app:getAddressbook"),
     cardPaymentIPC: (data) => ipcRenderer.invoke("app:cardPaymentIPC",data),
     getInvoiceIPC: (data) => ipcRenderer.invoke("app:getInvoiceIPC", data),
     getInvoicesIPC: () => ipcRenderer.invoke("app:getInvoicesIPC"),

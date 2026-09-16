@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import api from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
-import { saveBasicData, saveTransportData, loadBasicData, loadTransportData, upsertBuyersFromSync } from '../../db/repo';
+import { saveBasicData, saveTransportData, loadBasicData, loadTransportData, upsertBuyersFromSync, syncAddressbook } from '../../db/repo';
 import { getSetting, setSetting } from '../../db/db';
 
 // Load all persisted data from SQLite into redux on app boot.
@@ -114,6 +114,8 @@ export const syncAllThunk = createAsyncThunk(
             dispatch(syncBasicDataThunk()),
             dispatch(syncTransportDataThunk()),
             dispatch(syncBuyersThunk()),
+            // Centralni adresar — best-effort, greška se tiho proguta u repo-u.
+            syncAddressbook(),
         ]);
         return true;
     }
