@@ -141,12 +141,6 @@ async function provjeriSeop({ vrsta, vrijednost, ruta, datum, pravila }) {
         datPut: datum,
     });
 
-    // DEBUG (privremeno): usporedba desk vs mobile zahtjeva za otočnu provjeru.
-    console.log('[SEOP-DBG] ulaz+sirovo:', JSON.stringify({
-        vrsta, vrijednost, ruta, datum, seop_mode: pravila.seop_mode,
-        ima_pravo: sirovo.ima_pravo, otok: sirovo.otok, pravo: sirovo.pravo_na_pp, poruka: sirovo.poruka,
-    }));
-
     const pravo = sirovo.pravo_na_pp || null;
     const razred = razredPrava(pravo);
     const osnovica = {
@@ -196,7 +190,6 @@ async function provjeriSeop({ vrsta, vrijednost, ruta, datum, pravila }) {
             // propust: kartica s drugog otoka prolazila je kao ispravna.
             const { otoci } = await seopOtociRute(ruta);
             const poklapa = otoci.some((o) => o.toLowerCase() === otokKartice.toLowerCase());
-            console.log('[SEOP-DBG] prebivaliste otoci:', JSON.stringify({ otokKartice, otoci, poklapa }));
             if (otoci.length && !poklapa) {
                 return {
                     ...odbij(
