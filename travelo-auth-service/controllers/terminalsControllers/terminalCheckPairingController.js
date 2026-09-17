@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { verifyTerminalPremise } = require('./terminalLoginController');
+const { issueTokensForTerminal } = require('./terminalTokens');
 
 const TERMINALS_JWT_SECRET = process.env.JWT_SECRET || "DEV_SECRET";
 
@@ -49,10 +50,10 @@ const terminalCheckPairingController = async (req, res) => {
             return manual(check.reason);
         }
 
-        const token = jwt.sign({ t: terminalData.uuid }, TERMINALS_JWT_SECRET, { expiresIn: '30d' });
+        const { token, refresh_token } = await issueTokensForTerminal(req.app.locals.models, terminalData.uuid);
         return res.send({
             status: 200,
-            data: { mode: 'auto', token, tid: terminalData.tid },
+            data: { mode: 'auto', token, refresh_token, tid: terminalData.tid },
         });
     } catch (error) {
         console.log('terminalCheckPairingController error:', error?.message || error);

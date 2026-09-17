@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const { getCoreServiceConfigData } = require('../configSyncController');
+const { issueTokensForTerminal } = require('./terminalTokens');
 
 const TERMINALS_JWT_SECRET = process.env.JWT_SECRET || "DEV_SECRET";
 
@@ -49,8 +50,8 @@ const terminalLoginController = async (req, res) => {
         if (!check.ok) {
             return res.send({ status: 403, data: { msg: check.reason } });
         }
-        const token = jwt.sign({ t: terminalData.uuid }, TERMINALS_JWT_SECRET, { expiresIn: '30d' });
-        return res.send({ status: 200, data: { msg: 'token je uspješno generiran', token } });
+        const { token, refresh_token } = await issueTokensForTerminal(req.app.locals.models, terminalData.uuid);
+        return res.send({ status: 200, data: { msg: 'token je uspješno generiran', token, refresh_token } });
     } catch (error) {
         console.log(error);
         res.send({ status: 500, data: error });

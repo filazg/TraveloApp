@@ -6,6 +6,7 @@ const { changePasswordController } = require('../controllers/webPortalController
 const { terminalLoginController } = require('../controllers/terminalsControllers/terminalLoginController');
 const { checkTerminalLoginController } = require('../controllers/terminalsControllers/checkTerminalLoginController');
 const { terminalCheckPairingController } = require('../controllers/terminalsControllers/terminalCheckPairingController');
+const { terminalRefreshController } = require('../controllers/terminalsControllers/terminalRefreshController');
 const {
     partnerPortalLoginController,
     partnerCheckLoginController,
@@ -64,6 +65,11 @@ router
 router
     .route('/login/terminalCheckLogin')
     .post(checkLimiter, checkTerminalLoginController)
+
+// Tiha obnova access tokena preko refresh tokena (klizni, server-side store).
+router
+    .route('/login/terminalRefresh')
+    .post(loginLimiter, terminalRefreshController)
 
 //PARTNER WEB LOGIN
 
