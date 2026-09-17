@@ -1,6 +1,8 @@
 // electron/main.cjs
 const path = require("path");
 const fs = require("fs");
+const https = require("https");
+const axios = require("axios");
 const { app, BrowserWindow } = require("electron");
 const { sequelize } = require("./db/index.cjs");
 const { registerIpcHandlers } = require("./ipc/index.cjs");
@@ -204,6 +206,99 @@ function createWindow() {
 
   return win;
 }
+
+// ── Tiha obnova access tokena (401 → refresh → retry) ───────────────────────
+// Backend je dobio refresh tokene. Svi servisi zovu axios s "Bearer <token>"
+// iz pairing_data. Kad access token istekne, core vraca 401. Umjesto da svaki
+// servis pojedinacno hvata 401, presrecemo ga globalno ovdje: jednom obnovimo
+// token preko refresh_tokena, azuriramo SAMO token+refresh_token u pairing_data
+// (bez truncate — radni podaci, TID/pairing red i pending sync ostaju netaknuti)
+// i ponovimo originalni zahtjev. Ako refresh padne, javimo rendereru
+// 'app:sessionExpired' i pustimo gresku dalje.
+const REFRESH_PATH = "/terminal_auth/login/terminalRefresh";
+// Jedan in-flight refresh za sve istovremene 401 — inace bi svaki paralelni
+// zahtjev pokrenuo svoj refresh i medusobno si potrli tokene.
+let refreshing = null;
+
+function notifySessionExpired() {
+  for (const w of BrowserWindow.getAllWindows()) {
+    try { w.webContents.send("app:sessionExpired"); } catch { /* ignore */ }
+  }
+}
+
+async function performTokenRefresh() {
+  const settingsData = await systemSettingsDataModel.findOne();
+  const backendUrl = settingsData?.backend_url;
+  const pairing = await pairingDataModel.findOne();
+  const refreshToken = pairing?.refresh_token;
+  if (!backendUrl || !refreshToken) {
+    // Nema URL-a ili refresh tokena — obnova nije moguca.
+    return null;
+  }
+  const resp = await axios.post(
+    backendUrl + REFRESH_PATH,
+    { refresh_token: refreshToken },
+    {
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      // Namjerno BEZ Authorization headera — access token je istekao, saljemo
+      // samo refresh_token.
+    }
+  );
+  // Toleriraj .data.data / .data wrap.
+  const payload = resp?.data?.data ?? resp?.data ?? {};
+  const token = payload.token;
+  const newRefresh = payload.refresh_token ?? refreshToken;
+  if (!token) return null;
+  // Azuriramo SAMO token + refresh_token na postojecem redu. NE truncate,
+  // NE create — TID/OTP/isPaired i sve ostalo ostaje.
+  await pairingDataModel.update(
+    { token, refresh_token: newRefresh },
+    { where: { id: pairing.id } }
+  );
+  return token;
+}
+
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const status = error?.response?.status;
+    const original = error?.config;
+
+    // Ne diramo nista osim 401. Bez configa ne mozemo ponoviti zahtjev.
+    if (status !== 401 || !original) {
+      return Promise.reject(error);
+    }
+    // Guard protiv petlje: jedan retry po zahtjevu i nikad ne refreshamo na
+    // odgovor samog refresh poziva.
+    const isRefreshCall = typeof original.url === "string" && original.url.includes(REFRESH_PATH);
+    if (original._retry || isRefreshCall) {
+      if (isRefreshCall) notifySessionExpired();
+      return Promise.reject(error);
+    }
+    original._retry = true;
+
+    try {
+      // Istovremene 401 dijele jedan refresh promise.
+      if (!refreshing) {
+        refreshing = performTokenRefresh().finally(() => { refreshing = null; });
+      }
+      const newToken = await refreshing;
+      if (!newToken) {
+        // Nema refresh tokena ili obnova nije uspjela — sesija je stvarno gotova.
+        notifySessionExpired();
+        return Promise.reject(error);
+      }
+      // Ponovi originalni zahtjev s novim tokenom.
+      original.headers = original.headers || {};
+      original.headers.authorization = "Bearer " + newToken;
+      return axios(original);
+    } catch (refreshErr) {
+      // Refresh je pao (npr. refresh token istekao/nevaljan → 401).
+      notifySessionExpired();
+      return Promise.reject(error);
+    }
+  }
+);
 
 console.log("MAIN:", process.versions);
 

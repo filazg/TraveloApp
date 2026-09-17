@@ -57,5 +57,13 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.on("app:shiftAutoClosed", handler);
       return () => ipcRenderer.removeListener("app:shiftAutoClosed", handler);
     },
+    // Glavni proces javlja kad tiha obnova access tokena ne uspije (nema/istekao
+    // refresh token) — renderer tada odjavi operatera; ako je i pairing token
+    // mrtav, ekran padne na uparivanje (TID/OTP).
+    onSessionExpired: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on("app:sessionExpired", handler);
+      return () => ipcRenderer.removeListener("app:sessionExpired", handler);
+    },
   },
 });

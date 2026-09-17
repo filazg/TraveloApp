@@ -23,6 +23,10 @@ const pairingDataModel = sequelize.define('pairing_data',{
         type: Sequelize.STRING,
         allowNull:true
     },
+    refresh_token:{
+        type: Sequelize.STRING,
+        allowNull:true
+    },
 },{
     freezeTableName:true
 })

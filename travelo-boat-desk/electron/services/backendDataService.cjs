@@ -18,12 +18,18 @@ async function pairingWithBackendService(data) {
     });
   let dataToSend = {};
   console.log('RESPONSE JE ',response)
-  if (response.data.token) {
+  // Backend nekad umota odgovor u .data, nekad ne — toleriraj oba oblika, da
+  // pronademo token i refresh_token bez obzira na wrap.
+  const payload = response?.data?.data ?? response?.data ?? {};
+  if (payload.token) {
     const pairingData = {
       isPaired: true,
       tid: data.tid,
       otp: data.otp,
-      token: response.data.token,
+      token: payload.token,
+      // Refresh token za tihu obnovu access tokena na 401. Stariji backend ga
+      // ne salje — tada ostaje null i tiha obnova jednostavno ne radi.
+      refresh_token: payload.refresh_token ?? null,
     };
     dataToSend = pairingData;
     console.log(pairingData);

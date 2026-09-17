@@ -9,6 +9,8 @@ export const ENDPOINTS = {
     terminalLogin: '/terminal_auth/login/terminalLogin',
     // Zero-touch: po serijskom broju vraća {mode:'auto', token, tid} ili {mode:'manual', tid}.
     terminalCheckPairing: '/terminal_auth/login/terminalCheckPairing',
+    // Tiha obnova access tokena — body {refresh_token} → {token, refresh_token} (rotira refresh).
+    terminalRefresh: '/terminal_auth/login/terminalRefresh',
     // Master data sync (requires Authorization header with token).
     basicData: '/terminals/terminal/basic_data',
     transportData: '/terminals/terminal/transport_data',

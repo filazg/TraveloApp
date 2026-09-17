@@ -21,6 +21,7 @@ export const autoPairThunk = createAsyncThunk(
             const body = resp.data?.data || resp.data || {};
             if (body.mode === 'auto' && body.token) {
                 await storage.setToken(body.token);
+                if (body.refresh_token) await storage.setRefreshToken(body.refresh_token);
                 await storage.setTid(body.tid);
                 return { mode: 'auto', serial, token: body.token, tid: body.tid || null };
             }
@@ -48,6 +49,7 @@ export const pairTerminalThunk = createAsyncThunk(
                 return rejectWithValue({ message: body.msg || 'Pairing nije uspio' });
             }
             await storage.setToken(body.token);
+            if (body.refresh_token) await storage.setRefreshToken(body.refresh_token);
             await storage.setTid(tid);
             return { token: body.token, tid };
         } catch (err) {
@@ -60,6 +62,7 @@ export const unpairTerminalThunk = createAsyncThunk(
     'auth/unpairTerminal',
     async () => {
         await storage.clearToken();
+        await storage.clearRefreshToken();
         return true;
     }
 );

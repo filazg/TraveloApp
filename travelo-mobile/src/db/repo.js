@@ -671,6 +671,7 @@ export async function markInvoiceSynced(localInvoiceUuid, backendResponse) {
 export const STORAGE_KEYS = {
     GATEWAY: 'gateway_url',
     TOKEN: 'terminal_token',
+    REFRESH_TOKEN: 'terminal_refresh_token',
     TID: 'terminal_tid',
     LAST_SYNC_AT: 'last_sync_at',
 };
@@ -678,6 +679,11 @@ export const STORAGE_KEYS = {
 export async function saveToken(token) { await setSetting(STORAGE_KEYS.TOKEN, token); }
 export async function loadToken() { return getSetting(STORAGE_KEYS.TOKEN); }
 export async function clearToken() { await setSetting(STORAGE_KEYS.TOKEN, null); }
+// Refresh token — isti obrazac kao access token. Čuva se uz token; briše se
+// samo kad se briše i token (clearToken/refresh fail), nikad TID/podatci.
+export async function saveRefreshToken(token) { await setSetting(STORAGE_KEYS.REFRESH_TOKEN, token); }
+export async function loadRefreshToken() { return getSetting(STORAGE_KEYS.REFRESH_TOKEN); }
+export async function clearRefreshToken() { await setSetting(STORAGE_KEYS.REFRESH_TOKEN, null); }
 export async function saveGateway(url) { await setSetting(STORAGE_KEYS.GATEWAY, url); }
 export async function loadGateway() { return getSetting(STORAGE_KEYS.GATEWAY); }
 export async function saveTid(tid) { await setSetting(STORAGE_KEYS.TID, tid); }

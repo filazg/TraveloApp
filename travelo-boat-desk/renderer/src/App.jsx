@@ -37,6 +37,19 @@ export default function App() {
     dispatch(bootstrapApp());
   }, [dispatch]);
 
+  // Tiha obnova access tokena zivi u glavnom procesu. Kad ni ona ne uspije
+  // (nema/istekao refresh token), glavni proces javi 'app:sessionExpired'.
+  // Ovdje odjavimo operatera (stage -> "login") i ocistimo pairing token
+  // (ako je i refresh mrtav, stage padne na "pairing" pa ide TID/OTP).
+  // NAMJERNO ne diramo transportData/basicData/transakcije — to su radni podaci.
+  useEffect(() => {
+    const off = window?.api?.app?.onSessionExpired?.(() => {
+      dispatch(setStateData({ path: "logedUser", value: {} }));
+      dispatch(setStateData({ path: "pairingData/token", value: null }));
+    });
+    return () => { if (typeof off === "function") off(); };
+  }, [dispatch]);
+
  return (
   <>
     <InformationComponent />
