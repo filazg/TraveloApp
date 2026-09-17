@@ -2,10 +2,11 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 const TERMINALS_JWT_SECRET = process.env.JWT_SECRET || "DEV_SECRET";
-// Access TTL je konfigurabilan zbog rollouta: stari klijenti (bez refresh
-// logike) trebaju dulji access dok se ne azuriraju. Skrati (npr. '1h') tek kad
-// su svi desk/mobile klijenti u polju azurirani. Default '1h'.
-const ACCESS_TTL = process.env.TERMINAL_ACCESS_TTL || "1h";
+// Access TTL je konfigurabilan zbog rollouta. Default je '30d' (kao stari
+// jedini token) da deploy auth-servisa NE srusi stare klijente bez refresh
+// logike. Kad su svi desk/mobile klijenti u polju azurirani, postavi
+// TERMINAL_ACCESS_TTL='1h' da se aktivira kratki access + klizni refresh.
+const ACCESS_TTL = process.env.TERMINAL_ACCESS_TTL || "30d";
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // klizni refresh: 30 dana
 
 // Access je JWT (verificira ga gateway kao i dosad); typ:access je informativan,
