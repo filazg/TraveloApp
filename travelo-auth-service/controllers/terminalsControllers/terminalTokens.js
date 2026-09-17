@@ -7,7 +7,7 @@ const TERMINALS_JWT_SECRET = process.env.JWT_SECRET || "DEV_SECRET";
 // logike. Kad su svi desk/mobile klijenti u polju azurirani, postavi
 // TERMINAL_ACCESS_TTL='1h' da se aktivira kratki access + klizni refresh.
 const ACCESS_TTL = process.env.TERMINAL_ACCESS_TTL || "30d";
-const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // klizni refresh: 30 dana
+const REFRESH_TTL_MS = 90 * 24 * 60 * 60 * 1000; // klizni refresh: 90 dana
 
 // Access je JWT (verificira ga gateway kao i dosad); typ:access je informativan,
 // stari tokeni bez typ i dalje prolaze verifikaciju (backward-compat).
@@ -15,7 +15,7 @@ const signAccess = (terminalUuid) =>
     jwt.sign({ t: terminalUuid, typ: "access" }, TERMINALS_JWT_SECRET, { expiresIn: ACCESS_TTL });
 
 const noviRefresh = () => crypto.randomBytes(48).toString("hex");
-const zaMjesec = () => new Date(Date.now() + REFRESH_TTL_MS);
+const noviIstek = () => new Date(Date.now() + REFRESH_TTL_MS);
 
 // Prijava/uparivanje: izda svjež par i ROTIRA store (jedan aktivan refresh po
 // terminalu — obriši stare pa upiši novi).
@@ -27,7 +27,7 @@ const issueTokensForTerminal = async (models, terminalUuid) => {
         await TerminalRefreshTokensModel.create({
             terminal_uuid: terminalUuid,
             refresh_token: refresh,
-            expires_at: zaMjesec(),
+            expires_at: noviIstek(),
             revoked: false,
         });
     }
@@ -35,7 +35,7 @@ const issueTokensForTerminal = async (models, terminalUuid) => {
 };
 
 // Refresh: provjeri predani refresh u storeu; ako je valjan → novi access + novi
-// refresh (rotacija) i pomakni istek (+30d). Vraća null ako nije valjan/istekao.
+// refresh (rotacija) i pomakni istek (+90d). Vraća null ako nije valjan/istekao.
 const rotateRefresh = async (models, refreshToken) => {
     const { TerminalRefreshTokensModel } = models;
     if (!TerminalRefreshTokensModel || !refreshToken) return null;
@@ -44,7 +44,7 @@ const rotateRefresh = async (models, refreshToken) => {
     if (new Date(row.expires_at).getTime() <= Date.now()) return null;
     const refresh = noviRefresh();
     row.refresh_token = refresh;
-    row.expires_at = zaMjesec();
+    row.expires_at = noviIstek();
     await row.save();
     return { token: signAccess(row.terminal_uuid), refresh_token: refresh, terminal_uuid: row.terminal_uuid };
 };
