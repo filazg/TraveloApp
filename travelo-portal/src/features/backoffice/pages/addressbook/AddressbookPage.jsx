@@ -50,7 +50,10 @@ export default function AddressbookPage (){
         }));
         try {
             const resp = await dispatch(fetchSudregByOibThunk(oib)).unwrap();
-            const result = resp?.data?.result;
+            // Javni /portal gateway odmata { status, data } omotac, pa je u
+            // pregledniku result na resp.result; pri izravnom pozivu (bez
+            // gatewaya) je na resp.data.result. Toleriramo oba.
+            const result = resp?.data?.result ?? resp?.result;
             if (result && result.found) {
                 setNewData((prev) => ({
                     ...prev,
