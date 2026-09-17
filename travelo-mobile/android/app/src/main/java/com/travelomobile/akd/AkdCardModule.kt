@@ -31,10 +31,10 @@ class AkdCardModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
 
     companion object {
         private const val TAG = "AkdCard"
-        // Roko demo TapLinx key — vrijedi za 'hr.koris.roko' i, prema testovima,
-        // i za druge package name-ove jer ovaj ključ ne stiže do NXP-ovih servera
-        // u offline mode-u. Za produkciju registriraj vlastiti na mifare.net.
-        private const val TAP_LINX_KEY = "ac75501790398e556bc059d8cdf1de30"
+        // Vlastiti TapLinx license key, registriran za applicationId
+        // 'com.traveloapp.boat' (NXP inspire.nxp.com/mifare). Radi samo uz taj
+        // applicationId — mijenja se zajedno s njim u build.gradle.
+        private const val TAP_LINX_KEY = "abfc875c8e5119b021c82af23f61e598"
         private var instance: AkdCardModule? = null
         @JvmStatic
         fun getInstance(): AkdCardModule? = instance

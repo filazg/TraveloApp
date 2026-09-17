@@ -83,10 +83,10 @@ android {
 
     namespace "com.travelomobile"
     defaultConfig {
-        // Privremeno koristimo Roko applicationId da TapLinx ključ
-        // (registriran za hr.koris.roko) prođe verifikaciju. Vrati na
-        // com.travelomobile čim dobijemo vlastiti ključ s mifare.net.
-        applicationId "hr.koris.roko"
+        // Vlastiti applicationId — TapLinx ključ (AkdCardModule.TAP_LINX_KEY) je
+        // registriran za com.traveloapp.boat na NXP-u (inspire.nxp.com/mifare).
+        // applicationId i TapLinx ključ moraju se mijenjati zajedno.
+        applicationId "com.traveloapp.boat"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 12
