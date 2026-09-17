@@ -49,6 +49,11 @@ module.exports =  (sequelize) =>{
             type: DataTypes.STRING,
             allowNull: true
         },
+        is_active: {
+            type: DataTypes.BOOLEAN,
+            allowNull: true,
+            defaultValue: true
+        },
         updated_by_uuid:{
             type: DataTypes.STRING,
             allowNull: true

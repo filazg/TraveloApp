@@ -56,10 +56,11 @@ const addHarborDataController = async (req, res) =>{
                     region:data.region,
                     country:data.country,
                     seop_island:data.seop_island,
+                    is_active:data.is_active ?? true,
                     updated_by_uuid:user.updated_by_uuid,
                     updated_by_username:user.updated_by_username
                 }
-                const newHarbor = await HarborsModel.create(harborDataToAdd); 
+                const newHarbor = await HarborsModel.create(harborDataToAdd);
                 responseData = {
                     status:200,
                     msg:'Harbor added successfully'
@@ -111,6 +112,7 @@ const updateHarborDataController = async (req, res) =>{
                         region_uuid:data.region_uuid,
                         country:data.country,
                         seop_island:data.seop_island,
+                        is_active:data.is_active,
                         updated_by_uuid:user.updated_by_uuid,
                         updated_by_username:user.updated_by_username
                     },

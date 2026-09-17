@@ -1,4 +1,5 @@
 const { getSequelize } = require("../../config/database");
+const { Op } = require("sequelize");
 
 const getHarborsDataController = async (req, res) => {
     const sequelize = getSequelize();
@@ -7,6 +8,7 @@ const getHarborsDataController = async (req, res) => {
         const result = await sequelize.transaction(async (t)=>{
             const harborsData = await HarborsModel.findAll({
                 attributes: { exclude: ['createdAt','updatedAt'] },
+                where: { [Op.or]: [{ is_active: true }, { is_active: null }] },
                 order: [["id", "ASC"]],
             })
             res.send({
@@ -34,6 +36,7 @@ const getWebPageHarborsDataController = async (req, res) => {
         const result = await sequelize.transaction(async (t)=>{
             const harborsData = await HarborsModel.findAll({
                 attributes: { exclude: ['id','seop_island','region', 'createdAt','updatedAt'] },
+                where: { [Op.or]: [{ is_active: true }, { is_active: null }] },
                 order: [["id", "ASC"]],
             })
             res.send({

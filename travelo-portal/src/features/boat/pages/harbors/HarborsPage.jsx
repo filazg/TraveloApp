@@ -71,17 +71,27 @@ export default function HarborsPage (){
         setEditedData(selectedRow)
      },[selectedRow])
 
-    // Luke nemaju is_active — samo klik za uređivanje.
-    const rowActions = useRowClickActions({ onEdit: (row) => setSelectedRow(row) })
+    const handleToggleActive = async (row) => {
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value: row.is_active === false ? 'Aktivacija luke' : 'Deaktivacija luke'}))
+        await dispatch(patchBoatThunk({path:'harbors', data:{ ...row, is_active: !row.is_active }}))
+        await dispatch(setAuthData({path:'loading', value:false}))
+    }
+
+    const rowActions = useRowClickActions({
+        onEdit: (row) => setSelectedRow(row),
+        onToggle: handleToggleActive,
+    })
 
      const columns = [
         { field: 'name', headerName:t('boat.harbors.name'), flex: 3 },
         { field: 'code', headerName:t('boat.harbors.code'), flex: 3 },
         { field: 'longitude', headerName:t('boat.harbors.longitude'), flex: 3 },
         { field: 'latitude', headerName:t('boat.harbors.latitude'), flex: 3 },
-        { field: 'region', headerName:t('boat.harbors.region'), flex: 3 },            
-        { field: 'city', headerName:t('boat.harbors.city'), flex: 3 },            
-        { field: 'seop_island', headerName:t('boat.harbors.seop_island'), flex: 3 },            
+        { field: 'region', headerName:t('boat.harbors.region'), flex: 3 },
+        { field: 'city', headerName:t('boat.harbors.city'), flex: 3 },
+        { field: 'seop_island', headerName:t('boat.harbors.seop_island'), flex: 3 },
+        { field: 'is_active', headerName:'Aktivna', flex: 2, valueGetter: (_v, row) => row.is_active === false ? 'Ne' : 'Da' },
     ];
 
     return(
@@ -93,7 +103,7 @@ export default function HarborsPage (){
             overflowX: "auto"
         }}>            
             <>
-                <GridHint withToggle={false} />
+                <GridHint />
                 <Box
                     sx={{
                         height:"80vh",

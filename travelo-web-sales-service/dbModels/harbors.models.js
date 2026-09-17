@@ -48,6 +48,11 @@ module.exports =  (sequelize) =>{
         seop_island: {
             type: DataTypes.STRING,
             allowNull: true
+        },
+        is_active: {
+            type: DataTypes.BOOLEAN,
+            allowNull: true,
+            defaultValue: true
         }
     },{
         freezeTableName:true, tableName: "harbors", timestamps: true
