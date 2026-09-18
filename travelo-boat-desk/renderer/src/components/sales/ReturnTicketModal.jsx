@@ -70,13 +70,13 @@ export default function ReturnTicketModal({ stavka, onClose }) {
   const [kolicine, setKolicine] = useState({});
 
   // Polasci u suprotnom smjeru za zadani dan: iz luke dolaska polazne stavke
-  // natrag u luku iz koje se krenulo, na istoj liniji.
+  // natrag u luku iz koje se krenulo. Nude se SVE linije koje voze tu relaciju,
+  // ne samo polazna — povratak istom relacijom moze ici drugom linijom.
   const ruteZaDan = (datum) => {
     const sve = appData.transportData?.routes || [];
     const trazeni = uEnGb(datum);
     return sve
-      .filter((r) => r.line_code === stavka?.line_code
-        && r.departure_date === trazeni
+      .filter((r) => r.departure_date === trazeni
         && r.departure_harbor_id === stavka?.arrival_harbor_id
         && r.arrival_harbor_id === stavka?.departure_harbor_id)
       .sort((a, b) => vrijemeRute(a).localeCompare(vrijemeRute(b)));
@@ -267,7 +267,7 @@ export default function ReturnTicketModal({ stavka, onClose }) {
           >
             {povratneRute.map((r) => (
               <MenuItem key={r.uuid} value={r.uuid}>
-                {`${vrijemeRute(r)} → smjer ${r.direction || ""}`}
+                {`${vrijemeRute(r)} · linija ${r.line_code || ""}${r.direction ? ` · smjer ${r.direction}` : ""}`}
               </MenuItem>
             ))}
           </TextField>
