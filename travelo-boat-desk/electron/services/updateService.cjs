@@ -22,6 +22,10 @@ let pendingDownloaded = false; // nova verzija preuzeta, čeka trenutak za insta
 let installing = false;        // spriječi dvostruki quitAndInstall
 let lastCheckAt = 0;           // throttle provjera
 const MIN_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+// Dok app stoji na loginu (idle), ovako često ponovno provjeri feed — da se
+// verzija AKTIVIRANA dok app već stoji na prijavnom ekranu pokupi sama, bez
+// ručnog restarta.
+const IDLE_POLL_MS = 5 * 60 * 1000;
 
 function log(...args) {
   try { deps.logToFile("[update]", ...args); } catch { /* ignore */ }
@@ -130,6 +134,14 @@ function initAutoUpdate(options = {}) {
   // Prva provjera nešto nakon starta — baza i prozor su tad spremni, a operater
   // je na prijavnom ekranu (idle), pa je i eventualna instalacija bezbolna.
   setTimeout(() => checkNow(true), 10000);
+
+  // Periodična provjera DOK je app idle (na loginu/uparivanju): pokriva slučaj
+  // da app satima stoji na prijavnom ekranu, a verzija se aktivira u međuvremenu
+  // — bez ovoga bi je pokupila tek kod ručnog restarta. Ako je već preuzeta ili
+  // se instalira, preskačemo. Instalacija svejedno ide samo na idle-u.
+  setInterval(() => {
+    if (idle && !installing && !pendingDownloaded) checkNow(true);
+  }, IDLE_POLL_MS);
 }
 
 module.exports = { initAutoUpdate, checkNow, setStage };
