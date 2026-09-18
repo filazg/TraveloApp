@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
     Alert,
@@ -14,6 +15,7 @@ import {
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { authSliceData } from "../auth/authSlice";
 import { useLoading } from "../loading/useLoading";
 
@@ -32,6 +34,7 @@ const formatDate = (value) => {
 
 export default function DownloadsPage() {
     const authData = useSelector(authSliceData);
+    const navigate = useNavigate();
 
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -106,9 +109,16 @@ export default function DownloadsPage() {
                         Instalacijski paketi, upute i ostali dokumenti
                     </Typography>
                 </Box>
-                <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>
-                    Osvježi
-                </Button>
+                <Stack direction="row" spacing={1}>
+                    {authData?.loggedUserData?.username === "nfilipec" && (
+                        <Button variant="outlined" startIcon={<CloudUploadIcon />} onClick={() => navigate("/desk_updater")}>
+                            Objavi novu verziju
+                        </Button>
+                    )}
+                    <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>
+                        Osvježi
+                    </Button>
+                </Stack>
             </Stack>
 
             {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}

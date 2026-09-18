@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Feed za auto-update deska (veliki .exe) — ne u repo
+desk_updates/

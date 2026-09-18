@@ -60,6 +60,7 @@ const {
 } = require('../features/boat/sailingHandlers');
 const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
 const { handleGetDownloadsFeature, handleDownloadFileFeature } = require('../features/system/downloadsHandler');
+const { handleDeskUpdaterUpload, handleDeskUpdaterList } = require('../features/system/deskUpdaterHandlers');
 const router = express.Router();
 
 //BACKOFFICE ROUTES
@@ -489,5 +490,14 @@ router
 router
     .route('/downloads/file/:file')
     .get(handleDownloadFileFeature)
+
+//OBJAVA VERZIJE DESK APP (auto-update feed) — samo nfilipec (provjera u handleru)
+router
+    .route('/desk_updater/upload')
+    .post(handleDeskUpdaterUpload)
+
+router
+    .route('/desk_updater/list')
+    .get(handleDeskUpdaterList)
 
 module.exports = router

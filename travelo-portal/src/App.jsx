@@ -46,6 +46,7 @@ import SalesPage from './features/sales/SalesPage';
 import DispatcherPage from './features/dispatcher/DispatcherPage';
 import SailingPage from './features/sailing/SailingPage';
 import DownloadsPage from './features/downloads/DownloadsPage';
+import DeskUpdaterPage from './features/desk_updater/DeskUpdaterPage';
 import TicketTemplatesPage from './features/boat/pages/ticket_templates/TicketTemplatesPage';
 import SeopPage from './features/boat/pages/seop/SeopPage';
 import KontrolaPage from './features/kontrola/KontrolaPage';
@@ -112,6 +113,7 @@ function App() {
                 <Route path='dispatcher' element={<DispatcherPage/>}></Route>
                 <Route path='sailing' element={<SailingPage/>}></Route>
                 <Route path='downloads' element={<DownloadsPage/>}></Route>
+                <Route path='desk_updater' element={<DeskUpdaterPage/>}></Route>
                 <Route path='provjera_stanja' element={<StanjePage/>}></Route>
                 <Route path='kontrola' element={<KontrolaPage/>}></Route>
                 <Route path='kontrola/kopije_karata' element={<TicketCopyControlPage/>}></Route>
