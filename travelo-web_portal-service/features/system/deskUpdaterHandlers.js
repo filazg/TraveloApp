@@ -133,4 +133,40 @@ const handleDeskUpdaterList = async (req, res) => {
     }
 };
 
-module.exports = { handleDeskUpdaterUpload, handleDeskUpdaterList };
+// Uklanjanje s feeda (deaktivacija). Tijelo (req.body.body): { filename } za
+// jednu datoteku, ili { all: true } da se feed potpuno isprazni. Micanjem
+// latest.yml electron-updater više ne nudi update; ostale se brišu da ne visi
+// veliki .exe. Instalirane blagajne ostaju na svojoj verziji (nema downgrade-a).
+const handleDeskUpdaterDelete = async (req, res) => {
+    try {
+        if (!jeAdmin(req)) {
+            return res.status(403).send({ status: 403, data: { message: 'Pristup ograničen.' } });
+        }
+        if (!fs.existsSync(DESK_UPDATES_DIR)) {
+            return res.send({ status: 200, data: { message: 'Feed je već prazan.', removed: [] } });
+        }
+        const payload = req.body?.body || req.body || {};
+        const removed = [];
+
+        if (payload.all) {
+            for (const f of fs.readdirSync(DESK_UPDATES_DIR)) {
+                const p = path.join(DESK_UPDATES_DIR, f);
+                if (fs.statSync(p).isFile()) { fs.rmSync(p, { force: true }); removed.push(f); }
+            }
+            return res.send({ status: 200, data: { message: 'Feed je ispražnjen (aplikacija deaktivirana).', removed } });
+        }
+
+        const filename = path.basename(String(payload.filename || ''));
+        if (!nazivDozvoljen(filename)) {
+            return res.status(400).send({ status: 400, data: { message: `Nedozvoljen naziv datoteke: ${filename}` } });
+        }
+        const p = path.join(DESK_UPDATES_DIR, filename);
+        if (fs.existsSync(p)) { fs.rmSync(p, { force: true }); removed.push(filename); }
+        return res.send({ status: 200, data: { message: removed.length ? `Uklonjeno: ${filename}` : 'Datoteka ne postoji.', removed } });
+    } catch (error) {
+        console.log('handleDeskUpdaterDelete error:', error?.message || error);
+        return res.status(500).send({ status: 500, data: { message: error?.message || 'Greška pri uklanjanju.' } });
+    }
+};
+
+module.exports = { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete };

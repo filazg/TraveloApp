@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import {
-    Alert, Box, Button, Chip, CircularProgress, Divider, LinearProgress,
-    Paper, Stack, Typography,
+    Alert, Box, Button, Chip, CircularProgress, Divider, IconButton, LinearProgress,
+    Paper, Stack, Tooltip, Typography,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import LayersClearIcon from "@mui/icons-material/LayersClear";
 import { authSliceData } from "../auth/authSlice";
 
 // Objava nove verzije desktop aplikacije (electron-updater feed). Pristup je
@@ -99,6 +101,29 @@ export default function DeskUpdaterPage() {
         }
     };
 
+    const ukloni = async (filename) => {
+        if (!window.confirm(`Ukloniti s feeda: ${filename}?`)) return;
+        setPoruka(null);
+        try {
+            await api.post("/portal/desk_updater/delete", { filename });
+            dohvatiPopis();
+        } catch (e) {
+            setPoruka({ tip: "error", tekst: `Uklanjanje nije uspjelo: ${e?.response?.data?.message || e.message}` });
+        }
+    };
+
+    const deaktiviraj = async () => {
+        if (!window.confirm("Deaktivirati aplikaciju — ukloniti SVE datoteke s feeda? Blagajne više neće dobivati nadogradnju (ostaju na trenutnoj verziji).")) return;
+        setPoruka(null);
+        try {
+            const r = await api.post("/portal/desk_updater/delete", { all: true });
+            setPoruka({ tip: "success", tekst: r?.data?.message || r?.data?.data?.message || "Feed je ispražnjen." });
+            dohvatiPopis();
+        } catch (e) {
+            setPoruka({ tip: "error", tekst: `Deaktivacija nije uspjela: ${e?.response?.data?.message || e.message}` });
+        }
+    };
+
     const objavi = async () => {
         setPoruka(null);
         if (!odabrano.setup || !odabrano.yml) {
@@ -186,17 +211,34 @@ export default function DeskUpdaterPage() {
                     <Typography variant="subtitle1" fontWeight={700}>
                         Trenutno na feedu {objavljena && <Chip size="small" label={`v${objavljena}`} sx={{ ml: 1 }} />}
                     </Typography>
-                    <Button size="small" startIcon={<RefreshIcon />} onClick={dohvatiPopis} disabled={uploading}>Osvježi</Button>
+                    <Stack direction="row" spacing={1}>
+                        {popis.length > 0 && (
+                            <Button
+                                size="small" color="error" variant="outlined" startIcon={<LayersClearIcon />}
+                                onClick={deaktiviraj} disabled={uploading}
+                            >
+                                Deaktiviraj
+                            </Button>
+                        )}
+                        <Button size="small" startIcon={<RefreshIcon />} onClick={dohvatiPopis} disabled={uploading}>Osvježi</Button>
+                    </Stack>
                 </Stack>
                 <Divider sx={{ mb: 1 }} />
                 {popis.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">Feed je prazan.</Typography>
+                    <Typography variant="body2" color="text.secondary">Feed je prazan — aplikacija se ne nudi na nadogradnju.</Typography>
                 ) : (
                     <Stack divider={<Divider flexItem />}>
                         {popis.map((f) => (
-                            <Stack key={f.name} direction="row" justifyContent="space-between" sx={{ py: 0.75 }}>
-                                <Typography variant="body2" noWrap>{f.name}</Typography>
+                            <Stack key={f.name} direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ py: 0.75 }}>
+                                <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>{f.name}</Typography>
                                 <Typography variant="caption" color="text.secondary">{formatSize(f.size)}</Typography>
+                                <Tooltip title="Ukloni s feeda">
+                                    <span>
+                                        <IconButton size="small" color="error" onClick={() => ukloni(f.name)} disabled={uploading}>
+                                            <DeleteOutlineIcon fontSize="small" />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
                             </Stack>
                         ))}
                     </Stack>
