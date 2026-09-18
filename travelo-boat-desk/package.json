@@ -23,6 +23,7 @@
     "productName": "Travelo Boat Desk",
     "npmRebuild": false,
     "asar": true,
+    "beforePack": "./installer/signing/preflight.cjs",
     "files": [
       "electron/**/*",
       "renderer/dist/**/*",
