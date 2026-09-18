@@ -60,7 +60,7 @@ const {
 } = require('../features/boat/sailingHandlers');
 const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
 const { handleGetDownloadsFeature, handleDownloadFileFeature } = require('../features/system/downloadsHandler');
-const { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete } = require('../features/system/deskUpdaterHandlers');
+const { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete, handleDeskUpdaterActivate } = require('../features/system/deskUpdaterHandlers');
 const router = express.Router();
 
 //BACKOFFICE ROUTES
@@ -503,5 +503,9 @@ router
 router
     .route('/desk_updater/delete')
     .post(handleDeskUpdaterDelete)
+
+router
+    .route('/desk_updater/activate')
+    .post(handleDeskUpdaterActivate)
 
 module.exports = router

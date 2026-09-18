@@ -85,8 +85,14 @@ const handleDeskUpdaterUpload = async (req, res) => {
 
         let finished = false;
         if (index === total - 1) {
-            const finalPath = path.join(DESK_UPDATES_DIR, filename);
-            // rename je atomično i unutar istog filesystema; preko postojeće prvo makni.
+            let finalPath = path.join(DESK_UPDATES_DIR, filename);
+            // latest.yml se sprema kao STAGED (latest.yml.staged) — objava je
+            // inicijalno NEAKTIVNA dok se ne uključi prekidačem (aktivacija je
+            // preimenuje u latest.yml koju electron-updater onda vidi). exe i
+            // blockmap idu normalno (serviraju se, ali bez latest.yml nema update-a).
+            if (filename.toLowerCase() === 'latest.yml') {
+                finalPath = path.join(DESK_UPDATES_DIR, 'latest.yml.staged');
+            }
             if (fs.existsSync(finalPath)) fs.rmSync(finalPath, { force: true });
             fs.renameSync(tmpPath, finalPath);
             finished = true;
@@ -119,14 +125,18 @@ const handleDeskUpdaterList = async (req, res) => {
             })
             .sort((a, b) => a.name.localeCompare(b.name));
 
-        // Objavljena verzija iz latest.yml (informativno).
+        // Aktivno = servirana latest.yml postoji (electron-updater je vidi).
+        // Verziju čitamo iz aktivne, a ako nije aktivna, iz staged kopije.
+        const liveYml = path.join(DESK_UPDATES_DIR, 'latest.yml');
+        const stagedYml = path.join(DESK_UPDATES_DIR, 'latest.yml.staged');
+        const active = fs.existsSync(liveYml);
         let version = null;
-        const ymlPath = path.join(DESK_UPDATES_DIR, 'latest.yml');
-        if (fs.existsSync(ymlPath)) {
-            const m = fs.readFileSync(ymlPath, 'utf-8').match(/^version:\s*(.+)$/m);
+        const ymlToRead = active ? liveYml : (fs.existsSync(stagedYml) ? stagedYml : null);
+        if (ymlToRead) {
+            const m = fs.readFileSync(ymlToRead, 'utf-8').match(/^version:\s*(.+)$/m);
             if (m) version = m[1].trim();
         }
-        return res.send({ status: 200, data: { files, version } });
+        return res.send({ status: 200, data: { files, version, active } });
     } catch (error) {
         console.log('handleDeskUpdaterList error:', error?.message || error);
         return res.status(500).send({ status: 500, data: { message: error?.message || 'Greška pri dohvatu popisa.' } });
@@ -169,4 +179,39 @@ const handleDeskUpdaterDelete = async (req, res) => {
     }
 };
 
-module.exports = { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete };
+// Aktivacija/deaktivacija objave BEZ ponovnog uploada. Tijelo: { active }.
+// active=true: latest.yml.staged -> latest.yml (electron-updater je vidi).
+// active=false: latest.yml -> latest.yml.staged (nadogradnja se više ne nudi;
+// exe/blockmap ostaju, pa ponovna aktivacija ne traži novi upload).
+const handleDeskUpdaterActivate = async (req, res) => {
+    try {
+        if (!jeAdmin(req)) {
+            return res.status(403).send({ status: 403, data: { message: 'Pristup ograničen.' } });
+        }
+        osiguran(DESK_UPDATES_DIR);
+        const live = path.join(DESK_UPDATES_DIR, 'latest.yml');
+        const staged = path.join(DESK_UPDATES_DIR, 'latest.yml.staged');
+        const wantActive = !!(req.body?.body || req.body || {}).active;
+
+        if (wantActive) {
+            if (fs.existsSync(staged)) {
+                if (fs.existsSync(live)) fs.rmSync(live, { force: true });
+                fs.renameSync(staged, live);
+            } else if (!fs.existsSync(live)) {
+                return res.status(400).send({ status: 400, data: { message: 'Nema objavljene verzije za aktivaciju.' } });
+            }
+            return res.send({ status: 200, data: { message: 'Aktivirano — blagajne će povući verziju kod prijave.', active: true } });
+        }
+
+        if (fs.existsSync(live)) {
+            if (fs.existsSync(staged)) fs.rmSync(staged, { force: true });
+            fs.renameSync(live, staged);
+        }
+        return res.send({ status: 200, data: { message: 'Deaktivirano — nadogradnja se više ne nudi.', active: false } });
+    } catch (error) {
+        console.log('handleDeskUpdaterActivate error:', error?.message || error);
+        return res.status(500).send({ status: 500, data: { message: error?.message || 'Greška pri promjeni statusa.' } });
+    }
+};
+
+module.exports = { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete, handleDeskUpdaterActivate };

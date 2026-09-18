@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import {
-    Alert, Box, Button, Chip, CircularProgress, Divider, IconButton, LinearProgress,
-    Paper, Stack, Tooltip, Typography,
+    Alert, Box, Button, Chip, CircularProgress, Divider, FormControlLabel, IconButton,
+    LinearProgress, Paper, Stack, Switch, Tooltip, Typography,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -56,6 +56,8 @@ export default function DeskUpdaterPage() {
     const [poruka, setPoruka] = useState(null); // { tip, tekst }
     const [popis, setPopis] = useState([]);
     const [objavljena, setObjavljena] = useState(null);
+    const [aktivna, setAktivna] = useState(false);
+    const [mijenjamStatus, setMijenjamStatus] = useState(false);
 
     const api = useMemo(() => axios.create({
         baseURL: authData.backendURL,
@@ -67,6 +69,7 @@ export default function DeskUpdaterPage() {
             const r = await api.get("/portal/desk_updater/list");
             setPopis(r?.data?.files ?? r?.data?.data?.files ?? []);
             setObjavljena(r?.data?.version ?? r?.data?.data?.version ?? null);
+            setAktivna(r?.data?.active ?? r?.data?.data?.active ?? false);
         } catch (e) {
             // Popis nije kritičan; tiho.
             setPopis([]);
@@ -98,6 +101,21 @@ export default function DeskUpdaterPage() {
                 reset: index === 0,
             });
             setProgress((p) => ({ ...p, [file.name]: Math.round(((index + 1) / total) * 100) }));
+        }
+    };
+
+    const postaviAktivnost = async (active) => {
+        setMijenjamStatus(true);
+        setPoruka(null);
+        try {
+            const r = await api.post("/portal/desk_updater/activate", { active });
+            setAktivna(active);
+            setPoruka({ tip: "success", tekst: r?.data?.message || r?.data?.data?.message || (active ? "Aktivirano." : "Deaktivirano.") });
+            dohvatiPopis();
+        } catch (e) {
+            setPoruka({ tip: "error", tekst: `Promjena statusa nije uspjela: ${e?.response?.data?.message || e.message}` });
+        } finally {
+            setMijenjamStatus(false);
         }
     };
 
@@ -139,7 +157,7 @@ export default function DeskUpdaterPage() {
             await posaljiDatoteku(odabrano.setup);
             if (odabrano.blockmap) await posaljiDatoteku(odabrano.blockmap);
             await posaljiDatoteku(odabrano.yml);
-            setPoruka({ tip: "success", tekst: "Nova verzija je objavljena na feedu." });
+            setPoruka({ tip: "success", tekst: "Verzija je učitana i stoji NEAKTIVNA. Uključi prekidač 'Aktivna za preuzimanje' kad želiš da je blagajne povuku." });
             setOdabrano({ setup: null, blockmap: null, yml: null, ostalo: [] });
             dohvatiPopis();
         } catch (e) {
@@ -210,6 +228,7 @@ export default function DeskUpdaterPage() {
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                     <Typography variant="subtitle1" fontWeight={700}>
                         Trenutno na feedu {objavljena && <Chip size="small" label={`v${objavljena}`} sx={{ ml: 1 }} />}
+                        {" "}<Chip size="small" color={aktivna ? "success" : "default"} label={aktivna ? "AKTIVNA" : "NEAKTIVNA"} sx={{ ml: 0.5 }} />
                     </Typography>
                     <Stack direction="row" spacing={1}>
                         {popis.length > 0 && (
@@ -217,12 +236,26 @@ export default function DeskUpdaterPage() {
                                 size="small" color="error" variant="outlined" startIcon={<LayersClearIcon />}
                                 onClick={deaktiviraj} disabled={uploading}
                             >
-                                Deaktiviraj
+                                Ukloni sve
                             </Button>
                         )}
                         <Button size="small" startIcon={<RefreshIcon />} onClick={dohvatiPopis} disabled={uploading}>Osvježi</Button>
                     </Stack>
                 </Stack>
+                <FormControlLabel
+                    sx={{ mb: 1 }}
+                    control={
+                        <Switch
+                            color="success"
+                            checked={aktivna}
+                            onChange={(e) => postaviAktivnost(e.target.checked)}
+                            disabled={mijenjamStatus || uploading || popis.length === 0}
+                        />
+                    }
+                    label={aktivna
+                        ? "Aktivna za preuzimanje — blagajne dobivaju nadogradnju kod prijave"
+                        : "Neaktivna — nadogradnja se ne nudi (datoteke ostaju spremne)"}
+                />
                 <Divider sx={{ mb: 1 }} />
                 {popis.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">Feed je prazan — aplikacija se ne nudi na nadogradnju.</Typography>
