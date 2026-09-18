@@ -25,21 +25,39 @@ lozinku čuvaj kao mobilni release keystore.
 CN certifikata (`Tech4beeZ d.o.o.`) mora se poklapati s `build.win.publisherName`
 u `package.json`. Ako mijenjaš CN, promijeni i publisherName.
 
-## 2. Jednokratno po blagajni — povjerenje u cert
+## 2. Povjerenje u cert — automatski pri prvoj instalaciji
 
-Kopiraj `travelo-desk-signing.cer` na svaku blagajnu i pokreni **kao Administrator**
-(ili raspodijeli GPO-om na cijelu flotu):
+Cert se **ne mora** ručno raspoređivati: ako `travelo-desk-signing.cer` uđe u
+build (korak 3), installer ga pri **prvoj, ručnoj** instalaciji sam ubaci u
+Trusted Root + Trusted Publisher (`installer.nsh` → `customInstall`). To traži
+**jedan UAC upit** pri toj prvoj instalaciji; nakon toga:
+
+- sve buduće instalacije i **tihi auto-updateovi** prolaze bešumno (UAC se pri
+  ažuriranju NE pojavljuje — silent install se preskače),
+- ponovljena ručna instalacija ne gnjavi (preskače se ako je cert već povjerljiv).
+
+App se i dalje instalira **per-user** (bez elevacije cijele instalacije) — eleviramo
+samo korak s certom.
+
+> Napomena: baš prva instalacija svejedno pokaže SmartScreen „Run anyway" jer cert
+> u tom trenutku još nije posađen. Klikneš jednom i dalje je čisto.
+
+**Alternativa (GPO / bez diranja installera):** `.cer` možeš raspodijeliti i
+zasebno, kao Administrator (ili GPO-om), pa installer nema što raditi:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install-cert-on-machine.ps1 -CerPath .\travelo-desk-signing.cer
 ```
 
-Ovo je preduvjet i za auto-update: electron-updater provjerava potpis preuzete
-verzije, a provjera prolazi samo ako stroj vjeruje certu.
-
 ## 3. Build potpisane verzije
 
-electron-builder automatski potpisuje kad su postavljene env varijable:
+Prvo kopiraj **javni** cert tamo gdje ga build pakira:
+
+```powershell
+copy .\_out\travelo-desk-signing.cer .\dist-cert\travelo-desk-signing.cer
+```
+
+Zatim postavi env varijable za potpis (electron-builder tad automatski potpisuje):
 
 ```powershell
 $env:CSC_LINK = "C:\putanja\do\travelo-desk-signing.pfx"
@@ -81,8 +99,13 @@ prodaje. Vidi `electron/services/updateService.cjs`.
 
 ## Napomene
 
-- **Prvi install** na novoj blagajni i dalje traži da je `.cer` već u Trusted
-  Rootu (korak 2); inače prvi `.exe` dobije SmartScreen upozorenje. Auto-update
-  nakon toga je bešuman.
-- Dev build (`app.isPackaged === false`) preskače provjeru update-a.
+- **Prvi install** na novoj blagajni pokaže SmartScreen „Run anyway" (cert još
+  nije posađen) i jedan UAC (za posaditi cert). Nakon toga je sve bešumno —
+  instalacije i auto-updateovi.
+- Ako korisnik odbije UAC pri prvoj instalaciji, app se svejedno instalira; samo
+  cert ne uđe u trust store, pa se ponaša kao danas (SmartScreen upozorenja).
+  Cert se onda može naknadno posaditi korakom 2 (alternativa).
+- Dev build / build bez `dist-cert/travelo-desk-signing.cer` preskače korak s
+  certom.
+- Dev build (`app.isPackaged === false`) preskače i provjeru update-a.
 - Ako verzija na feedu nije viša od instalirane, ništa se ne događa.

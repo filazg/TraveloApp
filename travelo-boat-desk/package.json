@@ -54,6 +54,17 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "installer/signing/dist-cert",
+        "to": "cert",
+        "filter": [
+          "*.cer"
+        ]
+      },
+      {
+        "from": "installer/signing/install-cert-on-machine.ps1",
+        "to": "cert/install-cert-on-machine.ps1"
       }
     ]
   },

@@ -29,3 +29,29 @@
     ${EndIf}
   ${EndIf}
 !macroend
+
+; Automatsko povjerenje u TraveloAPP potpis.
+;
+; U release buildu je u resources\cert priložen javni .cer. Pri PRVOJ, ručnoj
+; instalaciji ga posadimo u Trusted Root + Trusted Publisher — jedan UAC upit —
+; pa Windows/Defender/SmartScreen od tada vjeruju našem potpisu, a sve buduće
+; instalacije i (tihi) auto-updateovi prolaze bešumno.
+;
+; Aplikacija se instalira per-user (bez elevacije); eleviramo SAMO ovaj korak
+; preko ExecShell "runas". Preskačemo ga:
+;   - kod TIHE instalacije (${Silent}) — auto-update ide s /S, pa se pri
+;     ažuriranju UAC NIKAD ne pojavljuje;
+;   - ako je cert već povjerljiv — da ponovljena ručna instalacija ne gnjavi.
+!macro customInstall
+  ${If} ${FileExists} "$INSTDIR\resources\cert\travelo-desk-signing.cer"
+  ${AndIfNot} ${Silent}
+    ; Nezavisno (bez admina) provjeri je li cert već u Trusted Rootu.
+    ; exit 0 = već postoji (preskoči), exit 3 = nema ga (posadi).
+    nsExec::ExecToStack 'powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-ChildItem Cert:\LocalMachine\Root -ErrorAction SilentlyContinue | Where-Object { $_.Subject -like ''*Tech4beeZ*'' }) { exit 0 } else { exit 3 }"'
+    Pop $0
+    ${If} $0 != 0
+      DetailPrint "Ubacujem TraveloAPP certifikat u Trusted Root (potvrdite administratorski upit)…"
+      ExecShell "runas" "powershell.exe" '-NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\resources\cert\install-cert-on-machine.ps1" -CerPath "$INSTDIR\resources\cert\travelo-desk-signing.cer"' SW_HIDE
+    ${EndIf}
+  ${EndIf}
+!macroend
