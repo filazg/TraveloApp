@@ -84,3 +84,10 @@ coverage/
 # Electron native rebuilds
 # ======================
 .node-gyp/
+
+# ======================
+# Code-signing (TAJNO — nikad u repo)
+# ======================
+installer/signing/_out/
+*.pfx
+*.cer

@@ -65,5 +65,15 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.on("app:sessionExpired", handler);
       return () => ipcRenderer.removeListener("app:sessionExpired", handler);
     },
+    // Renderer javlja trenutni ekran (login/pairing/sales) glavnom procesu —
+    // automatski update se instalira samo kad app NIJE u prodaji.
+    reportStage: (stage) => ipcRenderer.send("app:reportStage", stage),
+    // Status automatskog ažuriranja (checking/available/downloading/downloaded/
+    // installing/none/error) — renderer prikazuje nenametljivu obavijest.
+    onUpdateStatus: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on("app:update", handler);
+      return () => ipcRenderer.removeListener("app:update", handler);
+    },
   },
 });

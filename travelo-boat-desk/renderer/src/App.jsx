@@ -9,6 +9,7 @@ import SalesScreen from "./screens/SalesScrean";
 import LoadingScreen from "./components/common/LoadingScreen";
 import InformationComponent from "./components/common/InvormationComponent";
 import SyncNotifications from "./components/common/SyncNotifications";
+import UpdateNotice from "./components/common/UpdateNotice";
 
 
 
@@ -50,10 +51,18 @@ export default function App() {
     return () => { if (typeof off === "function") off(); };
   }, [dispatch]);
 
+  // Glavni proces treba znati na kojem smo ekranu — automatski update se
+  // instalira/ponovno pokreće samo dok NISMO u prodaji (login/pairing), da se
+  // nikad ne prekine rad blagajnika.
+  useEffect(() => {
+    window?.api?.app?.reportStage?.(stage);
+  }, [stage]);
+
  return (
   <>
     <InformationComponent />
     <SyncNotifications />
+    <UpdateNotice />
     {(() => {
       switch (stage) {
         case "pairing":

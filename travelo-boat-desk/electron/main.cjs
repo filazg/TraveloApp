@@ -12,6 +12,7 @@ const { syncPendingInvoicesService, syncPendingCopyPrintsService } = require("./
 const { startSyncStreamService } = require("./services/syncStreamService.cjs");
 const { syncPendingShiftsService, autoCloseShiftsService } = require("./services/shiftsDataService.cjs");
 const { syncBasicDataService, syncTransportDataService } = require("./services/backendDataService.cjs");
+const { initAutoUpdate } = require("./services/updateService.cjs");
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5182";
 const DEBUG_PROD = process.env.DEBUG_PROD === "1";
@@ -321,6 +322,10 @@ app.whenReady().then(async () => {
   logToFile("baza spremna nakon", Date.now() - startedAt, "ms");
   registerIpcHandlers();
   createWindow();
+
+  // Automatsko ažuriranje: preuzima u pozadini, a instalira/ponovno pokreće tek
+  // dok je app na prijavnom ekranu (nikad usred prodaje). Vidi updateService.
+  initAutoUpdate({ logToFile });
 
   // Pending-invoice + pending-shift sync. Jednom 5s nakon starta (DB + pairing
   // ready), pa svakih 60s. Backend je idempotentan po uuid-u pa retry je siguran.
