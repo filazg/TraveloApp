@@ -52,10 +52,12 @@
     Pop $0
     ${If} $0 != 0
       DetailPrint "Ubacujem TraveloAPP certifikat u Trusted Root (potvrdite administratorski upit)…"
-      ; BEZ -CerPath: skripta sama uzme cert pored sebe. Prosljedivanje putanje s
-      ; navodnicima kroz ExecShell je ranije lomilo Mandatory param (skripta bi
-      ; pala s exit 1 i cert ne bi usao).
-      ExecShell "runas" "powershell.exe" '-NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\resources\cert\install-cert-on-machine.ps1"' SW_HIDE
+      ; Import radimo INLINE preko -Command (NE preko -File skripte): prosljedivanje
+      ; -File "putanja" (pa i -CerPath) kroz ExecShell "runas" se u praksi znalo NE
+      ; prenijeti, skripta se ne pokrene i cert ne ude. Inline -Command s putanjom
+      ; koju NSIS sam ubaci ($INSTDIR) je pouzdano. install-cert-on-machine.ps1
+      ; ostaje za rucni/GPO put.
+      ExecShell "runas" "powershell.exe" "-NoProfile -ExecutionPolicy Bypass -Command Import-Certificate -FilePath '$INSTDIR\resources\cert\travelo-desk-signing.cer' -CertStoreLocation Cert:\LocalMachine\Root; Import-Certificate -FilePath '$INSTDIR\resources\cert\travelo-desk-signing.cer' -CertStoreLocation Cert:\LocalMachine\TrustedPublisher" SW_HIDE
     ${EndIf}
   ${EndIf}
 !macroend
