@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const https = require("https");
 const axios = require("axios");
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const { sequelize } = require("./db/index.cjs");
 const { registerIpcHandlers } = require("./ipc/index.cjs");
 const { pairingDataModel } = require("./db/models/Pairing.cjs");
@@ -333,6 +333,11 @@ app.whenReady().then(async () => {
     throw dbErr;
   }
   logToFile("baza spremna nakon", Date.now() - startedAt, "ms");
+  // Prava verzija aplikacije za prikaz u rendereru (podnožje prijavnog ekrana).
+  // __APP_VERSION__ u rendereru zna ostati star ako se bundle ne rebuilda, pa je
+  // app.getVersion() jedini pouzdan izvor.
+  ipcMain.handle("app:getVersion", () => app.getVersion());
+
   registerIpcHandlers();
   createWindow();
 

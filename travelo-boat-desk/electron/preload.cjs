@@ -68,6 +68,8 @@ contextBridge.exposeInMainWorld("api", {
     // Renderer javlja trenutni ekran (login/pairing/sales) glavnom procesu —
     // automatski update se instalira samo kad app NIJE u prodaji.
     reportStage: (stage) => ipcRenderer.send("app:reportStage", stage),
+    // Prava verzija aplikacije (app.getVersion) za prikaz u podnožju.
+    getAppVersion: () => ipcRenderer.invoke("app:getVersion"),
     // Status automatskog ažuriranja (checking/available/downloading/downloaded/
     // installing/none/error) — renderer prikazuje nenametljivu obavijest.
     onUpdateStatus: (callback) => {

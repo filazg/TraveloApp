@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Alert,
@@ -39,6 +39,12 @@ export default function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Verzija se čita iz glavnog procesa (app.getVersion) — uvijek točna, neovisno
+  // o tome je li renderer bundle rebuildan (__APP_VERSION__ zna ostati star).
+  const [appVersion, setAppVersion] = useState(typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "");
+  useEffect(() => {
+    window?.api?.app?.getAppVersion?.().then((v) => { if (v) setAppVersion(v); }).catch(() => {});
+  }, []);
 
   const canSubmit = username.trim() && password.trim() && !submitting;
 
@@ -173,7 +179,7 @@ export default function LoginScreen() {
             mb:3
           }}
         >
-          <Typography variant="body2">powered by Tech4beez, v.{__APP_VERSION__}</Typography>
+          <Typography variant="body2">powered by Tech4beez, v.{appVersion}</Typography>
         </Box>
       <SystemSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Stack>
