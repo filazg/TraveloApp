@@ -303,6 +303,19 @@ axios.interceptors.response.use(
 
 console.log("MAIN:", process.versions);
 
+// Jedna instanca. Druga se odmah gasi, a fokus ide na postojeci prozor. Vise
+// instanci bi se otimalo oko SQLite baze, a i zbunjuje auto-update installer
+// (uninstaller stare verzije naleti na jos zakljucane datoteke druge instance).
+const imamKljuc = app.requestSingleInstanceLock();
+if (!imamKljuc) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const [win] = BrowserWindow.getAllWindows();
+    if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+  });
+}
+
 app.whenReady().then(async () => {
   const startedAt = Date.now();
   logToFile("=== APP START ===", new Date().toISOString(), "isPackaged:", app.isPackaged);

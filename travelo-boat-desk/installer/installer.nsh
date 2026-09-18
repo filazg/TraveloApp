@@ -47,11 +47,15 @@
   ${AndIfNot} ${Silent}
     ; Nezavisno (bez admina) provjeri je li cert već u Trusted Rootu.
     ; exit 0 = već postoji (preskoči), exit 3 = nema ga (posadi).
-    nsExec::ExecToStack 'powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-ChildItem Cert:\LocalMachine\Root -ErrorAction SilentlyContinue | Where-Object { $_.Subject -like ''*Tech4beeZ*'' }) { exit 0 } else { exit 3 }"'
+    ; $$_ jer NSIS inace $_ tumaci kao svoju (nepoznatu) varijablu i puca compile.
+    nsExec::ExecToStack 'powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Get-ChildItem Cert:\LocalMachine\Root -ErrorAction SilentlyContinue | Where-Object { $$_.Subject -like ''*Tech4beeZ*'' }) { exit 0 } else { exit 3 }"'
     Pop $0
     ${If} $0 != 0
       DetailPrint "Ubacujem TraveloAPP certifikat u Trusted Root (potvrdite administratorski upit)…"
-      ExecShell "runas" "powershell.exe" '-NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\resources\cert\install-cert-on-machine.ps1" -CerPath "$INSTDIR\resources\cert\travelo-desk-signing.cer"' SW_HIDE
+      ; BEZ -CerPath: skripta sama uzme cert pored sebe. Prosljedivanje putanje s
+      ; navodnicima kroz ExecShell je ranije lomilo Mandatory param (skripta bi
+      ; pala s exit 1 i cert ne bi usao).
+      ExecShell "runas" "powershell.exe" '-NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\resources\cert\install-cert-on-machine.ps1"' SW_HIDE
     ${EndIf}
   ${EndIf}
 !macroend
