@@ -65,7 +65,9 @@ const prviSljedeciPolazak = (polasci, datum) => {
     const danas = new Date();
     if (String(datum || "") !== danas.toLocaleDateString("en-GB")) return polasci[0];
     const sada = danas.getHours() * 60 + danas.getMinutes();
-    return polasci.find((r) => uMinute(vrijemePolaska(r)) >= sada) || polasci[polasci.length - 1];
+    // Prvi polazak čije je vrijeme >= sad. Ako su svi današnji već prošli →
+    // null (ništa se ne odabire), a ne zadnji (prošli) polazak.
+    return polasci.find((r) => uMinute(vrijemePolaska(r)) >= sada) || null;
 };
 
 export default function FilterBar() {
@@ -77,9 +79,10 @@ export default function FilterBar() {
     // radio nista, pa se cinilo da polje ne reagira. Otvorenost se zato vodi
     // ovdje i pali se s cijelog polja.
     const [kalendarOtvoren, setKalendarOtvoren] = useState(false);
-    // Podignuta kad odabir linije sam postavi polaznu luku. Polasci se računaju
-    // tek u učinku ispod, pa se prvi sljedeći bira ondje. Ručna promjena luke je
-    // ne diže — tada blagajnik bira polazak sam.
+    // Podignuta kad se postavi polazna luka — bilo automatski (odabir linije
+    // preko home_harbor) bilo ručno (handleSetTravelFrom). Polasci se računaju
+    // tek u učinku ispod, pa se prvi sljedeći polazak tog dana bira ondje; ako
+    // ga nema, ne odabire se ništa.
     const postaviPrviPolazak = useRef(false);
 
     //Odabir linije
@@ -263,6 +266,10 @@ export default function FilterBar() {
 
      const handleSetTravelFrom = async(e) => {
         const data = e.target.value;
+        // I ručni odabir luke sad traži auto-odabir prvog sljedećeg polaska tog
+        // dana (učinak ispod ga računa). Ako tog dana nema više polazaka, ništa
+        // se ne odabere (prviSljedeciPolazak vrati null).
+        postaviPrviPolazak.current = true;
         await dispatch(resetStateData({ paths: HARBOR_DEPENDENT_PATHS }));
         await dispatch(setStateData({path:'searchData/selectedFromHarbor', value: data}));
     };
