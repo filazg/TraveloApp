@@ -19,6 +19,21 @@ const GRADIENT_BY_ACR = {
     BUSDISP: "linear-gradient(135deg,#0f2027 0%,#2c5364 100%)",
     BUSDRV: "linear-gradient(135deg,#373b44 0%,#4286f4 100%)",
     BUSPRL: "linear-gradient(135deg,#16222a 0%,#3a6073 100%)",
+    ADMIN: "linear-gradient(135deg,#232526 0%,#414345 100%)",
+};
+
+// Modul "Administracija" — NIJE u katalogu i NE može se dodijeliti korisniku;
+// vidi ga isključivo ovaj korisnik. Gejtanje je po username-u (i ovdje i na
+// samoj stranici /admin te na backendu).
+const ADMIN_ONLY_USER = "nfilipec";
+const ADMIN_MODULE = {
+    key: "ADMIN",
+    acr: "ADMIN",
+    title: "Administracija",
+    subtitle: "Sustav i desktop verzije",
+    icon: "AdminPanelSettings",
+    path: "/admin",
+    kind: "shared",
 };
 const DEFAULT_GRADIENT = "linear-gradient(135deg,#654ea3 0%,#eaafc8 100%)";
 
@@ -202,6 +217,24 @@ export default function ModulesSelector() {
                         {basicRender.map((m) => (
                             <ModuleCard key={m.key || m.acr} m={m} disabled={false} onClick={handleClick(m)} />
                         ))}
+                    </Box>
+                </>
+            )}
+
+            {authData?.loggedUserData?.username === ADMIN_ONLY_USER && (
+                <>
+                    <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: 1.5 }}>
+                        ADMINISTRACIJA
+                    </Typography>
+                    <Box
+                        sx={{
+                            mt: 1,
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+                            gap: 2.5,
+                        }}
+                    >
+                        <ModuleCard m={ADMIN_MODULE} disabled={false} onClick={handleClick(ADMIN_MODULE)} />
                     </Box>
                 </>
             )}
