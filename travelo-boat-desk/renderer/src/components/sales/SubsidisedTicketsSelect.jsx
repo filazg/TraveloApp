@@ -86,6 +86,7 @@ export default function SubsidisedTicketsSelect() {
         setTextValue("")
         setProvjera(null)
         setRucniUnos("")
+        setRucniSustav("SEOP")
         setPratnjaOdabrana(false)
         setGreskaRazlog(null)
         setGreskaNapomena("")
@@ -112,6 +113,11 @@ export default function SubsidisedTicketsSelect() {
     // Rucni upis postoji jer se cip ne da uvijek procitati: istrosena kartica,
     // citac koji ne reagira, iskaznica koju putnik nema kod sebe.
     const [rucniOblik, setRucniOblik] = useState("card_no");
+    // Kod rucnog upisa blagajnik mora odabrati na koji se sustav identifikator
+    // odnosi — SEOP (otocna) ili MOSI (invalidska). Provjera i cijena razlikuju
+    // se po sustavu: SEOP ide s otocne cijene, MOSI s redovne (MOSI-only linije
+    // nemaju otocnu cijenu).
+    const [rucniSustav, setRucniSustav] = useState("SEOP");
     const [rucniUnos, setRucniUnos] = useState("");
     const [provjera, setProvjera] = useState(null);
     const [provjeraRadi, setProvjeraRadi] = useState(false);
@@ -172,7 +178,7 @@ export default function SubsidisedTicketsSelect() {
       }
     };
 
-    const provjeriRucno = () => provjeriNaPosluzitelju({ vrsta: rucniOblik, vrijednost: rucniUnos });
+    const provjeriRucno = () => provjeriNaPosluzitelju({ vrsta: rucniOblik, vrijednost: rucniUnos, sustav: rucniSustav });
 
     // Identifikator s procitane kartice: SEOP nosi broj iskaznice, MOSI serijski broj.
     const identifikatorSKartice = (k) => {
@@ -1045,6 +1051,18 @@ function virtualCardDetails() {
                 Ručna provjera
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
+                <FormControl sx={{ minWidth: 170 }}>
+                  <InputLabel id="rucni-sustav">Sustav</InputLabel>
+                  <Select
+                    labelId="rucni-sustav"
+                    label="Sustav"
+                    value={rucniSustav}
+                    onChange={(e) => { setRucniSustav(e.target.value); setProvjera(null); setGreskaRazlog(null); setGreskaNapomena(""); }}
+                  >
+                    <MenuItem value="SEOP">SEOP (otočna)</MenuItem>
+                    <MenuItem value="MOSI">MOSI (invalidska)</MenuItem>
+                  </Select>
+                </FormControl>
                 <FormControl sx={{ minWidth: 200 }}>
                   <InputLabel id="rucni-oblik">Upisuje se</InputLabel>
                   <Select
@@ -1093,8 +1111,10 @@ function virtualCardDetails() {
                       </Typography>
                     ) : null}
                     {odlukaIGumbi(
-                      appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true),
-                      provjera?.sustav || 'SEOP'
+                      rucniSustav === 'MOSI'
+                        ? redovnaCijenaRelacije()
+                        : appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true),
+                      rucniSustav
                     )}
                   </StatusPanel>
                 </Box>
