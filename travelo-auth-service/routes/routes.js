@@ -14,6 +14,11 @@ const {
     partnerLogoutController,
 } = require('../controllers/partnerPortalControllers/partnerPortalLoginController');
 const { apiPartnerLoginController } = require('../controllers/apiPartnerControllers/apiPartnerLoginController');
+const {
+    getLoginLogsController,
+    getDeviceConnectionsController,
+    terminalReportController,
+} = require('../controllers/adminControllers/adminLogsController');
 const router = express.Router();
 
 // Per-IP brute-force defense for all login endpoints.
@@ -94,5 +99,21 @@ router
 router
     .route('/login/apiPartnerLogin')
     .post(loginLimiter, apiPartnerLoginController)
+
+// UREĐAJ heartbeat — desk/mobile javi TID + verziju pri pokretanju (kroz gateway
+// /terminal_auth/login/terminalReport). Upsert "zadnje stanje po uređaju".
+router
+    .route('/login/terminalReport')
+    .post(checkLimiter, terminalReportController)
+
+// ADMIN read — zove web_portal-service (BFF) izravno (server-to-server), a on
+// pristup ograničava na korisnika nfilipec.
+router
+    .route('/admin/login_logs')
+    .get(getLoginLogsController)
+
+router
+    .route('/admin/device_connections')
+    .get(getDeviceConnectionsController)
 
 module.exports = router
