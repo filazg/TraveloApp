@@ -43,11 +43,14 @@ const getDeviceConnectionsController = async (req, res) => {
 const terminalReportController = async (req, res) => {
     try {
         const { TerminalsModel, DeviceConnectionsModel } = req.app.locals.models;
+        // Ide kroz gateway (terminal_auth, is_login) koji radi
+        // res.status(resp.data.status).json(resp.data.data) — pa MORAMO vratiti
+        // omotač { status, data }, inače gateway padne i klijent čeka do timeouta.
         const { tid, app_version, client } = req.body || {};
-        if (!tid) return res.status(200).json({ msg: "ignored" });
+        if (!tid) return res.status(200).json({ status: 200, data: { msg: "ignored" } });
 
         const terminal = await TerminalsModel.findOne({ where: { tid } });
-        if (!terminal) return res.status(200).json({ msg: "ignored" });
+        if (!terminal) return res.status(200).json({ status: 200, data: { msg: "ignored" } });
 
         const vrijednosti = {
             tid,
@@ -63,11 +66,11 @@ const terminalReportController = async (req, res) => {
         } else {
             await DeviceConnectionsModel.create(vrijednosti);
         }
-        return res.status(200).json({ msg: "ok" });
+        return res.status(200).json({ status: 200, data: { msg: "ok" } });
     } catch (error) {
         console.log("terminalReportController error:", error?.message || error);
         // Ne rušimo klijenta zbog telemetrije.
-        return res.status(200).json({ msg: "error" });
+        return res.status(200).json({ status: 200, data: { msg: "error" } });
     }
 };
 
