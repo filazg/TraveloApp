@@ -5,9 +5,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // timeout iz biblioteke), pa se cijeli ispis računa "vrtio u nedogled" —
 // renderer je stajao na spinneru dok createInvoice čeka ispis.
 const EXEC_TIMEOUT_MS = 8000;
-// Brza provjera veze prije pokušaja — da fail bude za par sekundi, ne za više
-// desetaka.
-const CONN_TIMEOUT_MS = 4000;
 
 // Odustane od promisea ako ne završi u zadanom roku. Napomena: ne PREKIDA posao
 // u biblioteci (nema API za to), samo nas oslobodi čekanja; eventualni kasni
@@ -50,20 +47,10 @@ const cutOrFeed = (printer, cutEnabled) => {
  * Vraća true/false; pozivatelj odlučuje hoće li javiti operateru.
  */
 const runPrintJob = async (printer, label, attempts = 3) => {
-    // Brza provjera veze: ako pisač očito nije spojen, ne vrtimo execute pokušaje
-    // (fail za par sekundi umjesto desetaka). Ako provjera zapne ili baci, ne
-    // odustajemo — svejedno pokušamo execute (uz timeout niže), jer za neke
-    // sučelja isPrinterConnected zna biti nepouzdan.
-    try {
-        const connected = await withTimeout(printer.isPrinterConnected(), CONN_TIMEOUT_MS);
-        if (connected === false) {
-            console.log(`PRINT ${label} — pisač nije spojen, ispis preskočen.`);
-            return false;
-        }
-    } catch (error) {
-        console.log(`PRINT ${label} — provjera veze nije uspjela (${error?.message || error}); pokušavam ispis uz timeout.`);
-    }
-
+    // UVIJEK pokušavamo ispis — ne oslanjamo se na isPrinterConnected() jer za dio
+    // sučelja (Windows share, mrežni) zna vratiti false i kad pisač radi, pa bi
+    // ispis bio lažno preskočen ("pisač nije spojen"). Timeout na execute() dolje
+    // sprječava vješanje na stvarno nespojenom pisaču.
     for (let i = 1; i <= attempts; i++) {
         try {
             await withTimeout(printer.execute(), EXEC_TIMEOUT_MS);
