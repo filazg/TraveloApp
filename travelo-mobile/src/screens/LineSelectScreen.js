@@ -51,12 +51,17 @@ export default function LineSelectScreen() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dispatch]);
 
-    // Only lines that have at least one active route today.
+    // Only lines that have at least one active route today, sorted by the
+    // per-terminal order (order_index dolazi iz channel-terminals po lines_order
+    // uređaja; linije bez upisa idu na kraj) — isti poredak kao na desku.
     const lines = useMemo(() => {
         const codesToday = new Set(
             sync.salesRoutes.filter((r) => r.is_active && r.departure_date === dan).map((r) => r.line_code)
         );
-        return sync.lines.filter((l) => codesToday.has(l.code));
+        return sync.lines
+            .filter((l) => codesToday.has(l.code))
+            .slice()
+            .sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER));
     }, [sync.lines, sync.salesRoutes, dan]);
 
     return (
