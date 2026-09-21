@@ -134,6 +134,10 @@ export default function SubsidisedTicketsSelect() {
     // Odabir datuma + povratnog polaska, svježa provjera i cijena su u modalu;
     // ovdje samo držimo je li otvoren + zajedničke helpere koje modal koristi.
     const [povratnaOtvoreno, setPovratnaOtvoreno] = useState(false);
+    // Podaci polazne karte (isti oblik kao IZNOS gumb) zapamćeni u trenutku klika
+    // na PRODAJ POVRATNU — modal doda i polaznu i povratnu odjednom (povratno
+    // putovanje = oba smjera).
+    const [polaznaData, setPolaznaData] = useState(null);
 
     // Sustav aktivne kartice (MOSI ne smije otići kao SEOP): iz očitane kartice
     // (cardFamily), inače iz ručnog odabira.
@@ -329,8 +333,11 @@ function cijenaPovlastene(ishod, cijenaRed) {
 }
 
 //DODAVANJE KARATA
-const handleAddTickets = async(data) => {
-  //await dispatch(setStateData({path:'status', value:'loading'}))  
+// Izgradi karte (glavnu + eventualnu pratnju) iz jednog `data` opisa. Odvojeno od
+// dispatcha da handleAddTickets moze primiti VISE opisa (polazna+povratna) i sve
+// ih dodati JEDNIM dispatchom — dvostruki poziv ne radi jer `appData` u closure-u
+// ostane star pa bi drugi poziv pregazio prvi.
+const buildIslandTickets = (data) => {
   let cardDataToAdd = {}
    if(data.type === 'VIRTUAL CARD'){
       cardDataToAdd = data.card
@@ -391,15 +398,12 @@ const handleAddTickets = async(data) => {
     povlastica: data.povlastica || null
   }
   console.log('NEW TICEKT', newTicket)
-  // Dodaj na POSTOJEĆU košaricu (kao redovna prodaja/povratna), ne pregazi je —
-  // inače polazna i povratna otočna ne mogu zajedno (jedna zamijeni drugu).
-  let ticketsToAdd = [...(appData.saleData?.addedTickets || [])]
-  ticketsToAdd = [...ticketsToAdd, newTicket];
+  const karte = [newTicket];
 
   // MOSI: vlasnik kartice putuje s popustom, pratnja besplatno. Odluku je donio
   // posluzitelj prema postavkama linije; ovdje se samo doda druga karta.
   if (data.pratnja) {
-    ticketsToAdd = [...ticketsToAdd, {
+    karte.push({
       ...newTicket,
       ticket_group_uuid: uuid(),
       ticket_type_name: `${newTicket.ticket_type_name} — pratnja`,
@@ -410,8 +414,19 @@ const handleAddTickets = async(data) => {
       total_harbor_tax: 0,
       tickets: [{ uuid: uuid(), code: uuid() }],
       povlastica: { ...(data.povlastica || {}), pratnja: true },
-    }];
+    });
   }
+  return karte;
+};
+
+const handleAddTickets = async(data) => {
+  // Prima jedan opis (jednosmjerna) ili niz opisa (povratno = polazna+povratna).
+  // Sve karte se grade i dodaju na POSTOJEĆU kosaricu JEDNIM dispatchom — ne
+  // pregazi je i ne oslanja se na medju-render (stari appData u closure-u).
+  const opisi = Array.isArray(data) ? data.filter(Boolean) : [data];
+  let novi = [];
+  for (const d of opisi) novi = [...novi, ...buildIslandTickets(d)];
+  const ticketsToAdd = [...(appData.saleData?.addedTickets || []), ...novi];
   dispatch(setStateData({path:'saleData/addedTickets' ,value: ticketsToAdd }));
   handleCloseSubsidizedModal()
   dispatch(resetStateData({path:'searchData/selectedTrip'}))
@@ -859,7 +874,15 @@ function odlukaIGumbi(cijenaRed, sustav) {
         <Button
           variant="outlined"
           startIcon={<SwapHorizIcon />}
-          onClick={() => setPovratnaOtvoreno(true)}
+          onClick={() => {
+            // Zapamti polaznu (isti oblik kao IZNOS gumb) — modal doda oba smjera.
+            setPolaznaData({
+              price: cijenaRed, rights: {}, type: sustav, free: gratis, iznos,
+              povlastica: blokPovlastice({ ishod: provjera, cijenaRed }),
+              pratnja: pratnjaOdabrana && provjera.pratnja_besplatno,
+            });
+            setPovratnaOtvoreno(true);
+          }}
           sx={{ mt: 1, width: "100%" }}
         >
           PRODAJ POVRATNU
@@ -1209,7 +1232,8 @@ function virtualCardDetails() {
 
         <IslandReturnModal
           open={povratnaOtvoreno}
-          onClose={() => setPovratnaOtvoreno(false)}
+          onClose={() => { setPovratnaOtvoreno(false); setPolaznaData(null); }}
+          polaznaData={polaznaData}
           relacija={appData.searchData?.selectedTrip}
           kartica={{
             vrsta: provjera?.identifikator?.vrsta || "card_no",

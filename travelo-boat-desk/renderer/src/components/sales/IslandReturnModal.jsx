@@ -27,6 +27,7 @@ const vrijemeRute = (r) => {
 export default function IslandReturnModal({
     open,
     onClose,
+    polaznaData,       // opis polazne karte (isti oblik kao IZNOS gumb) — doda se uz povratnu
     relacija,          // polazna: { departure_harbor_id, arrival_harbor_id, ... }
     kartica,           // { vrsta, vrijednost, sustav, F2 }
     pocetniDatum,      // JS Date — zadani datum povratka
@@ -96,7 +97,7 @@ export default function IslandReturnModal({
 
     const dodaj = () => {
         if (!ruta || !cijenaRed || !smije) return;
-        onDodaj({
+        const povratnaData = {
             price: cijenaRed,
             rights: {},
             type: kartica?.sustav || "SEOP",
@@ -104,7 +105,10 @@ export default function IslandReturnModal({
             iznos,
             povlastica: blokPovlastice({ ishod: provjera, cijenaRed }),
             route: ruta,
-        });
+        };
+        // Povratno putovanje = oba smjera. Ako je polazna proslijedjena, dodaju se
+        // obje karte JEDNIM pozivom (niz) — inace se dodaje samo povratna.
+        onDodaj(polaznaData ? [polaznaData, povratnaData] : povratnaData);
         onClose();
     };
 
@@ -117,6 +121,12 @@ export default function IslandReturnModal({
                 </Typography>
             </DialogTitle>
             <DialogContent dividers>
+                {polaznaData ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        {`Uz povratnu se dodaje i polazna: ${relacija ? `${relacija.departure_harbor_name || ""} → ${relacija.arrival_harbor_name || ""}` : ""}`}
+                        {` — ${polaznaData.free ? "besplatno" : `${Number(polaznaData.iznos || 0).toFixed(2)} EUR`}`}
+                    </Alert>
+                ) : null}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
                     <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="hr">
                         <DatePicker
@@ -178,7 +188,9 @@ export default function IslandReturnModal({
                         ) : null}
                         {smije && cijenaRed ? (
                             <Button variant="contained" color="success" fullWidth onClick={dodaj} sx={{ height: 80, fontSize: "1.15rem" }}>
-                                {iznos === 0 ? "DODAJ POVRATNU (BESPLATNO)" : `DODAJ POVRATNU ${iznos.toFixed(2)} EUR`}
+                                {polaznaData
+                                    ? `DODAJ OBJE KARTE ${(Number(polaznaData.free ? 0 : polaznaData.iznos || 0) + iznos).toFixed(2)} EUR`
+                                    : (iznos === 0 ? "DODAJ POVRATNU (BESPLATNO)" : `DODAJ POVRATNU ${iznos.toFixed(2)} EUR`)}
                             </Button>
                         ) : null}
                     </>
