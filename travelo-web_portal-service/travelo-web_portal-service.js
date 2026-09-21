@@ -2,7 +2,7 @@ const express = require('express')
 const app = express()
 const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit');
-const { syncChannelServiceConfigData, syncCoreServiceConfigData, getChannelServiceConfigData } = require('./controllers/configServices/configSyncController');
+const { syncChannelServiceConfigData, syncCoreServiceConfigData, syncMainServiceConfigData, getChannelServiceConfigData } = require('./controllers/configServices/configSyncController');
 
 app.set('trust proxy', 1);
 app.use(express.json({ limit: "10mb" }))
@@ -23,6 +23,7 @@ const startService = async ()=>{
     try {
         await syncChannelServiceConfigData()
         await syncCoreServiceConfigData()
+        await syncMainServiceConfigData()
         const config = await getChannelServiceConfigData()
         console.log(config)
         const router = require('./routes/routes');

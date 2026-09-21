@@ -61,6 +61,7 @@ const {
 const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
 const { handleGetDownloadsFeature, handleDownloadFileFeature } = require('../features/system/downloadsHandler');
 const { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete, handleDeskUpdaterActivate } = require('../features/system/deskUpdaterHandlers');
+const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature } = require('../features/system/adminLogsHandlers');
 const router = express.Router();
 
 //BACKOFFICE ROUTES
@@ -507,5 +508,15 @@ router
 router
     .route('/desk_updater/activate')
     .post(handleDeskUpdaterActivate)
+
+//ADMIN LOGOVI — samo nfilipec (provjera u handleru). POST (ne GET) da kroz
+//gateway sigurno stigne header s korisnikom.
+router
+    .route('/admin/login_logs')
+    .post(handleGetLoginLogsFeature)
+
+router
+    .route('/admin/device_connections')
+    .post(handleGetDeviceConnectionsFeature)
 
 module.exports = router

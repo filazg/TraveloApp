@@ -3,6 +3,20 @@ const { controlServiceURL } = require('../../config/config')
 
 let channelConfigData = {}
 let coreConfigData = {}
+let mainConfigData = {}
+
+const getMainServiceConfigData = () => {
+    return mainConfigData
+}
+
+const syncMainServiceConfigData = async () => {
+    try {
+        const configData = await axios.get(controlServiceURL + '/main_services_config')
+        mainConfigData = await configData.data.data
+    } catch (error) {
+        console.log(error)
+    }
+}
 
 const getChannelServiceConfigData = ()=>{
     return channelConfigData
@@ -34,5 +48,7 @@ module.exports = {
     getChannelServiceConfigData,
     syncChannelServiceConfigData,
     getCoreServiceConfigData,
-    syncCoreServiceConfigData
+    syncCoreServiceConfigData,
+    getMainServiceConfigData,
+    syncMainServiceConfigData
 }
