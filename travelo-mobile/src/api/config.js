@@ -11,6 +11,8 @@ export const ENDPOINTS = {
     terminalCheckPairing: '/terminal_auth/login/terminalCheckPairing',
     // Tiha obnova access tokena — body {refresh_token} → {token, refresh_token} (rotira refresh).
     terminalRefresh: '/terminal_auth/login/terminalRefresh',
+    // Heartbeat: javi TID + verziju aplikacije pri pokretanju (zadnje stanje po uređaju).
+    terminalReport: '/terminal_auth/login/terminalReport',
     // Master data sync (requires Authorization header with token).
     basicData: '/terminals/terminal/basic_data',
     transportData: '/terminals/terminal/transport_data',

@@ -93,6 +93,24 @@ api.interceptors.response.use(
     },
 );
 
+// Heartbeat: javi poslužitelju TID + verziju aplikacije pri pokretanju, da se u
+// administraciji vidi s kojom se verzijom uređaj spaja. Fire-and-forget —
+// telemetrija ne smije utjecati na rad; skipAuth (endpoint provjerava TID).
+export async function reportDeviceVersion() {
+    try {
+        const tid = await loadTid();
+        if (!tid) return;
+        const pkg = require('../../package.json');
+        await api.post(
+            ENDPOINTS.terminalReport,
+            { tid, app_version: pkg.version, client: 'mobile' },
+            { headers: { skipAuth: true } },
+        );
+    } catch (e) {
+        // tiho — telemetrija
+    }
+}
+
 export const storage = {
     async getGateway() { return (await loadGateway()) || DEFAULT_GATEWAY_URL; },
     async setGateway(url) { if (url) await saveGateway(url); },

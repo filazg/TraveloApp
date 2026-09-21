@@ -301,6 +301,27 @@ axios.interceptors.response.use(
   }
 );
 
+// Heartbeat: pri pokretanju javi TID + verziju aplikacije poslužitelju, da se u
+// administraciji vidi s kojom se verzijom uređaj spaja ("zadnje stanje po
+// uređaju"). Fire-and-forget — telemetrija ne smije utjecati na rad.
+async function reportDeviceVersion() {
+  try {
+    const settings = await systemSettingsDataModel.findOne();
+    const pairing = await pairingDataModel.findOne();
+    const backendUrl = settings?.backend_url;
+    const tid = pairing?.tid;
+    if (!backendUrl || !tid) return;
+    await axios.post(
+      backendUrl + "/terminal_auth/login/terminalReport",
+      { tid, app_version: app.getVersion(), client: "desk" },
+      { httpsAgent: new https.Agent({ rejectUnauthorized: false }), timeout: 10000 }
+    );
+    logToFile("verzija javljena posluzitelju:", app.getVersion());
+  } catch (e) {
+    logToFile("javljanje verzije nije uspjelo:", e?.message || String(e));
+  }
+}
+
 console.log("MAIN:", process.versions);
 
 // Jedna instanca. Druga se odmah gasi, a fokus ide na postojeci prozor. Vise
@@ -351,6 +372,9 @@ app.whenReady().then(async () => {
   // sam, pa blagajna ne prodaje polazak kojeg vise nema. Kasni start, da baza i
   // uparivanje budu spremni.
   setTimeout(() => { startSyncStreamService() }, 8000)
+
+  // Javljanje verzije poslužitelju (heartbeat) — nakon što su baza i pairing spremni.
+  setTimeout(() => { reportDeviceVersion().catch(() => {}) }, 9000)
 
   setTimeout(() => { syncPendingInvoicesService().catch(() => {}) }, 5000)
   setTimeout(() => { syncPendingShiftsService().catch(() => {}) }, 6000)
