@@ -48,6 +48,8 @@ import SailingPage from './features/sailing/SailingPage';
 import DownloadsPage from './features/downloads/DownloadsPage';
 import DeskUpdaterPage from './features/desk_updater/DeskUpdaterPage';
 import AdminPage from './features/admin/AdminPage';
+import LoginLogsPage from './features/admin/LoginLogsPage';
+import DevicesPage from './features/admin/DevicesPage';
 import TicketTemplatesPage from './features/boat/pages/ticket_templates/TicketTemplatesPage';
 import SeopPage from './features/boat/pages/seop/SeopPage';
 import KontrolaPage from './features/kontrola/KontrolaPage';
@@ -116,6 +118,8 @@ function App() {
                 <Route path='downloads' element={<DownloadsPage/>}></Route>
                 <Route path='desk_updater' element={<DeskUpdaterPage/>}></Route>
                 <Route path='admin' element={<AdminPage/>}></Route>
+                <Route path='admin/login_logs' element={<LoginLogsPage/>}></Route>
+                <Route path='admin/devices' element={<DevicesPage/>}></Route>
                 <Route path='provjera_stanja' element={<StanjePage/>}></Route>
                 <Route path='kontrola' element={<KontrolaPage/>}></Route>
                 <Route path='kontrola/kopije_karata' element={<TicketCopyControlPage/>}></Route>

@@ -1,5 +1,7 @@
 import { Alert, Box, Card, CardActionArea, Stack, Typography } from "@mui/material";
 import DevicesIcon from "@mui/icons-material/Devices";
+import LoginIcon from "@mui/icons-material/Login";
+import DevicesOtherIcon from "@mui/icons-material/DevicesOther";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { authSliceData } from "../auth/authSlice";
@@ -81,6 +83,18 @@ export default function AdminPage() {
             subtitle: "Objava i pregled verzija desktop aplikacije",
             icon: DevicesIcon,
             path: "/desk_updater",
+        },
+        {
+            title: "Prijave na sustav",
+            subtitle: "Log prijava portal korisnika (uspjeh/neuspjeh)",
+            icon: LoginIcon,
+            path: "/admin/login_logs",
+        },
+        {
+            title: "Uređaji i verzije",
+            subtitle: "Zadnje stanje po uređaju — verzija i spajanje",
+            icon: DevicesOtherIcon,
+            path: "/admin/devices",
         },
     ];
 
