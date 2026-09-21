@@ -112,26 +112,29 @@ export default function FilterBar() {
         const value = date.toLocaleDateString("en-GB");
         // Ponovni odabir istog datuma (npr. klik na DANAS kad je već danas) ne
         // smije obrisati ono što je blagajnik u međuvremenu odabrao.
-        if (value !== appData.searchData?.travelDate) {
+        const promijenjen = value !== appData.searchData?.travelDate;
+        if (promijenjen) {
             await dispatch(resetStateData({ paths: DATE_DEPENDENT_PATHS }));
-            // Kad je linija već odabrana, promjena datuma treba (kao i odabir
-            // linije) ponovno postaviti polaznu luku (domaća luka operatera, ako
-            // je linija opslužuje) i prvi sljedeći polazak za NOVI datum. Bez
-            // ovoga se luka — koja je u DATE_DEPENDENT_PATHS — samo isprazni, pa
-            // se za novi datum ne odabere polazak.
-            if (appData.searchData?.selectedLine) {
-                const domacaLuka = appData.operatorSettings?.home_harbor_code;
-                const luka = domacaLuka
-                    ? (appData.searchData?.lineHarbors || []).find((h) => h?.code === domacaLuka)
-                    : null;
-                if (luka) {
-                    postaviPrviPolazak.current = true;
-                    await dispatch(setStateData({ path: 'searchData/selectedFromHarbor', value: luka }));
-                }
-            }
         }
+        // Datum se postavlja PRIJE luke — inače bi učinak (koji reagira na promjenu
+        // luke) izračunao polaske za stari datum i odabrao krivi/nepostojeći
+        // polazak, pa bi polje ostalo prazno.
         await dispatch(setStateData({ path:'searchData/travelDate', value }));
         setDay(date);
+        // Kad je linija već odabrana, promjena datuma treba (kao i odabir linije)
+        // ponovno postaviti polaznu luku (domaća luka operatera, ako je linija
+        // opslužuje) i prvi sljedeći polazak za NOVI datum. Bez ovoga se luka —
+        // koja je u DATE_DEPENDENT_PATHS — samo isprazni.
+        if (promijenjen && appData.searchData?.selectedLine) {
+            const domacaLuka = appData.operatorSettings?.home_harbor_code;
+            const luka = domacaLuka
+                ? (appData.searchData?.lineHarbors || []).find((h) => h?.code === domacaLuka)
+                : null;
+            if (luka) {
+                postaviPrviPolazak.current = true;
+                await dispatch(setStateData({ path: 'searchData/selectedFromHarbor', value: luka }));
+            }
+        }
     };
 
     const handleSetDate = async(date) => {
