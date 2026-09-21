@@ -41,6 +41,7 @@ export default function IslandReturnModal({
     const [rutaUuid, setRutaUuid] = useState("");
     const [provjera, setProvjera] = useState(null);
     const [radi, setRadi] = useState(false);
+    const [kalendarOtvoren, setKalendarOtvoren] = useState(false);
 
     // Modal se ne unmounta — bez ovoga bi pri ponovnom otvaranju iskočio stari
     // rezultat provjere (npr. "POVRATNA BESPLATNA") dok se ne promijeni polazak.
@@ -147,6 +148,18 @@ export default function IslandReturnModal({
                             disablePast
                             sx={{ flex: 1 }}
                             value={dayjs(dan)}
+                            open={kalendarOtvoren}
+                            onOpen={() => setKalendarOtvoren(true)}
+                            onClose={() => setKalendarOtvoren(false)}
+                            slotProps={{
+                                textField: {
+                                    // Klik na cijelo polje otvara kalendar (kao na osnovnom ekranu);
+                                    // readOnly da se ne diže tipkovnica na dodirnom zaslonu.
+                                    onClick: () => setKalendarOtvoren(true),
+                                    inputProps: { readOnly: true },
+                                    sx: { flex: 1, minWidth: 0, "& .MuiInputBase-root": { cursor: "pointer" } },
+                                },
+                            }}
                             onChange={(v) => { if (v?.$d) { setDan(v.$d); setRutaUuid(""); setProvjera(null); } }}
                         />
                     </LocalizationProvider>
