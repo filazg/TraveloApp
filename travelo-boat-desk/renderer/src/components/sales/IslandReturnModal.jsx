@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import {
     Alert, Box, Button, CircularProgress, Dialog, DialogContent, DialogTitle,
@@ -41,6 +41,18 @@ export default function IslandReturnModal({
     const [rutaUuid, setRutaUuid] = useState("");
     const [provjera, setProvjera] = useState(null);
     const [radi, setRadi] = useState(false);
+
+    // Modal se ne unmounta — bez ovoga bi pri ponovnom otvaranju iskočio stari
+    // rezultat provjere (npr. "POVRATNA BESPLATNA") dok se ne promijeni polazak.
+    // Svako otvaranje kreće čisto: zadani datum, bez odabranog polaska/provjere.
+    useEffect(() => {
+        if (open) {
+            setDan(pocetniDatum || new Date());
+            setRutaUuid("");
+            setProvjera(null);
+            setRadi(false);
+        }
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const from = relacija?.arrival_harbor_id;  // povratak kreće iz luke dolaska
     const to = relacija?.departure_harbor_id;
