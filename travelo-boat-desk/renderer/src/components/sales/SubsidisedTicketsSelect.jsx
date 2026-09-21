@@ -391,7 +391,9 @@ const handleAddTickets = async(data) => {
     povlastica: data.povlastica || null
   }
   console.log('NEW TICEKT', newTicket)
-  let ticketsToAdd = []
+  // Dodaj na POSTOJEĆU košaricu (kao redovna prodaja/povratna), ne pregazi je —
+  // inače polazna i povratna otočna ne mogu zajedno (jedna zamijeni drugu).
+  let ticketsToAdd = [...(appData.saleData?.addedTickets || [])]
   ticketsToAdd = [...ticketsToAdd, newTicket];
 
   // MOSI: vlasnik kartice putuje s popustom, pratnja besplatno. Odluku je donio
