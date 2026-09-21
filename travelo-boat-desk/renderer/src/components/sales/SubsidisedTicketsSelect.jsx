@@ -93,8 +93,6 @@ export default function SubsidisedTicketsSelect() {
         setGreskaRazlog(null)
         setGreskaNapomena("")
         setPovratnaOtvoreno(false)
-        setPovratniUuid("")
-        setPovratnaProvjera(null)
         dispatch(setStateData({path:'modalsStates/showSubsidisedTickets', value: false}))
     };
 
