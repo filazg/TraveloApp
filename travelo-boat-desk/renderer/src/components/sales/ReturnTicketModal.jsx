@@ -14,6 +14,7 @@ import "dayjs/locale/hr";
 import { v4 as uuid } from "uuid";
 
 import { allAppData, setStateData } from "../../store/appSlice";
+import IslandReturnScanner from "./IslandReturnScanner";
 
 // Povratna karta za stavku iz košarice.
 //
@@ -68,6 +69,23 @@ export default function ReturnTicketModal({ stavka, onClose }) {
   const [dan, setDan] = useState(() => izEnGb(appData.searchData?.travelDate));
   const [rutaUuid, setRutaUuid] = useState("");
   const [kolicine, setKolicine] = useState({});
+
+  // Otočne (povlaštene) karte s polazne stavke: traže iskaznicu, pa se za
+  // povratak bira količina (npr. 2 od 3) i onda skenira toliko kartica.
+  const otocneUlazneTotal = useMemo(
+    () => (stavka?.ticketsData || []).filter((t) => t.povlastica).reduce((s, t) => s + (Number(t.quantity) || 0), 0),
+    [stavka]
+  );
+  const [otocnaKolicina, setOtocnaKolicina] = useState(0);
+  const [otocnaDirana, setOtocnaDirana] = useState(false);
+  const [skenerOtvoren, setSkenerOtvoren] = useState(false);
+  useEffect(() => {
+    if (!otocnaDirana) setOtocnaKolicina(otocneUlazneTotal);
+  }, [otocneUlazneTotal, otocnaDirana]);
+  const postaviOtocnu = (v) => {
+    setOtocnaDirana(true);
+    setOtocnaKolicina(Math.max(0, Math.min(otocneUlazneTotal, parseInt(v, 10) || 0)));
+  };
 
   // Polasci u suprotnom smjeru za zadani dan: iz luke dolaska polazne stavke
   // natrag u luku iz koje se krenulo. Nude se SVE linije koje voze tu relaciju,
@@ -182,15 +200,11 @@ export default function ReturnTicketModal({ stavka, onClose }) {
     0
   );
   const imaKarata = cjenik.some((p) => (kolicine[p.ticket_type_uuid] || 0) > 0);
-
-  // Otočne karte se kupuju kroz POVLAŠTENE KARTICE jer traže iskaznicu, pa ih
-  // ovdje nema. Ako ih je na polaznoj stavci bilo, blagajnik to mora znati.
-  const imaOtocnihNaPolasku = (stavka?.ticketsData || []).some(
-    (t) => !cjenik.some((p) => p.ticket_type_uuid === t.ticket_type_uuid)
-  );
+  // Potvrda je moguća kad ima običnih karata ILI odabranih otočnih za skeniranje.
+  const mozePotvrditi = !!ruta && (imaKarata || otocnaKolicina > 0);
 
   const potvrdi = () => {
-    if (!ruta || !imaKarata) return;
+    if (!mozePotvrditi) return;
     const postojece = appData.saleData?.addedTickets || [];
     let redni = postojece.length;
     const nove = [];
@@ -224,11 +238,24 @@ export default function ReturnTicketModal({ stavka, onClose }) {
         tickets: karte,
       });
     }
-    dispatch(setStateData({ path: "saleData/addedTickets", value: [...postojece, ...nove] }));
+    if (nove.length) {
+      dispatch(setStateData({ path: "saleData/addedTickets", value: [...postojece, ...nove] }));
+    }
+    // Otočne se ne mogu dodati bez iskaznice — nakon običnih ide skeniranje
+    // odabranog broja kartica (svaka svoja provjera prava na povratnoj ruti).
+    if (otocnaKolicina > 0) {
+      setSkenerOtvoren(true);
+      return;
+    }
     onClose();
   };
 
   if (!stavka) return null;
+
+  // Skeniranje otočnih iskaznica za povratak na odabranoj ruti.
+  if (skenerOtvoren && ruta) {
+    return <IslandReturnScanner ruta={ruta} kolicina={otocnaKolicina} onClose={onClose} />;
+  }
 
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
@@ -277,7 +304,7 @@ export default function ReturnTicketModal({ stavka, onClose }) {
           <Typography color="error" sx={{ fontWeight: 700 }}>
             Za taj dan nema povratka na ovoj relaciji. Odaberite drugi datum.
           </Typography>
-        ) : !cjenik.length ? (
+        ) : (!cjenik.length && otocneUlazneTotal === 0) ? (
           <Typography color="error" sx={{ fontWeight: 700 }}>
             Za povratnu relaciju nije unesen cjenik. Javite podršci; karta se ne može prodati.
           </Typography>
@@ -321,11 +348,44 @@ export default function ReturnTicketModal({ stavka, onClose }) {
               </Paper>
             ))}
 
-            {imaOtocnihNaPolasku && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Povlaštene otočne karte nisu ovdje — one traže iskaznicu, pa se povratak
-                za njih izdaje kroz POVLAŠTENE KARTICE.
-              </Typography>
+            {otocneUlazneTotal > 0 && (
+              <Paper variant="accent" sx={{ p: 1.5, mb: 1, mt: cjenik.length ? 1.5 : 0 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                  <Typography sx={{ fontWeight: 700 }}>Povlaštene (otočne) — povratak</Typography>
+                  <Typography variant="body2" color="text.secondary">od {otocneUlazneTotal}</Typography>
+                </Box>
+                <Stack direction="row" justifyContent="center" alignItems="center" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    sx={{ minWidth: 56, height: 48 }}
+                    onClick={() => postaviOtocnu(otocnaKolicina - 1)}
+                  >
+                    <RemoveIcon />
+                  </Button>
+                  <TextField
+                    value={otocnaKolicina}
+                    onChange={(e) => postaviOtocnu(e.target.value.replace(/[^0-9]/g, ""))}
+                    onFocus={(e) => e.target.select()}
+                    inputProps={{
+                      inputMode: "numeric",
+                      style: { textAlign: "center", fontSize: "1.25rem", height: 48, padding: 0 },
+                    }}
+                    sx={{ width: 110, "& .MuiOutlinedInput-root": { height: 48 } }}
+                  />
+                  <Button
+                    variant="outlined"
+                    color="success"
+                    sx={{ minWidth: 56, height: 48 }}
+                    onClick={() => postaviOtocnu(otocnaKolicina + 1)}
+                  >
+                    <AddIcon />
+                  </Button>
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Otočne traže iskaznicu — nakon potvrde skenira se {otocnaKolicina} {otocnaKolicina === 1 ? "kartica" : "kartice/kartica"}, cijena po provjeri prava.
+                </Typography>
+              </Paper>
             )}
           </>
         )}
@@ -340,10 +400,10 @@ export default function ReturnTicketModal({ stavka, onClose }) {
           <Button
             variant="contained"
             color="success"
-            disabled={!ruta || !imaKarata}
+            disabled={!mozePotvrditi}
             onClick={potvrdi}
           >
-            DODAJ POVRATAK
+            {otocnaKolicina > 0 && !imaKarata ? "SKENIRAJ OTOČNE" : "DODAJ POVRATAK"}
           </Button>
         </Box>
       </DialogActions>
