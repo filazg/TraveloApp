@@ -55,7 +55,7 @@ export default function LoginLogsPage() {
     }
 
     return (
-        <Box sx={{ p: 2, width: "100%", maxWidth: 1000 }}>
+        <Box sx={{ p: 2, width: "100%" }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                 <Box>
                     <Typography variant="h5" fontWeight={800}>Prijave na sustav</Typography>
