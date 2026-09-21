@@ -358,6 +358,9 @@ app.whenReady().then(async () => {
   // __APP_VERSION__ u rendereru zna ostati star ako se bundle ne rebuilda, pa je
   // app.getVersion() jedini pouzdan izvor.
   ipcMain.handle("app:getVersion", () => app.getVersion());
+  // Renderer može zatražiti javljanje verzije (osim na startu, i pri prijavi te
+  // zatvaranju smjene) — telemetrija, fire-and-forget.
+  ipcMain.handle("app:reportVersion", () => { reportDeviceVersion().catch(() => {}); return true; });
 
   registerIpcHandlers();
   createWindow();

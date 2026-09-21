@@ -15,10 +15,12 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import bcrypt from 'bcryptjs';
 import { authData, setOperator } from '../store/slices/authSlice';
+import { reportDeviceVersion } from '../api/client';
 import { syncBasicDataThunk, syncTransportDataThunk, syncData } from '../store/slices/syncSlice';
 import { colors, shadows } from '../theme/colors';
 import pkg from '../../package.json';
 import BrandMark from '../components/BrandMark';
+import ServiceMenu from '../components/ServiceMenu';
 
 // Native bcrypt verifier (Kotlin jbcrypt) — ~50-100ms umjesto 0.5-1.5s za pure-JS bcryptjs.
 // Fallback na bcryptjs ako native modul nije dostupan (npr. starije instalacije bez rebuildanog APK-a).
@@ -49,6 +51,8 @@ export default function OperatorLoginScreen() {
     const [password, setPassword] = useState('');
     const [code, setCode] = useState('');
     const [loggingIn, setLoggingIn] = useState(false);
+    // Servisni izbornik — otvara ga podrška dugim pritiskom na logo.
+    const [servisVidljiv, setServisVidljiv] = useState(false);
 
     const onLogin = async () => {
         if (loggingIn) return;
@@ -68,6 +72,7 @@ export default function OperatorLoginScreen() {
                     return;
                 }
                 dispatch(setOperator(user));
+                reportDeviceVersion(); // heartbeat pri prijavi (fire-and-forget)
                 setCode('');
                 return;
             }
@@ -84,6 +89,7 @@ export default function OperatorLoginScreen() {
                 return;
             }
             dispatch(setOperator(user));
+            reportDeviceVersion(); // heartbeat pri prijavi (fire-and-forget)
         } finally {
             setLoggingIn(false);
         }
@@ -129,8 +135,11 @@ export default function OperatorLoginScreen() {
         >
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
                 {/* onPrimary jer podloga nije svijetla: "Travelo" svijetloplavo,
-                    "APP" bijelo — ista kombinacija kao na plavoj podlozi. */}
-                <BrandMark style={styles.logo} onPrimary />
+                    "APP" bijelo — ista kombinacija kao na plavoj podlozi.
+                    Dugi pritisak na logo otvara servisni izbornik (za podršku). */}
+                <TouchableOpacity activeOpacity={1} delayLongPress={800} onLongPress={() => setServisVidljiv(true)}>
+                    <BrandMark style={styles.logo} onPrimary />
+                </TouchableOpacity>
 
                 <View style={styles.form}>
                     {PRIJAVA_SIFROM && (
@@ -250,6 +259,8 @@ export default function OperatorLoginScreen() {
                 forma skracuje ili produljuje (sifra ima jedno polje, korisnicko
                 ime dva). */}
             <Text style={styles.poweredBy}>powered by Tech4beeZ</Text>
+
+            <ServiceMenu visible={servisVidljiv} onClose={() => setServisVidljiv(false)} />
         </KeyboardAvoidingView>
     );
 }

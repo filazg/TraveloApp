@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import api from '../../api/client';
+import api, { reportDeviceVersion } from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
 import {
     saveShiftLocal,
@@ -236,6 +236,8 @@ export const closeShiftThunk = createAsyncThunk(
             operator_uuid: open.operator_uuid,
             synced: ok,
         });
+        // Javi verziju poslužitelju i pri zatvaranju smjene (heartbeat).
+        reportDeviceVersion();
         return { ...closed, _synced: ok };
     }
 );
