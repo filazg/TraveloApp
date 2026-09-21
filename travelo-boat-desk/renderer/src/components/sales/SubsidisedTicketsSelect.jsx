@@ -147,6 +147,15 @@ export default function SubsidisedTicketsSelect() {
         return provjera?.sustav || rucniSustav || "SEOP";
     };
 
+    // Identifikator za provjeru povratne MORA biti isti onaj kojim je provjerena
+    // polazna: očitana kartica → broj s kartice; ručni upis → točno upisani broj
+    // (rucniUnos), ne ono što je posluzitelj eventualno vratio u identifikatoru.
+    const aktivniIdentifikator = () => {
+        const sKartice = identifikatorSKartice(cardData);
+        if (sKartice) return sKartice;
+        return { vrsta: rucniOblik, vrijednost: rucniUnos, sustav: rucniSustav };
+    };
+
     // Zadani datum povratka = odabrani datum putovanja ("DD/MM/YYYY" → Date).
     const pocetniDatumPovratka = () => {
         const m = String(appData.searchData?.travelDate || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -1236,8 +1245,8 @@ function virtualCardDetails() {
           polaznaData={polaznaData}
           relacija={appData.searchData?.selectedTrip}
           kartica={{
-            vrsta: provjera?.identifikator?.vrsta || "card_no",
-            vrijednost: provjera?.identifikator?.vrijednost,
+            vrsta: aktivniIdentifikator().vrsta || "card_no",
+            vrijednost: aktivniIdentifikator().vrijednost,
             sustav: sustavKartice(),
             F2: cardData?.F2 || null,
           }}
