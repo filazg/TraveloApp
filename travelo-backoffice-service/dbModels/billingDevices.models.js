@@ -153,6 +153,13 @@ module.exports =  (sequelize) =>{
             type:DataTypes.BOOLEAN,
             allowNull:false
         },
+        // Poredak DOSTUPNIH linija na ovom uređaju (redoslijed lijeve liste u
+        // formi) — niz šifri linija. Desk po njemu slaže izbornik linija. NULL /
+        // prazno = bez postavljenog poretka (linije se slažu zadanim redom).
+        lines_order:{
+            type:DataTypes.JSON,
+            allowNull:true
+        },
     },
     { freezeTableName:true, tableName: "billing_devices", timestamps: true }
   );

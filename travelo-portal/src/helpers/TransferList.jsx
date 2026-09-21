@@ -15,7 +15,7 @@ const kvacicaOkvirSx = { minWidth: 28 };
 const kvacicaSx = { p: 0.25 };
 const stavkaTekstSx = { fontSize: 13 };
 
-function Okvir({ naslov, items, oznaka, jeOznacen, onToggle, visina }) {
+function Okvir({ naslov, items, oznaka, jeOznacen, onToggle, visina, preslagivanje }) {
     return (
         <Paper
             variant="outlined"
@@ -39,7 +39,7 @@ function Okvir({ naslov, items, oznaka, jeOznacen, onToggle, visina }) {
             <Box sx={{ height: visina, overflow: 'auto' }}>
                 {items.length ? (
                     <List dense disablePadding component="div" role="list">
-                        {items.map((value) => {
+                        {items.map((value, idx) => {
                             const labelId = `transfer-list-item-${value.id}-label`;
                             return (
                                 <ListItemButton
@@ -63,6 +63,26 @@ function Okvir({ naslov, items, oznaka, jeOznacen, onToggle, visina }) {
                                         primary={oznaka(value)}
                                         primaryTypographyProps={{ sx: stavkaTekstSx }}
                                     />
+                                    {/* ▲▼ za presložavanje — samo kad okvir dobije `preslagivanje`.
+                                        stopPropagation da klik na strelicu ne okine označavanje retka. */}
+                                    {preslagivanje ? (
+                                        <Stack direction="row" spacing={0} sx={{ ml: 'auto' }}>
+                                            <Button
+                                                size="small"
+                                                sx={{ minWidth: 24, px: 0, lineHeight: 1 }}
+                                                disabled={idx === 0}
+                                                onClick={(e) => { e.stopPropagation(); preslagivanje(value, -1); }}
+                                                aria-label="pomakni gore"
+                                            >▲</Button>
+                                            <Button
+                                                size="small"
+                                                sx={{ minWidth: 24, px: 0, lineHeight: 1 }}
+                                                disabled={idx === items.length - 1}
+                                                onClick={(e) => { e.stopPropagation(); preslagivanje(value, 1); }}
+                                                aria-label="pomakni dolje"
+                                            >▼</Button>
+                                        </Stack>
+                                    ) : null}
                                 </ListItemButton>
                             );
                         })}
@@ -86,6 +106,7 @@ export default function TransferList({
     akcije,          // { sveDesno, oznaceneDesno, oznaceneLijevo, sveLijevo }
     mogucnosti,      // { sveDesno, oznaceneDesno, oznaceneLijevo, sveLijevo } — booleani
     visina = 280,
+    preslagivanjeLijevo, // (stavka, smjer:-1|1) => void — kad je zadano, lijevi okvir dobije ▲▼
 }) {
     return (
         <Stack direction='row' alignItems="stretch" sx={{ mt: 1, mb: 1, width: '100%' }} justifyContent='center'>
@@ -96,6 +117,7 @@ export default function TransferList({
                 jeOznacen={jeOznacen}
                 onToggle={onToggle}
                 visina={visina}
+                preslagivanje={preslagivanjeLijevo}
             />
             <Stack direction='column' sx={{ mx: 2, minWidth: 60, justifyContent: 'center' }}>
                 <Button sx={{ my: 0.5 }} variant="outlined" size="small" onClick={akcije.sveDesno} disabled={!mogucnosti.sveDesno} aria-label="move all right">≫</Button>

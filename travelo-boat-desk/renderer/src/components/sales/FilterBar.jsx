@@ -74,6 +74,12 @@ export default function FilterBar() {
     const dispatch = useDispatch();
     const appData = useSelector(allAppData);
     const transportData = appData.transportData;
+
+    // Izbornik linija slaže se po poretku ovog terminala: order_index dolazi iz
+    // channel-terminals po lines_order uređaja (redoslijed dostupnih linija u
+    // formi). Linije bez upisa idu na kraj.
+    const sortiraneLinije = [...(transportData?.lines || [])]
+        .sort((a, b) => (a.order_index ?? Number.MAX_SAFE_INTEGER) - (b.order_index ?? Number.MAX_SAFE_INTEGER));
     const [day, setDay] = useState();
     // Kalendar se dosad otvarao samo klikom na ikonu; klik na samo polje nije
     // radio nista, pa se cinilo da polje ne reagira. Otvorenost se zato vodi
@@ -421,7 +427,7 @@ export default function FilterBar() {
               disablePortal
               id="line"
               fullWidth
-              options={transportData?.lines || []}
+              options={sortiraneLinije}
               getOptionLabel={oznakaLinije}
               value={appData.searchData?.selectedLine || null}
               isOptionEqualToValue={(option, value) => option.code === value?.code}

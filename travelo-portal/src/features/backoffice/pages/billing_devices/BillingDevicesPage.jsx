@@ -370,34 +370,51 @@ export default function BillingDevicesPage (){
     // Linije se u editedData spremaju samo s poljima koja backoffice zapisuje,
     // da se cijeli objekt linije ne vuče kroz PATCH.
     const linesForSave = (items) => items.map((l) => ({ uuid:l.uuid, name:l.name, code:l.code }))
+    // Poredak dostupnih (lijevo) = niz šifri; to je i poredak izbornika na desku.
+    const orderForSave = (items) => items.map((l) => l.code)
 
     const handleAllRightLN = () => {
         const noviDesno = rightLN.concat(leftLN)
         setRightLN(noviDesno);
         setLeftLN([]);
-        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno) }));
+        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno), lines_order: [] }));
     };
 
     const handleCheckedRightLN = () => {
         const noviDesno = rightLN.concat(leftCheckedLN)
+        const noviLijevo = not(leftLN, leftCheckedLN)
         setRightLN(noviDesno);
-        setLeftLN(not(leftLN, leftCheckedLN));
+        setLeftLN(noviLijevo);
         setCheckedLN(not(checkedLN, leftCheckedLN));
-        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno) }));
+        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno), lines_order: orderForSave(noviLijevo) }));
     };
 
     const handleCheckedLeftLN = () => {
         const noviDesno = not(rightLN, rightCheckedLN)
-        setLeftLN(leftLN.concat(rightCheckedLN));
+        const noviLijevo = leftLN.concat(rightCheckedLN)
+        setLeftLN(noviLijevo);
         setRightLN(noviDesno);
         setCheckedLN(not(checkedLN, rightCheckedLN));
-        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno) }));
+        setEditedData(prev => ({ ...prev, excluded_lines: linesForSave(noviDesno), lines_order: orderForSave(noviLijevo) }));
     };
 
     const handleAllLeftLN = () => {
-        setLeftLN(leftLN.concat(rightLN));
+        const noviLijevo = leftLN.concat(rightLN)
+        setLeftLN(noviLijevo);
         setRightLN([]);
-        setEditedData(prev => ({ ...prev, excluded_lines: [] }));
+        setEditedData(prev => ({ ...prev, excluded_lines: [], lines_order: orderForSave(noviLijevo) }));
+    };
+
+    // Presložavanje dostupnih linija (lijevo) — ▲▼ po retku. Taj redoslijed je
+    // ujedno poredak izbornika linija na desku za ovaj terminal.
+    const pomakniLN = (value, smjer) => {
+        const i = leftLN.findIndex((l) => l.uuid === value.uuid)
+        const j = i + smjer
+        if (i === -1 || j < 0 || j >= leftLN.length) return
+        const novi = [...leftLN]
+        ;[novi[i], novi[j]] = [novi[j], novi[i]]
+        setLeftLN(novi)
+        setEditedData(prev => ({ ...prev, lines_order: orderForSave(novi) }))
     };
 
 
@@ -430,7 +447,15 @@ export default function BillingDevicesPage (){
         setRight(forRight)
         setLeftOP(forLeftOP)
         setRightOP(forRightOP)
-        setLeftLN(lines.filter(d => !excluded.some(s => s.uuid === d.uuid)))
+        // Dostupne (lijevo) se slažu po spremljenom poretku (lines_order = niz
+        // šifri); linije bez upisa idu na kraj zadanim redom. Taj poredak je i
+        // poredak izbornika linija na desku.
+        const redoslijed = Array.isArray(selectedRow?.lines_order) ? selectedRow.lines_order : []
+        const poIndeksu = (l) => { const i = redoslijed.indexOf(l.code); return i === -1 ? Number.MAX_SAFE_INTEGER : i }
+        const dostupne = lines
+            .filter(d => !excluded.some(s => s.uuid === d.uuid))
+            .sort((a, b) => poIndeksu(a) - poIndeksu(b))
+        setLeftLN(dostupne)
         setRightLN(lines.filter(d => excluded.some(s => s.uuid === d.uuid)))
     }
     },[selectedRow])
@@ -1248,12 +1273,16 @@ export default function BillingDevicesPage (){
                         }}
                     />
                     <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Linije</Typography>
+                    <Typography textAlign='center' variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        Redoslijed omogućenih linija (▲▼) ujedno je poredak izbornika linija na desku ovog terminala.
+                    </Typography>
                     <TransferList
                         lijevo={{ naslov: 'Omogućene', items: leftLN }}
                         desno={{ naslov: 'Nisu omogućene', items: rightLN }}
                         oznaka={(v) => (v.code ? `${v.code} · ${v.name}` : v.name)}
                         jeOznacen={(v) => checkedLN.indexOf(v) !== -1}
                         onToggle={handleToggleLN}
+                        preslagivanjeLijevo={pomakniLN}
                         akcije={{
                             sveDesno: handleAllRightLN, oznaceneDesno: handleCheckedRightLN,
                             oznaceneLijevo: handleCheckedLeftLN, sveLijevo: handleAllLeftLN,

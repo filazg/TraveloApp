@@ -262,6 +262,13 @@ const linesDataModel = sequelize.define('lines',{
         type: Sequelize.BOOLEAN,
         allowNull: true
     },
+    // Poredak linije u izborniku za OVAJ terminal (dodjeljuje channel-terminals
+    // po lines_order uređaja). Manji broj = ranije; linije bez upisa dolaze s
+    // velikim brojem pa idu na kraj.
+    order_index: {
+        type: Sequelize.INTEGER,
+        allowNull: true
+    },
 },{
     freezeTableName:true
 })

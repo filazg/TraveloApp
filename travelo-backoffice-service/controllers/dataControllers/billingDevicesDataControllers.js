@@ -173,6 +173,8 @@ const getBillingDevicesController = async(req,res)=>{
                 print_invoice_logo:billingDevice.print_invoice_logo,
                 print_ticket_logo:billingDevice.print_ticket_logo,
                 is_active:billingDevice.is_active,
+                // Poredak dostupnih linija na uređaju (za formu i za desk).
+                lines_order:billingDevice.lines_order || [],
                 permissions:permissionsForBillingDevice,
                 payment:paymentMethodsForBillingDevice,
                 excluded_lines:excludedLinesForBillingDevice
@@ -443,6 +445,9 @@ const updateBillingDeviceController = async(req,res)=>{
                         print_invoice_logo: data.print_invoice_logo === true || data.print_invoice_logo === 'true',
                         print_ticket_logo: data.print_ticket_logo === true || data.print_ticket_logo === 'true',
                         is_active:data.is_active,
+                        // Poredak dostupnih linija (redoslijed lijeve liste u formi).
+                        // Ako polje ne stigne, zadrži postojeći poredak.
+                        ...(data.lines_order !== undefined ? { lines_order: data.lines_order } : {}),
                         ...(data.type ? { type_uuid: data.type, type_name: data.type } : {}),
                 },{where:{
                     uuid:data.uuid

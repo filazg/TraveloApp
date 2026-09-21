@@ -9,15 +9,29 @@ const { getBillingDevicesController } = require("../controllers/coreServiceContr
 // uređaj dobio sve linije i spremio ih lokalno — ispao je zabranjeni
 // plovidbeni red na terminalu i ostao ondje do sljedećeg uspješnog synca. Bolje je da
 // sync padne i uređaj zadrži prethodnu, ispravno filtriranu kopiju.
-const getExcludedLineUuids = async (billingDeviceUuid) => {
-    if (!billingDeviceUuid) return []
+// Konfiguracija linija za uređaj: zabranjene linije (iznimke) + poredak
+// dostupnih (lines_order = niz šifri, redoslijed lijeve liste u formi). Uređaj
+// koji backoffice ne poznaje ne smije dobiti tuđi plovidbeni red.
+const getTerminalLineConfig = async (billingDeviceUuid) => {
+    if (!billingDeviceUuid) return { excluded: [], linesOrder: [] }
     const billingDevicesData = await getBillingDevicesController()
     const terminal = billingDevicesData?.data?.billing_devices?.find((d) => d.uuid === billingDeviceUuid)
     if (!terminal) {
-        // Uređaj koji backoffice ne poznaje ne smije dobiti tuđi plovidbeni red.
         throw new Error(`naplatni uređaj ${billingDeviceUuid} nije nađen u backofficeu`)
     }
-    return (terminal?.excluded_lines || []).map((l) => l.uuid).filter(Boolean)
+    return {
+        excluded: (terminal?.excluded_lines || []).map((l) => l.uuid).filter(Boolean),
+        linesOrder: Array.isArray(terminal?.lines_order) ? terminal.lines_order : [],
+    }
+}
+
+// Svakoj liniji doda order_index po poretku terminala (šifra linije u
+// lines_order); linije bez upisa idu na kraj. Desk po tome slaže izbornik.
+const dodajPoredak = (arr, linesOrder) => {
+    const idx = (code) => { const i = linesOrder.indexOf(code); return i === -1 ? Number.MAX_SAFE_INTEGER : i }
+    return arr
+        .map((l) => ({ ...l, order_index: idx(l.code) }))
+        .sort((a, b) => a.order_index - b.order_index)
 }
 
 // Polja polaska koja terminal stvarno koristi. Plovidbeni red nosi 31 polje po
@@ -76,7 +90,7 @@ const transportDataHandlers = async(billingDeviceUuid, opcije = {})=>{
         const linesData = await getLinesController()
         const routesData = await getRoutesController()
         const pricesData = await getPricesController()
-        const excluded = await getExcludedLineUuids(billingDeviceUuid)
+        const { excluded, linesOrder } = await getTerminalLineConfig(billingDeviceUuid)
 
         const lines = linesData.data.lines || []
         const routes = routesData.data.routes || []
@@ -95,7 +109,7 @@ const transportDataHandlers = async(billingDeviceUuid, opcije = {})=>{
         if (!excluded.length) {
             const paket = {
                 harbors:harborsData.data.harbors,
-                lines,
+                lines:dodajPoredak(lines, linesOrder),
                 sales_routes:zaTerminal(routes),
                 trips_prices:prices
             }
@@ -103,7 +117,7 @@ const transportDataHandlers = async(billingDeviceUuid, opcije = {})=>{
             return paket
         }
 
-        const linesForTerminal = lines.filter((l) => !excluded.includes(l.uuid))
+        const linesForTerminal = dodajPoredak(lines.filter((l) => !excluded.includes(l.uuid)), linesOrder)
         const routesForTerminal = routes.filter((r) => !excluded.includes(r.line_uuid))
         // Cjenici nemaju liniju nego plovidbeni red, pa se zadrže samo oni plovidbeni redovi
         // koji su preživjeli filtriranje polazaka.
