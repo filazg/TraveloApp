@@ -69,6 +69,7 @@ export default function ReturnTicketModal({ stavka, onClose }) {
   const [dan, setDan] = useState(() => izEnGb(appData.searchData?.travelDate));
   const [rutaUuid, setRutaUuid] = useState("");
   const [kolicine, setKolicine] = useState({});
+  const [kalendarOtvoren, setKalendarOtvoren] = useState(false);
 
   // Otočne (povlaštene) karte s polazne stavke: traže iskaznicu, pa se za
   // povratak bira količina (npr. 2 od 3) i onda skenira toliko kartica.
@@ -280,6 +281,18 @@ export default function ReturnTicketModal({ stavka, onClose }) {
               disablePast
               sx={{ flex: 1 }}
               value={dayjs(dan)}
+              open={kalendarOtvoren}
+              onOpen={() => setKalendarOtvoren(true)}
+              onClose={() => setKalendarOtvoren(false)}
+              slotProps={{
+                textField: {
+                  // Klik na cijelo polje otvara kalendar (isto kao na osnovnom
+                  // ekranu); readOnly da se ne diže tipkovnica na dodirnom zaslonu.
+                  onClick: () => setKalendarOtvoren(true),
+                  inputProps: { readOnly: true },
+                  sx: { flex: 1, minWidth: 0, "& .MuiInputBase-root": { cursor: "pointer" } },
+                },
+              }}
               onChange={(v) => { if (v?.$d) { setRucniOdabir(true); setDan(v.$d); } }}
             />
           </LocalizationProvider>
