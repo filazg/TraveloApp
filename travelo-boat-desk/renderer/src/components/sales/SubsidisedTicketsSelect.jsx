@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { alpha, Box, Button, Divider, FormControl, IconButton, InputLabel, MenuItem, Modal, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuid } from "uuid";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
@@ -90,6 +91,9 @@ export default function SubsidisedTicketsSelect() {
         setPratnjaOdabrana(false)
         setGreskaRazlog(null)
         setGreskaNapomena("")
+        setPovratnaOtvoreno(false)
+        setPovratniUuid("")
+        setPovratnaProvjera(null)
         dispatch(setStateData({path:'modalsStates/showSubsidisedTickets', value: false}))
     };
 
@@ -127,6 +131,126 @@ export default function SubsidisedTicketsSelect() {
     const [greskaRazlog, setGreskaRazlog] = useState(null);
     const [greskaNapomena, setGreskaNapomena] = useState("");
 
+    // --- Povratna otočna karta ---------------------------------------------
+    // Nakon uspješne provjere polazne, može se prodati i povratna: bira se
+    // polazak u obrnutom smjeru (bilo koja linija koja voze tu relaciju istog
+    // dana), radi se SVJEŽA provjera prava za tu povratnu rutu, i doda povratna
+    // otočna karta po cijeni povratne rute (ista popust-logika).
+    const [povratnaOtvoreno, setPovratnaOtvoreno] = useState(false);
+    const [povratniUuid, setPovratniUuid] = useState("");
+    const [povratnaProvjera, setPovratnaProvjera] = useState(null);
+    const [povratnaRadi, setPovratnaRadi] = useState(false);
+
+    // Sustav aktivne kartice (za povratnu provjeru mora biti točan — MOSI ne smije
+    // otići kao SEOP): iz očitane kartice (cardFamily), inače iz ručnog odabira.
+    const sustavKartice = () => {
+        if (cardData?.cardFamily === "MOSI") return "MOSI";
+        if (cardData?.cardFamily === "SEOP_P") return "SEOP";
+        return provjera?.sustav || rucniSustav || "SEOP";
+    };
+
+    // "HH:mm" iz teksta polaska ("DD.MM.YYYY. HH:mm") — za sort i prikaz.
+    const vrijemeRute = (r) => {
+        const m = String(r?.actual_departure || r?.departure || "").match(/(\d{1,2}:\d{2})/);
+        return m ? m[1] : "";
+    };
+
+    // Polasci u obrnutom smjeru za isti dan (bilo koja linija koja voze relaciju).
+    const povratneRute = () => {
+        const t = appData.searchData?.selectedTrip;
+        const dan = appData.searchData?.travelDate;
+        if (!t || !dan) return [];
+        return (appData.transportData?.routes || [])
+            .filter((r) => r.departure_date === dan
+                && r.departure_harbor_id === t.arrival_harbor_id
+                && r.arrival_harbor_id === t.departure_harbor_id)
+            .sort((a, b) => vrijemeRute(a).localeCompare(vrijemeRute(b)));
+    };
+
+    const povratnaRuta = () => povratneRute().find((r) => r.uuid === povratniUuid) || null;
+
+    // Otočna cijena povratne rute (po timetable_uuid + par luka, oba smjera).
+    const povratniCjenikRed = (ruta) => {
+        if (!ruta) return null;
+        const sve = appData.transportData?.route_prices || [];
+        return sve.find((p) => p.timetable_uuid === ruta.timetable_uuid
+            && p.is_island === true
+            && p.is_active !== false
+            && ((p.harbor_from_code === ruta.departure_harbor_id && p.harbor_to_code === ruta.arrival_harbor_id)
+                || (p.harbor_to_code === ruta.departure_harbor_id && p.harbor_from_code === ruta.arrival_harbor_id))) || null;
+    };
+
+    // Svježa provjera prava kartice za odabranu povratnu rutu.
+    const provjeriPovratnu = async (ruta) => {
+        if (!ruta || !provjera?.identifikator) return;
+        setPovratnaRadi(true);
+        setPovratnaProvjera(null);
+        try {
+            const ishod = await provjeriKarticuNaRuti({
+                vrsta: provjera.identifikator.vrsta || "card_no",
+                vrijednost: provjera.identifikator.vrijednost,
+                sustav: sustavKartice(),
+                kartica: cardData?.F2 || null,
+                route: {
+                    line_no: ruta.line_code,
+                    departure_harbor_code: ruta.departure_harbor_id,
+                    arrival_harbor_code: ruta.arrival_harbor_id,
+                },
+                date: ruta.actual_departure || ruta.departure,
+            });
+            setPovratnaProvjera(ishod);
+        } finally {
+            setPovratnaRadi(false);
+        }
+    };
+
+    const dodajPovratnu = () => {
+        const ruta = povratnaRuta();
+        const cijenaRed = povratniCjenikRed(ruta);
+        if (!ruta || !cijenaRed || !povratnaProvjera?.smije_se_prodati) return;
+        const iznos = cijenaPovlastene(povratnaProvjera, cijenaRed);
+        handleAddTickets({
+            price: cijenaRed,
+            rights: {},
+            type: sustavKartice(),
+            free: iznos === 0,
+            iznos,
+            povlastica: blokPovlastice({ ishod: povratnaProvjera, cijenaRed }),
+            route: ruta,
+        });
+    };
+
+    // Jezgra provjere prava — radi nad EKSPLICITNOM rutom (line_no + par luka +
+    // datum). Ne dira state; vraća ishod. Koristi je i polazna (selectedTrip) i
+    // povratna (obrnuta relacija, druga linija/polazak) provjera.
+    const provjeriKarticuNaRuti = async ({ vrsta, vrijednost, sustav = "SEOP", kartica = null, route, date }) => {
+      const broj = String(vrijednost || "").trim();
+      if (!broj) return null;
+      if (!route?.line_no || !route?.departure_harbor_code || !route?.arrival_harbor_code) {
+        return { ok: false, smije_se_prodati: false, poruka: "Nedostaje ruta za provjeru." };
+      }
+      try {
+        const odgovor = await window.api.app.checkIslandCardIPC({
+          sustav,
+          [vrsta]: broj,
+          kartica,
+          route,
+          date: date || new Date().toISOString(),
+        });
+        // IPC vraca { ok, data } ili { ok:false, error }.
+        const podaci = odgovor?.data ?? odgovor;
+        if (odgovor?.ok === false) {
+          return { ok: false, offline: true, smije_se_prodati: false, poruka: odgovor.error || "Provjera nije uspjela." };
+        }
+        if (podaci?.ok === false) {
+          return { ok: false, offline: true, smije_se_prodati: false, poruka: podaci.poruka || podaci.error || "Provjera nije uspjela." };
+        }
+        return { ok: true, offline: false, ...podaci, identifikator: podaci.identifikator || { vrsta, vrijednost: broj } };
+      } catch (e) {
+        return { ok: false, offline: true, smije_se_prodati: false, poruka: e?.message || "Provjera nije uspjela." };
+      }
+    };
+
     const provjeriNaPosluzitelju = async ({ vrsta, vrijednost, sustav = "SEOP", kartica = null }) => {
       const broj = String(vrijednost || "").trim();
       if (!broj) return null;
@@ -144,33 +268,15 @@ export default function SubsidisedTicketsSelect() {
       setGreskaRazlog(null);
       setGreskaNapomena("");
       try {
-        const odgovor = await window.api.app.checkIslandCardIPC({
-          sustav,
-          [vrsta]: broj,
-          kartica,
+        const ishod = await provjeriKarticuNaRuti({
+          vrsta, vrijednost, sustav, kartica,
           route: {
             line_no: linija.code,
             departure_harbor_code: relacija.departure_harbor_id,
             arrival_harbor_code: relacija.arrival_harbor_id,
           },
-          date: relacija.departure || new Date().toISOString(),
+          date: relacija.departure,
         });
-        // IPC vraca { ok, data } ili { ok:false, error }.
-        const podaci = odgovor?.data ?? odgovor;
-        let ishod;
-        if (odgovor?.ok === false) {
-          // Nema odgovora posluzitelja — karta se svejedno moze prodati punom
-          // cijenom, a dojava ide kasnije.
-          ishod = { ok: false, offline: true, smije_se_prodati: false, poruka: odgovor.error || "Provjera nije uspjela." };
-        } else if (podaci?.ok === false) {
-          ishod = { ok: false, offline: true, smije_se_prodati: false, poruka: podaci.poruka || podaci.error || "Provjera nije uspjela." };
-        } else {
-          ishod = { ok: true, offline: false, ...podaci, identifikator: podaci.identifikator || { vrsta, vrijednost: broj } };
-        }
-        setProvjera(ishod);
-        return ishod;
-      } catch (e) {
-        const ishod = { ok: false, offline: true, smije_se_prodati: false, poruka: e?.message || "Provjera nije uspjela." };
         setProvjera(ishod);
         return ishod;
       } finally {
@@ -313,7 +419,9 @@ const handleAddTickets = async(data) => {
   // `uuid`, pa je sales_route_uuid ispadao undefined i bulkCreate stavki računa
   // je pucao na notNull ("Validation error"), a karte se nisu ni kreirale ni
   // isprintale. Modal je ionako dostupan samo kad selectedTrip postoji (FilterBar).
-  const salesRoute = appData.searchData.selectedTrip
+  // Povratna karta prosljeđuje `data.route` (obrnuta relacija, druga linija/
+  // polazak); polazna koristi trenutno odabrani selectedTrip.
+  const salesRoute = data.route || appData.searchData.selectedTrip
   const newTicket = {
     id: 1,
     sales_route_uuid: salesRoute.uuid,
@@ -798,6 +906,7 @@ function odlukaIGumbi(cijenaRed, sustav) {
       ) : null}
 
       {smije ? (
+        <>
         <Button
           disabled={!cijenaRed}
           variant="contained"
@@ -814,6 +923,74 @@ function odlukaIGumbi(cijenaRed, sustav) {
         >
           {gratis ? 'BESPLATNA KARTA' : `IZNOS ZA PLAĆANJE ${iznos.toFixed(2)} EUR`}
         </Button>
+
+        {/* Prodaj POVRATNU: obrnuti smjer, ista relacija, isti dan. Bilo koja
+            linija; SVJEŽA provjera prava za povratnu rutu; otočna cijena te rute. */}
+        <Button
+          variant="outlined"
+          startIcon={<SwapHorizIcon />}
+          onClick={() => setPovratnaOtvoreno((o) => !o)}
+          sx={{ mt: 1, width: "100%" }}
+        >
+          {povratnaOtvoreno ? "Sakrij povratnu" : "PRODAJ POVRATNU"}
+        </Button>
+
+        {povratnaOtvoreno ? (
+          <Box sx={{ mt: 1.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Povratak (obrnuti smjer, isti dan) — odaberi polazak pa provjeri pravo.
+            </Typography>
+            <FormControl fullWidth size="small" sx={{ mb: 1 }} disabled={!povratneRute().length}>
+              <InputLabel id="povratni-polazak">Povratni polazak</InputLabel>
+              <Select
+                labelId="povratni-polazak"
+                label="Povratni polazak"
+                value={povratniUuid}
+                onChange={(e) => { setPovratniUuid(e.target.value); setPovratnaProvjera(null); }}
+              >
+                {povratneRute().map((r) => (
+                  <MenuItem key={r.uuid} value={r.uuid}>
+                    {`${vrijemeRute(r)} · linija ${r.line_code || ""}`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {!povratneRute().length ? (
+              <Typography color="error" variant="body2">Za taj dan nema povratka na ovoj relaciji.</Typography>
+            ) : null}
+            <Button
+              variant="outlined"
+              disabled={!povratniUuid || povratnaRadi}
+              onClick={() => provjeriPovratnu(povratnaRuta())}
+              sx={{ width: "100%", mb: 1 }}
+            >
+              {povratnaRadi ? "PROVJERA…" : "PROVJERI POVRATNU"}
+            </Button>
+            {povratnaProvjera ? (() => {
+              const cRed = povratniCjenikRed(povratnaRuta());
+              const smijePov = povratnaProvjera.smije_se_prodati === true;
+              const iznosPov = cRed ? cijenaPovlastene(povratnaProvjera, cRed) : 0;
+              return (
+                <>
+                  <Typography align="center" sx={{ fontWeight: 800, py: 0.5 }} color={smijePov ? "success.main" : "error.main"}>
+                    {smijePov
+                      ? (iznosPov === 0 ? "POVRATNA BESPLATNA" : `POVRATNA: ${iznosPov.toFixed(2)} EUR`)
+                      : "NEMA PRAVA NA POVRATNU NA OVOJ RELACIJI"}
+                  </Typography>
+                  {smijePov && !cRed ? (
+                    <Typography color="error" variant="body2" align="center">Nema otočne cijene za povratnu relaciju.</Typography>
+                  ) : null}
+                  {smijePov && cRed ? (
+                    <Button variant="contained" color="success" onClick={dodajPovratnu} sx={{ height: 72, width: "100%", fontSize: "1.1rem" }}>
+                      {iznosPov === 0 ? "DODAJ POVRATNU (BESPLATNO)" : `DODAJ POVRATNU ${iznosPov.toFixed(2)} EUR`}
+                    </Button>
+                  ) : null}
+                </>
+              );
+            })() : null}
+          </Box>
+        ) : null}
+        </>
       ) : (
         // Prava nema ili se ne može provjeriti (kartica se ne da očitati, kvar
         // opreme, prekid veze…). Otočna se izdaje na povjerenje po povlaštenoj
