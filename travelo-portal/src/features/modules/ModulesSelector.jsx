@@ -32,8 +32,22 @@ const ADMIN_MODULE = {
     title: "Administracija",
     subtitle: "Sustav i desktop verzije",
     icon: "AdminPanelSettings",
+    color: "#232526",
     path: "/admin",
     kind: "shared",
+    // `groups` puni padajući izbornik u top baru (Topbar čita selectedFeature.groups),
+    // isto kao katalog-moduli. Ikone moraju postojati u iconsMap.
+    groups: [
+        {
+            label: "Administracija",
+            icon: "AdminPanelSettings",
+            items: [
+                { label: "Desktop verzije", subtitle: "Objava verzija desktop aplikacije", icon: "Download", path: "/desk_updater" },
+                { label: "Prijave na sustav", subtitle: "Log prijava portal korisnika", icon: "RecentActors", path: "/admin/login_logs" },
+                { label: "Uređaji i verzije", subtitle: "Zadnje stanje po uređaju", icon: "Devices", path: "/admin/devices" },
+            ],
+        },
+    ],
 };
 const DEFAULT_GRADIENT = "linear-gradient(135deg,#654ea3 0%,#eaafc8 100%)";
 

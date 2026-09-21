@@ -5,6 +5,7 @@ import DevicesOtherIcon from "@mui/icons-material/DevicesOther";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { authSliceData } from "../auth/authSlice";
+import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 // Modul "Administracija" — NE dodjeljuje se korisnicima (nije u katalogu ni u
 // popisu prava), vidi ga samo korisnik nfilipec. Ista provjera stoji na tile-u
@@ -100,10 +101,8 @@ export default function AdminPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400 }}>
-            <Box sx={{ mb: 3 }}>
-                <Typography variant="h5" fontWeight={800}>Administracija</Typography>
-                <Typography variant="body2" color="text.secondary">Sustavske radnje dostupne administratoru</Typography>
-            </Box>
+            <ModulZaglavlje naslov="Administracija" podnaslov="Sustavske radnje dostupne administratoru" boja="#232526" />
+            <Box sx={{ mb: 3 }} />
             <Box
                 sx={{
                     display: "grid",
