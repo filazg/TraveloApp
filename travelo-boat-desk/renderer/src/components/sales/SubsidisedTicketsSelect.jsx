@@ -6,6 +6,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuid } from "uuid";
 import { allAppData, resetStateData, setStateData } from "../../store/appSlice";
 import IslandReturnModal from "./IslandReturnModal";
+import {
+  identifikatorSKartice,
+  provjeriKarticuNaRuti,
+  cijenaPovlastene,
+  blokPovlastice as buildBlokPovlastice,
+  buildIslandTickets,
+} from "./subsidisedHelpers";
 
 // Razlozi izdavanja otočne bez provjere (Kontrola → Greške s povlaštenim
 // karticama). Ključevi moraju odgovarati onima na backendu/portalu i mobilnoj.
@@ -162,37 +169,6 @@ export default function SubsidisedTicketsSelect() {
         return m ? new Date(+m[3], +m[2] - 1, +m[1]) : new Date();
     };
 
-    // Jezgra provjere prava — radi nad EKSPLICITNOM rutom (line_no + par luka +
-    // datum). Ne dira state; vraća ishod. Koristi je i polazna (selectedTrip) i
-    // povratna (obrnuta relacija, druga linija/polazak) provjera.
-    const provjeriKarticuNaRuti = async ({ vrsta, vrijednost, sustav = "SEOP", kartica = null, route, date }) => {
-      const broj = String(vrijednost || "").trim();
-      if (!broj) return null;
-      if (!route?.line_no || !route?.departure_harbor_code || !route?.arrival_harbor_code) {
-        return { ok: false, smije_se_prodati: false, poruka: "Nedostaje ruta za provjeru." };
-      }
-      try {
-        const odgovor = await window.api.app.checkIslandCardIPC({
-          sustav,
-          [vrsta]: broj,
-          kartica,
-          route,
-          date: date || new Date().toISOString(),
-        });
-        // IPC vraca { ok, data } ili { ok:false, error }.
-        const podaci = odgovor?.data ?? odgovor;
-        if (odgovor?.ok === false) {
-          return { ok: false, offline: true, smije_se_prodati: false, poruka: odgovor.error || "Provjera nije uspjela." };
-        }
-        if (podaci?.ok === false) {
-          return { ok: false, offline: true, smije_se_prodati: false, poruka: podaci.poruka || podaci.error || "Provjera nije uspjela." };
-        }
-        return { ok: true, offline: false, ...podaci, identifikator: podaci.identifikator || { vrsta, vrijednost: broj } };
-      } catch (e) {
-        return { ok: false, offline: true, smije_se_prodati: false, poruka: e?.message || "Provjera nije uspjela." };
-      }
-    };
-
     const provjeriNaPosluzitelju = async ({ vrsta, vrijednost, sustav = "SEOP", kartica = null }) => {
       const broj = String(vrijednost || "").trim();
       if (!broj) return null;
@@ -227,14 +203,6 @@ export default function SubsidisedTicketsSelect() {
     };
 
     const provjeriRucno = () => provjeriNaPosluzitelju({ vrsta: rucniOblik, vrijednost: rucniUnos, sustav: rucniSustav });
-
-    // Identifikator s procitane kartice: SEOP nosi broj iskaznice, MOSI serijski broj.
-    const identifikatorSKartice = (k) => {
-      if (!k?.F2) return null;
-      if (k.cardFamily === "SEOP_P") return { sustav: "SEOP", vrsta: "card_no", vrijednost: k.F2.CardNumber };
-      if (k.cardFamily === "MOSI") return { sustav: "MOSI", vrsta: "card_no", vrijednost: k.F2.SBr };
-      return null;
-    };
 
     const scanCard = async()=>{
       console.log('BRAVO')
@@ -304,137 +272,23 @@ function redovnaCijenaRelacije() {
   return redovna || cijene.find((c) => c.is_island !== true) || null;
 }
 
-// Blok koji putuje uz stavku prodaje. Blagajna ga ne tumaci — `token` je
-// zapecaceni zapis provjere s posluzitelja i ovdje se samo prenosi dalje. Zato
-// nova polja u dojavi ne traze izmjenu blagajne.
+// Blok povlastice — tanki wrapper oko zajedničkog helpera koji dodaje redovnu
+// cijenu relacije (čita se iz selectedTripPrices, pa mora ostati u komponenti).
 function blokPovlastice({ ishod, cijenaRed, pratnja = false, uvijekProdaj = false }) {
-  const redovna = redovnaCijenaRelacije();
-  return {
-    sustav: ishod?.sustav || "SEOP",
-    token: ishod?.token || null,
-    identifikator: ishod?.identifikator || null,
-    pravo: ishod?.pravo_na_pp || null,
-    otok: ishod?.otok || null,
-    popust_postotak: uvijekProdaj ? 0 : Number(ishod?.popust_postotak || 0),
-    namjena: cijenaRed?.seop_type || null,
-    redovna_cijena: Number(redovna?.price ?? cijenaRed?.price ?? 0),
-    odobrenje: ishod?.odobrenje || null,
-    uvijek_prodaj: uvijekProdaj,
-    offline: ishod?.offline === true,
-    pratnja,
-    // Linija moze koristiti SEOP samo za provjeru, bez dojave prodaje.
-    dojava_seop: ishod?.dojava_seop !== false,
-  };
-}
-
-// Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu), i to je
-// striktno ili-ili:
-//   primjeni_popust — na cijenu iz cjenika primijeni postotak sa SEOP-a
-//   inace           — naplati cijenu iz cjenika, kakva jest
-// Nema iznimke za pravo na besplatan prijevoz: kad se popust ne primjenjuje,
-// vrijedi cjenik i za njega.
-function cijenaPovlastene(ishod, cijenaRed) {
-  const osnovica = Number(cijenaRed?.price || 0);
-  if (ishod?.primjeni_popust) {
-    return +(osnovica * (1 - Number(ishod.popust_postotak || 0) / 100)).toFixed(2);
-  }
-  return +osnovica.toFixed(2);
+  return buildBlokPovlastice({
+    ishod, cijenaRed, pratnja, uvijekProdaj,
+    redovnaCijena: redovnaCijenaRelacije()?.price ?? null,
+  });
 }
 
 //DODAVANJE KARATA
-// Izgradi karte (glavnu + eventualnu pratnju) iz jednog `data` opisa. Odvojeno od
-// dispatcha da handleAddTickets moze primiti VISE opisa (polazna+povratna) i sve
-// ih dodati JEDNIM dispatchom — dvostruki poziv ne radi jer `appData` u closure-u
-// ostane star pa bi drugi poziv pregazio prvi.
-const buildIslandTickets = (data) => {
-  let cardDataToAdd = {}
-   if(data.type === 'VIRTUAL CARD'){
-      cardDataToAdd = data.card
-      cardDataToAdd.odobrenje = data.odobrenje
-   }else if(data.type === 'MOSI'){
-      cardDataToAdd = cardData
-   }else{
-      cardDataToAdd = cardData
-   }
-
-
-  // Ruta se uzima iz selectedTrip (konkretna relacija koju je operater odabrao),
-  // isto kao u redovnoj prodaji (TripPricesBar). selectedDeparture je samo prvi
-  // segment polaska i nema polje `sales_routes_uuid` — tablica sales_routes ima
-  // `uuid`, pa je sales_route_uuid ispadao undefined i bulkCreate stavki računa
-  // je pucao na notNull ("Validation error"), a karte se nisu ni kreirale ni
-  // isprintale. Modal je ionako dostupan samo kad selectedTrip postoji (FilterBar).
-  // Povratna karta prosljeđuje `data.route` (obrnuta relacija, druga linija/
-  // polazak); polazna koristi trenutno odabrani selectedTrip.
-  const salesRoute = data.route || appData.searchData.selectedTrip
-  const newTicket = {
-    id: 1,
-    sales_route_uuid: salesRoute.uuid,
-    line_code: salesRoute.line_code,
-    line_name: salesRoute.line_name,
-    departure: salesRoute.departure,
-    departure_harbor_id: salesRoute.departure_harbor_id,
-    departure_harbor_name: salesRoute.departure_harbor_name,
-    arrival: salesRoute.arrival,
-    arrival_harbor_id: salesRoute.arrival_harbor_id,
-    arrival_harbor_name: salesRoute.arrival_harbor_name,
-    // Povlaštena karta zauzima normalno putničko mjesto (cjenik: tip "Otočani" →
-    // kategorija PASSANGER), pa MORA nositi stvarni ticket_type iz cjenika
-    // (data.price). Prije se ovdje upisivao doslovni "SEOP"/"MOSI"/"VIRTUAL CARD" u
-    // ticket_type_uuid — a taj "tip" nema mapping na kapacitetnu kategoriju: booking
-    // rezervacija pukne (no category mapping for ticket_type SEOP), karta nestane iz
-    // Provjere stanja (nema booking retka) i iz Kapetana (ticket_counts bucket koji
-    // UI ne poznaje). Oznaku povlastice zadržavamo samo u nazivu za prikaz; status
-    // povlastice nose polja `povlastica` + `is_island` + `card_data`.
-    ticket_type_name: data?.type ? data.type : data.price.ticket_type_name,
-    ticket_type_id: data.price.ticket_type_id,
-    ticket_type_uuid: data.price.ticket_type_uuid,
-    ticket_group_uuid: uuid(),
-    // Iznos je izracunat po pravilu linije; `price.price` je samo osnovica.
-    single_price: data.free ? 0 : (data.iznos ?? data.price.price),
-    total_price: data.free ? 0 : (data.iznos ?? data.price.price),
-    total_vat_base: data.free ? 0 : data.price.vat_base ,
-    total_vat: data.free ? 0 : data.price.vat_amount ,
-    total_harbor_tax: data.free ? 0 : data.price.port_tax ,
-    quantity: 1,
-    tickets: [{
-      uuid: uuid(),
-      code: uuid(),
-    }],
-    card_data:cardDataToAdd,
-    is_island: true,
-    // Sve sto dojava prodaje treba, u obliku u kojem je posluzitelj odlucio.
-    povlastica: data.povlastica || null
-  }
-  console.log('NEW TICEKT', newTicket)
-  const karte = [newTicket];
-
-  // MOSI: vlasnik kartice putuje s popustom, pratnja besplatno. Odluku je donio
-  // posluzitelj prema postavkama linije; ovdje se samo doda druga karta.
-  if (data.pratnja) {
-    karte.push({
-      ...newTicket,
-      ticket_group_uuid: uuid(),
-      ticket_type_name: `${newTicket.ticket_type_name} — pratnja`,
-      single_price: 0,
-      total_price: 0,
-      total_vat_base: 0,
-      total_vat: 0,
-      total_harbor_tax: 0,
-      tickets: [{ uuid: uuid(), code: uuid() }],
-      povlastica: { ...(data.povlastica || {}), pratnja: true },
-    });
-  }
-  return karte;
-};
-
 const handleAddTickets = async(data) => {
   // Prima jedan opis (jednosmjerna) ili niz opisa (povratno = polazna+povratna).
   // Sve karte se grade i dodaju na POSTOJEĆU kosaricu JEDNIM dispatchom — ne
   // pregazi je i ne oslanja se na medju-render (stari appData u closure-u).
   const opisi = Array.isArray(data) ? data.filter(Boolean) : [data];
   let novi = [];
-  for (const d of opisi) novi = [...novi, ...buildIslandTickets(d)];
+  for (const d of opisi) novi = [...novi, ...buildIslandTickets(d, { cardData, fallbackRoute: appData.searchData.selectedTrip })];
   const ticketsToAdd = [...(appData.saleData?.addedTickets || []), ...novi];
   dispatch(setStateData({path:'saleData/addedTickets' ,value: ticketsToAdd }));
   handleCloseSubsidizedModal()

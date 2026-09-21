@@ -5,6 +5,7 @@ import { allAppData, setStateData } from "../../store/appSlice";
 import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 import ReturnTicketModal from "./ReturnTicketModal";
+import IslandReturnFromCart from "./IslandReturnFromCart";
 
 
 export default function SelectedTicketsBar() {
@@ -15,6 +16,9 @@ export default function SelectedTicketsBar() {
     // registru modala, jer prozor treba znati tocno na koju je stavku
     // kliknuto — luke, vrste karata i kolicine citaju se iz nje.
     const [povratnaZa, setPovratnaZa] = useState(null);
+    // Otočna stavka traži zaseban tok (ponovno očitavanje iskaznice + svježa
+    // provjera prava), pa se drži odvojeno od obične povratne.
+    const [povratnaOtocnaZa, setPovratnaOtocnaZa] = useState(null);
 
     const createTicketsGroup = async () => {
       //await dispatch(setStateData({path:'status', value:'loading'}))
@@ -240,15 +244,28 @@ export default function SelectedTicketsBar() {
                       desno, umjesto pune širine iznad naslova. */}
                   <Box display="flex" justifyContent="space-between" alignItems="center">
                     {/* Povratak se nudi uz stavku jer se iz nje sve i izvodi:
-                        relacija u suprotnom smjeru, vrste karata i kolicine. */}
-                    <Button
-                      color="primary"
-                      size="small"
-                      startIcon={<SwapHorizIcon />}
-                      onClick={() => setPovratnaZa(row)}
-                    >
-                      POVRATNA
-                    </Button>
+                        relacija u suprotnom smjeru, vrste karata i kolicine.
+                        Otočne (povlaštene) karte idu zasebnim tokom jer traže
+                        iskaznicu i svježu provjeru prava. */}
+                    {row.ticketsData?.some((t) => t.povlastica) ? (
+                      <Button
+                        color="primary"
+                        size="small"
+                        startIcon={<SwapHorizIcon />}
+                        onClick={() => setPovratnaOtocnaZa(row)}
+                      >
+                        POVRATNA (OTOČNA)
+                      </Button>
+                    ) : (
+                      <Button
+                        color="primary"
+                        size="small"
+                        startIcon={<SwapHorizIcon />}
+                        onClick={() => setPovratnaZa(row)}
+                      >
+                        POVRATNA
+                      </Button>
+                    )}
                     <Button
                       color="error"
                       size="small"
@@ -269,6 +286,10 @@ export default function SelectedTicketsBar() {
 
       {povratnaZa ? (
         <ReturnTicketModal stavka={povratnaZa} onClose={() => setPovratnaZa(null)} />
+      ) : null}
+
+      {povratnaOtocnaZa ? (
+        <IslandReturnFromCart stavka={povratnaOtocnaZa} onClose={() => setPovratnaOtocnaZa(null)} />
       ) : null}
     </>
     )
