@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import {
-    Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel, MenuItem,
-    Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
+    Alert, Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, Stack, Typography,
 } from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { authSliceData, setAuthData } from "../auth/authSlice";
 
@@ -28,9 +28,8 @@ export default function LoginLogsPage() {
     const username = authData?.loggedUserData?.username;
 
     // Top-meni pri navigaciji upali globalni overlay (authData.loading=true) i
-    // očekuje da ga odredišna stranica ugasi (kao ostali moduli u syncData). Ova
-    // stranica nema takav sync, pa bi overlay ostao visjeti ("zapne") — gasimo ga
-    // odmah po dolasku.
+    // očekuje da ga odredišna stranica ugasi. Ova stranica nema takav sync, pa bi
+    // overlay ostao visjeti ("zapne") — gasimo ga odmah po dolasku.
     useEffect(() => { dispatch(setAuthData({ path: "loading", value: false })); }, [dispatch]);
 
     const [logs, setLogs] = useState([]);
@@ -48,19 +47,25 @@ export default function LoginLogsPage() {
         [logs, fKorisnik]
     );
 
+    const columns = useMemo(() => [
+        { field: "createdAt", headerName: "Vrijeme", flex: 1.4, minWidth: 160, valueFormatter: (v) => formatDate(v) },
+        { field: "username", headerName: "Korisnik", flex: 1, minWidth: 120 },
+        {
+            field: "reason", headerName: "Ishod", flex: 1.3, minWidth: 170,
+            renderCell: (p) => <Chip size="small" color={p.row.success ? "success" : "error"} label={razlogTekst(p.row.reason)} />,
+        },
+        { field: "ip_address", headerName: "IP", flex: 1, minWidth: 120, valueGetter: (v) => v || "—" },
+    ], []);
+
     const api = useMemo(() => axios.create({
         baseURL: authData.backendURL,
         withCredentials: true,
-        // Bez timeouta bi povremeno spor/zaglavljen poziv ostavio ekran na
-        // spinneru; ovako brzo padne pa se pokuša ponovo / ponudi Osvježi.
         timeout: 20000,
     }), [authData.backendURL]);
 
     const load = useCallback(async () => {
         setLoading(true);
         setError("");
-        // Jedan tihi pokušaj ponovo — pokriva povremeni prekid/blip prije nego
-        // korisniku pokažemo grešku.
         for (let pokusaj = 1; pokusaj <= 2; pokusaj++) {
             try {
                 const r = await api.post("/portal/admin/login_logs", {});
@@ -89,7 +94,7 @@ export default function LoginLogsPage() {
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
                 <Box>
                     <Typography variant="h5" fontWeight={800}>Prijave na sustav</Typography>
-                    <Typography variant="body2" color="text.secondary">Prijave portal korisnika — uspješne i neuspjele</Typography>
+                    <Typography variant="body2" color="text.secondary">Prijave portal korisnika — uspješne i neuspjele (zadnja 3 mjeseca)</Typography>
                 </Box>
                 <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>Osvježi</Button>
             </Stack>
@@ -106,42 +111,23 @@ export default function LoginLogsPage() {
                 </FormControl>
             </Stack>
 
-            <Paper sx={{ p: 1 }}>
-                {loading && logs.length === 0 ? (
-                    <Stack alignItems="center" sx={{ py: 6 }}><CircularProgress /></Stack>
-                ) : prikazani.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nema zapisa.</Typography>
-                ) : (
-                    <TableContainer sx={{ width: "100%", overflowX: "auto" }}>
-                    <Table size="small" sx={{ minWidth: 520, "& th, & td": { whiteSpace: "nowrap" } }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Vrijeme</TableCell>
-                                <TableCell>Korisnik</TableCell>
-                                <TableCell>Ishod</TableCell>
-                                <TableCell>IP</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {prikazani.map((l) => (
-                                <TableRow key={l.id} hover>
-                                    <TableCell>{formatDate(l.createdAt)}</TableCell>
-                                    <TableCell>{l.username}</TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            size="small"
-                                            color={l.success ? "success" : "error"}
-                                            label={razlogTekst(l.reason)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>{l.ip_address || "—"}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                    </TableContainer>
-                )}
-            </Paper>
+            <Box sx={{ width: "100%", overflowX: "auto" }}>
+                <Box sx={{ height: "72vh", minWidth: 640 }}>
+                    <DataGrid
+                        rows={prikazani}
+                        columns={columns}
+                        getRowId={(r) => r.id}
+                        loading={loading}
+                        disableRowSelectionOnClick
+                        initialState={{
+                            pagination: { paginationModel: { pageSize: 50, page: 0 } },
+                            sorting: { sortModel: [{ field: "createdAt", sort: "desc" }] },
+                        }}
+                        pageSizeOptions={[25, 50, 100, 250]}
+                        localeText={{ noRowsLabel: "Nema zapisa." }}
+                    />
+                </Box>
+            </Box>
         </Box>
     );
 }

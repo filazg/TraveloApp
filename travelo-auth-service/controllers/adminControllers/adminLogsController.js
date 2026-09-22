@@ -2,17 +2,23 @@
 // Read endpointe zove web_portal-service (BFF) izravno (server-to-server); upis
 // heartbeata (terminalReport) šalje desk/mobile pri pokretanju preko gatewaya.
 
+const { Op } = require("sequelize");
+
 const klijentIp = (req) => {
     const xff = String(req.headers?.["x-forwarded-for"] || "").split(",")[0].trim();
     return xff || req.socket?.remoteAddress || req.ip || null;
 };
 
-// GET — zadnjih N prijava portala (uspješne i neuspjele), najnovije prvo.
+// GET — prijave portala (uspješne i neuspjele), najnovije prvo. Prikaz je
+// ograničen na zadnja 3 mjeseca (starije se ne dohvaćaju).
 const getLoginLogsController = async (req, res) => {
     try {
         const { LoginLogsModel } = req.app.locals.models;
-        const limit = Math.min(Number(req.query.limit) || 500, 2000);
+        const limit = Math.min(Number(req.query.limit) || 2000, 5000);
+        const odKad = new Date();
+        odKad.setMonth(odKad.getMonth() - 3);
         const logs = await LoginLogsModel.findAll({
+            where: { createdAt: { [Op.gte]: odKad } },
             order: [["createdAt", "DESC"]],
             limit,
         });
