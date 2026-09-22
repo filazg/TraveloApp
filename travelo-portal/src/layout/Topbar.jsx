@@ -101,9 +101,13 @@ export default function Topbar() {
       {/* Tri stupca umjesto space-between: naslov je srednji, a bočni stupci su
           jednake širine (1fr) pa naslov stoji točno na sredini trake bez obzira
           na to koliko je širok gumb izbornika ili koliko je kontrola desno. */}
-      <Toolbar sx={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 1 }}>
-        {/* LEFT — znak pa izbornik */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifySelf: "start", minWidth: 0 }}>
+      {/* Desktop: grid 1fr auto 1fr — naslov centriran. Mobitel: flex
+          space-between — meni lijevo dobije svu slobodnu širinu, kontrole se
+          skupe uz desni rub (grid bi im rezervirao pola trake). */}
+      <Toolbar sx={{ display: { xs: "flex", md: "grid" }, gridTemplateColumns: { md: "1fr auto 1fr" }, justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+        {/* LEFT — znak pa izbornik. Na mobitelu flex:1 da meni uzme svu slobodnu
+            širinu (kontrole desno uzimaju samo koliko trebaju). */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifySelf: "start", minWidth: 0, flex: { xs: 1, md: "unset" } }}>
           <BrandMark
             variant="h6"
             onPrimary
@@ -218,8 +222,9 @@ export default function Topbar() {
           Admin portal
         </Typography>
 
-        {/* RIGHT */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifySelf: "end" }}>
+        {/* RIGHT — uz desni rub; ne skuplja se (flexShrink:0) da ikone ostanu
+            čitljive, a lijevi meni dobije ostatak. */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifySelf: "end", flexShrink: 0 }}>
           {authData.loggedUserData?.username && (
             <>
               {/* Klik na korisnicko ime otvara izbornik s promjenom lozinke. */}
