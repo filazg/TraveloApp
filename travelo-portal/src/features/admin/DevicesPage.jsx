@@ -114,8 +114,8 @@ export default function DevicesPage() {
                 ) : prikazani.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nema zapisa.</Typography>
                 ) : (
-                    <TableContainer sx={{ overflowX: "auto" }}>
-                    <Table size="small" sx={{ minWidth: 720 }}>
+                    <TableContainer sx={{ width: "100%", overflowX: "auto" }}>
+                    <Table size="small" sx={{ minWidth: 720, "& th, & td": { whiteSpace: "nowrap" } }}>
                         <TableHead>
                             <TableRow>
                                 <TableCell>Vrijeme</TableCell>
