@@ -645,39 +645,66 @@ const virtualSeopCards =[
 
 
 
+// Naziv prava s kartice. Cip nosi samo sifru, pa naziv dolazi iz sifarnika
+// popusta (kratak, iz kataloga prava) ili iz ugradenog popisa (dugacak opis iz
+// Pravilnika). Blagajniku prvo treba kratko, dugo je tu samo da nesto pise kad
+// pravo nije u sifarniku.
+function nazivPrava(sifra) {
+  const izSifarnika = (appData.basicData?.seop_right_discounts || [])
+    .find((p) => String(p.code) === String(sifra));
+  if (izSifarnika?.opis) return izSifarnika.opis;
+  return seopRights.find((right) => right.code === sifra)?.description || null;
+}
+
+// Postotak popusta za prikaz. Kad je posluzitelj odgovorio, vrijedi njegova
+// odluka; bez mreze vrijedi sifarnik. Na liniji koja popust ne primjenjuje
+// cijena ide iz cjenika, pa postotak ne bi bio istina.
+function popustZaPrikaz() {
+  if (provjera?.smije_se_prodati === true && provjera?.primjeni_popust !== true) return 'po cjeniku';
+  if (provjera?.primjeni_popust === true && provjera?.popust_postotak != null) return `${provjera.popust_postotak} %`;
+  const bezMreze = provjera?.offline === true ? odlukaBezMreze() : null;
+  if (bezMreze?.primijenjen) return `${bezMreze.popust_postotak} %`;
+  const izSifarnika = (appData.basicData?.seop_right_discounts || [])
+    .find((p) => String(p.code) === String(cardData?.F2?.BasicRight));
+  return izSifarnika?.discount_pct != null ? `${izSifarnika.discount_pct} %` : '—';
+}
+
 function seopCardDetails() {
   // Odluku donosi posluzitelj (SEOP + postavke linije); kartica sluzi za prikaz
   // podataka o vlasniku i za identifikaciju.
-  const rightOnCard = seopRights.find((right) => right.code === cardData.F2.BasicRight)
+  //
+  // Prikazuje se samo ono po cemu blagajnik odlucuje: tko je, koje pravo, koliki
+  // popust i za koji otok. Adresa i mjesto prebivalista su izbaceni — otok pise
+  // posebno, a stupac je zbog njih bio dvostruko duzi.
   const priceForSeopTicket = appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true)
   const smije = provjera?.smije_se_prodati === true
+  const naziv = nazivPrava(cardData.F2.BasicRight)
   return(
     <StatusPanel tone={smije ? "success" : "error"} title="Otočna kartica SEOP_P">
-      <Stack direction="row" spacing={2}>
-        <InfoCard title="Podaci o vlasniku">
+      <Stack direction="row" spacing={2} alignItems="stretch">
+        <InfoCard title="Nositelj">
           <DetailRow label="Ime i prezime" value={`${cardData.F2.FirstName} ${cardData.F2.Surname}`} />
           <DetailRow label="OIB" value={cardData.F2.OIB} />
-          <DetailRow label="Adresa" value={cardData.F2.PermResAddress} />
-          <DetailRow label="Mjesto" value={cardData.F2.PermResMuniciname} />
+          <DetailRow label="Kartica" value={cardData.F2.CardNumber} />
         </InfoCard>
-        <InfoCard title="Podaci o pravima">
-          <DetailRow label="Broj kartice" value={cardData.F2.CardNumber} />
+        <InfoCard title="Pravo">
+          <DetailRow label="Šifra" value={cardData.F2.BasicRight} />
+          <Typography color="text.secondary" sx={{ pb: 0.5 }}>
+            {naziv || 'Pravo s kartice nije u lokalnom šifrarniku.'}
+          </Typography>
+          <DetailRow label="Popust" value={popustZaPrikaz()} />
+          <DetailRow label="Otok" value={cardData.F2.IslandName} />
           <DetailRow
             label="Vrijedi do"
             value={`${cardData.F2.ExpirationDate.Day}/${cardData.F2.ExpirationDate.Month}/${cardData.F2.ExpirationDate.Year}`}
           />
-          <DetailRow label="Osnovno pravo" value={cardData.F2.BasicRight} />
-          <DetailRow label="Vrijedi za otok" value={cardData.F2.IslandName} />
         </InfoCard>
       </Stack>
 
+      {/* Odluka i gumbi stoje izravno na plohi: dosad su bili u trecoj bijeloj
+          kartici, pa je ekran imao tri okvira jedan u drugom. */}
       <Box sx={{ mt: 2 }}>
-        <InfoCard title="Prava">
-          <Typography align="center" sx={{ fontWeight: 600, py: 1 }}>
-            {rightOnCard ? rightOnCard.description : 'Pravo s kartice nije u lokalnom šifrarniku.'}
-          </Typography>
-          {odlukaIGumbi(priceForSeopTicket, 'SEOP')}
-        </InfoCard>
+        {odlukaIGumbi(priceForSeopTicket, 'SEOP')}
       </Box>
     </StatusPanel>
   )
