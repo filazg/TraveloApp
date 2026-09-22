@@ -608,8 +608,15 @@ export default function SaleScreen() {
             // Bez odgovora posluzitelja prava se ne mogu utvrditi. Karta se
             // svejedno moze prodati punom cijenom, a dojava ce iz outboxa otici
             // kad mreza dode.
-            setIslandOffline(!err?.response);
-            setIslandError(err?.response?.data?.data?.message || err?.message || 'Greška u provjeri');
+            // Bez odgovora nema mreže; 5xx znači da naš lanac stoji (akd/SEOP
+            // ne odgovara), pa se ni u tom slučaju nema koga pitati — blagajna
+            // to isto tako racuna. 4xx ostaje prava odbijenica poslužitelja.
+            const status = Number(err?.response?.status || 0);
+            const bezProvjere = !err?.response || status >= 500;
+            setIslandOffline(bezProvjere);
+            setIslandError(bezProvjere
+                ? 'SEOP nije dostupan — pravo nije provjereno.'
+                : (err?.response?.data?.data?.message || err?.message || 'Greška u provjeri'));
             soundError();
         } finally {
             setIslandChecking(false);
@@ -714,6 +721,14 @@ export default function SaleScreen() {
         return upis?.discount_pct != null ? `${upis.discount_pct} %` : '—';
     };
 
+    // Je li terminal sam utvrdio pravo s kartice. Tada je karta ponuđena, pa
+    // izdavanje uz razlog nema smisla — razlog se traži samo kad se ne zna.
+    const bezMrezeOdluceno = () => {
+        if (!islandOffline) return false;
+        const odluka = odlukaBezMreze();
+        return odluka?.odluceno === true && odluka?.pravo_vrijedi === true;
+    };
+
     // Izdavanje otocne s lokalnim popustom — samo kad je veza pala, a cip je
     // procitan. Razlog se ne trazi: pravo je poznato, pa karta nije izdana na
     // povjerenje nego po sifarniku. Offline oznaka ostaje, da se u Kontroli
@@ -721,9 +736,13 @@ export default function SaleScreen() {
     const izdajSLokalnimPopustom = () => {
         const odluka = odlukaBezMreze();
         const red = islandPriceRow || redovniRed;
-        if (!red || !odluka?.primijenjen) return;
+        if (!red || !odluka?.pravo_vrijedi) return;
         const redovna = Number(redovniRed?.price ?? red.price);
-        const unit = +(Number(red.price) * (1 - odluka.popust_postotak / 100)).toFixed(2);
+        // Isto pravilo kao s mrežom: postotak na cijenu iz cjenika samo ako ga
+        // linija primjenjuje, inače otočna cijena kakva jest.
+        const unit = odluka.primjeni_popust
+            ? +(Number(red.price) * (1 - odluka.popust_postotak / 100)).toFixed(2)
+            : +Number(red.price).toFixed(2);
         dodajKartu({
             ticket_type_uuid: red.ticket_type_uuid,
             ticket_type_name: red.ticket_type_name || 'Povlaštena karta',
@@ -1490,48 +1509,66 @@ export default function SaleScreen() {
                             </View>
                         )}
 
-                        {/* Veza je pala, ali je čip pročitan: pravo znamo s kartice,
-                            postotak iz lokalnog šifarnika. Karta se izdaje s popustom,
-                            bez razloga, uz offline oznaku. Jedini slučaj u kojem
-                            terminal sam određuje popust. */}
+                        {/* Veza je pala, ali je čip pročitan: pravo i otok znamo s
+                            kartice, postotak iz lokalnog šifarnika. Odluka ima tri
+                            ishoda — pravo vrijedi, prava nema, ili se ne zna — i samo
+                            u zadnjem slučaju ostaje izdavanje uz razlog. Jedini slučaj
+                            u kojem terminal sam određuje cijenu povlaštene. */}
                         {!islandChecking && islandOffline && (() => {
                             const odluka = odlukaBezMreze();
                             if (!odluka) return null;
                             const red = islandPriceRow || redovniRed;
-                            if (!odluka.primijenjen) {
+                            if (!odluka.odluceno) {
                                 return (
                                     <View style={islandStyles.bezMreze}>
                                         <Text style={islandStyles.bezMrezeMsg}>{odluka.razlog}</Text>
                                     </View>
                                 );
                             }
+                            if (!odluka.pravo_vrijedi) {
+                                return (
+                                    <View style={islandStyles.bezMreze}>
+                                        <Text style={islandStyles.error}>{odluka.razlog}</Text>
+                                    </View>
+                                );
+                            }
                             if (!red) return null;
-                            const unit = +(Number(red.price) * (1 - odluka.popust_postotak / 100)).toFixed(2);
+                            const unit = odluka.primjeni_popust
+                                ? +(Number(red.price) * (1 - odluka.popust_postotak / 100)).toFixed(2)
+                                : +Number(red.price).toFixed(2);
                             return (
                                 <View style={islandStyles.bezMreze}>
                                     <Text style={islandStyles.bezMrezeNaslov}>
-                                        Bez veze sa SEOP-om — popust {odluka.popust_postotak}% po pravu {islandCardInfo?.basicRight}
+                                        Bez veze sa SEOP-om — pravo {islandCardInfo?.basicRight} s kartice
                                     </Text>
                                     <Text style={islandStyles.bezMrezeMsg}>
-                                        Karta se bilježi kao prodana bez provjere i vidi se u Kontroli.
+                                        {odluka.razlog} Karta se bilježi kao prodana bez provjere i vidi se u Kontroli.
                                     </Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                                         <Text style={{ marginRight: 8 }}>Cijena:</Text>
-                                        <Text style={[islandStyles.priceOld, { textDecorationLine: 'line-through' }]}>
-                                            {Number(red.price).toFixed(2)} €
-                                        </Text>
+                                        {odluka.primjeni_popust && (
+                                            <Text style={[islandStyles.priceOld, { textDecorationLine: 'line-through' }]}>
+                                                {Number(red.price).toFixed(2)} €
+                                            </Text>
+                                        )}
                                         <Text style={islandStyles.priceNew}>{unit.toFixed(2)} €</Text>
                                     </View>
                                     <TouchableOpacity style={islandStyles.btnLokalni} onPress={izdajSLokalnimPopustom}>
                                         <Text style={islandStyles.btnPrimaryText}>
-                                            {unit === 0 ? 'Izdaj besplatnu kartu' : `Izdaj s popustom — ${unit.toFixed(2)} €`}
+                                            {unit === 0
+                                                ? 'Izdaj besplatnu kartu'
+                                                : odluka.primjeni_popust
+                                                    ? `Izdaj s popustom — ${unit.toFixed(2)} €`
+                                                    : `Izdaj po otočnoj cijeni — ${unit.toFixed(2)} €`}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
                             );
                         })()}
 
-                        {(!islandChecking && ((islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo)) || islandOffline || !!islandError)) && (
+                        {/* Kad je terminal sam utvrdio pravo s kartice, karta je
+                            ponuđena gore i razlog nema što objasniti. */}
+                        {(!islandChecking && !bezMrezeOdluceno() && ((islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo)) || islandOffline || !!islandError)) && (
                             <View style={islandStyles.greska}>
                                 <Text style={islandStyles.greskaNaslov}>Izdaj otočnu bez provjere — obavezan razlog:</Text>
                                 <View style={islandStyles.razlogRed}>
