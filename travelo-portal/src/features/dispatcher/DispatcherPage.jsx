@@ -49,14 +49,18 @@ import { useLoading } from "../loading/useLoading";
 import ModulZaglavlje from "../modules/ModulZaglavlje";
 
 // Gumbi uz polazak: na mobitelu (xs) samo ikona (kompaktno, bez razmaka do
-// teksta), na sm+ puni gumb s tekstom. Naziv radnje je uvijek u Tooltipu.
+// teksta) i razvučeni preko cijelog reda; na sm+ puni gumb s tekstom prirodne
+// širine. Naziv radnje je uvijek u Tooltipu.
 const GUMB_POLASKA_SX = {
     minWidth: { xs: 0, sm: 64 },
     px: { xs: 1, sm: 2 },
-    flexShrink: 0,
+    width: { xs: "100%", sm: "auto" },
     "& .MuiButton-startIcon": { mr: { xs: 0, sm: 1 }, ml: 0 },
 };
 const TEKST_GUMBA_SX = { display: { xs: "none", sm: "inline" } };
+// Flex-item oko svakog gumba (ujedno wrapper za Tooltip na disabled gumbu): na
+// mobitelu flex:1 → sva 4 dijele red ravnomjerno; na sm+ prirodna širina.
+const STAVKA_GUMBA_SX = { display: "inline-flex", flex: { xs: 1, sm: "0 0 auto" } };
 
 // DD/MM/YYYY or YYYY-MM-DD -> YYYY-MM-DD
 const toIso = (s) => {
@@ -541,14 +545,14 @@ export default function DispatcherPage() {
                                 useFlexGap
                                 flexWrap={{ xs: "nowrap", sm: "wrap" }}
                                 justifyContent="flex-end"
-                                sx={{ flexShrink: 0 }}
+                                sx={{ flexShrink: 0, width: { xs: "100%", sm: "auto" } }}
                             >
                                 {/* Otkazani polazak ostaje u popisu, ali umjesto otkazivanja
                                     nudi vraćanje u prodaju — dispečer tako vidi što se dogodilo
                                     i može ispraviti pogrešku. */}
                                 {s.sale_status === "CANCELED" ? (
                                     <Tooltip title="Vrati u prodaju">
-                                        <span>
+                                        <Box component="span" sx={STAVKA_GUMBA_SX}>
                                             <Button
                                                 variant="outlined"
                                                 color="success"
@@ -559,23 +563,25 @@ export default function DispatcherPage() {
                                             >
                                                 <Box component="span" sx={TEKST_GUMBA_SX}>Vrati u prodaju</Box>
                                             </Button>
-                                        </span>
+                                        </Box>
                                     </Tooltip>
                                 ) : (
                                     <Tooltip title="Otkaži polazak">
-                                        <Button
-                                            variant="outlined"
-                                            color="error"
-                                            startIcon={<CancelIcon />}
-                                            onClick={() => handleOpenCancel(s)}
-                                            sx={GUMB_POLASKA_SX}
-                                        >
-                                            <Box component="span" sx={TEKST_GUMBA_SX}>Otkaži polazak</Box>
-                                        </Button>
+                                        <Box component="span" sx={STAVKA_GUMBA_SX}>
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                startIcon={<CancelIcon />}
+                                                onClick={() => handleOpenCancel(s)}
+                                                sx={GUMB_POLASKA_SX}
+                                            >
+                                                <Box component="span" sx={TEKST_GUMBA_SX}>Otkaži polazak</Box>
+                                            </Button>
+                                        </Box>
                                     </Tooltip>
                                 )}
                                 <Tooltip title="Pomakni polazak">
-                                    <span>
+                                    <Box component="span" sx={STAVKA_GUMBA_SX}>
                                         <Button
                                             variant="outlined"
                                             color="warning"
@@ -586,10 +592,10 @@ export default function DispatcherPage() {
                                         >
                                             <Box component="span" sx={TEKST_GUMBA_SX}>Pomakni polazak</Box>
                                         </Button>
-                                    </span>
+                                    </Box>
                                 </Tooltip>
                                 <Tooltip title="Zamijeni brod">
-                                    <span>
+                                    <Box component="span" sx={STAVKA_GUMBA_SX}>
                                         <Button
                                             variant="outlined"
                                             startIcon={<DirectionsBoatIcon />}
@@ -599,17 +605,19 @@ export default function DispatcherPage() {
                                         >
                                             <Box component="span" sx={TEKST_GUMBA_SX}>Zamijeni brod</Box>
                                         </Button>
-                                    </span>
+                                    </Box>
                                 </Tooltip>
                                 <Tooltip title="Pošalji poruku">
-                                    <Button
-                                        variant="contained"
-                                        startIcon={<MailOutlineIcon />}
-                                        onClick={() => handleOpenMessage(s)}
-                                        sx={GUMB_POLASKA_SX}
-                                    >
-                                        <Box component="span" sx={TEKST_GUMBA_SX}>Pošalji poruku</Box>
-                                    </Button>
+                                    <Box component="span" sx={STAVKA_GUMBA_SX}>
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<MailOutlineIcon />}
+                                            onClick={() => handleOpenMessage(s)}
+                                            sx={GUMB_POLASKA_SX}
+                                        >
+                                            <Box component="span" sx={TEKST_GUMBA_SX}>Pošalji poruku</Box>
+                                        </Button>
+                                    </Box>
                                 </Tooltip>
                             </Stack>
                         </Stack>
