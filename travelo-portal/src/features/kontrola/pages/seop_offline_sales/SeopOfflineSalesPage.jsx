@@ -24,7 +24,7 @@ const VRSTE = {
     bez_prava: {
         label: "Bez potvrđenog prava",
         color: "warning",
-        opis: "Izdana na povjerenje uz razlog — popust se nije mogao odrediti.",
+        opis: "Izdana na povjerenje uz razlog; popust, ako ga ima, dao je operater.",
     },
     ostalo: {
         label: "Ostalo",
@@ -37,6 +37,9 @@ const vrstaInfo = (v) => VRSTE[v] || { label: v || "—", color: "default" };
 const IZVOR = {
     lokalni_katalog: "lokalni šifarnik",
     seop: "SEOP",
+    // Karta izdana na povjerenje: pravo se nije moglo provjeriti, pa je postotak
+    // odluka operatera i stoji odvojeno od popusta koji ima pokrice u pravu.
+    povjerenje: "odluka operatera",
 };
 
 const fmtVrijeme = (v) => {

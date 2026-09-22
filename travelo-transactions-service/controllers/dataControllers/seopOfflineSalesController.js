@@ -12,8 +12,9 @@ const { Op } = require("sequelize");
 // blagajna znala u trenutku prodaje:
 //   popust    — čip je pročitan, pravo poznato, postotak uzet iz lokalnog
 //               šifarnika (seop_popust_izvor = "lokalni_katalog");
-//   bez_prava — izdana na povjerenje uz razlog, bez popusta (uvijek_prodaj);
-//               popust se nije mogao odrediti;
+//   bez_prava — izdana na povjerenje uz razlog (uvijek_prodaj); pravo se nije
+//               moglo provjeriti, pa popust — ako ga ima — nosi izvor
+//               „povjerenje“, odnosno odluku operatera;
 //   ostalo    — offline karta koja ne ulazi ni u jedno od prethodnog.
 const VRSTE = ["popust", "bez_prava", "ostalo"];
 
