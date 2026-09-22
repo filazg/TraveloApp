@@ -158,6 +158,9 @@ export default function SubsidisedTicketsSelect() {
     // na PRODAJ POVRATNU — modal doda i polaznu i povratnu odjednom (povratno
     // putovanje = oba smjera).
     const [polaznaData, setPolaznaData] = useState(null);
+    // Razlog i napomena kad povratna ide na povjerenje (kartica se nije mogla
+    // provjeriti). Prazno kad se povratna prodaje po potvrdenom pravu.
+    const [povratnaNaPovjerenje, setPovratnaNaPovjerenje] = useState(null);
 
     // Sustav aktivne kartice (MOSI ne smije otići kao SEOP): iz očitane kartice
     // (cardFamily), inače iz ručnog odabira.
@@ -917,7 +920,11 @@ function odlukaIGumbi(cijenaRed, sustav) {
           <Typography sx={{ fontWeight: 800, mb: 1 }}>
             Izdaj otočnu bez provjere — obavezan razlog:
           </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+          {/* Svi razlozi u jednom redu i jednake sirine: dosad su se prelamali
+              u dva reda razlicitih duljina, pa je izbor izgledao kao popis
+              razlicito vaznih stvari. Tekst se umjesto gumba prelama u dva
+              retka. */}
+          <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
             {RAZLOZI_GRESKE.map((r) => (
               <Button
                 key={r.kljuc}
@@ -925,6 +932,15 @@ function odlukaIGumbi(cijenaRed, sustav) {
                 variant={greskaRazlog === r.kljuc ? "contained" : "outlined"}
                 color="error"
                 onClick={() => setGreskaRazlog(r.kljuc)}
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  minHeight: 52,
+                  px: 1,
+                  lineHeight: 1.2,
+                  whiteSpace: "normal",
+                  textAlign: "center",
+                }}
               >
                 {r.naziv}
               </Button>
@@ -959,6 +975,31 @@ function odlukaIGumbi(cijenaRed, sustav) {
             {cijenaRed
               ? `IZDAJ OTOČNU ${Number(cijenaRed.price).toFixed(2)} EUR`
               : 'NEMA OTOČNE CIJENE ZA RELACIJU'}
+          </Button>
+
+          {/* Povratna vrijedi i ovdje: putnik kojem se kartica ne da provjeriti
+              vraca se isto kao i svaki drugi. Razlog i napomena prenose se na
+              povratnu — rijec je o istom dogadaju, pa se ne upisuje dvaput. */}
+          <Button
+            disabled={!cijenaRed || !greskaRazlog}
+            variant="outlined"
+            color="warning"
+            startIcon={<SwapHorizIcon />}
+            onClick={() => {
+              setPolaznaData({
+                price: cijenaRed, rights: {}, type: sustav, free: false,
+                iznos: cijenaPovlastene(provjera, cijenaRed),
+                povlastica: {
+                  ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true }),
+                  greska: { razlog: greskaRazlog, napomena: greskaNapomena.trim() || null },
+                },
+              });
+              setPovratnaNaPovjerenje({ razlog: greskaRazlog, napomena: greskaNapomena.trim() || null });
+              setPovratnaOtvoreno(true);
+            }}
+            sx={{ mt: 1, width: "100%" }}
+          >
+            PRODAJ POVRATNU NA POVJERENJE
           </Button>
           </>
           ) : null}
@@ -1251,7 +1292,7 @@ function virtualCardDetails() {
 
         <IslandReturnModal
           open={povratnaOtvoreno}
-          onClose={() => { setPovratnaOtvoreno(false); setPolaznaData(null); }}
+          onClose={() => { setPovratnaOtvoreno(false); setPolaznaData(null); setPovratnaNaPovjerenje(null); }}
           polaznaData={polaznaData}
           relacija={appData.searchData?.selectedTrip}
           kartica={{
@@ -1265,6 +1306,7 @@ function virtualCardDetails() {
           cijenaPovlastene={cijenaPovlastene}
           blokPovlastice={blokPovlastice}
           onDodaj={handleAddTickets}
+          naPovjerenje={povratnaNaPovjerenje}
         />
     </>
   );

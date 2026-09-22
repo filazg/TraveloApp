@@ -36,6 +36,7 @@ export default function IslandReturnModal({
     cijenaPovlastene,  // (ishod, cijenaRed) => number
     blokPovlastice,    // ({ishod, cijenaRed}) => obj
     onDodaj,           // (data) => void  (handleAddTickets)
+    naPovjerenje,      // {razlog, napomena} kad polazna ide na povjerenje — vrijedi i za povratnu
 }) {
     const appData = useSelector(allAppData);
     const [dan, setDan] = useState(pocetniDatum || new Date());
@@ -148,15 +149,29 @@ export default function IslandReturnModal({
                 : 0)
             : cijenaPovlastene(provjera, cijenaRed);
 
+    // Povratna na povjerenje: kartica se ni ovdje ne da provjeriti, ali razlog je
+    // vec odabran za polaznu i vrijedi za isti dogadaj. Ako se povratna ipak
+    // potvrdi (SEOP se vratio, druga linija priznaje), prodaje se normalno.
+    const naPovjerenjeMoguce = !!naPovjerenje?.razlog && !smije;
+    const iznosZaProdaju = naPovjerenjeMoguce
+        ? (cijenaRed ? +Number(cijenaRed.price).toFixed(2) : 0)
+        : iznos;
+
     const dodaj = () => {
-        if (!ruta || !cijenaRed || !smije) return;
+        if (!ruta || !cijenaRed) return;
+        if (!smije && !naPovjerenjeMoguce) return;
         const povratnaData = {
             price: cijenaRed,
             rights: {},
             type: kartica?.sustav || "SEOP",
-            free: iznos === 0,
-            iznos,
-            povlastica: blokPovlastice({ ishod: provjera, cijenaRed, bezMreze: bezVeze ? odlukaBezMreze : null }),
+            free: iznosZaProdaju === 0 && !naPovjerenjeMoguce,
+            iznos: iznosZaProdaju,
+            povlastica: naPovjerenjeMoguce
+                ? {
+                    ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true }),
+                    greska: { razlog: naPovjerenje.razlog, napomena: naPovjerenje.napomena || null },
+                }
+                : blokPovlastice({ ishod: provjera, cijenaRed, bezMreze: bezVeze ? odlukaBezMreze : null }),
             route: ruta,
         };
         // Povratno putovanje = oba smjera. Ako je polazna proslijedjena, dodaju se
@@ -272,14 +287,26 @@ export default function IslandReturnModal({
                                 {provjera.razlog || provjera.poruka}
                             </Typography>
                         ) : null}
-                        {smije && !cijenaRed ? (
+                        {(smije || naPovjerenjeMoguce) && !cijenaRed ? (
                             <Alert severity="error">Za povratnu relaciju nije unesena otočna cijena.</Alert>
                         ) : null}
-                        {smije && cijenaRed ? (
-                            <Button variant="contained" color="success" fullWidth onClick={dodaj} sx={{ height: 80, fontSize: "1.15rem" }}>
+                        {naPovjerenjeMoguce && cijenaRed ? (
+                            <Alert severity="warning" sx={{ mb: 1.5 }}>
+                                Pravo se ni za povratnu ne može potvrditi. Karta se izdaje na povjerenje, po otočnoj
+                                cijeni iz cjenika, s istim razlogom kao polazna — i tako se vidi u Kontroli.
+                            </Alert>
+                        ) : null}
+                        {(smije || naPovjerenjeMoguce) && cijenaRed ? (
+                            <Button
+                                variant="contained"
+                                color={naPovjerenjeMoguce ? "warning" : "success"}
+                                fullWidth
+                                onClick={dodaj}
+                                sx={{ height: 80, fontSize: "1.15rem" }}
+                            >
                                 {polaznaData
-                                    ? `DODAJ OBJE KARTE ${(Number(polaznaData.free ? 0 : polaznaData.iznos || 0) + iznos).toFixed(2)} EUR`
-                                    : (iznos === 0 ? "DODAJ POVRATNU (BESPLATNO)" : `DODAJ POVRATNU ${iznos.toFixed(2)} EUR`)}
+                                    ? `DODAJ OBJE KARTE ${(Number(polaznaData.free ? 0 : polaznaData.iznos || 0) + iznosZaProdaju).toFixed(2)} EUR`
+                                    : (iznosZaProdaju === 0 ? "DODAJ POVRATNU (BESPLATNO)" : `DODAJ POVRATNU ${iznosZaProdaju.toFixed(2)} EUR`)}
                             </Button>
                         ) : null}
                     </>
