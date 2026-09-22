@@ -34,7 +34,7 @@ function StatusPanel({ tone = "neutral", title, children }) {
             variant="outlined"
             sx={{
                 borderRadius: 3,
-                p: 2,
+                p: 1.5,
                 bgcolor: (t) => alpha(t.palette[key].main, t.palette.mode === "dark" ? 0.18 : 0.1),
                 borderColor: (t) => alpha(t.palette[key].main, 0.5),
             }}
@@ -42,7 +42,8 @@ function StatusPanel({ tone = "neutral", title, children }) {
             {title ? (
                 <Typography
                     align="center"
-                    sx={{ fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", mb: 2 }}
+                    variant="body2"
+                    sx={{ fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", mb: 1 }}
                     color={tone === "neutral" ? "text.primary" : `${key}.main`}
                 >
                     {title}
@@ -68,6 +69,17 @@ function InfoCard({ title, children }) {
             <Divider sx={{ my: 1 }} />
             {children}
         </Paper>
+    );
+}
+
+// Oznaka i vrijednost jedno uz drugo, za podatke koji se samo citaju u prolazu
+// (podaci s ocitane kartice). Zauzima jedan redak umjesto cijelog stupca.
+function SitnoPolje({ oznaka, vrijednost }) {
+    return (
+        <Stack direction="row" spacing={0.5} alignItems="baseline">
+            <Typography variant="body2" color="text.secondary">{oznaka}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{vrijednost || '—'}</Typography>
+        </Stack>
     );
 }
 
@@ -328,6 +340,10 @@ const handleAddTickets = async(data) => {
 
 
 
+// Opisi prava iz Pravilnika. Prikaz ih vise ne koristi — blagajnik na ekranu
+// vidi samo sifru — ali popis ostaje: sluzi kao jedino mjesto gdje pise sto koja
+// sifra znaci, dok se ne odluci hoce li ici u sifarnik.
+// eslint-disable-next-line no-unused-vars
 const seopRights = [
   {
     id:1,
@@ -645,17 +661,6 @@ const virtualSeopCards =[
 
 
 
-// Naziv prava s kartice. Cip nosi samo sifru, pa naziv dolazi iz sifarnika
-// popusta (kratak, iz kataloga prava) ili iz ugradenog popisa (dugacak opis iz
-// Pravilnika). Blagajniku prvo treba kratko, dugo je tu samo da nesto pise kad
-// pravo nije u sifarniku.
-function nazivPrava(sifra) {
-  const izSifarnika = (appData.basicData?.seop_right_discounts || [])
-    .find((p) => String(p.code) === String(sifra));
-  if (izSifarnika?.opis) return izSifarnika.opis;
-  return seopRights.find((right) => right.code === sifra)?.description || null;
-}
-
 // Postotak popusta za prikaz. Kad je posluzitelj odgovorio, vrijedi njegova
 // odluka; bez mreze vrijedi sifarnik. Na liniji koja popust ne primjenjuje
 // cijena ide iz cjenika, pa postotak ne bi bio istina.
@@ -678,34 +683,27 @@ function seopCardDetails() {
   // posebno, a stupac je zbog njih bio dvostruko duzi.
   const priceForSeopTicket = appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true)
   const smije = provjera?.smije_se_prodati === true
-  const naziv = nazivPrava(cardData.F2.BasicRight)
   return(
     <StatusPanel tone={smije ? "success" : "error"} title="Otočna kartica SEOP_P">
-      <Stack direction="row" spacing={2} alignItems="stretch">
-        <InfoCard title="Nositelj">
-          <DetailRow label="Ime i prezime" value={`${cardData.F2.FirstName} ${cardData.F2.Surname}`} />
-          <DetailRow label="OIB" value={cardData.F2.OIB} />
-          <DetailRow label="Kartica" value={cardData.F2.CardNumber} />
-        </InfoCard>
-        <InfoCard title="Pravo">
-          <DetailRow label="Šifra" value={cardData.F2.BasicRight} />
-          <Typography color="text.secondary" sx={{ pb: 0.5 }}>
-            {naziv || 'Pravo s kartice nije u lokalnom šifrarniku.'}
-          </Typography>
-          <DetailRow label="Popust" value={popustZaPrikaz()} />
-          <DetailRow label="Otok" value={cardData.F2.IslandName} />
-          <DetailRow
-            label="Vrijedi do"
-            value={`${cardData.F2.ExpirationDate.Day}/${cardData.F2.ExpirationDate.Month}/${cardData.F2.ExpirationDate.Year}`}
-          />
-        </InfoCard>
+      {/* Podaci s cipa stanu u jedan uski red: ime, pa cetiri para oznaka-vrijednost.
+          Bijele kartice s naslovima i opis sifre su maknuti — zauzimali su vise
+          mjesta nego podaci, a prostor treba odluci i gumbima ispod. */}
+      <Typography sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+        {`${cardData.F2.FirstName} ${cardData.F2.Surname}`}
+      </Typography>
+      <Stack direction="row" flexWrap="wrap" columnGap={2} sx={{ mt: 0.25, mb: 1 }}>
+        <SitnoPolje oznaka="OIB" vrijednost={cardData.F2.OIB} />
+        <SitnoPolje oznaka="Kartica" vrijednost={cardData.F2.CardNumber} />
+        <SitnoPolje oznaka="Pravo" vrijednost={cardData.F2.BasicRight} />
+        <SitnoPolje oznaka="Popust" vrijednost={popustZaPrikaz()} />
+        <SitnoPolje oznaka="Otok" vrijednost={cardData.F2.IslandName} />
+        <SitnoPolje
+          oznaka="Vrijedi do"
+          vrijednost={`${cardData.F2.ExpirationDate.Day}/${cardData.F2.ExpirationDate.Month}/${cardData.F2.ExpirationDate.Year}`}
+        />
       </Stack>
 
-      {/* Odluka i gumbi stoje izravno na plohi: dosad su bili u trecoj bijeloj
-          kartici, pa je ekran imao tri okvira jedan u drugom. */}
-      <Box sx={{ mt: 2 }}>
-        {odlukaIGumbi(priceForSeopTicket, 'SEOP')}
-      </Box>
+      {odlukaIGumbi(priceForSeopTicket, 'SEOP')}
     </StatusPanel>
   )
 }
