@@ -12,26 +12,10 @@ import {
   cijenaPovlastene,
   popustBezMreze,
   blokPovlastice as buildBlokPovlastice,
+  RAZLOZI_GRESKE,
+  POPUSTI_POVJERENJE,
   buildIslandTickets,
 } from "./subsidisedHelpers";
-
-// Razlozi izdavanja otočne bez provjere (Kontrola → Greške s povlaštenim
-// karticama). Ključevi moraju odgovarati onima na backendu/portalu i mobilnoj.
-// Popust koji operater smije dati karti izdanoj na povjerenje. Tri su moguca
-// ishoda i nista izmedu: puna otocna cijena, polovica, ili besplatno — isti
-// stupnjevi koje SEOP inace vraca po pravu.
-const POPUSTI_POVJERENJE = [
-    { pct: 0, naziv: "Puna cijena" },
-    { pct: 50, naziv: "Popust 50 %" },
-    { pct: 100, naziv: "Besplatno (100 %)" },
-];
-
-const RAZLOZI_GRESKE = [
-    { kljuc: "nemoguce_ocitati", naziv: "Nemoguće očitati karticu" },
-    { kljuc: "kartica_ostecena", naziv: "Kartica oštećena" },
-    { kljuc: "greska_oprema", naziv: "Greška na opremi" },
-    { kljuc: "prekid_komunikacije", naziv: "Prekid u komunikaciji" },
-];
 
 // Ploha koja nosi ishod provjere kartice. Ton zamjenjuje zatečene tvrdo
 // kodirane boje (#ffeb3b za važeću, #f28b82 za nevažeću, lightgray za MOSI) —

@@ -10,6 +10,26 @@ import { v4 as uuid } from "uuid";
 // relacija kad `data.route` nije zadan) dolaze kao parametri. Koristi je prodaja
 // (Način 1, fallbackRoute=selectedTrip) i povratna iz košarice (Način 2, route
 // je uvijek u data).
+// Razlozi zbog kojih se povlaštena karta izdaje bez potvrđenog prava, i popusti
+// koje operater tada smije dati. Stoje ovdje, a ne u pojedinom ekranu, jer se
+// ista karta može izdati na tri mjesta (prodaja, povratna uz prodaju, povratna
+// iz košarice) — a razlog i postotak moraju svugdje značiti isto, i u Kontroli
+// se broje kao jedno.
+export const RAZLOZI_GRESKE = [
+    { kljuc: "nemoguce_ocitati", naziv: "Nemoguće očitati karticu" },
+    { kljuc: "kartica_ostecena", naziv: "Kartica oštećena" },
+    { kljuc: "greska_oprema", naziv: "Greška na opremi" },
+    { kljuc: "prekid_komunikacije", naziv: "Prekid u komunikaciji" },
+];
+
+// Tri stupnja i ništa između: puna otočna cijena, polovica, ili besplatno —
+// isti stupnjevi koje SEOP inače vraća po pravu.
+export const POPUSTI_POVJERENJE = [
+    { pct: 0, naziv: "Puna cijena" },
+    { pct: 50, naziv: "Popust 50 %" },
+    { pct: 100, naziv: "Besplatno (100 %)" },
+];
+
 export const buildIslandTickets = (data, { cardData = null, fallbackRoute = null } = {}) => {
     let cardDataToAdd = {};
     if (data.type === "VIRTUAL CARD") {

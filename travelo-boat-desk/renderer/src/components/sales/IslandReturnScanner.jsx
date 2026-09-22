@@ -12,6 +12,8 @@ import {
     cijenaPovlastene,
     blokPovlastice as buildBlokPovlastice,
     buildIslandTickets,
+    RAZLOZI_GRESKE,
+    POPUSTI_POVJERENJE,
 } from "./subsidisedHelpers";
 
 // Skeniranje N iskaznica za povratnu OTOČNU na VEĆ ODABRANOJ povratnoj ruti
@@ -35,6 +37,12 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
     const [provjera, setProvjera] = useState(null);
     const [radi, setRadi] = useState(false);
     const [greska, setGreska] = useState("");
+
+    // Izdavanje bez potvrdenog prava — isto kao u prodaji: obavezan razlog,
+    // neobavezna napomena i popust koji odreduje operater.
+    const [greskaRazlog, setGreskaRazlog] = useState(null);
+    const [greskaNapomena, setGreskaNapomena] = useState("");
+    const [povjerenjePopust, setPovjerenjePopust] = useState(0);
 
     const [rucniSustav, setRucniSustav] = useState("SEOP");
     const [rucniOblik, setRucniOblik] = useState("card_no");
@@ -120,6 +128,45 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
         setProvjera(null);
         setGreska("");
         setRucniUnos("");
+        setGreskaRazlog(null);
+        setGreskaNapomena("");
+        setPovjerenjePopust(0);
+    };
+
+    // Cijena karte izdane na povjerenje: otocna cijena iz cjenika umanjena za
+    // popust koji je operater odabrao.
+    const iznosPovjerenja = cijenaRed
+        ? +(Number(cijenaRed.price) * (1 - Number(povjerenjePopust || 0) / 100)).toFixed(2)
+        : 0;
+
+    // Isti put kao u prodaji: kad se pravo ne moze potvrditi (broj se ne nalazi,
+    // kartica se ne da ocitati, SEOP ne odgovara), karta se izdaje na povjerenje
+    // uz obavezan razlog. Bez ovoga je jedini izlaz bio preskociti karticu, pa
+    // putnik koji je polaznu dobio na povjerenje nije mogao dobiti povratnu.
+    const dodajNaPovjerenje = () => {
+        if (!cijenaRed || !greskaRazlog) return;
+        const data = {
+            price: cijenaRed,
+            rights: {},
+            type: kartica?.sustav || "SEOP",
+            free: iznosPovjerenja === 0,
+            iznos: iznosPovjerenja,
+            povlastica: {
+                ...buildBlokPovlastice({
+                    ishod: provjera,
+                    cijenaRed,
+                    redovnaCijena: null,
+                    uvijekProdaj: true,
+                    popustNaPovjerenje: povjerenjePopust,
+                }),
+                greska: { razlog: greskaRazlog, napomena: greskaNapomena.trim() || null },
+            },
+            route: ruta,
+        };
+        const novi = buildIslandTickets(data, { cardData: ocitanaKartica });
+        const postojece = appData.saleData?.addedTickets || [];
+        dispatch(setStateData({ path: "saleData/addedTickets", value: [...postojece, ...novi] }));
+        naSljedecu();
     };
 
     const dodaj = () => {
@@ -213,9 +260,70 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
                                 {iznos === 0 ? "DODAJ POVRATNU (BESPLATNO)" : `DODAJ POVRATNU ${iznos.toFixed(2)} EUR`}
                             </Button>
                         ) : (
-                            <Button variant="outlined" fullWidth onClick={naSljedecu} sx={{ height: 56, mt: 1 }}>
-                                {indeks >= kolicina ? "ZATVORI" : "PRESKOČI OVU KARTICU"}
-                            </Button>
+                            <>
+                                <Divider sx={{ my: 1.5 }} />
+                                <Typography sx={{ fontWeight: 800, mb: 1 }}>
+                                    Izdaj povratnu bez provjere — obavezan razlog:
+                                </Typography>
+                                <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+                                    {RAZLOZI_GRESKE.map((r) => (
+                                        <Button
+                                            key={r.kljuc}
+                                            size="small"
+                                            variant={greskaRazlog === r.kljuc ? "contained" : "outlined"}
+                                            color="error"
+                                            onClick={() => setGreskaRazlog(r.kljuc)}
+                                            sx={{ flex: 1, minWidth: 0, minHeight: 52, px: 1, lineHeight: 1.2, whiteSpace: "normal", textAlign: "center" }}
+                                        >
+                                            {r.naziv}
+                                        </Button>
+                                    ))}
+                                </Stack>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    minRows={1}
+                                    size="small"
+                                    label="Napomena (opcionalno)"
+                                    value={greskaNapomena}
+                                    onChange={(e) => setGreskaNapomena(e.target.value)}
+                                    sx={{ mb: 1.5 }}
+                                />
+                                <Typography sx={{ fontWeight: 800, mb: 1 }}>Popust na povjerenje:</Typography>
+                                <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+                                    {POPUSTI_POVJERENJE.map((o) => (
+                                        <Button
+                                            key={o.pct}
+                                            size="small"
+                                            variant={povjerenjePopust === o.pct ? "contained" : "outlined"}
+                                            color="warning"
+                                            onClick={() => setPovjerenjePopust(o.pct)}
+                                            sx={{ flex: 1, minWidth: 0, minHeight: 52, px: 1, lineHeight: 1.2, whiteSpace: "normal", textAlign: "center" }}
+                                        >
+                                            {o.naziv}
+                                        </Button>
+                                    ))}
+                                </Stack>
+                                <Button
+                                    variant="contained"
+                                    color="warning"
+                                    fullWidth
+                                    disabled={!cijenaRed || !greskaRazlog}
+                                    onClick={dodajNaPovjerenje}
+                                    sx={{ height: 72, fontSize: "1.1rem" }}
+                                >
+                                    {!cijenaRed
+                                        ? "NEMA OTOČNE CIJENE ZA RELACIJU"
+                                        : povjerenjePopust === 100
+                                            ? "IZDAJ POVRATNU BESPLATNO (100 %)"
+                                            : povjerenjePopust > 0
+                                                ? `IZDAJ POVRATNU S POPUSTOM ${povjerenjePopust} % — ${iznosPovjerenja.toFixed(2)} EUR`
+                                                : `IZDAJ POVRATNU NA POVJERENJE ${iznosPovjerenja.toFixed(2)} EUR`}
+                                </Button>
+                                <Button variant="outlined" fullWidth onClick={naSljedecu} sx={{ height: 48, mt: 1 }}>
+                                    {indeks >= kolicina ? "ZATVORI" : "PRESKOČI OVU KARTICU"}
+                                </Button>
+                            </>
                         )}
                     </>
                 )}
