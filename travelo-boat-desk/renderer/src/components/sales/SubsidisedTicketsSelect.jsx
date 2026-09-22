@@ -1268,6 +1268,7 @@ function virtualCardDetails() {
           cijenaPovlastene={cijenaPovlastene}
           blokPovlastice={blokPovlastice}
           onDodaj={handleAddTickets}
+          seopNedostupan={provjera?.offline === true}
         />
     </>
   );
