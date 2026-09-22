@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import {
     Alert, Box, Button, Chip, CircularProgress, Divider, FormControlLabel, IconButton,
@@ -9,7 +9,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
-import { authSliceData } from "../auth/authSlice";
+import { authSliceData, setAuthData } from "../auth/authSlice";
 
 // Objava nove verzije desktop aplikacije (electron-updater feed). Pristup je
 // ograničen na jednog korisnika (i ovdje i na backendu).
@@ -47,7 +47,13 @@ function klasificiraj(fileList) {
 }
 
 export default function DeskUpdaterPage() {
+    const dispatch = useDispatch();
     const authData = useSelector(authSliceData);
+
+    // Top-meni pri navigaciji upali globalni overlay (authData.loading=true) i
+    // očekuje da ga odredišna stranica ugasi. Ova stranica nema sync koji to radi,
+    // pa bi overlay ostao visjeti ("zapne") — gasimo ga odmah po dolasku.
+    useEffect(() => { dispatch(setAuthData({ path: "loading", value: false })); }, [dispatch]);
     const username = authData?.loggedUserData?.username;
 
     const [odabrano, setOdabrano] = useState({ setup: null, blockmap: null, yml: null, ostalo: [] });

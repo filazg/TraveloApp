@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import {
     Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel, MenuItem,
     Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { authSliceData } from "../auth/authSlice";
+import { authSliceData, setAuthData } from "../auth/authSlice";
 
 const ADMIN_USER = "nfilipec";
 
@@ -23,8 +23,15 @@ const razlogTekst = (reason) => ({
 }[reason] || reason || "");
 
 export default function LoginLogsPage() {
+    const dispatch = useDispatch();
     const authData = useSelector(authSliceData);
     const username = authData?.loggedUserData?.username;
+
+    // Top-meni pri navigaciji upali globalni overlay (authData.loading=true) i
+    // očekuje da ga odredišna stranica ugasi (kao ostali moduli u syncData). Ova
+    // stranica nema takav sync, pa bi overlay ostao visjeti ("zapne") — gasimo ga
+    // odmah po dolasku.
+    useEffect(() => { dispatch(setAuthData({ path: "loading", value: false })); }, [dispatch]);
 
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
