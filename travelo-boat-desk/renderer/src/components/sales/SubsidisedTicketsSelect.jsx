@@ -771,6 +771,24 @@ function ponudiLokalniPopust(cijenaRed, sustav) {
             ? `IZDAJ S POPUSTOM ${odluka.popust_postotak}% — ${iznos.toFixed(2)} EUR`
             : `IZDAJ PO OTOČNOJ CIJENI — ${iznos.toFixed(2)} EUR`}
       </Button>
+
+      {/* Povratna je uvijek ponuda, i bez mreze: putnik se vraca istim danom
+          bez obzira na to javlja li se SEOP. Modal za povratnu rutu donosi
+          istu lokalnu odluku, jer povratak moze ici drugom linijom. */}
+      <Button
+        variant="outlined"
+        startIcon={<SwapHorizIcon />}
+        onClick={() => {
+          setPolaznaData({
+            price: cijenaRed, rights: {}, type: sustav, free: iznos === 0, iznos,
+            povlastica: blokPovlastice({ ishod: provjera, cijenaRed, bezMreze: odluka }),
+          });
+          setPovratnaOtvoreno(true);
+        }}
+        sx={{ mt: 1, width: "100%" }}
+      >
+        PRODAJ POVRATNU
+      </Button>
     </Box>
   );
 }

@@ -9,6 +9,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import { allAppData } from "../../store/appSlice";
+import { popustBezMreze } from "./subsidisedHelpers";
 
 // Povratna OTOČNA karta u zasebnom modalu (Način 1 iz "Povlaštene karte", a
 // kasnije i Način 2 iz košarice). Bira se datum povratka + polazak u obrnutom
@@ -105,8 +106,44 @@ export default function IslandReturnModal({
         }
     };
 
-    const smije = provjera?.smije_se_prodati === true;
-    const iznos = provjera && cijenaRed ? cijenaPovlastene(provjera, cijenaRed) : 0;
+    // Bez veze sa SEOP-om odluka se donosi lokalno, istim pravilima kao za
+    // polaznu — inace bi povratna bila nemoguca cim SEOP ne odgovara, a putnik
+    // koji se vraca isti dan ostao bez pola putovanja.
+    //
+    // Provjera ide po odabranoj povratnoj ruti: druga ruta moze biti druga
+    // linija, s drugim postavkama i drugim otocima.
+    const bezVeze = provjera?.offline === true;
+    const odlukaBezMreze = useMemo(() => {
+        if (!bezVeze || !ruta) return null;
+        const linija = (appData.transportData?.lines || [])
+            .find((l) => String(l.code) === String(ruta.line_code || ""));
+        const kodovi = [ruta.departure_harbor_id, ruta.arrival_harbor_id]
+            .map((c) => String(c || "").trim())
+            .filter(Boolean);
+        return popustBezMreze({
+            popusti: appData.basicData?.seop_right_discounts || [],
+            pravo: kartica?.F2?.BasicRight || null,
+            otokKartice: kartica?.F2?.IslandName || null,
+            linija: linija || null,
+            luke: (appData.transportData?.harbors || [])
+                .filter((l) => kodovi.includes(String(l?.code || "").trim())),
+        });
+    }, [bezVeze, ruta, appData.transportData, appData.basicData, kartica]);
+
+    const smije = bezVeze
+        ? odlukaBezMreze?.pravo_vrijedi === true
+        : provjera?.smije_se_prodati === true;
+    // Cijena po istom pravilu kao za polaznu: postotak iz sifarnika ako ga
+    // linija primjenjuje, inace otocna cijena iz cjenika.
+    const iznos = !cijenaRed || !provjera
+        ? 0
+        : bezVeze
+            ? (smije
+                ? (odlukaBezMreze?.primjeni_popust
+                    ? +(Number(cijenaRed.price) * (1 - Number(odlukaBezMreze.popust_postotak) / 100)).toFixed(2)
+                    : +Number(cijenaRed.price).toFixed(2))
+                : 0)
+            : cijenaPovlastene(provjera, cijenaRed);
 
     const dodaj = () => {
         if (!ruta || !cijenaRed || !smije) return;
@@ -116,7 +153,7 @@ export default function IslandReturnModal({
             type: kartica?.sustav || "SEOP",
             free: iznos === 0,
             iznos,
-            povlastica: blokPovlastice({ ishod: provjera, cijenaRed }),
+            povlastica: blokPovlastice({ ishod: provjera, cijenaRed, bezMreze: bezVeze ? odlukaBezMreze : null }),
             route: ruta,
         };
         // Povratno putovanje = oba smjera. Ako je polazna proslijedjena, dodaju se
@@ -198,12 +235,26 @@ export default function IslandReturnModal({
                 {provjera ? (
                     <>
                         <Divider sx={{ mb: 1.5 }} />
-                        <Typography align="center" sx={{ fontWeight: 800, py: 0.5 }} color={smije ? "success.main" : "error.main"}>
+                        <Typography
+                            align="center"
+                            sx={{ fontWeight: 800, py: 0.5 }}
+                            color={smije ? "success.main" : (bezVeze ? "warning.main" : "error.main")}
+                        >
                             {smije
                                 ? (iznos === 0 ? "POVRATNA BESPLATNA" : `POVRATNA: ${iznos.toFixed(2)} EUR`)
-                                : "NEMA PRAVA NA POVRATNU NA OVOJ RELACIJI"}
+                                : bezVeze
+                                    ? "SEOP NIJE DOSTUPAN — PRAVO NIJE PROVJERENO"
+                                    : "NEMA PRAVA NA POVRATNU NA OVOJ RELACIJI"}
                         </Typography>
-                        {provjera.poruka || provjera.razlog ? (
+                        {/* Bez veze je mjerodavan razlog lokalne odluke; poruka
+                            posluzitelja je tada samo tehnicki opis ispada. */}
+                        {bezVeze ? (
+                            odlukaBezMreze?.razlog ? (
+                                <Typography align="center" color="text.secondary" variant="body2" sx={{ mb: 1 }}>
+                                    {odlukaBezMreze.razlog}
+                                </Typography>
+                            ) : null
+                        ) : (provjera.poruka || provjera.razlog) ? (
                             <Typography align="center" color="text.secondary" variant="body2" sx={{ mb: 1 }}>
                                 {provjera.razlog || provjera.poruka}
                             </Typography>
