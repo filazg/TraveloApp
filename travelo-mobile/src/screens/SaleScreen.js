@@ -1367,6 +1367,16 @@ export default function SaleScreen() {
                     <View style={islandStyles.card}>
                         <Text style={islandStyles.title}>Povlaštena kartica</Text>
 
+                        {/* Sadržaj se pomiče, naslov i gumbi ostaju: na malom
+                            ekranu je modal znao narasti preko ruba, pa su
+                            „Zatvori" i „Izdaj otočnu" ispadali izvan zaslona i
+                            operater je ostajao zaglavljen u modalu. */}
+                        <ScrollView
+                            style={islandStyles.body}
+                            contentContainerStyle={islandStyles.bodySadrzaj}
+                            keyboardShouldPersistTaps="handled"
+                        >
+
                         {/* Podaci s cipa: gore tko je, ispod po cemu se naplacuje.
                             Vrsta kartice je izbacena — modal se i otvara samo za
                             otocnu, pa je red trosio prostor bez koristi. */}
@@ -1594,6 +1604,8 @@ export default function SaleScreen() {
                             </View>
                         )}
 
+                        </ScrollView>
+
                         <View style={islandStyles.actions}>
                             <TouchableOpacity style={islandStyles.btnGhost} onPress={closeIslandModal}>
                                 <Text style={islandStyles.btnGhostText}>Zatvori</Text>
@@ -1634,7 +1646,7 @@ export default function SaleScreen() {
 
 const islandStyles = StyleSheet.create({
     // Izbor onoga sto se upisuje: broj iskaznice, OIB ili broj iksice.
-    oblikRed: { flexDirection: 'row', marginBottom: 10, gap: 8 },
+    oblikRed: { flexDirection: 'row', marginBottom: 8, gap: 6 },
     oblikBtn: {
         flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1,
         borderColor: colors.border, alignItems: 'center', backgroundColor: colors.surface,
@@ -1649,10 +1661,14 @@ const islandStyles = StyleSheet.create({
     bezMrezeMsg: { fontSize: 13, color: colors.textSecondary },
     btnLokalni: { marginTop: 10, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 14, alignItems: 'center' },
     greskaNaslov: { fontSize: 13, fontWeight: '800', color: colors.error, marginBottom: 8 },
-    razlogRed: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-    razlogBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+    razlogRed: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+    razlogBtn: {
+        flex: 1, minWidth: 0, minHeight: 46, paddingVertical: 6, paddingHorizontal: 4,
+        borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+        alignItems: 'center', justifyContent: 'center',
+    },
     razlogBtnAktivan: { backgroundColor: colors.error, borderColor: colors.error },
-    razlogText: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+    razlogText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textAlign: 'center' },
     razlogTextAktivan: { color: colors.textOnPrimary },
     napomenaInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, fontSize: 14, minHeight: 44, color: colors.textPrimary, backgroundColor: colors.surface, textAlignVertical: 'top' },
     oblikTextAktivan: { color: colors.textOnPrimary },
@@ -1667,36 +1683,40 @@ const islandStyles = StyleSheet.create({
         paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10,
         backgroundColor: colors.warning || '#B26A00', marginLeft: 8,
     },
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 12 },
     card: {
-        backgroundColor: colors.surface, borderRadius: 12, padding: 20, width: '100%', maxWidth: 460,
+        backgroundColor: colors.surface, borderRadius: 12, padding: 14, width: '100%', maxWidth: 460,
+        // Nikad preko ruba zaslona: ostatak se pomiče unutar tijela.
+        maxHeight: '90%',
         borderWidth: 1, borderColor: colors.border,
         ...shadows.elevated,
     },
-    title: { fontSize: 18, fontWeight: 'bold', marginBottom: 12, color: colors.success },
-    help: { fontSize: 14, color: colors.textSecondary, marginBottom: 12 },
-    checking: { alignItems: 'center', justifyContent: 'center', paddingVertical: 36 },
-    checkingText: { marginTop: 18, fontSize: 18, fontWeight: '800', letterSpacing: 1, color: colors.primary },
-    checkingSub: { marginTop: 6, fontSize: 14, color: colors.textSecondary },
-    cardInfo: { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
-    cardInfoName: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
+    body: { flexGrow: 0, flexShrink: 1 },
+    bodySadrzaj: { paddingBottom: 4 },
+    title: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: colors.success },
+    help: { fontSize: 13, color: colors.textSecondary, marginBottom: 8 },
+    checking: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
+    checkingText: { marginTop: 12, fontSize: 16, fontWeight: '800', letterSpacing: 1, color: colors.primary },
+    checkingSub: { marginTop: 4, fontSize: 13, color: colors.textSecondary },
+    cardInfo: { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 8 },
+    cardInfoName: { fontSize: 15, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
     cardInfoLine: { fontSize: 14, color: colors.textPrimary, marginTop: 2 },
     // Oznaka lijevo, vrijednost desno — isti raspored kao na blagajni, samo uze.
-    cardInfoRed: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-    cardInfoOznaka: { fontSize: 14, color: colors.textSecondary },
+    cardInfoRed: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
+    cardInfoOznaka: { fontSize: 13, color: colors.textSecondary },
     cardInfoSitno: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-    input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 18, marginBottom: 8, color: colors.textPrimary, backgroundColor: colors.surface },
+    input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, fontSize: 16, marginBottom: 6, color: colors.textPrimary, backgroundColor: colors.surface },
     error: { color: colors.error, marginTop: 8 },
-    resultOk: { backgroundColor: colors.successLight, borderColor: colors.success, borderWidth: 1, padding: 12, borderRadius: 8 },
+    resultOk: { backgroundColor: colors.successLight, borderColor: colors.success, borderWidth: 1, padding: 10, borderRadius: 8 },
     resultOkTitle: { color: colors.success, fontWeight: 'bold', marginBottom: 4 },
-    resultErr: { backgroundColor: colors.errorLight, borderColor: colors.error, borderWidth: 1, padding: 12, borderRadius: 8 },
+    resultErr: { backgroundColor: colors.errorLight, borderColor: colors.error, borderWidth: 1, padding: 10, borderRadius: 8 },
     resultErrTitle: { color: colors.error, fontWeight: 'bold' },
     resultMsg: { color: colors.textSecondary, fontStyle: 'italic', marginTop: 4 },
     resultLine: { fontSize: 14, color: colors.textPrimary },
     b: { fontWeight: 'bold' },
     priceOld: { fontSize: 16, color: colors.textMuted, marginRight: 8 },
     priceNew: { fontSize: 18, fontWeight: 'bold', color: colors.success },
-    actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16, gap: 8 },
+    actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10, gap: 8 },
     btnGhost: { paddingVertical: 10, paddingHorizontal: 16 },
     btnGhostText: { color: colors.textSecondary, fontSize: 16 },
     btnPrimary: { backgroundColor: colors.success, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 8 },
