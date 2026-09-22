@@ -266,8 +266,10 @@ export default function Topbar() {
               aria-expanded={open ? "true" : undefined}
               size="large"
             >
-              <Typography sx={{ ml: 1, fontWeight: 700, fontSize: 13 }}>
-                {authData.selectedLanguage.label}
+              <Typography sx={{ fontWeight: 700, fontSize: 14 }}>
+                {authData.selectedLanguage.short
+                  || (authData.selectedLanguage.code || "").toUpperCase()
+                  || authData.selectedLanguage.label}
               </Typography>
             </IconButton>
               <Menu
