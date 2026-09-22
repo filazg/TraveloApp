@@ -33,11 +33,15 @@ export const syncBasicDataThunk = createAsyncThunk(
             // Postotci storniranja stižu uz basic_data kao zaseban ključ; drže se
             // unutar basic_data objekta jer se on sprema u SQLite, pa terminal ima
             // ponuđene postotke i bez mreže.
+            //
+            // Isto vrijedi i za popuste po pravu na povlašteni prijevoz: potrebni
+            // su točno onda kad mreže nema, pa moraju biti u lokalnoj bazi.
             const basic = payload.basic_data
                 ? {
                     ...payload.basic_data,
                     payment_7pay: payload.payment_7pay || null,
                     storno_percentages: payload.storno_percentages || [],
+                    seop_right_discounts: payload.seop_right_discounts || [],
                 }
                 : null;
             await saveBasicData(

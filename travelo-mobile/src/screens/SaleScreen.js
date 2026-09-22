@@ -26,6 +26,7 @@ import {
 import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
 import { prijaviPokusaj, zabiljeziOcitanje } from '../services/validationAttempts';
+import { popustBezMreze } from '../services/seopOffline';
 import { ENDPOINTS } from '../api/config';
 import { loadRecentBuyers, saveBuyer, syncAddressbook, findTicketByUuidOrCode, loadValidationLogForRoutes } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
@@ -635,27 +636,86 @@ export default function SaleScreen() {
     // Blok koji putuje uz stavku prodaje. Blagajna ga ne tumaci: `token` je
     // zapecaceni zapis provjere s posluzitelja i ovdje se samo prenosi dalje.
     // Zato nova polja u dojavi ne traze izmjenu mobilne.
-    const blokPovlastice = ({ ishod, pratnja = false, uvijekProdaj = false, offline = false, redovna, cijenaRed }) => ({
-        sustav: ishod?.sustav || 'SEOP',
-        token: ishod?.token || null,
-        identifikator: {
-            vrsta: ishod?.identifikator?.vrsta || islandIdType,
-            vrijednost: ishod?.identifikator?.vrijednost || islandCardNo,
-        },
-        pravo: ishod?.pravo_na_pp || null,
-        otok: ishod?.otok || null,
-        popust_postotak: uvijekProdaj ? 0 : Number(ishod?.popust_postotak || 0),
-        // Namjena se uzima s reda cjenika koji se stvarno prodaje: povlastena
-        // karta i karta punom cijenom nisu ista vrsta u SEOP-u.
-        namjena: (cijenaRed || islandPriceRow)?.seop_type || null,
-        redovna_cijena: redovna,
-        odobrenje: ishod?.odobrenje || null,
-        uvijek_prodaj: uvijekProdaj,
-        offline,
-        pratnja,
-        // Linija moze koristiti SEOP samo za provjeru, bez dojave prodaje.
-        dojava_seop: ishod?.dojava_seop !== false,
-    });
+    // `bezMreze` je ishod lokalne odluke (popustBezMreze) kad provjera nije
+    // prosla. Tada pravo i otok dolaze s cipa, a postotak iz lokalnog sifarnika,
+    // pa se to mora i zapisati: `popust_izvor` razdvaja popust koji je dao SEOP
+    // od onoga koji je terminal odredio sam. Bez te razlike se u Kontroli
+    // poslije ne bi znalo po cemu je karta naplacena.
+    const blokPovlastice = ({ ishod, pratnja = false, uvijekProdaj = false, offline = false, redovna, cijenaRed, bezMreze = null }) => {
+        const lokalni = bezMreze?.primijenjen === true;
+        const popust = uvijekProdaj
+            ? 0
+            : (lokalni ? Number(bezMreze.popust_postotak) : Number(ishod?.popust_postotak || 0));
+
+        return {
+            sustav: ishod?.sustav || 'SEOP',
+            token: ishod?.token || null,
+            identifikator: {
+                vrsta: ishod?.identifikator?.vrsta || islandIdType,
+                vrijednost: ishod?.identifikator?.vrijednost || islandCardNo,
+            },
+            // Bez mreze provjere nema, pa pravo i otok dolaze s cipa.
+            pravo: ishod?.pravo_na_pp || islandCardInfo?.basicRight || null,
+            otok: ishod?.otok || islandCardInfo?.islandName || null,
+            popust_postotak: popust,
+            popust_izvor: popust > 0 ? (lokalni ? 'lokalni_katalog' : 'seop') : null,
+            // Namjena se uzima s reda cjenika koji se stvarno prodaje: povlastena
+            // karta i karta punom cijenom nisu ista vrsta u SEOP-u.
+            namjena: (cijenaRed || islandPriceRow)?.seop_type || null,
+            redovna_cijena: redovna,
+            odobrenje: ishod?.odobrenje || null,
+            uvijek_prodaj: uvijekProdaj,
+            offline: offline || lokalni,
+            pratnja,
+            // Linija moze koristiti SEOP samo za provjeru, bez dojave prodaje.
+            dojava_seop: ishod?.dojava_seop !== false,
+        };
+    };
+
+    // Odluka o popustu kad posluzitelj nije odgovorio. Ulazi su samo
+    // sinkronizirani podaci i sadrzaj cipa — nista se ne nagada.
+    //
+    // Obicna funkcija, ne useMemo: `matchingRoute` se racuna nize u komponenti,
+    // pa bi memo pri prvom renderu citao varijablu koja jos ne postoji. Poziva
+    // se iz JSX-a i pri kliku, kad je sve vec izracunato.
+    const odlukaBezMreze = () => {
+        if (!islandOffline || !islandCardInfo?.basicRight) return null;
+        const kodovi = [matchingRoute?.departure_harbor_id, matchingRoute?.arrival_harbor_id]
+            .map((c) => String(c || '').trim())
+            .filter(Boolean);
+        return popustBezMreze({
+            popusti: sync.basicData?.seop_right_discounts || [],
+            pravo: islandCardInfo.basicRight,
+            otokKartice: islandCardInfo.islandName,
+            linija: odabranaLinija || null,
+            luke: (sync.harbors || []).filter((l) => kodovi.includes(String(l?.code || '').trim())),
+        });
+    };
+
+    // Izdavanje otocne s lokalnim popustom — samo kad je veza pala, a cip je
+    // procitan. Razlog se ne trazi: pravo je poznato, pa karta nije izdana na
+    // povjerenje nego po sifarniku. Offline oznaka ostaje, da se u Kontroli
+    // vidi da provjere u SEOP-u nije bilo.
+    const izdajSLokalnimPopustom = () => {
+        const odluka = odlukaBezMreze();
+        const red = islandPriceRow || redovniRed;
+        if (!red || !odluka?.primijenjen) return;
+        const redovna = Number(redovniRed?.price ?? red.price);
+        const unit = +(Number(red.price) * (1 - odluka.popust_postotak / 100)).toFixed(2);
+        dodajKartu({
+            ticket_type_uuid: red.ticket_type_uuid,
+            ticket_type_name: red.ticket_type_name || 'Povlaštena karta',
+            single_price: unit,
+            povlastica: blokPovlastice({
+                ishod: islandResult,
+                offline: true,
+                bezMreze: odluka,
+                redovna,
+                cijenaRed: red,
+            }),
+        });
+        closeIslandModal();
+    };
 
     // Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu), i
     // to je striktno ili-ili:
@@ -1388,6 +1448,47 @@ export default function SaleScreen() {
                             </View>
                         )}
 
+                        {/* Veza je pala, ali je čip pročitan: pravo znamo s kartice,
+                            postotak iz lokalnog šifarnika. Karta se izdaje s popustom,
+                            bez razloga, uz offline oznaku. Jedini slučaj u kojem
+                            terminal sam određuje popust. */}
+                        {!islandChecking && islandOffline && (() => {
+                            const odluka = odlukaBezMreze();
+                            if (!odluka) return null;
+                            const red = islandPriceRow || redovniRed;
+                            if (!odluka.primijenjen) {
+                                return (
+                                    <View style={islandStyles.bezMreze}>
+                                        <Text style={islandStyles.bezMrezeMsg}>{odluka.razlog}</Text>
+                                    </View>
+                                );
+                            }
+                            if (!red) return null;
+                            const unit = +(Number(red.price) * (1 - odluka.popust_postotak / 100)).toFixed(2);
+                            return (
+                                <View style={islandStyles.bezMreze}>
+                                    <Text style={islandStyles.bezMrezeNaslov}>
+                                        Bez veze sa SEOP-om — popust {odluka.popust_postotak}% po pravu {islandCardInfo?.basicRight}
+                                    </Text>
+                                    <Text style={islandStyles.bezMrezeMsg}>
+                                        Karta se bilježi kao prodana bez provjere i vidi se u Kontroli.
+                                    </Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                                        <Text style={{ marginRight: 8 }}>Cijena:</Text>
+                                        <Text style={[islandStyles.priceOld, { textDecorationLine: 'line-through' }]}>
+                                            {Number(red.price).toFixed(2)} €
+                                        </Text>
+                                        <Text style={islandStyles.priceNew}>{unit.toFixed(2)} €</Text>
+                                    </View>
+                                    <TouchableOpacity style={islandStyles.btnLokalni} onPress={izdajSLokalnimPopustom}>
+                                        <Text style={islandStyles.btnPrimaryText}>
+                                            {unit === 0 ? 'Izdaj besplatnu kartu' : `Izdaj s popustom — ${unit.toFixed(2)} €`}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            );
+                        })()}
+
                         {(!islandChecking && ((islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo)) || islandOffline || !!islandError)) && (
                             <View style={islandStyles.greska}>
                                 <Text style={islandStyles.greskaNaslov}>Izdaj otočnu bez provjere — obavezan razlog:</Text>
@@ -1462,6 +1563,12 @@ const islandStyles = StyleSheet.create({
     oblikBtnAktivan: { backgroundColor: colors.primary, borderColor: colors.primary },
     oblikText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
     greska: { marginTop: 4, marginBottom: 8, backgroundColor: colors.errorLight, borderColor: colors.error, borderWidth: 1, borderRadius: 8, padding: 12 },
+    // Popust odreden lokalno, bez SEOP-a. Namjerno nije crveno kao „greska":
+    // pravo je poznato s cipa, pa ovo nije izdavanje na povjerenje.
+    bezMreze: { marginTop: 4, marginBottom: 8, backgroundColor: colors.surfaceAlt || '#EEF4FF', borderColor: colors.primary, borderWidth: 1, borderRadius: 8, padding: 12 },
+    bezMrezeNaslov: { fontSize: 13, fontWeight: '800', color: colors.primary, marginBottom: 4 },
+    bezMrezeMsg: { fontSize: 13, color: colors.textSecondary },
+    btnLokalni: { marginTop: 10, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 14, alignItems: 'center' },
     greskaNaslov: { fontSize: 13, fontWeight: '800', color: colors.error, marginBottom: 8 },
     razlogRed: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
     razlogBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
