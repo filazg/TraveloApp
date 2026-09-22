@@ -27,6 +27,25 @@ const dohvatiSifarnik = async () => {
             getSeopRightDiscountsController(),
         ]);
     const podaci = { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts };
+    // Nepotpun sifarnik se NE pamti. Kontroleri backofficea greske gutaju i
+    // vracaju undefined, pa je dosad jedan ispad backofficea zavrsio u memoriji
+    // kao valjan podatak — svaki zahtjev sljedecu minutu padao je na istom
+    // mjestu, i nakon sto se backoffice vratio. Bolje je pokusati ponovno na
+    // sljedecem osvjezavanju nego minutu odbijati sve uredaje.
+    //
+    // Postotci storna i popusti po pravu nisu u provjeri: za njih je prazno
+    // valjan odgovor i uredaj s njima zna sto ce (zadrzi zadnje odnosno ne
+    // primjenjuje popust).
+    const manjka = [
+        companyData?.data?.company ? null : 'tvrtka',
+        Array.isArray(businessPremisesData?.data?.business_premises) ? null : 'prodajna mjesta',
+        Array.isArray(billingDevicesData?.data?.billing_devices) ? null : 'naplatni uredaji',
+        Array.isArray(usersData?.data?.users) ? null : 'operateri',
+        Array.isArray(paymentsData?.data?.payment_methods) ? null : 'sredstva placanja',
+    ].filter(Boolean);
+    if (manjka.length) {
+        throw new Error(`osnovni podaci nisu stigli u cijelosti: ${manjka.join(', ')}`);
+    }
     sifarnik = { kad: Date.now(), podaci };
     return podaci;
 };
