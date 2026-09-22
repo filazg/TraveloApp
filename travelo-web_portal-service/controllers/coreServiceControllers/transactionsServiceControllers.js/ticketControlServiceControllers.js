@@ -68,6 +68,22 @@ const getSeopCardErrorsController = async (params = {}) => {
     }
 };
 
+// Povlastene karte prodane bez provjere u SEOP-u — offline prodaja. Zapis je
+// sama karta (`seop_offline`), pa se cita iz karata, ne iz zasebne tablice.
+const getSeopOfflineSalesController = async (params = {}) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(
+            coreConfigData.services.transactions.url + '/seop_offline_sales',
+            { params }
+        );
+        return response.data?.data || { sales: [], counts: {} };
+    } catch (error) {
+        console.log('getSeopOfflineSalesController error:', error?.message || error);
+        return { sales: [], counts: {} };
+    }
+};
+
 // Vrste sukoba za kartice u portalu.
 const getConflictTypesController = async () => {
     try {
@@ -88,4 +104,5 @@ module.exports = {
     getTicketValidationsController,
     getTicketCopyPrintsController,
     getSeopCardErrorsController,
+    getSeopOfflineSalesController,
 };

@@ -31,6 +31,7 @@ const poljaPovlastice = (stavka = {}) => {
             seop_odobrenje: null,
             seop_uvijek_prodaj: false,
             seop_offline: false,
+            seop_popust_izvor: null,
             seop_pratnja: false,
             seop_dojava: stavka.is_island === true,
         };
@@ -50,6 +51,11 @@ const poljaPovlastice = (stavka = {}) => {
         seop_odobrenje: p.odobrenje || null,
         seop_uvijek_prodaj: p.uvijek_prodaj === true,
         seop_offline: p.offline === true,
+        // Klijent javlja odakle mu je postotak. Stariji klijent to polje ne
+        // salje — tada se ne izmislja izvor, nego se zakljucuje iz onoga sto
+        // zapis vec nosi: popust uz offline prodaju nije mogao doci sa SEOP-a.
+        seop_popust_izvor: p.popust_izvor
+            || (Number(p.popust_postotak) > 0 ? (p.offline === true ? "lokalni_katalog" : "seop") : null),
         seop_pratnja: p.pratnja === true,
         // Linija moze koristiti SEOP samo za provjeru; tada karta ne ide u dojavu.
         seop_dojava: p.dojava_seop !== false,

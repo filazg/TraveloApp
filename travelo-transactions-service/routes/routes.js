@@ -14,6 +14,7 @@ const { generatePartnerInvoicesController, listPartnerInvoicesController, getPar
 const { logTicketCopyPrintController, listTicketCopyPrintsController } = require('../controllers/dataControllers/ticketCopyPrintController');
 const { listTicketValidationsController, listCopyConflictsController, listConflictTypesController } = require('../controllers/dataControllers/ticketValidationsController');
 const { listSeopCardErrorsController } = require('../controllers/dataControllers/seopCardErrorsController');
+const { listSeopOfflineSalesController } = require('../controllers/dataControllers/seopOfflineSalesController');
 const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
 const {
     listPartnerCommissionReportsController,
@@ -185,6 +186,12 @@ router
 router
     .route('/seop_card_errors')
     .get(listSeopCardErrorsController)
+
+// Povlastene karte prodane bez provjere u SEOP-u (offline prodaja). Zapis je
+// sama karta — `seop_offline` na njoj — pa zasebne tablice nema.
+router
+    .route('/seop_offline_sales')
+    .get(listSeopOfflineSalesController)
 
 // Vrste sukoba za kartice u portalu — nazivi zive ovdje da se sucelje i pravila
 // ne raziđu.

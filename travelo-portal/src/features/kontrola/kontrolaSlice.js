@@ -83,6 +83,21 @@ export const fetchSeopCardErrorsThunk = createAsyncThunk(
     }
 );
 
+// Povlastene karte prodane bez provjere u SEOP-u — offline prodaja. Zapis je
+// sama karta, pa se cita iz karata; zasebne tablice nema.
+export const fetchSeopOfflineSalesThunk = createAsyncThunk(
+    "kontrola/fetchSeopOfflineSales",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/seop_offline_sales", { params });
+            const payload = unwrapBff(resp) || {};
+            return { sales: payload.sales || [], counts: payload.counts || {} };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
 const kontrolaSlice = createSlice({
     name: "kontrola",
     initialState: {
@@ -91,6 +106,10 @@ const kontrolaSlice = createSlice({
         seopCardCounts: {},
         seopCardErrorsLoading: false,
         seopCardErrorsError: null,
+        seopOfflineSales: [],
+        seopOfflineCounts: {},
+        seopOfflineLoading: false,
+        seopOfflineError: null,
         // Brojači po vrsti — kartice pokazuju koliko ih je gdje. Pune se samo
         // kad se dohvaća bez filtra; s odabranom vrstom brojači drugih kartica
         // ne bi bili točni pa se namjerno ne diraju.
@@ -164,6 +183,19 @@ const kontrolaSlice = createSlice({
             .addCase(fetchSeopCardErrorsThunk.rejected, (s, a) => {
                 s.seopCardErrorsLoading = false;
                 s.seopCardErrorsError = a.payload?.message || "Greška pri dohvatu";
+            })
+            .addCase(fetchSeopOfflineSalesThunk.pending, (s) => {
+                s.seopOfflineLoading = true;
+                s.seopOfflineError = null;
+            })
+            .addCase(fetchSeopOfflineSalesThunk.fulfilled, (s, a) => {
+                s.seopOfflineLoading = false;
+                s.seopOfflineSales = a.payload.sales;
+                if (Object.keys(a.payload.counts || {}).length) s.seopOfflineCounts = a.payload.counts;
+            })
+            .addCase(fetchSeopOfflineSalesThunk.rejected, (s, a) => {
+                s.seopOfflineLoading = false;
+                s.seopOfflineError = a.payload?.message || "Greška pri dohvatu";
             });
     },
 });

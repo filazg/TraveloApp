@@ -256,6 +256,15 @@ module.exports =  (sequelize) =>{
                 allowNull: true,
                 defaultValue: false
             },
+            // Odakle je popust: "seop" — postotak je vratio SEOP pri provjeri;
+            // "lokalni_katalog" — veze nije bilo, pa je uređaj uzeo postotak iz
+            // šifarnika popusta po pravu (portal: Integracije → AKD → SEOP →
+            // Popusti). Bez ove oznake se poslije ne bi znalo po čemu je karta
+            // naplaćena, jer i jedan i drugi put zapisuju isti `seop_discount_pct`.
+            seop_popust_izvor:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             seop_pratnja:{                // MOSI: karta pratnje uz vlasnika kartice
                 type: DataTypes.BOOLEAN,
                 allowNull: true,
