@@ -32,10 +32,23 @@ const TMP_DIR = path.join(DESK_UPDATES_DIR, '.uploading');
 
 // Dozvoljeni nazivi datoteka feeda — sve ostalo se odbija (nema pisanja izvan
 // ovih obrazaca, ni path-traversala: uzima se samo basename).
+//
+// Uz same datoteke nadogradnje stoji i javni certifikat (.cer) kojim su
+// potpisane: blagajna koja ga jos nema ne moze primiti auto-update, pa mora
+// postojati mjesto s kojeg se skine i posadi rucno. Certifikat je javan podatak
+// — privatni kljuc (.pfx) ostaje na build stroju i ovdje se nikad ne salje.
 function nazivDozvoljen(name) {
     return /^latest\.yml$/i.test(name)
         || /^[\w .()-]+\.exe$/i.test(name)
-        || /^[\w .()-]+\.exe\.blockmap$/i.test(name);
+        || /^[\w .()-]+\.exe\.blockmap$/i.test(name)
+        || /^[\w .()-]+\.cer$/i.test(name);
+}
+
+// Certifikat nije dio manifesta: ne govori koja je verzija aktualna, nego cime
+// je potpisana. Zato prezivljava praznjenje feeda — inace bi se uklanjanjem
+// stare verzije izgubio i jedini nacin da stroj bez certa uopce dode do njega.
+function jeCertifikat(name) {
+    return /\.cer$/i.test(name);
 }
 
 function jeAdmin(req) {
@@ -161,9 +174,14 @@ const handleDeskUpdaterDelete = async (req, res) => {
         if (payload.all) {
             for (const f of fs.readdirSync(DESK_UPDATES_DIR)) {
                 const p = path.join(DESK_UPDATES_DIR, f);
-                if (fs.statSync(p).isFile()) { fs.rmSync(p, { force: true }); removed.push(f); }
+                if (!fs.statSync(p).isFile()) continue;
+                // Certifikat ostaje: on nije verzija nego preduvjet da ijedna
+                // verzija prode. Uklanja se pojedinacno, kad se mijenja cert.
+                if (jeCertifikat(f)) continue;
+                fs.rmSync(p, { force: true });
+                removed.push(f);
             }
-            return res.send({ status: 200, data: { message: 'Feed je ispražnjen (aplikacija deaktivirana).', removed } });
+            return res.send({ status: 200, data: { message: 'Feed je ispražnjen (aplikacija deaktivirana); certifikat je ostao.', removed } });
         }
 
         const filename = path.basename(String(payload.filename || ''));

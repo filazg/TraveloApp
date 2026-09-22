@@ -8,6 +8,7 @@ import {
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DownloadIcon from "@mui/icons-material/Download";
 import LayersClearIcon from "@mui/icons-material/LayersClear";
 import { authSliceData, setAuthData } from "../auth/authSlice";
 
@@ -35,16 +36,22 @@ function toBase64(bytes) {
 
 // Razvrstavanje odabranih datoteka po ulozi u feedu.
 function klasificiraj(fileList) {
-    const out = { setup: null, blockmap: null, yml: null, ostalo: [] };
+    const out = { setup: null, blockmap: null, yml: null, cert: null, ostalo: [] };
     for (const f of fileList) {
         const n = f.name.toLowerCase();
         if (n === "latest.yml") out.yml = f;
         else if (n.endsWith(".exe.blockmap")) out.blockmap = f;
         else if (n.endsWith(".exe")) out.setup = f;
+        else if (n.endsWith(".cer")) out.cert = f;
         else out.ostalo.push(f.name);
     }
     return out;
 }
+
+// Putanja s koje nginx servira feed. Ista je za sve datoteke, pa se link za
+// preuzimanje slaze od naziva — tako se certifikat moze skinuti na blagajnu i
+// posaditi rucno, bez pristupa portalu.
+const preuzimanje = (naziv) => `/desk-updates/${encodeURIComponent(naziv)}`;
 
 export default function DeskUpdaterPage() {
     const dispatch = useDispatch();
@@ -56,7 +63,7 @@ export default function DeskUpdaterPage() {
     useEffect(() => { dispatch(setAuthData({ path: "loading", value: false })); }, [dispatch]);
     const username = authData?.loggedUserData?.username;
 
-    const [odabrano, setOdabrano] = useState({ setup: null, blockmap: null, yml: null, ostalo: [] });
+    const [odabrano, setOdabrano] = useState({ setup: null, blockmap: null, yml: null, cert: null, ostalo: [] });
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState({}); // { filename: percent }
     const [poruka, setPoruka] = useState(null); // { tip, tekst }
@@ -150,8 +157,11 @@ export default function DeskUpdaterPage() {
 
     const objavi = async () => {
         setPoruka(null);
-        if (!odabrano.setup || !odabrano.yml) {
-            setPoruka({ tip: "warning", tekst: "Obavezni su .exe (Setup) i latest.yml. Blockmap je preporučen." });
+        // Certifikat se smije objaviti i sam — mijenja se rjede od verzije, a
+        // stroj koji ga nema ne moze primiti nijednu nadogradnju.
+        const samoCert = !!odabrano.cert && !odabrano.setup && !odabrano.yml;
+        if (!samoCert && (!odabrano.setup || !odabrano.yml)) {
+            setPoruka({ tip: "warning", tekst: "Obavezni su .exe (Setup) i latest.yml. Blockmap je preporučen. Certifikat (.cer) se može objaviti i sam." });
             return;
         }
         setUploading(true);
@@ -160,11 +170,18 @@ export default function DeskUpdaterPage() {
             // Redoslijed je bitan: prvo .exe i .blockmap, a latest.yml TEK NA KRAJU —
             // tako feed objavi novu verziju tek kad je paket već cijeli gore, pa
             // nijedna blagajna ne krene skidati polovičan .exe.
+            if (odabrano.cert) await posaljiDatoteku(odabrano.cert);
+            if (samoCert) {
+                setPoruka({ tip: "success", tekst: "Certifikat je objavljen — dostupan je za preuzimanje i ručnu instalaciju." });
+                setOdabrano({ setup: null, blockmap: null, yml: null, cert: null, ostalo: [] });
+                dohvatiPopis();
+                return;
+            }
             await posaljiDatoteku(odabrano.setup);
             if (odabrano.blockmap) await posaljiDatoteku(odabrano.blockmap);
             await posaljiDatoteku(odabrano.yml);
             setPoruka({ tip: "success", tekst: "Verzija je učitana i stoji NEAKTIVNA. Uključi prekidač 'Aktivna za preuzimanje' kad želiš da je blagajne povuku." });
-            setOdabrano({ setup: null, blockmap: null, yml: null, ostalo: [] });
+            setOdabrano({ setup: null, blockmap: null, yml: null, cert: null, ostalo: [] });
             dohvatiPopis();
         } catch (e) {
             setPoruka({ tip: "error", tekst: `Objava nije uspjela: ${e?.response?.data?.message || e.message}` });
@@ -191,7 +208,9 @@ export default function DeskUpdaterPage() {
             <Typography variant="h5" fontWeight={800}>Objava verzije (auto-update)</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Učitaj feed datoteke nove verzije deska: <b>Setup .exe</b>, <b>.exe.blockmap</b> i <b>latest.yml</b>.
-                Instalirane blagajne pokupe novu verziju kod sljedeće prijave.
+                Instalirane blagajne pokupe novu verziju kod sljedeće prijave. Uz njih stoji i javni
+                <b>certifikat (.cer)</b> kojim su potpisane — skida se s popisa ispod i sadi ručno na
+                blagajnu koja ga još nema (bez njega auto-update ne prolazi).
             </Typography>
 
             {poruka && (
@@ -200,7 +219,7 @@ export default function DeskUpdaterPage() {
 
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Button component="label" variant="outlined" startIcon={<CloudUploadIcon />} disabled={uploading}>
-                    Odaberi datoteke (.exe, .blockmap, latest.yml)
+                    Odaberi datoteke (.exe, .blockmap, latest.yml, .cer)
                     <input
                         type="file"
                         hidden
@@ -213,6 +232,7 @@ export default function DeskUpdaterPage() {
                 {red("Setup (.exe)", odabrano.setup)}
                 {red("Blockmap (.exe.blockmap)", odabrano.blockmap)}
                 {red("Manifest (latest.yml)", odabrano.yml)}
+                {red("Certifikat (.cer)", odabrano.cert)}
                 {odabrano.ostalo.length > 0 && (
                     <Alert severity="warning" sx={{ mt: 1 }}>
                         Zanemareno (ne pripada feedu): {odabrano.ostalo.join(", ")}
@@ -223,7 +243,7 @@ export default function DeskUpdaterPage() {
                     variant="contained"
                     startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <CloudUploadIcon />}
                     onClick={objavi}
-                    disabled={uploading || !odabrano.setup || !odabrano.yml}
+                    disabled={uploading || (!odabrano.cert && (!odabrano.setup || !odabrano.yml))}
                     sx={{ mt: 2 }}
                 >
                     {uploading ? "Objavljujem…" : "Objavi verziju"}
@@ -271,6 +291,11 @@ export default function DeskUpdaterPage() {
                             <Stack key={f.name} direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ py: 0.75 }}>
                                 <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>{f.name}</Typography>
                                 <Typography variant="caption" color="text.secondary">{formatSize(f.size)}</Typography>
+                                <Tooltip title="Preuzmi s feeda">
+                                    <IconButton size="small" component="a" href={preuzimanje(f.name)} download target="_blank" rel="noreferrer">
+                                        <DownloadIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
                                 <Tooltip title="Ukloni s feeda">
                                     <span>
                                         <IconButton size="small" color="error" onClick={() => ukloni(f.name)} disabled={uploading}>
