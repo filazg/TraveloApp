@@ -44,19 +44,31 @@ export default function LoginLogsPage() {
     const api = useMemo(() => axios.create({
         baseURL: authData.backendURL,
         withCredentials: true,
+        // Bez timeouta bi povremeno spor/zaglavljen poziv ostavio ekran na
+        // spinneru; ovako brzo padne pa se pokuša ponovo / ponudi Osvježi.
+        timeout: 20000,
     }), [authData.backendURL]);
 
     const load = useCallback(async () => {
         setLoading(true);
         setError("");
-        try {
-            const r = await api.post("/portal/admin/login_logs", {});
-            setLogs(r?.data?.logs ?? r?.data?.data?.logs ?? []);
-        } catch (e) {
-            setError(e?.response?.data?.message || e.message || "Dohvat nije uspio.");
-        } finally {
-            setLoading(false);
+        // Jedan tihi pokušaj ponovo — pokriva povremeni prekid/blip prije nego
+        // korisniku pokažemo grešku.
+        for (let pokusaj = 1; pokusaj <= 2; pokusaj++) {
+            try {
+                const r = await api.post("/portal/admin/login_logs", {});
+                setLogs(r?.data?.logs ?? r?.data?.data?.logs ?? []);
+                setError("");
+                break;
+            } catch (e) {
+                if (pokusaj === 2) {
+                    setError(e?.response?.data?.message || e.message || "Dohvat nije uspio.");
+                } else {
+                    await new Promise((r) => setTimeout(r, 800));
+                }
+            }
         }
+        setLoading(false);
     }, [api]);
 
     useEffect(() => { if (username === ADMIN_USER) load(); }, [username, load]);
