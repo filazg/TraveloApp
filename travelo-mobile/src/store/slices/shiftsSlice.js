@@ -236,8 +236,8 @@ export const closeShiftThunk = createAsyncThunk(
             operator_uuid: open.operator_uuid,
             synced: ok,
         });
-        // Javi verziju poslužitelju i pri zatvaranju smjene (heartbeat).
-        reportDeviceVersion();
+        // Javi verziju poslužitelju i pri zatvaranju smjene (heartbeat), uz username.
+        reportDeviceVersion(open.operater_username || null);
         return { ...closed, _synced: ok };
     }
 );

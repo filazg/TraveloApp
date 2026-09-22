@@ -6,6 +6,7 @@ const partnersApiUsersModelsFactory = require("./partnersApiUsers.models");
 const terminalRefreshTokensModelsFactory = require("./terminalRefreshTokens.models");
 const loginLogsModelsFactory = require("./loginLogs.models");
 const deviceConnectionsModelsFactory = require("./deviceConnections.models");
+const deviceLoginLogsModelsFactory = require("./deviceLoginLogs.models");
 
 let models = null;
 
@@ -21,6 +22,7 @@ function initModels() {
       ...terminalRefreshTokensModelsFactory(sequelize),
       ...loginLogsModelsFactory(sequelize),
       ...deviceConnectionsModelsFactory(sequelize),
+      ...deviceLoginLogsModelsFactory(sequelize),
     };
   }
 

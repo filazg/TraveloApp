@@ -96,14 +96,14 @@ api.interceptors.response.use(
 // Heartbeat: javi poslužitelju TID + verziju aplikacije pri pokretanju, da se u
 // administraciji vidi s kojom se verzijom uređaj spaja. Fire-and-forget —
 // telemetrija ne smije utjecati na rad; skipAuth (endpoint provjerava TID).
-export async function reportDeviceVersion() {
+export async function reportDeviceVersion(username) {
     try {
         const tid = await loadTid();
         if (!tid) return;
         const pkg = require('../../package.json');
         await api.post(
             ENDPOINTS.terminalReport,
-            { tid, app_version: pkg.version, client: 'mobile' },
+            { tid, app_version: pkg.version, client: 'mobile', username: username || null },
             { headers: { skipAuth: true } },
         );
     } catch (e) {

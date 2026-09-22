@@ -101,7 +101,7 @@ export default function AdminPage() {
 
     return (
         <Box sx={{ width: "100%", maxWidth: 1400 }}>
-            <ModulZaglavlje naslov="Administracija" podnaslov="Sustavske radnje dostupne administratoru" boja="#232526" />
+            <ModulZaglavlje naslov="Sistem" podnaslov="Sustavske radnje dostupne administratoru" boja="#232526" />
             <Box sx={{ mb: 3 }} />
             <Box
                 sx={{

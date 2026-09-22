@@ -86,7 +86,9 @@ export default function LoginScreen() {
       console.log("USER POSTOJI:", candidate);
       await dispatch(setStateData({ path: 'logedUser', value: candidate }));
       // Javi verziju poslužitelju pri prijavi (heartbeat) — fire-and-forget.
-      window?.api?.app?.reportVersion?.();
+      // Uz TID/verziju šalje se i username, da se u administraciji vidi tko se
+      // prijavio (log "Uređaji i verzije").
+      window?.api?.app?.reportVersion?.(username);
       const getTransportData = await window.api.app.getLocalTransportDataIpc();
       await dispatch(setStateData({ path: 'transportData', value: getTransportData.data }));
       try {

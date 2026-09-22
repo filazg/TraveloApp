@@ -61,8 +61,8 @@ export default function ShiftActions({params, rowId, setRowId}) {
         const upisana = String(napomena || "").trim();
         const data = upisana ? { ...params.row, remark: upisana } : params.row;
         const closeShift = await window.api.app.closeShiftsDataIpc(data);
-        // Javi verziju poslužitelju i pri zatvaranju smjene (heartbeat).
-        window?.api?.app?.reportVersion?.();
+        // Javi verziju poslužitelju i pri zatvaranju smjene (heartbeat), uz username.
+        window?.api?.app?.reportVersion?.(appData.logedUser?.user_username);
         // Bez korisničkog imena servis vraća smjene SVIH operatera, pa je
         // blagajnik nakon zatvaranja u listi vidio i tuđe smjene.
         const getshiftsData = await window.api.app.getShiftsDataIpc(appData.logedUser?.user_username);

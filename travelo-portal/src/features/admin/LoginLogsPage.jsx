@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import {
-    Alert, Box, Button, Chip, CircularProgress, Divider, Paper, Stack,
-    Table, TableBody, TableCell, TableHead, TableRow, Typography,
+    Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel, MenuItem,
+    Paper, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { authSliceData } from "../auth/authSlice";
@@ -29,6 +29,17 @@ export default function LoginLogsPage() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [fKorisnik, setFKorisnik] = useState("");
+
+    // Popis korisnika za filter — jedinstveni iz dohvaćenih zapisa.
+    const korisnici = useMemo(
+        () => [...new Set(logs.map((l) => l.username).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+        [logs]
+    );
+    const prikazani = useMemo(
+        () => (fKorisnik ? logs.filter((l) => l.username === fKorisnik) : logs),
+        [logs, fKorisnik]
+    );
 
     const api = useMemo(() => axios.create({
         baseURL: authData.backendURL,
@@ -66,10 +77,20 @@ export default function LoginLogsPage() {
 
             {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
 
+            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 220 }}>
+                    <InputLabel id="f-korisnik">Korisnik</InputLabel>
+                    <Select labelId="f-korisnik" label="Korisnik" value={fKorisnik} onChange={(e) => setFKorisnik(e.target.value)}>
+                        <MenuItem value="">Svi korisnici</MenuItem>
+                        {korisnici.map((u) => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+                    </Select>
+                </FormControl>
+            </Stack>
+
             <Paper sx={{ p: 1 }}>
                 {loading && logs.length === 0 ? (
                     <Stack alignItems="center" sx={{ py: 6 }}><CircularProgress /></Stack>
-                ) : logs.length === 0 ? (
+                ) : prikazani.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nema zapisa.</Typography>
                 ) : (
                     <Table size="small">
@@ -82,7 +103,7 @@ export default function LoginLogsPage() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {logs.map((l) => (
+                            {prikazani.map((l) => (
                                 <TableRow key={l.id} hover>
                                     <TableCell>{formatDate(l.createdAt)}</TableCell>
                                     <TableCell>{l.username}</TableCell>

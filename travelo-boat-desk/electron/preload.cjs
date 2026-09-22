@@ -72,7 +72,7 @@ contextBridge.exposeInMainWorld("api", {
     getAppVersion: () => ipcRenderer.invoke("app:getVersion"),
     // Javi verziju poslužitelju (heartbeat) — poziva se pri prijavi i zatvaranju
     // smjene, uz ono na startu.
-    reportVersion: () => ipcRenderer.invoke("app:reportVersion"),
+    reportVersion: (username) => ipcRenderer.invoke("app:reportVersion", username),
     // Status automatskog ažuriranja (checking/available/downloading/downloaded/
     // installing/none/error) — renderer prikazuje nenametljivu obavijest.
     onUpdateStatus: (callback) => {

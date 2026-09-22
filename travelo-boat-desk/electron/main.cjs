@@ -304,7 +304,7 @@ axios.interceptors.response.use(
 // Heartbeat: pri pokretanju javi TID + verziju aplikacije poslužitelju, da se u
 // administraciji vidi s kojom se verzijom uređaj spaja ("zadnje stanje po
 // uređaju"). Fire-and-forget — telemetrija ne smije utjecati na rad.
-async function reportDeviceVersion() {
+async function reportDeviceVersion(username) {
   try {
     const settings = await systemSettingsDataModel.findOne();
     const pairing = await pairingDataModel.findOne();
@@ -313,7 +313,7 @@ async function reportDeviceVersion() {
     if (!backendUrl || !tid) return;
     await axios.post(
       backendUrl + "/terminal_auth/login/terminalReport",
-      { tid, app_version: app.getVersion(), client: "desk" },
+      { tid, app_version: app.getVersion(), client: "desk", username: username || null },
       { httpsAgent: new https.Agent({ rejectUnauthorized: false }), timeout: 10000 }
     );
     logToFile("verzija javljena posluzitelju:", app.getVersion());
@@ -360,7 +360,7 @@ app.whenReady().then(async () => {
   ipcMain.handle("app:getVersion", () => app.getVersion());
   // Renderer može zatražiti javljanje verzije (osim na startu, i pri prijavi te
   // zatvaranju smjene) — telemetrija, fire-and-forget.
-  ipcMain.handle("app:reportVersion", () => { reportDeviceVersion().catch(() => {}); return true; });
+  ipcMain.handle("app:reportVersion", (_e, username) => { reportDeviceVersion(username).catch(() => {}); return true; });
 
   registerIpcHandlers();
   createWindow();

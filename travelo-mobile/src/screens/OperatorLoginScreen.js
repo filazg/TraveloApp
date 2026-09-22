@@ -72,7 +72,7 @@ export default function OperatorLoginScreen() {
                     return;
                 }
                 dispatch(setOperator(user));
-                reportDeviceVersion(); // heartbeat pri prijavi (fire-and-forget)
+                reportDeviceVersion(user.user_username); // heartbeat pri prijavi (fire-and-forget)
                 setCode('');
                 return;
             }
@@ -89,7 +89,7 @@ export default function OperatorLoginScreen() {
                 return;
             }
             dispatch(setOperator(user));
-            reportDeviceVersion(); // heartbeat pri prijavi (fire-and-forget)
+            reportDeviceVersion(user.user_username); // heartbeat pri prijavi (fire-and-forget)
         } finally {
             setLoggingIn(false);
         }

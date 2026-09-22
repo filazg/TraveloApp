@@ -23,12 +23,16 @@ const getLoginLogsController = async (req, res) => {
     }
 };
 
-// GET — zadnje stanje po uređaju (jedan redak po TID-u), najnovije viđeni prvo.
+// GET — LOG javljanja uređaja (svaki login/heartbeat), najnovije prvo. Uz
+// TID/klijent/verziju nosi i username (kad je poznat). Kartica "Uređaji i
+// verzije" ga prikazuje i filtrira (korisnik/uređaj/verzija) na klijentu.
 const getDeviceConnectionsController = async (req, res) => {
     try {
-        const { DeviceConnectionsModel } = req.app.locals.models;
-        const devices = await DeviceConnectionsModel.findAll({
-            order: [["last_seen", "DESC"]],
+        const { DeviceLoginLogsModel } = req.app.locals.models;
+        const limit = Math.min(Number(req.query.limit) || 1000, 5000);
+        const devices = await DeviceLoginLogsModel.findAll({
+            order: [["createdAt", "DESC"]],
+            limit,
         });
         return res.status(200).json({ devices: devices.map((d) => d.toJSON()) });
     } catch (error) {
@@ -42,30 +46,44 @@ const getDeviceConnectionsController = async (req, res) => {
 // (bez greške).
 const terminalReportController = async (req, res) => {
     try {
-        const { TerminalsModel, DeviceConnectionsModel } = req.app.locals.models;
+        const { TerminalsModel, DeviceConnectionsModel, DeviceLoginLogsModel } = req.app.locals.models;
         // Ide kroz gateway (terminal_auth, is_login) koji radi
         // res.status(resp.data.status).json(resp.data.data) — pa MORAMO vratiti
         // omotač { status, data }, inače gateway padne i klijent čeka do timeouta.
-        const { tid, app_version, client } = req.body || {};
+        const { tid, app_version, client, username } = req.body || {};
         if (!tid) return res.status(200).json({ status: 200, data: { msg: "ignored" } });
 
         const terminal = await TerminalsModel.findOne({ where: { tid } });
         if (!terminal) return res.status(200).json({ status: 200, data: { msg: "ignored" } });
 
-        const vrijednosti = {
+        const ip = klijentIp(req);
+
+        // Zadnje stanje po uređaju (upsert) — brzi uvid u trenutnu verziju.
+        const zadnjeStanje = {
             tid,
             terminal_uuid: terminal.uuid,
             client: client || null,
             app_version: app_version || null,
-            ip_address: klijentIp(req),
+            ip_address: ip,
             last_seen: new Date(),
         };
         const postojeci = await DeviceConnectionsModel.findOne({ where: { tid } });
         if (postojeci) {
-            await postojeci.update(vrijednosti);
+            await postojeci.update(zadnjeStanje);
         } else {
-            await DeviceConnectionsModel.create(vrijednosti);
+            await DeviceConnectionsModel.create(zadnjeStanje);
         }
+
+        // Povijest javljanja (append) — svaki login/heartbeat, uz username.
+        await DeviceLoginLogsModel.create({
+            tid,
+            terminal_uuid: terminal.uuid,
+            client: client || null,
+            app_version: app_version || null,
+            username: username || null,
+            ip_address: ip,
+        });
+
         return res.status(200).json({ status: 200, data: { msg: "ok" } });
     } catch (error) {
         console.log("terminalReportController error:", error?.message || error);

@@ -29,7 +29,7 @@ const ADMIN_ONLY_USER = "nfilipec";
 const ADMIN_MODULE = {
     key: "ADMIN",
     acr: "ADMIN",
-    title: "Administracija",
+    title: "Sistem",
     subtitle: "Sustav i desktop verzije",
     icon: "AdminPanelSettings",
     color: "#232526",
@@ -39,7 +39,7 @@ const ADMIN_MODULE = {
     // isto kao katalog-moduli. Ikone moraju postojati u iconsMap.
     groups: [
         {
-            label: "Administracija",
+            label: "Sistem",
             icon: "AdminPanelSettings",
             items: [
                 { label: "Desktop verzije", subtitle: "Objava verzija desktop aplikacije", icon: "Download", path: "/desk_updater" },
@@ -238,7 +238,7 @@ export default function ModulesSelector() {
             {authData?.loggedUserData?.username === ADMIN_ONLY_USER && (
                 <>
                     <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: 1.5 }}>
-                        ADMINISTRACIJA
+                        SISTEM
                     </Typography>
                     <Box
                         sx={{
