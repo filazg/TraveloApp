@@ -4,7 +4,7 @@ const { provjeriPPPController } = require('../controllers/seop/seopController');
 const { uploadSeopCertController, seopCertInfoController, seopTestVezeController } = require('../controllers/seop/seopCertController');
 const { uploadMosiCertController, mosiCertInfoController, mosiTestVezeController } = require('../controllers/mosi/mosiController');
 const { dojaviProdajuOpkController, dojaviProdajuPpkController, dojaviCvikanjeController, ponistiCvikanjeController, dojaviIsplovljenjeController, mosiDojaviUtrosakController } = require('../controllers/seop/seopDojaveController');
-const { provjeriPovlasticuController, otvoriPovlasticuController } = require('../controllers/povlastica/povlasticaController');
+const { provjeriPovlasticuController, otvoriPovlasticuController, katalogPravaController, popustiPravaController } = require('../controllers/povlastica/povlasticaController');
 
 const router = express.Router();
 
@@ -21,6 +21,12 @@ router.post('/seop/provjeri-ppp', provjeriPPPController);
 // klijenti zbog novih polja ne moraju mijenjati.
 router.post('/povlastica/provjeri', provjeriPovlasticuController);
 router.post('/povlastica/otvori', otvoriPovlasticuController);
+
+// Popusti po pravu — kad se SEOP ne moze pitati, postotak dolazi odavde.
+// `katalog` je za portal (sva prava, i bez upisanog popusta), `popusti` za
+// uredaje (samo ukljuceni, s oznakom je li pravo rezidentsko).
+router.get('/povlastica/katalog', katalogPravaController);
+router.get('/povlastica/popusti', popustiPravaController);
 
 // Administracija iz portala: ucitavanje certifikata, pregled onoga sto je na
 // disku i provjera veze dijagnostickom metodom SEOP-a.

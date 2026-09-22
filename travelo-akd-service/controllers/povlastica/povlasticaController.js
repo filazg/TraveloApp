@@ -1,5 +1,6 @@
 const { provjeriPovlasticu } = require("./provjeraPovlastice");
 const { otvoriPecat } = require("./pecat");
+const { katalogSPopustima, popustiZaUredaje } = require("./popustiPrava");
 
 // Provjera prava — jedini poziv koji blagajna, mobilna i web koriste.
 const provjeriPovlasticuController = async (req, res) => {
@@ -23,4 +24,33 @@ const otvoriPovlasticuController = async (req, res) => {
     res.json({ status: 200, data: ishod.podaci });
 };
 
-module.exports = { provjeriPovlasticuController, otvoriPovlasticuController };
+// Katalog prava s upisanim popustima — ekran u portalu (Integracije → AKD →
+// SEOP → Popusti). Vraća SVA prava, i ona bez upisanog postotka.
+const katalogPravaController = async (_req, res) => {
+    try {
+        const prava = await katalogSPopustima();
+        res.json({ status: 200, data: { rights: prava } });
+    } catch (err) {
+        console.log("katalogPrava error:", err?.message || err);
+        res.status(500).json({ status: 500, data: { message: err.message } });
+    }
+};
+
+// Popis za blagajnu i mobilnu — samo prava s uključenim popustom. Ide uz
+// osnovne podatke uređaja, pa uređaj offline zna koliki popust nosi koje pravo.
+const popustiPravaController = async (_req, res) => {
+    try {
+        const popusti = await popustiZaUredaje();
+        res.json({ status: 200, data: { discounts: popusti } });
+    } catch (err) {
+        console.log("popustiPrava error:", err?.message || err);
+        res.status(500).json({ status: 500, data: { message: err.message } });
+    }
+};
+
+module.exports = {
+    provjeriPovlasticuController,
+    otvoriPovlasticuController,
+    katalogPravaController,
+    popustiPravaController,
+};
