@@ -1,4 +1,5 @@
 const { getCompanyController, getBusinessPremisesController, getBillingDevicesController, getUsersController, getPaymentMethodsController, getStornoPercentagesController } = require("../controllers/coreServiceControllers/backofficeServiceControllers")
+const { getSeopRightDiscountsController } = require("../controllers/coreServiceControllers/akdServiceControllers")
 const { getIntegrationsConfigData } = require("../controllers/configServices/configSyncController")
 
 // Kratka memorija sifarnika. Osnovni podaci se slazu iz sest odvojenih poziva
@@ -12,7 +13,7 @@ const dohvatiSifarnik = async () => {
     if (sifarnik && (Date.now() - sifarnik.kad) < MEMORIJA_MS) return sifarnik.podaci;
     // Pozivi idu usporedno: dosad su isli jedan za drugim, pa se cekanje
     // zbrajalo — sest odlazaka na bazu u Amsterdamu umjesto najduzeg od njih.
-    const [companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData] =
+    const [companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts] =
         await Promise.all([
             getCompanyController(),
             getBusinessPremisesController(),
@@ -20,15 +21,19 @@ const dohvatiSifarnik = async () => {
             getUsersController(),
             getPaymentMethodsController(),
             getStornoPercentagesController(),
+            // Popusti po pravu (akd servis) — uredaj ih treba offline, kad SEOP
+            // nema tko pitati. Vlastiti try/catch je u kontroleru, pa neuspjeh
+            // ovdje ne rusi cijeli sifarnik.
+            getSeopRightDiscountsController(),
         ]);
-    const podaci = { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData };
+    const podaci = { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts };
     sifarnik = { kad: Date.now(), podaci };
     return podaci;
 };
 
 const getTerminalBasicDataHandler = async(data)=>{
     try {
-        const { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData } =
+        const { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts } =
             await dohvatiSifarnik()
         const terminaData = billingDevicesData.data.billing_devices.find((terminal)=> terminal.uuid === data.header.data.t && terminal.is_active)
         if(terminaData){
@@ -135,7 +140,12 @@ const getTerminalBasicDataHandler = async(data)=>{
                 // Sifarnik postotaka storniranja — terminal ih nudi kao izbor
                 // umjesto slobodnog upisa. Ako backoffice ne odgovori, ide prazna
                 // lista pa uredaj zadrzi zadnje sinkronizirane.
-                storno_percentages: stornoPercentagesData?.data?.storno_percentages || []
+                storno_percentages: stornoPercentagesData?.data?.storno_percentages || [],
+                // Popusti po pravu na povlasteni prijevoz. Online SEOP uz pravo
+                // vrati i postotak, pa se ovo tada ne koristi; bez mreze cip daje
+                // samo sifru prava i postotak se uzima odavde. Uz postotak ide i
+                // oznaka je li pravo rezidentsko, za linije u modu prebivaliste.
+                seop_right_discounts: seopRightDiscounts || []
             }
             return(dataToSend)
             }

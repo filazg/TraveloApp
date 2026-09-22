@@ -72,4 +72,30 @@ const checkIslandCardController = async (data) => {
     }
 };
 
-module.exports = { checkIslandCardController };
+// Popusti po pravu — postotak koji uređaj primjenjuje kad SEOP nije dostupan.
+// Ide uz osnovne podatke, pa uređaj popis nosi u sebi i offline ga ima.
+//
+// Best-effort: kad akd servis ne odgovori, vraća se prazan popis. Uređaj tada
+// ne primjenjuje popust — isto kao prije ove mogućnosti — umjesto da mu padne
+// cijeli dohvat osnovnih podataka.
+const getSeopRightDiscountsController = async () => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const akdUrl = coreConfigData?.services?.akd?.url;
+        if (!akdUrl) return [];
+        const response = await axios.get(`${akdUrl}/povlastica/popusti`, {
+            timeout: 8000,
+            validateStatus: () => true,
+        });
+        if (response.status >= 400) {
+            console.log('[seop-popusti] akd je odgovorio statusom', response.status);
+            return [];
+        }
+        return response.data?.data?.discounts || [];
+    } catch (error) {
+        console.log('getSeopRightDiscountsController error:', error?.message || error);
+        return [];
+    }
+};
+
+module.exports = { checkIslandCardController, getSeopRightDiscountsController };
