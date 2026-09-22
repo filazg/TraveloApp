@@ -19,9 +19,14 @@
 const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
+const { addJournal } = require("../integrations/seyforClient");
+const { izgradiNalog, provjeriRavnotezu, oznakaDokumenta } = require("../integrations/seyforJournalBuilder");
 
+// Sifarnici se dohvacaju iz drugih servisa. `/billing_devices` nosi i logotipe
+// u base64, pa zna trajati i dvadesetak sekundi — uz 15 s je izvjestaj padao na
+// timeout prije nego sto je uopce dosao do racuna.
 const httpGet = async (url) => {
-    const r = await axios.get(url, { timeout: 15000, validateStatus: () => true });
+    const r = await axios.get(url, { timeout: 60000, validateStatus: () => true });
     return r.data?.data || r.data || {};
 };
 
@@ -407,17 +412,14 @@ const buildJournalEntries = (day, bucket, refs) => {
     return { entries, warnings };
 };
 
-const dailyRealizationReportController = async (req, res) => {
-    const { InvoiceModel, InvoiceItemsModel } = req.app.locals.models;
+// Izracun izvjestaja, odvojen od HTTP sloja: isti nalog koji se prikazuje u
+// pregledu mora se i poslati u SAOP. Da se slanje ne oslanja na ono sto je
+// preglednik zatekao na ekranu (podaci se u meduvremenu mogu promijeniti),
+// racuna se ispocetka, iz baze.
+const izracunajIzvjestaj = async (models, from, to) => {
+    const { InvoiceModel, InvoiceItemsModel } = models;
     const sequelize = InvoiceModel.sequelize;
-    try {
-        const from = req.query.from ? new Date(req.query.from) : null;
-        const to = req.query.to ? new Date(req.query.to) : null;
-        if (!from || !to || isNaN(from) || isNaN(to)) {
-            return res
-                .status(400)
-                .send({ status: 400, error: "from/to required (YYYY-MM-DD)" });
-        }
+    {
         to.setUTCHours(23, 59, 59, 999);
 
         const refs = await fetchReferences();
@@ -660,39 +662,112 @@ const dailyRealizationReportController = async (req, res) => {
             days.push({ date: day, costCenters });
         }
 
-        res.send({
-            status: 200,
-            data: {
-                from: toDateKey(from),
-                to: toDateKey(to),
-                company_saop: {
-                    organization_id: refs.company?.saop_organization_id || null,
-                    link_to_book: refs.company?.saop_link_to_book || null,
-                    default_customer: refs.company?.saop_default_customer || null,
-                },
-                days,
+        return {
+            from: toDateKey(from),
+            to: toDateKey(to),
+            company_saop: {
+                organization_id: refs.company?.saop_organization_id || null,
+                link_to_book: refs.company?.saop_link_to_book || null,
+                default_customer: refs.company?.saop_default_customer || null,
             },
-        });
+            days,
+        };
+    }
+};
+
+const dailyRealizationReportController = async (req, res) => {
+    try {
+        const from = req.query.from ? new Date(req.query.from) : null;
+        const to = req.query.to ? new Date(req.query.to) : null;
+        if (!from || !to || isNaN(from) || isNaN(to)) {
+            return res
+                .status(400)
+                .send({ status: 400, error: "from/to required (YYYY-MM-DD)" });
+        }
+        const data = await izracunajIzvjestaj(req.app.locals.models, from, to);
+        res.send({ status: 200, data });
     } catch (error) {
         console.error("dailyRealizationReportController error:", error);
         res.status(500).send({ status: 500, error: error.message });
     }
 };
 
-// Stub: poslužuje ga "Pošalji" gumb po danu na DailyRealizationPage. Prima
-// `{ date: "YYYY-MM-DD" }`. Za sada samo vraća echo — pravo slanje
-// (POST /journals/AddJournal po batchu) dolazi kad potvrdimo da preview
-// struktura izgleda kako treba.
+// Slanje temeljnice u SAOP — jedan poziv = jedan dan JEDNOG naplatnog uređaja.
+// Prima `{ date: "YYYY-MM-DD", cost_center }`. Dan sa svim uređajima portal
+// šalje kao niz ovakvih poziva, da su svi pozivi istog oblika i da neuspjeh
+// jednog uređaja ne ruši ostale.
+//
+// Ishod se nigdje ne pamti: prikazuje se odgovor iCentera i to je to. Ponovno
+// slanje istog dana je time moguće — i namjerno, dok se ne dogovori evidencija
+// poslanog.
 const sendDailyRealizationToErpController = async (req, res) => {
-    const date = req.body?.date || null;
-    console.log(`[daily-realization] send_to_erp request for date=${date}`);
-    res.send({
-        status: 501,
-        message: date
-            ? `SAOP slanje za ${date} još nije implementirano (stub).`
-            : "SAOP slanje još nije implementirano (stub). Očekujem { date: YYYY-MM-DD }.",
-        date,
-    });
+    const body = req.body?.body || req.body || {};
+    const date = String(body.date || "").trim();
+    const costCenter = String(body.cost_center ?? "").trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).send({ status: 400, message: "Očekujem { date: YYYY-MM-DD, cost_center }." });
+    }
+
+    try {
+        // Izvještaj se računa iznova, za taj jedan dan: šalje se ono što je u
+        // bazi u trenutku slanja, a ne ono što je netko zatekao na ekranu.
+        const izvjestaj = await izracunajIzvjestaj(req.app.locals.models, new Date(date), new Date(date));
+        const dan = (izvjestaj.days || []).find((d) => d.date === date);
+        const cc = (dan?.costCenters || []).find((c) => String(c.cost_center ?? "") === costCenter);
+
+        if (!cc) {
+            return res.status(404).send({
+                status: 404,
+                message: `Za ${date} nema prometa na naplatnom uređaju ${costCenter || "(bez oznake)"}.`,
+            });
+        }
+        if ((cc.warnings || []).length) {
+            // Nedostaje mapiranje konta: temeljnica bi bila nepotpuna, a iCenter
+            // bi je ionako odbio. Bolje da se vidi što nedostaje.
+            return res.status(409).send({
+                status: 409,
+                message: "Riješi upozorenja prije slanja.",
+                warnings: cc.warnings,
+            });
+        }
+        if (!(cc.journalEntries || []).length) {
+            return res.status(400).send({ status: 400, message: "Temeljnica je prazna — nema stavki za knjiženje." });
+        }
+
+        const ravnoteza = provjeriRavnotezu(cc.journalEntries);
+        if (!ravnoteza.uravnotezena) {
+            return res.status(409).send({
+                status: 409,
+                message: `Temeljnica nije uravnotežena (duguje ${ravnoteza.duguje} / potražuje ${ravnoteza.potrazuje}).`,
+            });
+        }
+
+        const nalog = izgradiNalog({ datum: date, cc, company: izvjestaj.company_saop });
+        const dokument = oznakaDokumenta(date, cc.cost_center);
+        console.log(`[daily-realization] SAOP AddJournal ${dokument} (stavki: ${cc.journalEntries.length})`);
+
+        const odgovor = await addJournal(nalog);
+        return res.send({
+            status: 200,
+            message: `Poslano: ${dokument} — ${odgovor.message}`,
+            date,
+            cost_center: cc.cost_center,
+            billing_device_name: cc.billing_device_name,
+            document: dokument,
+            entries: cc.journalEntries.length,
+            totals: ravnoteza,
+            response: odgovor.raw,
+        });
+    } catch (error) {
+        console.error("sendDailyRealizationToErpController error:", error?.message || error);
+        return res.status(502).send({
+            status: 502,
+            date,
+            cost_center: costCenter,
+            message: error?.message || "Slanje u SAOP nije uspjelo.",
+        });
+    }
 };
 
 module.exports = {

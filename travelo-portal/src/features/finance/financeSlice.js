@@ -337,14 +337,19 @@ export const fetchDailyRealizationThunk = createAsyncThunk(
     }
 );
 
+// Slanje ide po naplatnom uredaju, pa se i ishod pamti po uredaju: dan s vise
+// uredaja salje se kao vise poziva, a neuspjeh jednog ne skriva uspjeh ostalih.
+export const kljucSlanja = (date, costCenter) => `${date}|${costCenter ?? ""}`;
+
 export const sendDailyRealizationToErpThunk = createAsyncThunk(
     "finance/sendDailyRealizationToErp",
     async (payload, { rejectWithValue }) => {
+        const kljuc = kljucSlanja(payload?.date, payload?.cost_center);
         try {
             const resp = await api.post("/portal/transactions/daily_realization/send_to_erp", payload);
-            return { date: payload?.date, response: resp.data || {} };
+            return { kljuc, date: payload?.date, response: resp.data || {} };
         } catch (err) {
-            return rejectWithValue({ date: payload?.date, error: err.response?.data || { message: err.message } });
+            return rejectWithValue({ kljuc, date: payload?.date, error: err.response?.data || { message: err.message } });
         }
     }
 );
@@ -732,7 +737,10 @@ const financeSlice = createSlice({
         clearDailyRealizationSendResult(state, action) {
             const date = action.payload;
             if (date) {
-                delete state.dailyRealizationSendByDay[date];
+                // Kljuc je "datum|uredaj", pa se ciste svi uredaji tog dana.
+                for (const k of Object.keys(state.dailyRealizationSendByDay)) {
+                    if (k === date || k.startsWith(`${date}|`)) delete state.dailyRealizationSendByDay[k];
+                }
             } else {
                 state.dailyRealizationSendByDay = {};
             }
@@ -966,23 +974,23 @@ const financeSlice = createSlice({
                 s.dailyRealizationError = a.payload?.message || "Greška pri dohvatu izvještaja";
             })
             .addCase(sendDailyRealizationToErpThunk.pending, (s, a) => {
-                const date = a.meta?.arg?.date;
-                if (!date) return;
-                s.dailyRealizationSendByDay[date] = { loading: true, result: null, error: null };
+                const kljuc = kljucSlanja(a.meta?.arg?.date, a.meta?.arg?.cost_center);
+                if (!a.meta?.arg?.date) return;
+                s.dailyRealizationSendByDay[kljuc] = { loading: true, result: null, error: null };
             })
             .addCase(sendDailyRealizationToErpThunk.fulfilled, (s, a) => {
-                const date = a.payload?.date;
-                if (!date) return;
-                s.dailyRealizationSendByDay[date] = {
+                const kljuc = a.payload?.kljuc;
+                if (!kljuc) return;
+                s.dailyRealizationSendByDay[kljuc] = {
                     loading: false,
                     result: a.payload?.response || {},
                     error: null,
                 };
             })
             .addCase(sendDailyRealizationToErpThunk.rejected, (s, a) => {
-                const date = a.payload?.date || a.meta?.arg?.date;
-                if (!date) return;
-                s.dailyRealizationSendByDay[date] = {
+                const kljuc = a.payload?.kljuc || kljucSlanja(a.meta?.arg?.date, a.meta?.arg?.cost_center);
+                if (!a.meta?.arg?.date) return;
+                s.dailyRealizationSendByDay[kljuc] = {
                     loading: false,
                     result: null,
                     error: a.payload?.error?.message || a.error?.message || "Slanje u ERP nije uspjelo",

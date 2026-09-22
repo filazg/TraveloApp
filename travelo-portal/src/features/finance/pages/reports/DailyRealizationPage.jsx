@@ -27,6 +27,7 @@ import {
     fetchDailyRealizationThunk,
     fetchDailyRealizationDemoThunk,
     financeSliceData,
+    kljucSlanja,
     sendDailyRealizationToErpThunk,
     sendDailyRealizationDemoToErpThunk,
     setDailyRealizationFilter,
@@ -95,9 +96,20 @@ export default function DailyRealizationPage({ demo = false }) {
         setShowJournal((s) => ({ ...s, [key]: !s[key] }));
     };
 
+    // Jedan uredaj — jedan poziv. Isti poziv koristi i gumb na danu, samo ga
+    // ponovi za svaki uredaj, pa su svi pozivi prema servisu istog oblika.
+    const handleSendCostCenter = async (date, costCenter) => {
+        await dispatch(sendThunk({ date, cost_center: costCenter ?? "" }));
+    };
+
+    // Dan salje sve svoje uredaje redom (ne odjednom): iCenter tako dobiva
+    // jednu temeljnicu za drugom, a ishod se vidi po uredaju.
     const handleSendDay = async (date) => {
         dispatch(clearSendAction(date));
-        await dispatch(sendThunk({ date }));
+        const dan = (data?.days || []).find((d) => d.date === date);
+        for (const cc of dan?.costCenters || []) {
+            await handleSendCostCenter(date, cc.cost_center);
+        }
     };
 
     const days = data?.days || [];
@@ -194,14 +206,26 @@ export default function DailyRealizationPage({ demo = false }) {
                                 },
                                 { invoice_count: 0, amount: 0, vat_base: 0, vat: 0, harbor_tax: 0, warnings: 0 },
                             );
-                            const sendState = sendByDay?.[day.date] || {};
+                            // Dan nema vlastiti ishod — slaze se od ishoda svojih
+                            // uredaja: salje se dok ijedan salje, crveno je cim
+                            // jedan padne, zeleno tek kad svi produ.
+                            const ccStanja = (day.costCenters || []).map(
+                                (cc) => sendByDay?.[kljucSlanja(day.date, cc.cost_center)] || {},
+                            );
+                            const sendState = {
+                                loading: ccStanja.some((x) => x.loading),
+                                error: ccStanja.find((x) => x.error)?.error || null,
+                                result: ccStanja.length && ccStanja.every((x) => x.result)
+                                    ? { status: 200, message: `Poslano uređaja: ${ccStanja.length}` }
+                                    : null,
+                            };
                             const sendDisabled =
                                 sendState.loading || dayTotals.warnings > 0 || dayTotals.invoice_count === 0;
                             const sendTitle = dayTotals.warnings > 0
                                 ? "Riješi upozorenja prije slanja"
                                 : sendState.result
                                     ? sendState.result.message || "Poslano"
-                                    : sendState.error || "Pošalji ovaj dan u SAOP iCenter";
+                                    : sendState.error || "Pošalji sve naplatne uređaje ovog dana u SAOP iCenter";
                             return (
                                 <Fragment key={day.date}>
                                     <TableRow
@@ -276,22 +300,9 @@ export default function DailyRealizationPage({ demo = false }) {
                                                     day={day}
                                                     showJournal={showJournal}
                                                     toggleJournal={toggleJournal}
+                                                    sendByDay={sendByDay}
+                                                    onSend={handleSendCostCenter}
                                                 />
-                                                {sendState.error && (
-                                                    <Alert severity="error" sx={{ mt: 2 }}>
-                                                        {sendState.error}
-                                                    </Alert>
-                                                )}
-                                                {sendState.result && (
-                                                    <Alert
-                                                        severity={sendState.result.status === 200 ? "success" : "info"}
-                                                        sx={{ mt: 2 }}
-                                                    >
-                                                        {sendState.result.message ||
-                                                            sendState.result.error ||
-                                                            JSON.stringify(sendState.result)}
-                                                    </Alert>
-                                                )}
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -305,11 +316,12 @@ export default function DailyRealizationPage({ demo = false }) {
     );
 }
 
-function CostCenterDetail({ day, showJournal, toggleJournal }) {
+function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }) {
     return (
         <Stack spacing={2}>
             {(day.costCenters || []).map((cc, idx) => {
                 const journalKey = `${day.date}|${cc.cost_center || idx}`;
+                const ccSend = sendByDay?.[kljucSlanja(day.date, cc.cost_center)] || {};
                 const lineBreakdown = cc.lineBreakdown || [];
                 const reclassifications = cc.reclassifications || [];
                 const virmanInvoices = cc.virmanInvoices || [];
@@ -328,7 +340,33 @@ function CostCenterDetail({ day, showJournal, toggleJournal }) {
                             <Button size="small" onClick={() => toggleJournal(journalKey)}>
                                 {showJournal[journalKey] ? "Sakrij detalje" : "Detalji"}
                             </Button>
+                            {/* Svaki uredaj se salje zasebno: jedna temeljnica po
+                                uredaju i danu, pa se i ponavlja samo onaj koji nije
+                                prosao. */}
+                            <Tooltip title={ccSend.error || (ccSend.result?.message ?? "Pošalji ovaj uređaj u SAOP iCenter")}>
+                                <span>
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        color={ccSend.error ? "error" : "warning"}
+                                        startIcon={<SendIcon />}
+                                        onClick={() => onSend(day.date, cc.cost_center)}
+                                        disabled={ccSend.loading || (cc.warnings || []).length > 0 || !cc.invoice_count}
+                                    >
+                                        {ccSend.loading ? "Šalje…" : "Pošalji"}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                         </Stack>
+
+                        {ccSend.error && (
+                            <Alert severity="error" sx={{ mb: 1 }}>{ccSend.error}</Alert>
+                        )}
+                        {ccSend.result && (
+                            <Alert severity={ccSend.result.status === 200 ? "success" : "info"} sx={{ mb: 1 }}>
+                                {ccSend.result.message || ccSend.result.error || JSON.stringify(ccSend.result)}
+                            </Alert>
+                        )}
 
                         {(cc.warnings || []).map((w, i) => (
                             <Alert key={i} severity="warning" sx={{ mb: 1 }}>

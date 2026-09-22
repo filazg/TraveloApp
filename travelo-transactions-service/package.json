@@ -22,7 +22,8 @@
     "puppeteer": "^24.42.0",
     "qrcode": "^1.5.4",
     "resend": "^6.12.0",
-    "sequelize": "^6.37.7"
+    "sequelize": "^6.37.7",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
