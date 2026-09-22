@@ -38,6 +38,10 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
+  // Ishod sinkronizacije. Dosad se nije prikazivao nigdje, pa je neuspjeh na
+  // ovom ekranu prolazio nezapazeno — blagajnik je krenuo u prodaju misleci da
+  // je povukao nove podatke.
+  const [syncPoruka, setSyncPoruka] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Verzija se čita iz glavnog procesa (app.getVersion) — uvijek točna, neovisno
   // o tome je li renderer bundle rebuildan (__APP_VERSION__ zna ostati star).
@@ -50,17 +54,30 @@ export default function LoginScreen() {
 
   const handleSink = async (e) => {
     e.preventDefault();
+    setSyncPoruka(null);
     try {
       await dispatch(setStateData({path:'status', value:'loading'}))
       await dispatch(setStateData({path:'loadingText', value:'Preuzimanje podataka sa servera...'}))
-      await window.api.app.syncTransportBackend()
-      await window.api.app.syncBasicBackend()
+      // Oba IPC-a vracaju { ok, error } umjesto da bacaju, pa se ishod mora
+      // provjeriti — isto kao u prodajnom modulu. Bez toga je ovaj ekran sutio
+      // i kad posluzitelj nije poslao nista, a lokalna baza ostala od prije.
+      const transportRes = await window.api.app.syncTransportBackend()
+      const basicRes = await window.api.app.syncBasicBackend()
+      const neuspjeh = [
+        transportRes?.ok === false ? "plovidbeni red" : null,
+        basicRes?.ok === false ? "osnovni podaci" : null,
+      ].filter(Boolean);
       const basicData = await window.api.app.getLocalBasicDataIpc()
       await dispatch(setStateData({path:'basicData', value: basicData.data}));
       console.log("SINKRONIZACIJA PODATAKA");
+      setSyncPoruka(neuspjeh.length
+        ? { severity: "warning", tekst: `Sinkronizacija nije prošla: ${neuspjeh.join(" i ")}. Zadržani su zadnji spremljeni podaci.` }
+        : { severity: "success", tekst: "Podaci su sinkronizirani." });
       await dispatch(setStateData({path:'status', value:'ready'}))
     } catch (error) {
       console.error("Greška pri sinkronizaciji podataka:", error);
+      setSyncPoruka({ severity: "error", tekst: "Sinkronizacija nije uspjela." });
+      await dispatch(setStateData({path:'status', value:'ready'}))
     }
   }
 
@@ -128,6 +145,12 @@ export default function LoginScreen() {
               Prijava
             </Typography>
           </Stack>
+
+          {syncPoruka && (
+            <Alert severity={syncPoruka.severity} onClose={() => setSyncPoruka(null)}>
+              {syncPoruka.tekst}
+            </Alert>
+          )}
 
           {(localError || error) && (
             <Alert
