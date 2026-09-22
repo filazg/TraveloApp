@@ -10,6 +10,7 @@ const { getDeparturesController, getDepartureByUuidController, getRoutesByDepart
 const { getSailingsController, getSailingDetailsController, startSailingController, updateLegStatusController, cancelHarborArrivalController, changeBoatController } = require('../controllers/dataControllers/sailingControllers');
 const { listTicketTemplatesController, getTicketTemplateController, upsertTicketTemplateController } = require('../controllers/dataControllers/ticketTemplatesControllers');
 const { getSeopSettingsController, getSeopSettingsInternalController, updateSeopSettingsController, setSeopCertController } = require('../controllers/dataControllers/seopSettingsControllers');
+const { getSeopRightDiscountsController, updateSeopRightDiscountsController } = require('../controllers/dataControllers/seopRightDiscountsControllers');
 const { getMosiSettingsController, getMosiSettingsInternalController, updateMosiSettingsController, setMosiCertController } = require('../controllers/dataControllers/mosiSettingsControllers');
 const router = express.Router();
 
@@ -39,6 +40,14 @@ router
 router
     .route('/seop_settings/cert')
     .post(setSeopCertController)
+
+// Popusti po pravu na povlasteni prijevoz — koriste se kad se SEOP ne moze
+// pitati (blagajna/mobilna bez mreze). Portal ih ureduje, akd servis ih cita i
+// prosljeduje uredajima uz katalog prava.
+router
+    .route('/seop_right_discounts')
+    .get(getSeopRightDiscountsController)
+    .post(updateSeopRightDiscountsController)
 
 // MOSI (AKD) — dojava koristenja invalidskih povlastica. Isti obrazac kao SEOP.
 router
