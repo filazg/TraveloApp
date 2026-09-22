@@ -87,6 +87,13 @@ const companyModel = sequelize.define('company',{
         type: Sequelize.STRING,
         allowNull: true
     },
+    // Naziv naplatnog uredaja. Posluzitelj ga salje uz osnovne podatke odavno,
+    // ali se ovdje nije spremao — a na ekranu prijave treba pisati na kojem se
+    // uredaju radi, isto kao na mobilnoj.
+    billing_device_name:{
+        type: Sequelize.STRING,
+        allowNull: true
+    },
     billing_device_auto_validate:{
         type: Sequelize.BOOLEAN,
         allowNull:true

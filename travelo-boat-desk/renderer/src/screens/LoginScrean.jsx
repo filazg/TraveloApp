@@ -50,6 +50,17 @@ export default function LoginScreen() {
     window?.api?.app?.getAppVersion?.().then((v) => { if (v) setAppVersion(v); }).catch(() => {});
   }, []);
 
+  // Podaci o naplatnom uredaju: prodajno mjesto i uredaj stizu uz osnovne
+  // podatke, TID iz uparivanja. Crtica kad se jos nije sinkroniziralo, da se
+  // vidi da podatka nema umjesto praznine.
+  const tvrtka = appData?.basicData?.company || {};
+  const uredaj = {
+    pp: tvrtka.business_premise_name || "—",
+    nu: tvrtka.billing_device_name || "",
+    oznaka: [tvrtka.business_premise_fiscal_mark, tvrtka.billing_device_fiscal_mark].filter(Boolean).join("-"),
+    tid: appData?.pairingData?.tid || "—",
+  };
+
   const canSubmit = username.trim() && password.trim() && !submitting;
 
   const handleSink = async (e) => {
@@ -201,12 +212,21 @@ export default function LoginScreen() {
         </Stack>
       </Paper>
       </Box>
-        <Box
-          sx={{
-            mb:3
-          }}
-        >
-          <Typography variant="body2">powered by Tech4beez, v.{appVersion}</Typography>
+        {/* Na kojem se uredaju radi — isto kao na mobilnoj. Blagajnik na istom
+            racunalu moze imati vise instalacija (proba i prodaja), a kod
+            fiskalne greske je prvo pitanje koji je to uredaj. */}
+        <Box sx={{ mb: 3, textAlign: "center" }}>
+          <Typography variant="body2" color="text.secondary">
+            <Box component="span" sx={{ fontWeight: 700 }}>PP/NU: </Box>
+            {uredaj.pp}
+            {uredaj.nu ? ` / ${uredaj.nu}` : ""}
+            {uredaj.oznaka ? `  ·  ${uredaj.oznaka}` : ""}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            <Box component="span" sx={{ fontWeight: 700 }}>TID: </Box>
+            {uredaj.tid}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.5 }}>powered by Tech4beez, v.{appVersion}</Typography>
         </Box>
       <SystemSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Stack>
