@@ -20,11 +20,23 @@
 param(
   [string]$Subject = "CN=Tech4beeZ d.o.o.",
   [Parameter(Mandatory = $true)][string]$PfxPassword,
-  [string]$OutDir = "$PSScriptRoot\_out"
+  [string]$OutDir
 )
 
 $ErrorActionPreference = "Stop"
+
+# $PSScriptRoot zna ispasti prazan (ovisno o tome kako je skripta pozvana), a
+# tada se "$PSScriptRoot\_out" razrijesi u "\_out" — korijen diska. Cert je
+# tako zavrsio u C:\_out umjesto uz skriptu, a build ga ondje ne trazi.
+if (-not $OutDir) {
+  $korijen = if ($PSScriptRoot) { $PSScriptRoot }
+             elseif ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path }
+             else { (Get-Location).Path }
+  $OutDir = Join-Path $korijen '_out'
+}
+$OutDir = [System.IO.Path]::GetFullPath($OutDir)
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+Write-Host "Izlazni direktorij: $OutDir"
 
 Write-Host "Generiram self-signed code-signing certifikat: $Subject"
 $cert = New-SelfSignedCertificate `
