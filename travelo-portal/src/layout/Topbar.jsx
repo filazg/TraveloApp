@@ -130,7 +130,10 @@ export default function Topbar() {
               sx: {
                 mt: 1,
                 borderRadius: 3,
-                minWidth: 320,
+                // Na mobitelu fiksnih 320px zna prijeći širinu ekrana; ograniči na
+                // vidljivi dio i dopusti da bude uži na malim uređajima.
+                width: { xs: "92vw", sm: 360 },
+                maxWidth: "100vw",
                 maxHeight: "78vh",
                 overflow: "hidden",
                 boxShadow: "0 16px 40px rgba(15,23,42,0.18)",
@@ -224,9 +227,12 @@ export default function Topbar() {
                 color="inherit"
                 onClick={(e) => setAnchorElUser(e.currentTarget)}
                 startIcon={<AccountCircleIcon />}
-                sx={{ textTransform: "none", opacity: 0.9, fontWeight: 600 }}
+                sx={{ textTransform: "none", opacity: 0.9, fontWeight: 600, minWidth: { xs: 0, sm: 64 }, "& .MuiButton-startIcon": { mr: { xs: 0, sm: 1 } } }}
               >
-                {authData.loggedUserData?.username}
+                {/* Ime se skriva na uskim ekranima da desne kontrole ne prelaze rub. */}
+                <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                  {authData.loggedUserData?.username}
+                </Box>
               </Button>
               <Menu
                 anchorEl={anchorElUser}

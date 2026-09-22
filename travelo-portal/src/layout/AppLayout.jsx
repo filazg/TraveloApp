@@ -38,12 +38,16 @@ export default function AppLayout() {
   }, []);
 
   return (
-    <Box sx={{ minHeight: "100vh",  width: "100%", display: "flex", flexDirection: "column" }}>
+    // Mobilna zaštita od vodoravnog "curenja" cijele stranice: korijen skriva
+    // horizontalni preljev (nema scrollbara preko cijelog ekrana ni ispod
+    // topbara), a sadržajni okvir dobiva overflowX:auto — ako neka široka tablica
+    // ne stane, skrola se SAMO sadržaj (topbar ostaje), a sadržaj ostaje
+    // dohvatljiv (bez rezanja). Stranice koje već imaju vlastiti scroll u tablici
+    // (TableContainer / overflowX na gridu, npr. Brod → Linije) rade kao i prije.
+    <Box sx={{ minHeight: "100vh", width: "100%", maxWidth: "100vw", overflowX: "hidden", display: "flex", flexDirection: "column" }}>
       <Topbar />
-      <Box sx={{ flex: 1, px: { xs: 1, sm: 3 }, py: { xs: 1, sm: 3 } }}>
-        <Stack
-          alignItems="center"
-        >
+      <Box sx={{ flex: 1, minWidth: 0, overflowX: "auto", px: { xs: 1, sm: 3 }, py: { xs: 1, sm: 3 } }}>
+        <Stack alignItems="center" sx={{ width: "100%", minWidth: 0 }}>
           <Outlet />
         </Stack>
       </Box>

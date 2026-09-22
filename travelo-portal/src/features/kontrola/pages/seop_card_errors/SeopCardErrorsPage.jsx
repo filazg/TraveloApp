@@ -183,6 +183,7 @@ export default function SeopCardErrorsPage() {
                 </Tabs>
             </Box>
 
+            <Box sx={{ width: "100%", overflowX: "auto" }}>
             <Box ref={tablicaRef} sx={{ height: visinaTablice, minWidth: 1100 }}>
                 <DataGrid
                     rows={redci}
@@ -197,6 +198,7 @@ export default function SeopCardErrorsPage() {
                     disableRowSelectionOnClick
                     localeText={{ noRowsLabel: "Nema zabilježenih grešaka s karticama." }}
                 />
+            </Box>
             </Box>
         </Box>
     );

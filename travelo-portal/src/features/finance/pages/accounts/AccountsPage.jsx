@@ -140,13 +140,15 @@ export default function AccountsPage() {
             {tab === "accounts" && (
                 <>
                     <GridHint />
-                    <Box sx={{ height: "75vh", minWidth: 800 }}>
-                        <DataGrid
-                            rows={accounts}
-                            columns={columns}
-                            getRowId={(r) => r.id}
-                            {...rowActions}
-                        />
+                    <Box sx={{ width: "100%", overflowX: "auto" }}>
+                        <Box sx={{ height: "75vh", minWidth: 800 }}>
+                            <DataGrid
+                                rows={accounts}
+                                columns={columns}
+                                getRowId={(r) => r.id}
+                                {...rowActions}
+                            />
+                        </Box>
                     </Box>
                     <Stack alignItems="flex-start" sx={{ mt: 1 }}>
                         <Button onClick={() => setOpenAdd(true)}>+ Dodaj konto</Button>

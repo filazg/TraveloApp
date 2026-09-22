@@ -238,6 +238,7 @@ export default function TicketCopyControlPage() {
                 </Tabs>
             </Box>
 
+            <Box sx={{ width: "100%", overflowX: "auto" }}>
             <Box ref={tablicaRef} sx={{ height: visinaTablice, minWidth: 1200 }}>
                 <DataGrid
                     rows={sukobi}
@@ -253,6 +254,7 @@ export default function TicketCopyControlPage() {
                     onRowClick={(p) => otvoriDetalj(p.row)}
                     sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                 />
+            </Box>
             </Box>
 
             {/* Detalj: cijela povijest karte. Sukob se ne da procijeniti iz jednog

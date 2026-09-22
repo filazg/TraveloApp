@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import axios from "axios";
 import {
     Alert, Box, Button, Chip, CircularProgress, FormControl, InputLabel, MenuItem,
-    Paper, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography,
+    Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { authSliceData } from "../auth/authSlice";
@@ -114,7 +114,8 @@ export default function DevicesPage() {
                 ) : prikazani.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Nema zapisa.</Typography>
                 ) : (
-                    <Table size="small">
+                    <TableContainer sx={{ overflowX: "auto" }}>
+                    <Table size="small" sx={{ minWidth: 720 }}>
                         <TableHead>
                             <TableRow>
                                 <TableCell>Vrijeme</TableCell>
@@ -142,6 +143,7 @@ export default function DevicesPage() {
                             ))}
                         </TableBody>
                     </Table>
+                    </TableContainer>
                 )}
             </Paper>
         </Box>
