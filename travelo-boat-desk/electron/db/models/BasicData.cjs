@@ -225,9 +225,45 @@ const stornoPercentagesModel = sequelize.define('storno_percentages',{
 })
 
 
+// Popusti po pravu na povlasteni prijevoz — sifarnik iz portala (Integracije →
+// AKD → SEOP → Popusti), stize uz basic_data sync.
+//
+// Koristi se samo bez mreze: kad se SEOP moze pitati, postotak dolazi od njega.
+// Cip nosi samo sifru prava, pa se bez ovog sifarnika offline ne zna koliki je
+// popust. `rezident` govori je li pravo vezano uz prebivaliste na otoku —
+// linija u modu "prebivaliste" priznaje samo takva.
+const seopRightDiscountsModel = sequelize.define('seop_right_discounts',{
+    id:{
+        type:Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    code:{
+        type:Sequelize.STRING,
+        allowNull:false
+    },
+    discount_pct:{
+        type:Sequelize.INTEGER,
+        allowNull:false,
+        defaultValue: 0
+    },
+    rezident:{
+        type:Sequelize.BOOLEAN,
+        allowNull:true
+    },
+    opis:{
+        type:Sequelize.STRING,
+        allowNull:true
+    }
+},{
+    freezeTableName:true
+})
+
+
 module.exports={
     companyModel,
     usersModel,
     paymentMethodsModel,
-    stornoPercentagesModel
+    stornoPercentagesModel,
+    seopRightDiscountsModel
 }

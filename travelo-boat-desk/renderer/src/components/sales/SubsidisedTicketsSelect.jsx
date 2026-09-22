@@ -10,6 +10,7 @@ import {
   identifikatorSKartice,
   provjeriKarticuNaRuti,
   cijenaPovlastene,
+  popustBezMreze,
   blokPovlastice as buildBlokPovlastice,
   buildIslandTickets,
 } from "./subsidisedHelpers";
@@ -274,10 +275,33 @@ function redovnaCijenaRelacije() {
 
 // Blok povlastice — tanki wrapper oko zajedničkog helpera koji dodaje redovnu
 // cijenu relacije (čita se iz selectedTripPrices, pa mora ostati u komponenti).
-function blokPovlastice({ ishod, cijenaRed, pratnja = false, uvijekProdaj = false }) {
+function blokPovlastice({ ishod, cijenaRed, pratnja = false, uvijekProdaj = false, bezMreze = null }) {
   return buildBlokPovlastice({
-    ishod, cijenaRed, pratnja, uvijekProdaj,
+    ishod, cijenaRed, pratnja, uvijekProdaj, bezMreze,
+    kartica: cardData?.F2 || null,
     redovnaCijena: redovnaCijenaRelacije()?.price ?? null,
+  });
+}
+
+// Odluka o popustu kad posluzitelj nije odgovorio.
+//
+// Sve ulazi iz onoga sto je vec sinkronizirano: sifarnik popusta po pravu, dvije
+// postavke linije i SEOP-otoci luka relacije. Cip daje pravo i otok. Kad nesto
+// od toga nedostaje, helper vraca „bez popusta" s razlogom — blagajna tada nudi
+// samo dosadasnji put, izdavanje uz razlog.
+function odlukaBezMreze() {
+  const relacija = appData.searchData?.selectedTrip;
+  const luke = appData.transportData?.harbors || [];
+  const kodovi = [relacija?.departure_harbor_id, relacija?.arrival_harbor_id]
+    .map((c) => String(c || "").trim())
+    .filter(Boolean);
+
+  return popustBezMreze({
+    popusti: appData.basicData?.seop_right_discounts || [],
+    pravo: cardData?.F2?.BasicRight || null,
+    otokKartice: cardData?.F2?.IslandName || null,
+    linija: appData.searchData?.selectedLine || null,
+    luke: luke.filter((l) => kodovi.includes(String(l?.code || "").trim())),
   });
 }
 
@@ -659,6 +683,54 @@ function seopCardDetails() {
   )
 }
 
+// Ponuda povlaštene karte s lokalnim popustom — samo kad je veza pala, a čip je
+// pročitan. Ručni upis broja iskaznice ovdje ne prolazi: bez čipa se ne zna
+// pravo, a bez prava nema po čemu odrediti popust.
+function ponudiLokalniPopust(cijenaRed, sustav) {
+  if (sustav !== "SEOP") return null;
+  if (provjera?.offline !== true) return null;
+  if (!cardData?.F2?.BasicRight || !cijenaRed) return null;
+
+  const odluka = odlukaBezMreze();
+  if (!odluka.primijenjen) {
+    // Zasto popusta nema treba pisati: inace izgleda kao da mogucnost ne radi.
+    return (
+      <Typography color="text.secondary" sx={{ mb: 2 }}>
+        {odluka.razlog}
+      </Typography>
+    );
+  }
+
+  const iznos = +(Number(cijenaRed.price) * (1 - odluka.popust_postotak / 100)).toFixed(2);
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Typography sx={{ fontWeight: 800, mb: 0.5 }}>
+        Bez veze sa SEOP-om — popust po pravu s kartice
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 1.5 }}>
+        {odluka.razlog} Karta se bilježi kao prodana bez provjere i vidi se u Kontroli.
+      </Typography>
+      <Button
+        variant="contained"
+        color="success"
+        onClick={() => {
+          handleAddTickets({
+            price: cijenaRed, rights: {}, type: sustav, free: iznos === 0,
+            iznos,
+            povlastica: blokPovlastice({ ishod: provjera, cijenaRed, bezMreze: odluka }),
+          })
+        }}
+        sx={{ height: 88, width: "100%", fontSize: "1.25rem" }}
+      >
+        {iznos === 0
+          ? `BESPLATNA KARTA (POPUST ${odluka.popust_postotak}%)`
+          : `IZDAJ S POPUSTOM ${odluka.popust_postotak}% — ${iznos.toFixed(2)} EUR`}
+      </Button>
+      <Divider sx={{ my: 2 }} />
+    </Box>
+  );
+}
+
 // Ishod provjere i gumbi za prodaju — isti za očitanu karticu, ručni upis i
 // MOSI, jer je odluka u svim slučajevima došla s istog mjesta.
 function odlukaIGumbi(cijenaRed, sustav) {
@@ -757,6 +829,12 @@ function odlukaIGumbi(cijenaRed, sustav) {
         // (otočnoj) cijeni, ali djelatnik MORA odabrati razlog; SEOP dojava ide s
         // uvijekProdaj, a razlog+napomena (`greska` blok) idu u Kontrolu.
         <Box sx={{ mt: 2 }}>
+          {/* Iznimka: veza je pala, ali je čip pročitan. Pravo tada znamo s
+              kartice, a postotak iz lokalnog šifarnika — karta se izdaje s
+              popustom, bez razloga, i nosi oznaku da je prodana bez provjere.
+              Ovo je jedini slučaj u kojem blagajna sama određuje popust. */}
+          {ponudiLokalniPopust(cijenaRed, sustav)}
+
           <Typography sx={{ fontWeight: 800, mb: 1 }}>
             Izdaj otočnu bez provjere — obavezan razlog:
           </Typography>

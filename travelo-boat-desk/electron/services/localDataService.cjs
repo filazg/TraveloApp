@@ -1,15 +1,16 @@
-const { companyModel, usersModel, paymentMethodsModel, stornoPercentagesModel } = require("../db/models/BasicData.cjs");
+const { companyModel, usersModel, paymentMethodsModel, stornoPercentagesModel, seopRightDiscountsModel } = require("../db/models/BasicData.cjs");
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs");
 const { salesRoutesDataModel, salesRoutePricesDataModel, linesDataModel, harborsDataModel } = require("../db/models/TransportData.cjs");
 
 
 async function getLocalBasicDataService() {
-  const [company, users, payment_methods, settings, storno_percentages] = await Promise.all([
+  const [company, users, payment_methods, settings, storno_percentages, seop_right_discounts] = await Promise.all([
     companyModel.findOne({attributes: { exclude: ["createdAt", "updatedAt"] }}),
     usersModel.findAll({order: [["id", "ASC"]],attributes: { exclude: ["createdAt", "updatedAt"] }}),
     paymentMethodsModel.findAll({order: [["id", "ASC"]],attributes: { exclude: ["createdAt", "updatedAt"] }}),
     systemSettingsDataModel.findOne({attributes: { exclude: ["createdAt", "updatedAt"] }}),
     stornoPercentagesModel.findAll({order: [["percentage", "DESC"]],attributes: { exclude: ["createdAt", "updatedAt"] }}),
+    seopRightDiscountsModel.findAll({order: [["code", "ASC"]],attributes: { exclude: ["createdAt", "updatedAt"] }}),
   ]);
 
   return {
@@ -18,6 +19,7 @@ async function getLocalBasicDataService() {
     payment_methods: payment_methods.map((r) => r.toJSON()),
     settings: settings ? settings.toJSON() : null,
     storno_percentages: (storno_percentages || []).map((s) => s.toJSON()),
+    seop_right_discounts: (seop_right_discounts || []).map((s) => s.toJSON()),
     meta: { fetchedAt: new Date().toISOString() },
   };
 }

@@ -113,6 +113,72 @@ export const provjeriKarticuNaRuti = async ({ vrsta, vrijednost, sustav = "SEOP"
     }
 };
 
+// Odluka o popustu kad se SEOP ne moze pitati.
+//
+// Online odluku donosi posluzitelj; ovo je jedini slucaj u kojem je blagajna
+// donosi sama, i to samo zato sto bez mreze nema koga pitati. Sve sto joj za to
+// treba doslo je sinkronizacijom: sifarnik popusta po pravu (basic_data),
+// postavke linije (transport_data) i SEOP-otoci luka (transport_data). Cip daje
+// sifru prava i otok — nista se ne nagada.
+//
+// Vraca `{ popust_postotak, primijenjen, razlog }`. Kad popusta nema, razlog
+// kaze zasto, da blagajnik na ekranu vidi je li rijec o pravilu linije, o
+// nepostavljenom popustu ili o kartici s krivog otoka.
+export const popustBezMreze = ({
+    popusti = [],
+    pravo = null,
+    otokKartice = null,
+    linija = null,
+    luke = [],
+} = {}) => {
+    const ne = (razlog) => ({ popust_postotak: 0, primijenjen: false, razlog });
+
+    if (!linija || linija.seop_mode === "ne") {
+        return ne("Na ovoj liniji otočne iskaznice se ne priznaju.");
+    }
+    // Kad linija ne primjenjuje SEOP popust, otocna cijena iz cjenika je vec
+    // konacna — isto pravilo vrijedi i s mrezom i bez nje.
+    if (linija.seop_apply_discount !== true) {
+        return ne("Linija ne primjenjuje SEOP popust — vrijedi cijena iz cjenika.");
+    }
+
+    const sifra = String(pravo || "").trim();
+    if (!sifra) {
+        return ne("Pravo se nije očitalo s kartice, pa se popust ne može odrediti.");
+    }
+
+    const upis = popusti.find((p) => String(p.code || "").trim() === sifra) || null;
+    if (!upis || !(Number(upis.discount_pct) > 0)) {
+        return ne(`Za pravo ${sifra} nije postavljen popust (Integracije → AKD → SEOP → Popusti).`);
+    }
+
+    // „Samo otocani s prebivalistem" — isto pravilo kao na posluzitelju:
+    // iskaznica za „Svi otoci" prolazi svugdje, inace pravo mora biti
+    // rezidentsko i otok s kartice mora biti otok jedne od luka relacije.
+    if (linija.seop_mode === "prebivaliste") {
+        const otok = String(otokKartice || "").trim();
+        const sviOtoci = /^svi\s*otoci$/i.test(otok);
+        if (!sviOtoci) {
+            if (upis.rezident !== true) {
+                return ne(`Linija priznaje samo otočane s prebivalištem, a iskaznica nosi pravo ${sifra}.`);
+            }
+            const otociRelacije = (luke || [])
+                .map((l) => String(l?.seop_island || "").trim())
+                .filter(Boolean);
+            const poklapa = otociRelacije.some((o) => o.toLowerCase() === otok.toLowerCase());
+            if (otociRelacije.length && !poklapa) {
+                return ne(`Iskaznica je za otok „${otok || "?"}", a linija priznaje otočane s: ${otociRelacije.join(", ")}.`);
+            }
+        }
+    }
+
+    return {
+        popust_postotak: Number(upis.discount_pct),
+        primijenjen: true,
+        razlog: `Popust ${Number(upis.discount_pct)}% po pravu ${sifra} — iz lokalnog šifarnika, bez provjere u SEOP-u.`,
+    };
+};
+
 // Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu), i to je
 // striktno ili-ili:
 //   primjeni_popust — na cijenu iz cjenika primijeni postotak sa SEOP-a
@@ -133,19 +199,42 @@ export const cijenaPovlastene = (ishod, cijenaRed) => {
 //
 // `redovnaCijena` se prosljeđuje eksplicitno (kod prodaje iz cjenika relacije,
 // kod povratne iz košarice fallback na cijenaRed.price) — helper ne čita state.
-export const blokPovlastice = ({ ishod, cijenaRed, redovnaCijena = null, pratnja = false, uvijekProdaj = false }) => ({
-    sustav: ishod?.sustav || "SEOP",
-    token: ishod?.token || null,
-    identifikator: ishod?.identifikator || null,
-    pravo: ishod?.pravo_na_pp || null,
-    otok: ishod?.otok || null,
-    popust_postotak: uvijekProdaj ? 0 : Number(ishod?.popust_postotak || 0),
-    namjena: cijenaRed?.seop_type || null,
-    redovna_cijena: Number(redovnaCijena ?? cijenaRed?.price ?? 0),
-    odobrenje: ishod?.odobrenje || null,
-    uvijek_prodaj: uvijekProdaj,
-    offline: ishod?.offline === true,
-    pratnja,
-    // Linija moze koristiti SEOP samo za provjeru, bez dojave prodaje.
-    dojava_seop: ishod?.dojava_seop !== false,
-});
+//
+// `bezMreze` je ishod lokalne odluke (popustBezMreze) kad provjera nije prošla.
+// Tada pravo i otok dolaze s čipa, a postotak iz lokalnog šifarnika, pa se to
+// mora i zapisati: `popust_izvor` razdvaja popust koji je dao SEOP od onoga koji
+// je blagajna odredila sama. Bez te razlike se u Kontroli poslije ne bi znalo
+// po čemu je karta naplaćena.
+export const blokPovlastice = ({
+    ishod,
+    cijenaRed,
+    redovnaCijena = null,
+    pratnja = false,
+    uvijekProdaj = false,
+    bezMreze = null,
+    kartica = null,
+}) => {
+    const lokalni = bezMreze?.primijenjen === true;
+    const popust = uvijekProdaj
+        ? 0
+        : (lokalni ? Number(bezMreze.popust_postotak) : Number(ishod?.popust_postotak || 0));
+
+    return {
+        sustav: ishod?.sustav || "SEOP",
+        token: ishod?.token || null,
+        identifikator: ishod?.identifikator || null,
+        // Bez mreže provjere nema, pa pravo i otok dolaze s čipa.
+        pravo: ishod?.pravo_na_pp || kartica?.BasicRight || null,
+        otok: ishod?.otok || kartica?.IslandName || null,
+        popust_postotak: popust,
+        popust_izvor: popust > 0 ? (lokalni ? "lokalni_katalog" : "seop") : null,
+        namjena: cijenaRed?.seop_type || null,
+        redovna_cijena: Number(redovnaCijena ?? cijenaRed?.price ?? 0),
+        odobrenje: ishod?.odobrenje || null,
+        uvijek_prodaj: uvijekProdaj,
+        offline: ishod?.offline === true || lokalni,
+        pratnja,
+        // Linija moze koristiti SEOP samo za provjeru, bez dojave prodaje.
+        dojava_seop: ishod?.dojava_seop !== false,
+    };
+};

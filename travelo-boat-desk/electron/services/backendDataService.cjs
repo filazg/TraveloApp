@@ -1,6 +1,6 @@
 const axios = require("axios");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
-const { usersModel, companyModel, paymentMethodsModel, stornoPercentagesModel } = require("../db/models/BasicData.cjs");
+const { usersModel, companyModel, paymentMethodsModel, stornoPercentagesModel, seopRightDiscountsModel } = require("../db/models/BasicData.cjs");
 const { salesRoutesDataModel, salesRoutePricesDataModel, linesDataModel, harborsDataModel } = require("../db/models/TransportData.cjs");
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs");
 const https = require("https");
@@ -87,6 +87,13 @@ async function syncBasicDataService() {
       if (Array.isArray(basicData.data.storno_percentages)) {
         await stornoPercentagesModel.truncate();
         await stornoPercentagesModel.bulkCreate(basicData.data.storno_percentages);
+      }
+      // Popusti po pravu. Prazan popis je valjan odgovor (ured nije upisao
+      // nijedan popust), pa se sprema i on — inace bi povuceni popust ostao
+      // vrijediti na blagajni.
+      if (Array.isArray(basicData.data.seop_right_discounts)) {
+        await seopRightDiscountsModel.truncate();
+        await seopRightDiscountsModel.bulkCreate(basicData.data.seop_right_discounts);
       }
       const dataToSend = basicData.data;
       return { users: dataToSend.users };
