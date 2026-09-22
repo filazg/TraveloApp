@@ -148,6 +148,9 @@ export default function SaleScreen() {
     const [islandError, setIslandError] = useState(null);
     // Podaci nositelja s očitane iskaznice (kao na desku): ime, OIB, otok, pravo.
     const [islandCardInfo, setIslandCardInfo] = useState(null);
+    // Sustav za rucni upis. Cip sustav javlja sam (SEOP obitelji / MOSI), pa se
+    // ovaj izbor koristi samo kad se broj upisuje.
+    const [rucniSustav, setRucniSustav] = useState('SEOP');
     // Kad se pravo ne može potvrditi (kartica se ne da očitati/provjeriti), otočna
     // se izdaje na povjerenje, ali djelatnik mora upisati razlog + napomenu.
     const [greskaRazlog, setGreskaRazlog] = useState(null);
@@ -526,6 +529,7 @@ export default function SaleScreen() {
             setIslandOffline(false);
             setIslandPratnja(false);
             setIslandCardInfo(null);
+            setRucniSustav('SEOP');
             setGreskaRazlog(null);
             setGreskaNapomena('');
             if (akdCardAvailable) akdStopScan().catch(() => {});
@@ -636,7 +640,7 @@ export default function SaleScreen() {
         }
     };
 
-    const handleVerifyIsland = () => verifyIslandFor(islandCardNo);
+    const handleVerifyIsland = () => verifyIslandFor(islandCardNo, islandIdType, rucniSustav);
 
     // Redovna cijena relacije — sluzi dvaput: kao `redovCijenaEur` u dojavi i
     // kao cijena karte kad se prodaje bez potvrdenog prava.
@@ -1381,35 +1385,6 @@ export default function SaleScreen() {
                             contentContainerStyle={islandStyles.bodySadrzaj}
                             keyboardShouldPersistTaps="handled"
                         >
-
-                        {/* Podaci s cipa: gore tko je, ispod po cemu se naplacuje.
-                            Vrsta kartice je izbacena — modal se i otvara samo za
-                            otocnu, pa je red trosio prostor bez koristi. */}
-                        {islandCardInfo && (
-                            <View style={islandStyles.cardInfo}>
-                                {(islandCardInfo.firstName || islandCardInfo.surname) ? (
-                                    <Text style={islandStyles.cardInfoName}>
-                                        {[islandCardInfo.firstName, islandCardInfo.surname].filter(Boolean).join(' ')}
-                                    </Text>
-                                ) : null}
-                                <View style={islandStyles.poljaRed}>
-                                    <SitnoPolje oznaka="OIB" vrijednost={islandCardInfo.oib} />
-                                    <SitnoPolje oznaka="Kartica" vrijednost={islandCardInfo.cardNumber} />
-                                    <SitnoPolje oznaka="Pravo" vrijednost={islandCardInfo.basicRight} />
-                                    <SitnoPolje oznaka="Popust" vrijednost={islandCardInfo.basicRight ? popustZaPrikaz() : null} />
-                                    <SitnoPolje oznaka="Otok" vrijednost={islandCardInfo.islandName} />
-                                </View>
-                            </View>
-                        )}
-
-                        {islandChecking && (
-                            <View style={islandStyles.checking}>
-                                <ActivityIndicator size="large" color={colors.primary} />
-                                <Text style={islandStyles.checkingText}>PROVJERA ISKAZNICE…</Text>
-                                <Text style={islandStyles.checkingSub}>Pričekaj trenutak</Text>
-                            </View>
-                        )}
-
                         {!islandResult && !islandChecking && (
                             <>
                                 <Text style={islandStyles.help}>
@@ -1417,6 +1392,27 @@ export default function SaleScreen() {
                                         ? 'Prislonite otočnu iskaznicu na poleđinu uređaja ili upišite broj ručno.'
                                         : 'Upišite serijski broj otočne iskaznice. Sustav provjerava pravo i izračunava cijenu.'}
                                 </Text>
+                                {/* Sustav odlucuje kojim putem ide provjera: MOSI daje
+                                    popust nositelju i pratnju s linije, a bez tog izbora
+                                    bi se rucni upis uvijek provjerio kao SEOP. Cip sustav
+                                    javlja sam, pa se bira samo pri upisu. */}
+                                <View style={islandStyles.oblikRed}>
+                                    {['SEOP', 'MOSI'].map((sustav) => (
+                                        <TouchableOpacity
+                                            key={sustav}
+                                            style={[islandStyles.oblikBtn, rucniSustav === sustav && islandStyles.oblikBtnAktivan]}
+                                            onPress={() => {
+                                                setRucniSustav(sustav);
+                                                setIslandError(null);
+                                            }}
+                                            disabled={islandChecking}
+                                        >
+                                            <Text style={[islandStyles.oblikText, rucniSustav === sustav && islandStyles.oblikTextAktivan]}>
+                                                {sustav}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                                 <View style={islandStyles.oblikRed}>
                                     {[
                                         { kljuc: 'card_no', naziv: 'ISKAZNICA' },
@@ -1451,6 +1447,36 @@ export default function SaleScreen() {
                                 {islandError && <Text style={islandStyles.error}>{islandError}</Text>}
                             </>
                         )}
+
+
+                        {/* Podaci s cipa: gore tko je, ispod po cemu se naplacuje.
+                            Vrsta kartice je izbacena — modal se i otvara samo za
+                            otocnu, pa je red trosio prostor bez koristi. */}
+                        {islandCardInfo && (
+                            <View style={islandStyles.cardInfo}>
+                                {(islandCardInfo.firstName || islandCardInfo.surname) ? (
+                                    <Text style={islandStyles.cardInfoName}>
+                                        {[islandCardInfo.firstName, islandCardInfo.surname].filter(Boolean).join(' ')}
+                                    </Text>
+                                ) : null}
+                                <View style={islandStyles.poljaRed}>
+                                    <SitnoPolje oznaka="OIB" vrijednost={islandCardInfo.oib} />
+                                    <SitnoPolje oznaka="Kartica" vrijednost={islandCardInfo.cardNumber} />
+                                    <SitnoPolje oznaka="Pravo" vrijednost={islandCardInfo.basicRight} />
+                                    <SitnoPolje oznaka="Popust" vrijednost={islandCardInfo.basicRight ? popustZaPrikaz() : null} />
+                                    <SitnoPolje oznaka="Otok" vrijednost={islandCardInfo.islandName} />
+                                </View>
+                            </View>
+                        )}
+
+                        {islandChecking && (
+                            <View style={islandStyles.checking}>
+                                <ActivityIndicator size="large" color={colors.primary} />
+                                <Text style={islandStyles.checkingText}>PROVJERA ISKAZNICE…</Text>
+                                <Text style={islandStyles.checkingSub}>Pričekaj trenutak</Text>
+                            </View>
+                        )}
+
 
                         {islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo) && (
                             <View style={islandStyles.resultErr}>
