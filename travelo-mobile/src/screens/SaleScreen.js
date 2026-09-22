@@ -36,6 +36,19 @@ import { playSuccess as soundSuccess, playPrompt as soundPrompt, playError as so
 
 // Razlozi izdavanja otočne bez provjere (Kontrola → Greške s povlaštenim
 // karticama). Ključevi moraju odgovarati onima na backendu/portalu.
+// Oznaka i vrijednost jedno uz drugo; parovi se slažu u red i prelamaju po
+// širini. Isti raspored kao na blagajni (SubsidisedTicketsSelect), da isti
+// podatak na oba uređaja izgleda isto.
+function SitnoPolje({ oznaka, vrijednost }) {
+    if (!vrijednost) return null;
+    return (
+        <View style={islandStyles.polje}>
+            <Text style={islandStyles.poljeOznaka}>{oznaka}</Text>
+            <Text style={islandStyles.poljeVrijednost}>{vrijednost}</Text>
+        </View>
+    );
+}
+
 const RAZLOZI_GRESKE = [
     { kljuc: 'nemoguce_ocitati', naziv: 'Nemoguće očitati karticu' },
     { kljuc: 'kartica_ostecena', naziv: 'Kartica oštećena' },
@@ -698,14 +711,6 @@ export default function SaleScreen() {
             linija: odabranaLinija || null,
             luke: (sync.harbors || []).filter((l) => kodovi.includes(String(l?.code || '').trim())),
         });
-    };
-
-    // Naziv prava s cipa. Cip nosi samo sifru, naziv stize u sifarniku popusta
-    // uz osnovne podatke. Kad prava nema u sifarniku, ne izmislja se nista.
-    const nazivPrava = (sifra) => {
-        const upis = (sync.basicData?.seop_right_discounts || [])
-            .find((p) => String(p.code || '').trim() === String(sifra || '').trim());
-        return upis?.opis || null;
     };
 
     // Postotak popusta za prikaz. Posluzitelj ima zadnju rijec; bez mreze
@@ -1387,35 +1392,13 @@ export default function SaleScreen() {
                                         {[islandCardInfo.firstName, islandCardInfo.surname].filter(Boolean).join(' ')}
                                     </Text>
                                 ) : null}
-                                {(islandCardInfo.oib || islandCardInfo.cardNumber) ? (
-                                    <Text style={islandStyles.cardInfoSitno}>
-                                        {[
-                                            islandCardInfo.oib ? `OIB ${islandCardInfo.oib}` : null,
-                                            islandCardInfo.cardNumber ? `kartica ${islandCardInfo.cardNumber}` : null,
-                                        ].filter(Boolean).join(' · ')}
-                                    </Text>
-                                ) : null}
-                                {!!islandCardInfo.basicRight && (
-                                    <>
-                                        <View style={islandStyles.cardInfoRed}>
-                                            <Text style={islandStyles.cardInfoOznaka}>Pravo</Text>
-                                            <Text style={islandStyles.b}>{islandCardInfo.basicRight}</Text>
-                                        </View>
-                                        {nazivPrava(islandCardInfo.basicRight) ? (
-                                            <Text style={islandStyles.cardInfoSitno}>{nazivPrava(islandCardInfo.basicRight)}</Text>
-                                        ) : null}
-                                        <View style={islandStyles.cardInfoRed}>
-                                            <Text style={islandStyles.cardInfoOznaka}>Popust</Text>
-                                            <Text style={islandStyles.b}>{popustZaPrikaz()}</Text>
-                                        </View>
-                                    </>
-                                )}
-                                {!!islandCardInfo.islandName && (
-                                    <View style={islandStyles.cardInfoRed}>
-                                        <Text style={islandStyles.cardInfoOznaka}>Otok</Text>
-                                        <Text style={islandStyles.b}>{islandCardInfo.islandName}</Text>
-                                    </View>
-                                )}
+                                <View style={islandStyles.poljaRed}>
+                                    <SitnoPolje oznaka="OIB" vrijednost={islandCardInfo.oib} />
+                                    <SitnoPolje oznaka="Kartica" vrijednost={islandCardInfo.cardNumber} />
+                                    <SitnoPolje oznaka="Pravo" vrijednost={islandCardInfo.basicRight} />
+                                    <SitnoPolje oznaka="Popust" vrijednost={islandCardInfo.basicRight ? popustZaPrikaz() : null} />
+                                    <SitnoPolje oznaka="Otok" vrijednost={islandCardInfo.islandName} />
+                                </View>
                             </View>
                         )}
 
@@ -1701,10 +1684,12 @@ const islandStyles = StyleSheet.create({
     cardInfo: { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 8 },
     cardInfoName: { fontSize: 15, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
     cardInfoLine: { fontSize: 14, color: colors.textPrimary, marginTop: 2 },
-    // Oznaka lijevo, vrijednost desno — isti raspored kao na blagajni, samo uze.
-    cardInfoRed: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
-    cardInfoOznaka: { fontSize: 13, color: colors.textSecondary },
-    cardInfoSitno: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    // Parovi oznaka/vrijednost u jednom redu koji se prelama — isti raspored kao
+    // na blagajni, samo uži: na zaslonu terminala stanu dva do tri para po redu.
+    poljaRed: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 2, marginTop: 4 },
+    polje: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+    poljeOznaka: { fontSize: 12, color: colors.textSecondary },
+    poljeVrijednost: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
     input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, fontSize: 16, marginBottom: 6, color: colors.textPrimary, backgroundColor: colors.surface },
     error: { color: colors.error, marginTop: 8 },
     resultOk: { backgroundColor: colors.successLight, borderColor: colors.success, borderWidth: 1, padding: 10, borderRadius: 8 },
