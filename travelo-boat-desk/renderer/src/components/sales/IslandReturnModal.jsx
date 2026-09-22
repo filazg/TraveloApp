@@ -36,7 +36,6 @@ export default function IslandReturnModal({
     cijenaPovlastene,  // (ishod, cijenaRed) => number
     blokPovlastice,    // ({ishod, cijenaRed}) => obj
     onDodaj,           // (data) => void  (handleAddTickets)
-    seopNedostupan,    // bool — polazna provjera vec je pala na nedostupnom SEOP-u
 }) {
     const appData = useSelector(allAppData);
     const [dan, setDan] = useState(pocetniDatum || new Date());
@@ -113,9 +112,10 @@ export default function IslandReturnModal({
     //
     // Provjera ide po odabranoj povratnoj ruti: druga ruta moze biti druga
     // linija, s drugim postavkama i drugim otocima.
-    // Da SEOP ne odgovara zna se vec od polazne provjere, pa se to kaze prije
-    // nego blagajnik uopce pritisne provjeru — a ne tek kad i ona padne.
-    const bezVeze = provjera?.offline === true || seopNedostupan === true;
+    // Redoslijed je isti kao za polazni smjer: prvo se pokusa provjera, pa tek
+    // kad se pokaze da SEOP ne odgovara, odluka ide lokalno. Stanje se zato
+    // cita iz same provjere, a ne nagada unaprijed.
+    const bezVeze = provjera?.offline === true;
     const odlukaBezMreze = useMemo(() => {
         if (!bezVeze || !ruta) return null;
         const linija = (appData.transportData?.lines || [])
@@ -224,18 +224,6 @@ export default function IslandReturnModal({
                     <Alert severity="info" sx={{ mb: 1 }}>Za taj dan nema povratka na ovoj relaciji. Odaberite drugi datum.</Alert>
                 ) : null}
 
-                {/* Blagajnik mora znati po cemu se odlucuje prije nego proda, a ne
-                    tek iz ishoda: bez SEOP-a pravo dolazi s cipa, postotak iz
-                    sifarnika sinkroniziranog na blagajnu, i karta nosi offline
-                    oznaku. */}
-                {bezVeze ? (
-                    <Alert severity="warning" sx={{ mb: 1.5 }}>
-                        SEOP nije dostupan — provjera prava se ne može napraviti. Pravo i otok uzimaju se
-                        s kartice, postotak iz lokalnog šifarnika, a karta se bilježi kao prodana bez
-                        provjere (offline) i vidi se u Kontroli.
-                    </Alert>
-                ) : null}
-
                 <Button
                     variant="outlined"
                     fullWidth
@@ -244,16 +232,22 @@ export default function IslandReturnModal({
                     startIcon={radi ? <CircularProgress size={16} /> : null}
                     sx={{ mb: 1.5 }}
                 >
-                    {radi
-                        ? "PROVJERA…"
-                        : bezVeze
-                            ? "ODREDI PRAVO ZA POVRATNU (BEZ SEOP-A)"
-                            : "PROVJERI PRAVO ZA POVRATNU"}
+                    {radi ? "PROVJERA…" : "PROVJERI PRAVO ZA POVRATNU"}
                 </Button>
 
                 {provjera ? (
                     <>
                         <Divider sx={{ mb: 1.5 }} />
+                        {/* Provjera je pala jer SEOP ne odgovara. Tek sada se kaze
+                            po cemu se odlucuje: pravo i otok s cipa, postotak iz
+                            sifarnika, karta s offline oznakom u Kontroli. */}
+                        {bezVeze ? (
+                            <Alert severity="warning" sx={{ mb: 1.5 }}>
+                                SEOP nije dostupan — provjera prava nije napravljena. Pravo i otok uzimaju se
+                                s kartice, postotak iz lokalnog šifarnika, a karta se bilježi kao prodana bez
+                                provjere (offline) i vidi se u Kontroli.
+                            </Alert>
+                        ) : null}
                         <Typography
                             align="center"
                             sx={{ fontWeight: 800, py: 0.5 }}
