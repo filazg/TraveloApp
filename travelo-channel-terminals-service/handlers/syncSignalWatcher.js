@@ -1,6 +1,7 @@
 const axios = require("axios");
 const { getCoreServiceConfigData } = require("../controllers/configServices/configSyncController");
 const { ocistiMemorijuPlovidbenogReda } = require("./transportDataHandlers");
+const { ocistiMemorijuSifarnika } = require("./basicDataHandlers");
 
 // Prati javlja li jezgra promjenu i o tome obavjestava sve zainteresirane.
 //
@@ -42,6 +43,13 @@ const provjeri = async () => {
     if (Number(signali.transport || 0) !== Number(prije.transport || 0)) {
         ocistiMemorijuPlovidbenogReda();
         console.log("plovidbeni red se promijenio — memorija ocisena");
+    }
+    // Isto vrijedi za osnovne podatke: sifarnik se drzi minutu, pa bi bez ovoga
+    // uredaj koji odmah osvjezi dobio sliku od PRIJE izmjene u portalu — a
+    // blagajnik bi zakljucio da osvjezavanje ne radi.
+    if (Number(signali.basic || 0) !== Number(prije.basic || 0)) {
+        ocistiMemorijuSifarnika();
+        console.log("osnovni podaci su se promijenili — memorija ocisena");
     }
     for (const javi of pretplatnici) {
         try { javi(signali); } catch (e) { console.log("obavijest pretplatniku nije uspjela:", e?.message || e); }

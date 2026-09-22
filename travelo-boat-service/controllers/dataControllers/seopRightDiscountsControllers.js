@@ -9,6 +9,8 @@
 // ga mijenja neovisno o nama. Šifra koju katalog još ne poznaje mora se moći
 // upisati, inače bi novo pravo čekalo izmjenu koda.
 
+const { javiPromjenu } = require("../../helpers/syncSignal");
+
 const cijelBroj = (v) => {
     const n = Math.round(Number(v));
     return Number.isFinite(n) ? n : 0;
@@ -72,6 +74,11 @@ const updateSeopRightDiscountsController = async (req, res) => {
         }
 
         const redci = await SeopRightDiscountModel.findAll({ order: [["code", "ASC"]] });
+        // Uredaji popuste nose u osnovnim podacima, a kanal prema terminalima
+        // drzi sifarnik u memoriji minutu. Bez ovog signala bi upravo spremljen
+        // postotak cekao isteka memorije prije nego ga osvjezavanje uopce moze
+        // pokupiti.
+        await javiPromjenu("basic", `popusti po pravu (${redci.length})`);
         res.send({ status: 200, data: { discounts: redci.map((r) => r.toJSON()) } });
     } catch (error) {
         console.log("updateSeopRightDiscountsController error:", error?.message || error);

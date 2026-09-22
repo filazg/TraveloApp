@@ -15,7 +15,21 @@ const { getAddressbookDataController, addAddressbookDataController, updateAddres
 const { getSudregLookupController } = require('../controllers/integrations/sudregController');
 const { getCountriesDataController, addCountryDataController, updateCountryDataController } = require('../controllers/dataControllers/countriesDataControllers');
 const { getAccountsDataController, addAccountDataController, updateAccountDataController, getAccountMappingsDataController, upsertAccountMappingDataController } = require('../controllers/dataControllers/accountsDataControllers');
+const { javiIzmjenuOsnovnihPodataka } = require('../helpers/syncSignal');
 const router = express.Router();
+
+// Sifarnici koje uredaji nose u osnovnim podacima. Svaka izmjena javi se
+// uredajima, jer kanal prema terminalima slozeni sifarnik drzi u memoriji
+// minutu — bez signala bi novi operater ili drukciji postotak storna dotad bili
+// nevidljivi koliko god puta blagajnik pritisnuo osvjezavanje.
+//
+// Samo GET prolazi bez javljanja. Put se poklapa i s podrutama, pa je promjena
+// lozinke (/users/password) pokrivena — uredaj lozinke drzi lokalno, pa bi bez
+// osvjezavanja prijava jos radila starom.
+router.use(
+    ['/company', '/business_premises', '/billing_devices', '/users', '/payment_methods', '/storno_percentages'],
+    javiIzmjenuOsnovnihPodataka
+);
 
 router
     .route('/company')

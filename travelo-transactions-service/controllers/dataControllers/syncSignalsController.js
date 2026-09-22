@@ -7,7 +7,12 @@
 
 // Vrste su zatvoren popis: uredaj po njima zna sto osvjeziti, pa nepoznata
 // vrsta znaci nesporazum, a ne novu funkciju.
-const VRSTE = ["tickets", "transport"];
+//
+// "basic" su osnovni podaci (operateri, sredstva placanja, naplatni uredaji,
+// postotci storna, popusti po pravu). Kanal prema terminalima drzi slozeni
+// sifarnik u memoriji minutu, pa je izmjena u portalu dotad ostajala nevidljiva
+// uredajima — ovaj signal mu tu memoriju brise odmah.
+const VRSTE = ["tickets", "transport", "basic"];
 
 const podigniSignal = async ({ SyncSignalsModel, kind, event }) => {
     if (!VRSTE.includes(kind)) throw Object.assign(new Error(`nepoznata vrsta signala: ${kind}`), { status: 400 });

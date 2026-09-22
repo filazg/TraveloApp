@@ -19,8 +19,10 @@ module.exports = (sequelize) => {
                 primaryKey: true,
                 autoIncrement: true,
             },
-            // Vrsta podatka koju uredaj treba osvjeziti: "tickets" (storno) ili
-            // "transport" (otkaz i pomak polaska).
+            // Vrsta podatka koju uredaj treba osvjeziti: "tickets" (storno),
+            // "transport" (otkaz i pomak polaska) ili "basic" (osnovni podaci
+            // iz portala — operateri, sredstva placanja, naplatni uredaji,
+            // postotci storna, popusti po pravu).
             kind: {
                 type: DataTypes.STRING,
                 allowNull: false,

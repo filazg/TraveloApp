@@ -45,7 +45,7 @@ const { syncCoreServiceConfigData, syncDatabaseConfigData, getDatabaseConfigData
 
         // Pocetni redci, da uredaj i prije prvog dogadaja dobije broj s kojim se
         // moze usporediti.
-        for (const kind of ["tickets", "transport"]) {
+        for (const kind of ["tickets", "transport", "basic"]) {
             await sequelize.query(
                 `INSERT INTO sync_signals (kind, revision) VALUES (:kind, 0) ON CONFLICT (kind) DO NOTHING`,
                 { replacements: { kind } }

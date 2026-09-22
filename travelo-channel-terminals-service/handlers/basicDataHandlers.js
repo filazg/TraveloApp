@@ -174,6 +174,16 @@ const getTerminalBasicDataHandler = async(data)=>{
     }
 }
 
+// Brisanje memorije kad se osnovni podaci promijene. Zove ga pratitelj signala
+// (syncSignalWatcher), isto kao za plovidbeni red: bez toga bi izmjena u
+// portalu — novi operater, drukciji popust po pravu — cekala do minute prije
+// nego uopce moze doci do uredaja, pa osvjezavanje na blagajni izgleda kao da
+// ne radi.
+const ocistiMemorijuSifarnika = () => {
+    sifarnik = null;
+};
+
 module.exports = {
-    getTerminalBasicDataHandler
+    getTerminalBasicDataHandler,
+    ocistiMemorijuSifarnika
 }
