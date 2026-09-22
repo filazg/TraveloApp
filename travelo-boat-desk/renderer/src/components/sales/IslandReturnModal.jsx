@@ -36,7 +36,7 @@ export default function IslandReturnModal({
     cijenaPovlastene,  // (ishod, cijenaRed) => number
     blokPovlastice,    // ({ishod, cijenaRed}) => obj
     onDodaj,           // (data) => void  (handleAddTickets)
-    naPovjerenje,      // {razlog, napomena} kad polazna ide na povjerenje — vrijedi i za povratnu
+    naPovjerenje,      // {razlog, napomena, popust} s polazne — vrijedi i za povratnu, bez ponovnog odabira
 }) {
     const appData = useSelector(allAppData);
     const [dan, setDan] = useState(pocetniDatum || new Date());
@@ -153,8 +153,11 @@ export default function IslandReturnModal({
     // vec odabran za polaznu i vrijedi za isti dogadaj. Ako se povratna ipak
     // potvrdi (SEOP se vratio, druga linija priznaje), prodaje se normalno.
     const naPovjerenjeMoguce = !!naPovjerenje?.razlog && !smije;
+    // Popust s polazne vrijedi i ovdje: isti putnik i isti dogadaj, pa se na
+    // povratnoj ne bira ponovno — operater bi inace mogao dati dva razlicita.
+    const popustPovjerenja = Number(naPovjerenje?.popust || 0);
     const iznosZaProdaju = naPovjerenjeMoguce
-        ? (cijenaRed ? +Number(cijenaRed.price).toFixed(2) : 0)
+        ? (cijenaRed ? +(Number(cijenaRed.price) * (1 - popustPovjerenja / 100)).toFixed(2) : 0)
         : iznos;
 
     const dodaj = () => {
@@ -168,7 +171,7 @@ export default function IslandReturnModal({
             iznos: iznosZaProdaju,
             povlastica: naPovjerenjeMoguce
                 ? {
-                    ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true }),
+                    ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true, popustNaPovjerenje: popustPovjerenja }),
                     greska: { razlog: naPovjerenje.razlog, napomena: naPovjerenje.napomena || null },
                 }
                 : blokPovlastice({ ishod: provjera, cijenaRed, bezMreze: bezVeze ? odlukaBezMreze : null }),
@@ -292,8 +295,8 @@ export default function IslandReturnModal({
                         ) : null}
                         {naPovjerenjeMoguce && cijenaRed ? (
                             <Alert severity="warning" sx={{ mb: 1.5 }}>
-                                Pravo se ni za povratnu ne može potvrditi. Karta se izdaje na povjerenje, po otočnoj
-                                cijeni iz cjenika, s istim razlogom kao polazna — i tako se vidi u Kontroli.
+                                Pravo se ni za povratnu ne može potvrditi. Karta se izdaje na povjerenje, s istim
+                                razlogom i istim popustom kao polazna{popustPovjerenja > 0 ? ` (${popustPovjerenja} %)` : " (puna otočna cijena)"} — i tako se vidi u Kontroli.
                             </Alert>
                         ) : null}
                         {(smije || naPovjerenjeMoguce) && cijenaRed ? (

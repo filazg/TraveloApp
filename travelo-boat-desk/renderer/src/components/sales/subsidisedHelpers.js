@@ -241,10 +241,15 @@ export const blokPovlastice = ({
     uvijekProdaj = false,
     bezMreze = null,
     kartica = null,
+    popustNaPovjerenje = 0,
 }) => {
     const lokalni = bezMreze?.primijenjen === true;
+    // Na povjerenje popust ne dolazi ni od SEOP-a ni iz sifarnika nego ga
+    // dodjeljuje operater, pa se i biljezi kao njegova odluka — u Kontroli se
+    // mora vidjeti po cemu je karta naplacena.
+    const povjerenje = uvijekProdaj && Number(popustNaPovjerenje) > 0;
     const popust = uvijekProdaj
-        ? 0
+        ? (povjerenje ? Number(popustNaPovjerenje) : 0)
         : (lokalni ? Number(bezMreze.popust_postotak) : Number(ishod?.popust_postotak || 0));
 
     return {
@@ -255,7 +260,7 @@ export const blokPovlastice = ({
         pravo: ishod?.pravo_na_pp || kartica?.BasicRight || null,
         otok: ishod?.otok || kartica?.IslandName || null,
         popust_postotak: popust,
-        popust_izvor: popust > 0 ? (lokalni ? "lokalni_katalog" : "seop") : null,
+        popust_izvor: popust > 0 ? (povjerenje ? "povjerenje" : lokalni ? "lokalni_katalog" : "seop") : null,
         namjena: cijenaRed?.seop_type || null,
         redovna_cijena: Number(redovnaCijena ?? cijenaRed?.price ?? 0),
         odobrenje: ishod?.odobrenje || null,

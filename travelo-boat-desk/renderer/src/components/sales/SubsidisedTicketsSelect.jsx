@@ -17,6 +17,15 @@ import {
 
 // Razlozi izdavanja otočne bez provjere (Kontrola → Greške s povlaštenim
 // karticama). Ključevi moraju odgovarati onima na backendu/portalu i mobilnoj.
+// Popust koji operater smije dati karti izdanoj na povjerenje. Tri su moguca
+// ishoda i nista izmedu: puna otocna cijena, polovica, ili besplatno — isti
+// stupnjevi koje SEOP inace vraca po pravu.
+const POPUSTI_POVJERENJE = [
+    { pct: 0, naziv: "Puna cijena" },
+    { pct: 50, naziv: "Popust 50 %" },
+    { pct: 100, naziv: "Besplatno (100 %)" },
+];
+
 const RAZLOZI_GRESKE = [
     { kljuc: "nemoguce_ocitati", naziv: "Nemoguće očitati karticu" },
     { kljuc: "kartica_ostecena", naziv: "Kartica oštećena" },
@@ -111,6 +120,7 @@ export default function SubsidisedTicketsSelect() {
         setRucniSustav("SEOP")
         setPratnjaOdabrana(false)
         setGreskaRazlog(null)
+        setPovjerenjePopust(0)
         setGreskaNapomena("")
         setPovratnaOtvoreno(false)
         dispatch(setStateData({path:'modalsStates/showSubsidisedTickets', value: false}))
@@ -148,6 +158,8 @@ export default function SubsidisedTicketsSelect() {
     // Kad se pravo ne može potvrditi (kartica se ne da očitati/provjeriti), otočna
     // se izdaje na povjerenje po povlaštenoj cijeni, ali uz obavezan razlog.
     const [greskaRazlog, setGreskaRazlog] = useState(null);
+    // Popust na karti izdanoj na povjerenje; zadano puna cijena.
+    const [povjerenjePopust, setPovjerenjePopust] = useState(0);
     const [greskaNapomena, setGreskaNapomena] = useState("");
 
     // --- Povratna otočna karta (zaseban modal IslandReturnModal) ------------
@@ -200,6 +212,7 @@ export default function SubsidisedTicketsSelect() {
       setProvjeraRadi(true);
       setPratnjaOdabrana(false);
       setGreskaRazlog(null);
+      setPovjerenjePopust(0);
       setGreskaNapomena("");
       try {
         const ishod = await provjeriKarticuNaRuti({
@@ -804,6 +817,13 @@ function bezMrezeOdluceno(sustav) {
   return odluka.odluceno === true && odluka.pravo_vrijedi === true;
 }
 
+// Cijena karte izdane na povjerenje: otocna cijena iz cjenika umanjena za
+// popust koji je operater odabrao. Bez odabira je to puna otocna cijena.
+function iznosPovjerenja(cijenaRed) {
+  const osnovica = Number(cijenaRed?.price || 0);
+  return +(osnovica * (1 - Number(povjerenjePopust || 0) / 100)).toFixed(2);
+}
+
 // Ishod provjere i gumbi za prodaju — isti za očitanu karticu, ručni upis i
 // MOSI, jer je odluka u svim slučajevima došla s istog mjesta.
 function odlukaIGumbi(cijenaRed, sustav) {
@@ -956,25 +976,60 @@ function odlukaIGumbi(cijenaRed, sustav) {
             onChange={(e) => setGreskaNapomena(e.target.value)}
             sx={{ mb: 1.5 }}
           />
+
+          {/* Bez potvrdenog prava ne zna se koliki popust pripada, ali putnik ga
+              moze imati — pa odluku donosi operater i ona se biljezi kao
+              njegova. Isti raspored gumba kao za razloge. */}
+          <Typography sx={{ fontWeight: 800, mb: 1 }}>
+            Popust na povjerenje:
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+            {POPUSTI_POVJERENJE.map((o) => (
+              <Button
+                key={o.pct}
+                size="small"
+                variant={povjerenjePopust === o.pct ? "contained" : "outlined"}
+                color="warning"
+                onClick={() => setPovjerenjePopust(o.pct)}
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  minHeight: 52,
+                  px: 1,
+                  lineHeight: 1.2,
+                  whiteSpace: "normal",
+                  textAlign: "center",
+                }}
+              >
+                {o.naziv}
+              </Button>
+            ))}
+          </Stack>
+
           <Button
             disabled={!cijenaRed || !greskaRazlog}
             variant="contained"
             color="warning"
             onClick={() => {
               handleAddTickets({
-                price: cijenaRed, rights: {}, type: sustav, free: false,
-                iznos: cijenaPovlastene(provjera, cijenaRed),
+                price: cijenaRed, rights: {}, type: sustav,
+                free: iznosPovjerenja(cijenaRed) === 0,
+                iznos: iznosPovjerenja(cijenaRed),
                 povlastica: {
-                  ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true }),
+                  ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true, popustNaPovjerenje: povjerenjePopust }),
                   greska: { razlog: greskaRazlog, napomena: greskaNapomena.trim() || null },
                 },
               })
             }}
             sx={{ height: 88, width: "100%", fontSize: "1.25rem" }}
           >
-            {cijenaRed
-              ? `IZDAJ OTOČNU ${Number(cijenaRed.price).toFixed(2)} EUR`
-              : 'NEMA OTOČNE CIJENE ZA RELACIJU'}
+            {!cijenaRed
+              ? 'NEMA OTOČNE CIJENE ZA RELACIJU'
+              : povjerenjePopust === 100
+                ? 'IZDAJ OTOČNU BESPLATNO (100 %)'
+                : povjerenjePopust > 0
+                  ? `IZDAJ OTOČNU S POPUSTOM ${povjerenjePopust} % — ${iznosPovjerenja(cijenaRed).toFixed(2)} EUR`
+                  : `IZDAJ OTOČNU ${iznosPovjerenja(cijenaRed).toFixed(2)} EUR`}
           </Button>
 
           {/* Povratna vrijedi i ovdje: putnik kojem se kartica ne da provjeriti
@@ -987,14 +1042,21 @@ function odlukaIGumbi(cijenaRed, sustav) {
             startIcon={<SwapHorizIcon />}
             onClick={() => {
               setPolaznaData({
-                price: cijenaRed, rights: {}, type: sustav, free: false,
-                iznos: cijenaPovlastene(provjera, cijenaRed),
+                price: cijenaRed, rights: {}, type: sustav,
+                free: iznosPovjerenja(cijenaRed) === 0,
+                iznos: iznosPovjerenja(cijenaRed),
                 povlastica: {
-                  ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true }),
+                  ...blokPovlastice({ ishod: provjera, cijenaRed, uvijekProdaj: true, popustNaPovjerenje: povjerenjePopust }),
                   greska: { razlog: greskaRazlog, napomena: greskaNapomena.trim() || null },
                 },
               });
-              setPovratnaNaPovjerenje({ razlog: greskaRazlog, napomena: greskaNapomena.trim() || null });
+              // Odabir s polazne vrijedi i za povratnu — isti putnik, isti
+              // dogadaj — pa se na povratnoj nista ne bira ponovno.
+              setPovratnaNaPovjerenje({
+                razlog: greskaRazlog,
+                napomena: greskaNapomena.trim() || null,
+                popust: povjerenjePopust,
+              });
               setPovratnaOtvoreno(true);
             }}
             sx={{ mt: 1, width: "100%" }}
@@ -1191,7 +1253,7 @@ function virtualCardDetails() {
                     labelId="rucni-sustav"
                     label="Sustav"
                     value={rucniSustav}
-                    onChange={(e) => { setRucniSustav(e.target.value); setProvjera(null); setGreskaRazlog(null); setGreskaNapomena(""); }}
+                    onChange={(e) => { setRucniSustav(e.target.value); setProvjera(null); setGreskaRazlog(null); setGreskaNapomena(""); setPovjerenjePopust(0); }}
                   >
                     <MenuItem value="SEOP">SEOP (otočna)</MenuItem>
                     <MenuItem value="MOSI">MOSI (invalidska)</MenuItem>
@@ -1203,7 +1265,7 @@ function virtualCardDetails() {
                     labelId="rucni-oblik"
                     label="Upisuje se"
                     value={rucniOblik}
-                    onChange={(e) => { setRucniOblik(e.target.value); setRucniUnos(""); setProvjera(null); setGreskaRazlog(null); setGreskaNapomena(""); }}
+                    onChange={(e) => { setRucniOblik(e.target.value); setRucniUnos(""); setProvjera(null); setGreskaRazlog(null); setGreskaNapomena(""); setPovjerenjePopust(0); }}
                   >
                     <MenuItem value="card_no">Broj iskaznice</MenuItem>
                     <MenuItem value="oib">OIB putnika</MenuItem>
