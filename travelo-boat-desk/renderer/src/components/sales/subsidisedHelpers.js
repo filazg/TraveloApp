@@ -131,26 +131,26 @@ export const popustBezMreze = ({
     linija = null,
     luke = [],
 } = {}) => {
-    const ne = (razlog) => ({ popust_postotak: 0, primijenjen: false, razlog });
+    // Tri moguca ishoda, i razlika medu njima odreduje sto blagajna nudi:
+    //   odluceno + pravo_vrijedi  -> karta se prodaje po pravilima linije
+    //   odluceno + !pravo_vrijedi -> kartica na ovoj relaciji nema pravo
+    //   !odluceno                 -> nema se po cemu odluciti (ostaje izdavanje uz razlog)
+    const neznam = (razlog) => ({ odluceno: false, pravo_vrijedi: false, primjeni_popust: false, popust_postotak: 0, primijenjen: false, razlog });
+    const nema = (razlog) => ({ odluceno: true, pravo_vrijedi: false, primjeni_popust: false, popust_postotak: 0, primijenjen: false, razlog });
 
-    if (!linija || linija.seop_mode === "ne") {
-        return ne("Na ovoj liniji otočne iskaznice se ne priznaju.");
+    if (!linija) {
+        return neznam("Postavke linije nisu poznate, pa se pravo ne može odrediti.");
     }
-    // Kad linija ne primjenjuje SEOP popust, otocna cijena iz cjenika je vec
-    // konacna — isto pravilo vrijedi i s mrezom i bez nje.
-    if (linija.seop_apply_discount !== true) {
-        return ne("Linija ne primjenjuje SEOP popust — vrijedi cijena iz cjenika.");
+    if (linija.seop_mode === "ne") {
+        return nema("Na ovoj liniji otočne iskaznice se ne priznaju.");
     }
 
     const sifra = String(pravo || "").trim();
     if (!sifra) {
-        return ne("Pravo se nije očitalo s kartice, pa se popust ne može odrediti.");
+        return neznam("Pravo se nije očitalo s kartice, pa se ne može odrediti.");
     }
 
     const upis = popusti.find((p) => String(p.code || "").trim() === sifra) || null;
-    if (!upis || !(Number(upis.discount_pct) > 0)) {
-        return ne(`Za pravo ${sifra} nije postavljen popust (Integracije → AKD → SEOP → Popusti).`);
-    }
 
     // „Samo otocani s prebivalistem" — isto pravilo kao na posluzitelju:
     // iskaznica za „Svi otoci" prolazi svugdje, inace pravo mora biti
@@ -159,20 +159,48 @@ export const popustBezMreze = ({
         const otok = String(otokKartice || "").trim();
         const sviOtoci = /^svi\s*otoci$/i.test(otok);
         if (!sviOtoci) {
+            // Je li pravo rezidentsko pise samo u sifarniku; bez njega se ta
+            // odluka ne smije nagadati ni u jednom smjeru.
+            if (!upis) {
+                return neznam(`Za pravo ${sifra} nema podataka u lokalnom šifarniku (Integracije → AKD → SEOP → Popusti).`);
+            }
             if (upis.rezident !== true) {
-                return ne(`Linija priznaje samo otočane s prebivalištem, a iskaznica nosi pravo ${sifra}.`);
+                return nema(`Linija priznaje samo otočane s prebivalištem, a iskaznica nosi pravo ${sifra}.`);
             }
             const otociRelacije = (luke || [])
                 .map((l) => String(l?.seop_island || "").trim())
                 .filter(Boolean);
             const poklapa = otociRelacije.some((o) => o.toLowerCase() === otok.toLowerCase());
             if (otociRelacije.length && !poklapa) {
-                return ne(`Iskaznica je za otok „${otok || "?"}", a linija priznaje otočane s: ${otociRelacije.join(", ")}.`);
+                return nema(`Iskaznica je za otok „${otok || "?"}", a linija priznaje otočane s: ${otociRelacije.join(", ")}.`);
             }
         }
     }
 
+    // Pravo vrijedi. Kako se racuna cijena, odlucuje linija — isto pravilo kao s
+    // mrezom: ili se na cijenu iz cjenika primijeni postotak, ili vrijedi
+    // otocna cijena kakva jest.
+    if (linija.seop_apply_discount !== true) {
+        return {
+            odluceno: true,
+            pravo_vrijedi: true,
+            primjeni_popust: false,
+            popust_postotak: 0,
+            primijenjen: false,
+            razlog: `Pravo ${sifra} s kartice — linija ne primjenjuje SEOP popust, pa vrijedi otočna cijena iz cjenika.`,
+        };
+    }
+
+    // Linija popust primjenjuje, ali se postotak ne zna. Prodaja po otocnoj
+    // cijeni bi tada naplatila vise nego sto pripada, pa se radije ne odlucuje.
+    if (!upis || !(Number(upis.discount_pct) > 0)) {
+        return neznam(`Za pravo ${sifra} nije postavljen popust (Integracije → AKD → SEOP → Popusti).`);
+    }
+
     return {
+        odluceno: true,
+        pravo_vrijedi: true,
+        primjeni_popust: true,
         popust_postotak: Number(upis.discount_pct),
         primijenjen: true,
         razlog: `Popust ${Number(upis.discount_pct)}% po pravu ${sifra} — iz lokalnog šifarnika, bez provjere u SEOP-u.`,

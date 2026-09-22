@@ -683,8 +683,11 @@ function seopCardDetails() {
   // posebno, a stupac je zbog njih bio dvostruko duzi.
   const priceForSeopTicket = appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true)
   const smije = provjera?.smije_se_prodati === true
+  // Bez veze sa SEOP-om ploha nije crvena: nije rijec o odbijenici nego o tome
+  // da provjere nije bilo, a odluka se donosi lokalno ispod.
+  const bezVeze = provjera?.offline === true
   return(
-    <StatusPanel tone={smije ? "success" : "error"} title="Otočna kartica SEOP_P">
+    <StatusPanel tone={bezVeze ? "warning" : (smije ? "success" : "error")} title="Otočna kartica SEOP_P">
       {/* Podaci s cipa stanu u jedan uski red: ime, pa cetiri para oznaka-vrijednost.
           Bijele kartice s naslovima i opis sifre su maknuti — zauzimali su vise
           mjesta nego podaci, a prostor treba odluci i gumbima ispod. */}
@@ -714,23 +717,38 @@ function seopCardDetails() {
 function ponudiLokalniPopust(cijenaRed, sustav) {
   if (sustav !== "SEOP") return null;
   if (provjera?.offline !== true) return null;
-  if (!cardData?.F2?.BasicRight || !cijenaRed) return null;
+  if (!cijenaRed) return null;
 
   const odluka = odlukaBezMreze();
-  if (!odluka.primijenjen) {
-    // Zasto popusta nema treba pisati: inace izgleda kao da mogucnost ne radi.
+  // Nema se po cemu odluciti (nema cipa, pravo nije u sifarniku, nepoznata
+  // linija). Razlog se ispisuje, a ispod ostaje izdavanje uz obavezan razlog.
+  if (!odluka.odluceno) {
     return (
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         {odluka.razlog}
       </Typography>
     );
   }
+  // Odluceno je da prava nema — na ovoj relaciji, po pravilima linije. To nije
+  // kvar veze nego ishod, pa se kaze kao ishod.
+  if (!odluka.pravo_vrijedi) {
+    return (
+      <Typography color="error.main" sx={{ fontWeight: 700, mb: 2 }}>
+        {odluka.razlog}
+      </Typography>
+    );
+  }
 
-  const iznos = +(Number(cijenaRed.price) * (1 - odluka.popust_postotak / 100)).toFixed(2);
+  // Cijena se racuna istim pravilom kao s mrezom: linija ili primjenjuje
+  // postotak na cijenu iz cjenika, ili vrijedi otocna cijena kakva jest.
+  const iznos = odluka.primjeni_popust
+    ? +(Number(cijenaRed.price) * (1 - odluka.popust_postotak / 100)).toFixed(2)
+    : +Number(cijenaRed.price).toFixed(2);
+
   return (
     <Box sx={{ mb: 2 }}>
       <Typography sx={{ fontWeight: 800, mb: 0.5 }}>
-        Bez veze sa SEOP-om — popust po pravu s kartice
+        Bez veze sa SEOP-om — pravo utvrđeno s kartice
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 1.5 }}>
         {odluka.razlog} Karta se bilježi kao prodana bez provjere i vidi se u Kontroli.
@@ -749,11 +767,20 @@ function ponudiLokalniPopust(cijenaRed, sustav) {
       >
         {iznos === 0
           ? `BESPLATNA KARTA (POPUST ${odluka.popust_postotak}%)`
-          : `IZDAJ S POPUSTOM ${odluka.popust_postotak}% — ${iznos.toFixed(2)} EUR`}
+          : odluka.primjeni_popust
+            ? `IZDAJ S POPUSTOM ${odluka.popust_postotak}% — ${iznos.toFixed(2)} EUR`
+            : `IZDAJ PO OTOČNOJ CIJENI — ${iznos.toFixed(2)} EUR`}
       </Button>
-      <Divider sx={{ my: 2 }} />
     </Box>
   );
+}
+
+// Je li blagajna sama utvrdila pravo s kartice. Tada je karta ponudena gore i
+// izdavanje uz razlog nema smisla — razlog se trazi samo kad se ne zna.
+function bezMrezeOdluceno(sustav) {
+  if (sustav !== "SEOP" || provjera?.offline !== true) return false;
+  const odluka = odlukaBezMreze();
+  return odluka.odluceno === true && odluka.pravo_vrijedi === true;
 }
 
 // Ishod provjere i gumbi za prodaju — isti za očitanu karticu, ručni upis i
@@ -771,6 +798,9 @@ function odlukaIGumbi(cijenaRed, sustav) {
   }
 
   const smije = provjera.smije_se_prodati === true
+  // Bez veze sa SEOP-om `smije_se_prodati` je false zato sto nema koga pitati, a
+  // ne zato sto je pravo odbijeno. Dvije stvari, dvije poruke.
+  const bezVeze = provjera.offline === true
   const redovna = redovnaCijenaRelacije()
   const iznos = cijenaPovlastene(provjera, cijenaRed)
   // Karta je besplatna kad je takav izracun, a ne kad SEOP javi pravo 100 %:
@@ -779,8 +809,10 @@ function odlukaIGumbi(cijenaRed, sustav) {
 
   return (
     <>
-      <Typography align="center" sx={{ fontWeight: 800, py: 1 }} color={smije ? "success.main" : "error.main"}>
-        {smije
+      <Typography align="center" sx={{ fontWeight: 800, py: 1 }} color={bezVeze ? "warning.main" : (smije ? "success.main" : "error.main")}>
+        {bezVeze
+          ? 'SEOP NIJE DOSTUPAN — PRAVO NIJE PROVJERENO'
+          : smije
           ? (provjera.primjeni_popust
               // Popust stvarno dolazi sa SEOP-a → pokaži postotak / besplatno.
               ? (gratis
@@ -794,7 +826,7 @@ function odlukaIGumbi(cijenaRed, sustav) {
       {/* Poruka sa SEOP-a (npr. „…besplatno… 100%") pokazuje se samo kad SEOP
           stvarno daje popust, ili kad prava nema (razlog). Kad cijena ide iz
           cjenika, ta napomena samo zbunjuje. */}
-      {(provjera.poruka || provjera.razlog) && (!smije || provjera.primjeni_popust) ? (
+      {(provjera.poruka || provjera.razlog) && !bezVeze && (!smije || provjera.primjeni_popust) ? (
         <Typography align="center" color="text.secondary" sx={{ py: 0.5 }}>
           {provjera.razlog || provjera.poruka}
         </Typography>
@@ -860,6 +892,10 @@ function odlukaIGumbi(cijenaRed, sustav) {
               Ovo je jedini slučaj u kojem blagajna sama određuje popust. */}
           {ponudiLokalniPopust(cijenaRed, sustav)}
 
+          {/* Kad je blagajna sama utvrdila pravo s kartice, karta je ponudena
+              gore i ovo nema smisla: razlog se trazi samo kad se ne zna. */}
+          {!bezMrezeOdluceno(sustav) ? (
+          <>
           <Typography sx={{ fontWeight: 800, mb: 1 }}>
             Izdaj otočnu bez provjere — obavezan razlog:
           </Typography>
@@ -906,6 +942,8 @@ function odlukaIGumbi(cijenaRed, sustav) {
               ? `IZDAJ OTOČNU ${Number(cijenaRed.price).toFixed(2)} EUR`
               : 'NEMA OTOČNE CIJENE ZA RELACIJU'}
           </Button>
+          </>
+          ) : null}
         </Box>
       )}
     </>
