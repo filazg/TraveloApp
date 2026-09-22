@@ -558,6 +558,7 @@ export default function SaleScreen() {
                 oib: payload?.oib || null,
                 islandName: payload?.islandName || null,
                 basicRight: payload?.basicRight || null,
+                cardNumber: num,
             });
             // Popuni input + odmah pokreni SEOP provjeru — korisnik ne mora ništa klikati.
             setIslandCardNo(num);
@@ -690,6 +691,27 @@ export default function SaleScreen() {
             linija: odabranaLinija || null,
             luke: (sync.harbors || []).filter((l) => kodovi.includes(String(l?.code || '').trim())),
         });
+    };
+
+    // Naziv prava s cipa. Cip nosi samo sifru, naziv stize u sifarniku popusta
+    // uz osnovne podatke. Kad prava nema u sifarniku, ne izmislja se nista.
+    const nazivPrava = (sifra) => {
+        const upis = (sync.basicData?.seop_right_discounts || [])
+            .find((p) => String(p.code || '').trim() === String(sifra || '').trim());
+        return upis?.opis || null;
+    };
+
+    // Postotak popusta za prikaz. Posluzitelj ima zadnju rijec; bez mreze
+    // vrijedi sifarnik. Na liniji koja popust ne primjenjuje cijena ide iz
+    // cjenika, pa postotak ne bi bio istina.
+    const popustZaPrikaz = () => {
+        if (islandResult?.smije_se_prodati === true && islandResult?.primjeni_popust !== true) return 'po cjeniku';
+        if (islandResult?.primjeni_popust === true && islandResult?.popust_postotak != null) return `${islandResult.popust_postotak} %`;
+        const odluka = odlukaBezMreze();
+        if (odluka?.primijenjen) return `${odluka.popust_postotak} %`;
+        const upis = (sync.basicData?.seop_right_discounts || [])
+            .find((p) => String(p.code || '').trim() === String(islandCardInfo?.basicRight || '').trim());
+        return upis?.discount_pct != null ? `${upis.discount_pct} %` : '—';
     };
 
     // Izdavanje otocne s lokalnim popustom — samo kad je veza pala, a cip je
@@ -1326,6 +1348,9 @@ export default function SaleScreen() {
                     <View style={islandStyles.card}>
                         <Text style={islandStyles.title}>Povlaštena kartica</Text>
 
+                        {/* Podaci s cipa: gore tko je, ispod po cemu se naplacuje.
+                            Vrsta kartice je izbacena — modal se i otvara samo za
+                            otocnu, pa je red trosio prostor bez koristi. */}
                         {islandCardInfo && (
                             <View style={islandStyles.cardInfo}>
                                 {(islandCardInfo.firstName || islandCardInfo.surname) ? (
@@ -1333,17 +1358,34 @@ export default function SaleScreen() {
                                         {[islandCardInfo.firstName, islandCardInfo.surname].filter(Boolean).join(' ')}
                                     </Text>
                                 ) : null}
-                                {!!islandCardInfo.oib && (
-                                    <Text style={islandStyles.cardInfoLine}>OIB: <Text style={islandStyles.b}>{islandCardInfo.oib}</Text></Text>
+                                {(islandCardInfo.oib || islandCardInfo.cardNumber) ? (
+                                    <Text style={islandStyles.cardInfoSitno}>
+                                        {[
+                                            islandCardInfo.oib ? `OIB ${islandCardInfo.oib}` : null,
+                                            islandCardInfo.cardNumber ? `kartica ${islandCardInfo.cardNumber}` : null,
+                                        ].filter(Boolean).join(' · ')}
+                                    </Text>
+                                ) : null}
+                                {!!islandCardInfo.basicRight && (
+                                    <>
+                                        <View style={islandStyles.cardInfoRed}>
+                                            <Text style={islandStyles.cardInfoOznaka}>Pravo</Text>
+                                            <Text style={islandStyles.b}>{islandCardInfo.basicRight}</Text>
+                                        </View>
+                                        {nazivPrava(islandCardInfo.basicRight) ? (
+                                            <Text style={islandStyles.cardInfoSitno}>{nazivPrava(islandCardInfo.basicRight)}</Text>
+                                        ) : null}
+                                        <View style={islandStyles.cardInfoRed}>
+                                            <Text style={islandStyles.cardInfoOznaka}>Popust</Text>
+                                            <Text style={islandStyles.b}>{popustZaPrikaz()}</Text>
+                                        </View>
+                                    </>
                                 )}
                                 {!!islandCardInfo.islandName && (
-                                    <Text style={islandStyles.cardInfoLine}>Otok: <Text style={islandStyles.b}>{islandCardInfo.islandName}</Text></Text>
-                                )}
-                                {!!islandCardInfo.basicRight && (
-                                    <Text style={islandStyles.cardInfoLine}>Pravo: <Text style={islandStyles.b}>{islandCardInfo.basicRight}</Text></Text>
-                                )}
-                                {!!islandCardInfo.cardFamily && (
-                                    <Text style={islandStyles.cardInfoLine}>Vrsta: <Text style={islandStyles.b}>{islandCardInfo.cardFamily}</Text></Text>
+                                    <View style={islandStyles.cardInfoRed}>
+                                        <Text style={islandStyles.cardInfoOznaka}>Otok</Text>
+                                        <Text style={islandStyles.b}>{islandCardInfo.islandName}</Text>
+                                    </View>
                                 )}
                             </View>
                         )}
@@ -1602,6 +1644,10 @@ const islandStyles = StyleSheet.create({
     cardInfo: { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
     cardInfoName: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
     cardInfoLine: { fontSize: 14, color: colors.textPrimary, marginTop: 2 },
+    // Oznaka lijevo, vrijednost desno — isti raspored kao na blagajni, samo uze.
+    cardInfoRed: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+    cardInfoOznaka: { fontSize: 14, color: colors.textSecondary },
+    cardInfoSitno: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
     input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 18, marginBottom: 8, color: colors.textPrimary, backgroundColor: colors.surface },
     error: { color: colors.error, marginTop: 8 },
     resultOk: { backgroundColor: colors.successLight, borderColor: colors.success, borderWidth: 1, padding: 12, borderRadius: 8 },
