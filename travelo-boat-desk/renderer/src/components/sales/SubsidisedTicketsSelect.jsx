@@ -1019,13 +1019,10 @@ function noValidCard() {
       </StatusPanel>
     )
   }
-  return (
-    <StatusPanel tone="neutral">
-      <Typography align="center" color="text.secondary" sx={{ fontWeight: 700, py: 1 }}>
-        Postavi karticu na čitač pa pokreni skeniranje.
-      </Typography>
-    </StatusPanel>
-  )
+  // Dok kartica nije očitana ne piše ništa: ekran već nudi skeniranje i ručni
+  // upis, pa je uputa „postavi karticu na čitač" samo još jedna ploha koja gura
+  // ostalo prema dolje.
+  return null
 }
 
   const selectedRight = useMemo(
