@@ -11,7 +11,7 @@ const { handleGetBoatsFeature, handleAddBoatsFeature, handleUpdateBoatsFeature }
 const { handleGetLinesFeature, handleAddLinesFeature, handleUpdateLinesFeature } = require('../features/boat/linesHandlers');
 const { handleGetRegionsFeature, handleAddRegionFeature, handleUpdateRegionFeature } = require('../features/boat/regionsHandlers');
 const { handleGetTicketTemplatesFeature, handleUpsertTicketTemplateFeature, handleTicketTemplatePreviewFeature } = require('../features/boat/ticketTemplatesHandlers');
-const { handleGetSeopSettingsFeature, handleUpdateSeopSettingsFeature, handleUploadSeopCertFeature, handleSeopTestFeature, handleGetMosiSettingsFeature, handleUpdateMosiSettingsFeature, handleUploadMosiCertFeature, handleMosiTestFeature } = require('../features/boat/seopSettingsHandlers');
+const { handleGetSeopSettingsFeature, handleUpdateSeopSettingsFeature, handleUploadSeopCertFeature, handleSeopTestFeature, handleGetSeopRightDiscountsFeature, handleUpdateSeopRightDiscountsFeature, handleGetMosiSettingsFeature, handleUpdateMosiSettingsFeature, handleUploadMosiCertFeature, handleMosiTestFeature } = require('../features/boat/seopSettingsHandlers');
 const { handleGetTicketTypesFeature, handleAddTicketTypesFeature, handleUpdateTicketTypesFeature } = require('../features/boat/ticketTypesHandlers');
 const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrFeature } = require('../features/backoffice/partnersHandlers');
 const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
@@ -305,6 +305,13 @@ router
 router
     .route('/boat/seop_test')
     .post(handleSeopTestFeature)
+
+// Popusti po pravu — postotak koji blagajna i mobilna primjenjuju kad SEOP nije
+// dostupan. Katalog prava dolazi iz akd servisa, upisani postotci iz boat.
+router
+    .route('/boat/seop_right_discounts')
+    .get(handleGetSeopRightDiscountsFeature)
+    .post(handleUpdateSeopRightDiscountsFeature)
 
 router
     .route('/boat/mosi_settings')

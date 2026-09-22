@@ -114,6 +114,57 @@ const handleSeopTestFeature = async (req, res) => {
     }
 };
 
+// --- Popusti po pravu ---
+//
+// Katalog prava drži akd servis, upisane postotke boat servis; ekran treba
+// jedno i drugo spojeno, pa spajanje radi akd (ima katalog) i ovdje se samo
+// proslijedi. Kad akd ne radi, ekran to mora reći — bez kataloga se ne zna ni
+// koja prava postoje, pa prikaz praznog popisa ne bi bio istina.
+const handleGetSeopRightDiscountsFeature = async (req, res) => {
+    try {
+        const core = await getCoreServiceConfigData();
+        const akdUrl = url(core, 'akd');
+        if (!akdUrl) throw new Error('akd servis nije u konfiguraciji');
+
+        const r = await axios.get(`${akdUrl}/povlastica/katalog`, {
+            timeout: 10000,
+            validateStatus: () => true,
+        });
+        if (r.status >= 400) {
+            throw new Error(r.data?.data?.message || `akd servis je odgovorio statusom ${r.status}`);
+        }
+
+        res.send({
+            status: 200,
+            data: {
+                path1: 'boatData',
+                path2: 'seopRightDiscounts',
+                data: { rights: r.data?.data?.rights || [] },
+            },
+        });
+    } catch (error) {
+        console.log('handleGetSeopRightDiscountsFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
+const handleUpdateSeopRightDiscountsFeature = async (req, res) => {
+    try {
+        const core = await getCoreServiceConfigData();
+        const boatUrl = url(core, 'boat');
+        if (!boatUrl) throw new Error('boat servis nije u konfiguraciji');
+
+        const r = await axios.post(`${boatUrl}/seop_right_discounts`, req.body?.body || req.body || {}, {
+            timeout: 10000,
+            validateStatus: () => true,
+        });
+        res.status(r.status).send(r.data);
+    } catch (error) {
+        console.log('handleUpdateSeopRightDiscountsFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 // --- MOSI ---
 // Isti raspored: postavke u boat servisu, certifikat i provjera veze u akd.
 const handleGetMosiSettingsFeature = async (req, res) => {
@@ -210,4 +261,6 @@ module.exports = {
     handleUpdateSeopSettingsFeature,
     handleUploadSeopCertFeature,
     handleSeopTestFeature,
+    handleGetSeopRightDiscountsFeature,
+    handleUpdateSeopRightDiscountsFeature,
 };

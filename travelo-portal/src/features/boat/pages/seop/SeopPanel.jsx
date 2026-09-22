@@ -10,6 +10,7 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import NetworkCheckIcon from "@mui/icons-material/NetworkCheck";
 import { resolveBackendUrl } from "../../../../helpers/backendUrl";
 import { setAuthData } from "../../../auth/authSlice";
+import SeopDiscountsTab from "./SeopDiscountsTab";
 
 const backendURL = resolveBackendUrl("/app");
 const api = axios.create({ baseURL: backendURL, withCredentials: true });
@@ -17,9 +18,10 @@ const unwrap = (r) => r?.data?.data?.data ?? r?.data?.data ?? r?.data ?? {};
 
 // SEOP (AKD) — evidencija izdanih i iskorištenih putnih karata.
 //
-// Tri kartice jer su to tri različita posla: VEZA je tehnička postavka i radi
-// se jednom, DOJAVE su odluka što se šalje i mijenja se kroz uhodavanje, a
-// CERTIFIKATI su datoteke koje istječu pa se mijenjaju same za sebe.
+// Četiri kartice jer su to četiri različita posla: VEZA je tehnička postavka i
+// radi se jednom, DOJAVE su odluka što se šalje i mijenja se kroz uhodavanje,
+// POPUSTI su novčana odluka ureda koja se spušta na uređaje, a CERTIFIKATI su
+// datoteke koje istječu pa se mijenjaju same za sebe.
 //
 // Lozinke se s poslužitelja ne vraćaju — polje je prazno, a ispod stoji je li
 // lozinka postavljena. Prazno polje pri spremanju znači "ne diraj".
@@ -131,6 +133,7 @@ export default function SeopPanel() {
                 <Tabs value={kartica} onChange={(_e, v) => setKartica(v)} sx={{ px: 2, borderBottom: 1, borderColor: "divider" }}>
                     <Tab label="Veza" />
                     <Tab label="Dojave" />
+                    <Tab label="Popusti" />
                     <Tab label="Certifikati" />
                 </Tabs>
 
@@ -286,7 +289,11 @@ export default function SeopPanel() {
                         </Stack>
                     )}
 
-                    {kartica === 2 && (
+                    {/* Popusti imaju svoj dohvat i svoje spremanje — ne dijele
+                        `postavke` s ostalim karticama, pa ni gumb u podnožju. */}
+                    {kartica === 2 && <SeopDiscountsTab />}
+
+                    {kartica === 3 && (
                         <Stack spacing={2}>
                             {postavke.p12_subject && (
                                 <Alert severity="info">
@@ -306,7 +313,7 @@ export default function SeopPanel() {
                     )}
                 </CardContent>
 
-                {kartica !== 2 && (
+                {kartica < 2 && (
                     <>
                         <Divider />
                         <Box sx={{ p: 2, display: "flex", justifyContent: "flex-end" }}>
