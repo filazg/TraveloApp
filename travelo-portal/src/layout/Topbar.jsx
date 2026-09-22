@@ -120,7 +120,7 @@ export default function Topbar() {
               onClick={handleOpen}
               startIcon={(() => { const FI = iconsMap[feature?.icon]; return FI ? <FI /> : <MenuIcon />; })()}
               endIcon={<MenuIcon />}
-              sx={{ textTransform: "none", borderRadius: 2, color:'white', borderColor:'rgba(255,255,255,0.5)', fontWeight:700, px:1.5, "&:hover": { borderColor:'white' } }}
+              sx={{ textTransform: "none", borderRadius: 2, color:'white', borderColor:'rgba(255,255,255,0.5)', fontWeight:700, px:1.5, flexShrink: 0, whiteSpace: "nowrap", "&:hover": { borderColor:'white' } }}
             >
               {featureTitle || "Izbornik"}
             </Button>

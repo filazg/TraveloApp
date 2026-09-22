@@ -21,6 +21,7 @@ import {
     TableHead,
     TableRow,
     TextField,
+    Tooltip,
     Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -46,6 +47,16 @@ import {
 import { setAuthData } from "../auth/authSlice";
 import { useLoading } from "../loading/useLoading";
 import ModulZaglavlje from "../modules/ModulZaglavlje";
+
+// Gumbi uz polazak: na mobitelu (xs) samo ikona (kompaktno, bez razmaka do
+// teksta), na sm+ puni gumb s tekstom. Naziv radnje je uvijek u Tooltipu.
+const GUMB_POLASKA_SX = {
+    minWidth: { xs: 0, sm: 64 },
+    px: { xs: 1, sm: 2 },
+    flexShrink: 0,
+    "& .MuiButton-startIcon": { mr: { xs: 0, sm: 1 }, ml: 0 },
+};
+const TEKST_GUMBA_SX = { display: { xs: "none", sm: "inline" } };
 
 // DD/MM/YYYY or YYYY-MM-DD -> YYYY-MM-DD
 const toIso = (s) => {
@@ -521,56 +532,85 @@ export default function DispatcherPage() {
                                     </Stack>
                                 )}
                             </Box>
-                            {/* useFlexGap + wrap: s četvrtim gumbom red više ne stane na
-                                uže ekrane, pa se lomi umjesto da bježi izvan kartice. */}
-                            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="flex-end">
+                            {/* Desktop: puni gumbi s tekstom, lome se u više redaka.
+                                Mobitel (xs): samo ikone u JEDNOM redu (nowrap) — tekst
+                                se skriva, naziv ostaje u Tooltipu. */}
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                useFlexGap
+                                flexWrap={{ xs: "nowrap", sm: "wrap" }}
+                                justifyContent="flex-end"
+                                sx={{ flexShrink: 0 }}
+                            >
                                 {/* Otkazani polazak ostaje u popisu, ali umjesto otkazivanja
                                     nudi vraćanje u prodaju — dispečer tako vidi što se dogodilo
                                     i može ispraviti pogrešku. */}
                                 {s.sale_status === "CANCELED" ? (
-                                    <Button
-                                        variant="outlined"
-                                        color="success"
-                                        startIcon={<UndoIcon />}
-                                        disabled={d.actionLoading}
-                                        onClick={() => handleRestore(s)}
-                                    >
-                                        Vrati u prodaju
-                                    </Button>
+                                    <Tooltip title="Vrati u prodaju">
+                                        <span>
+                                            <Button
+                                                variant="outlined"
+                                                color="success"
+                                                startIcon={<UndoIcon />}
+                                                disabled={d.actionLoading}
+                                                onClick={() => handleRestore(s)}
+                                                sx={GUMB_POLASKA_SX}
+                                            >
+                                                <Box component="span" sx={TEKST_GUMBA_SX}>Vrati u prodaju</Box>
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
                                 ) : (
-                                    <Button
-                                        variant="outlined"
-                                        color="error"
-                                        startIcon={<CancelIcon />}
-                                        onClick={() => handleOpenCancel(s)}
-                                    >
-                                        Otkaži polazak
-                                    </Button>
+                                    <Tooltip title="Otkaži polazak">
+                                        <Button
+                                            variant="outlined"
+                                            color="error"
+                                            startIcon={<CancelIcon />}
+                                            onClick={() => handleOpenCancel(s)}
+                                            sx={GUMB_POLASKA_SX}
+                                        >
+                                            <Box component="span" sx={TEKST_GUMBA_SX}>Otkaži polazak</Box>
+                                        </Button>
+                                    </Tooltip>
                                 )}
-                                <Button
-                                    variant="outlined"
-                                    color="warning"
-                                    startIcon={<ScheduleIcon />}
-                                    disabled={s.sale_status === "CANCELED"}
-                                    onClick={() => handleOpenMove(s)}
-                                >
-                                    Pomakni polazak
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<DirectionsBoatIcon />}
-                                    disabled={s.sale_status === "CANCELED"}
-                                    onClick={() => handleOpenChangeBoat(s)}
-                                >
-                                    Zamijeni brod
-                                </Button>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<MailOutlineIcon />}
-                                    onClick={() => handleOpenMessage(s)}
-                                >
-                                    Pošalji poruku
-                                </Button>
+                                <Tooltip title="Pomakni polazak">
+                                    <span>
+                                        <Button
+                                            variant="outlined"
+                                            color="warning"
+                                            startIcon={<ScheduleIcon />}
+                                            disabled={s.sale_status === "CANCELED"}
+                                            onClick={() => handleOpenMove(s)}
+                                            sx={GUMB_POLASKA_SX}
+                                        >
+                                            <Box component="span" sx={TEKST_GUMBA_SX}>Pomakni polazak</Box>
+                                        </Button>
+                                    </span>
+                                </Tooltip>
+                                <Tooltip title="Zamijeni brod">
+                                    <span>
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<DirectionsBoatIcon />}
+                                            disabled={s.sale_status === "CANCELED"}
+                                            onClick={() => handleOpenChangeBoat(s)}
+                                            sx={GUMB_POLASKA_SX}
+                                        >
+                                            <Box component="span" sx={TEKST_GUMBA_SX}>Zamijeni brod</Box>
+                                        </Button>
+                                    </span>
+                                </Tooltip>
+                                <Tooltip title="Pošalji poruku">
+                                    <Button
+                                        variant="contained"
+                                        startIcon={<MailOutlineIcon />}
+                                        onClick={() => handleOpenMessage(s)}
+                                        sx={GUMB_POLASKA_SX}
+                                    >
+                                        <Box component="span" sx={TEKST_GUMBA_SX}>Pošalji poruku</Box>
+                                    </Button>
+                                </Tooltip>
                             </Stack>
                         </Stack>
 
