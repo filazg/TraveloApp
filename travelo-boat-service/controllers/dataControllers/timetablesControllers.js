@@ -2,8 +2,44 @@ const axios = require("axios");
 const { getSequelize } = require("../../config/database");
 const { getCoreServiceConfigData } = require("../configSyncController");
 
-// Fire-and-forget: pokrene init bookings za svaki novonastali polazak.
-// Greške se samo loga; padom booking-servisa se ne rollbacka kreiranje timetable-a.
+// Koliko se init poziva salje istovremeno. Plovidbeni red zna imati vise
+// stotina polazaka; slanjem svih odjednom booking servis (i baza iza njega)
+// dobiju vise nego mogu obraditi, pa dio poziva istekne. Kako je ovo
+// fire-and-forget, nitko ih poslije ne ponovi — tako je linija 658 zavrsila s
+// kapacitetima za 196 od 434 polaska, u urednom nizu do 193 pa nasumicnim
+// ostacima. Rezultat je da blagajna za takav polazak pokazuje 0 slobodnih
+// mjesta iako brod nije pun.
+const ISTOVREMENO = 5;
+const POKUSAJA = 3;
+
+// Jedan polazak, s ponovnim pokusajem. Istek roka i 5xx su prolazne smetnje
+// (posluzitelj je zauzet) pa se pokusava ponovno; 4xx je odluka druge strane i
+// ponavljanje je ne bi promijenilo.
+const initJedanPolazak = async (bookingUrl, departure_uuid) => {
+    for (let pokusaj = 1; pokusaj <= POKUSAJA; pokusaj += 1) {
+        try {
+            const resp = await axios.post(`${bookingUrl}/bookings/init`, { departure_uuid }, {
+                timeout: 15000,
+                validateStatus: () => true,
+            });
+            if (resp.status === 200) return true;
+            if (resp.status < 500) {
+                console.log(`initBookings ${departure_uuid} HTTP ${resp.status}:`, resp.data?.data?.message || resp.data);
+                return false;
+            }
+            console.log(`initBookings ${departure_uuid} HTTP ${resp.status} — pokusaj ${pokusaj}/${POKUSAJA}`);
+        } catch (err) {
+            console.log(`initBookings ${departure_uuid} ${err?.message || err} — pokusaj ${pokusaj}/${POKUSAJA}`);
+        }
+        if (pokusaj < POKUSAJA) await new Promise((r) => setTimeout(r, 500 * pokusaj));
+    }
+    return false;
+};
+
+// Pokrene init bookings za svaki novonastali polazak. Ne rollbacka kreiranje
+// plovidbenog reda ako booking servis zakaze, ali sada barem zna reci koliko
+// polazaka nije proslo — bez toga se rupa u kapacitetima otkrivala tek na
+// blagajni, mjesecima poslije.
 const initBookingsForDepartures = async (departureUuids) => {
     try {
         if (!Array.isArray(departureUuids) || departureUuids.length === 0) return;
@@ -14,19 +50,19 @@ const initBookingsForDepartures = async (departureUuids) => {
             return;
         }
         const unique = [...new Set(departureUuids.filter(Boolean))];
-        await Promise.all(unique.map(async (departure_uuid) => {
-            try {
-                const resp = await axios.post(`${bookingUrl}/bookings/init`, { departure_uuid }, {
-                    timeout: 8000,
-                    validateStatus: () => true,
-                });
-                if (resp.status !== 200) {
-                    console.log(`initBookings ${departure_uuid} HTTP ${resp.status}:`, resp.data?.data?.message || resp.data);
-                }
-            } catch (err) {
-                console.log(`initBookings ${departure_uuid} error:`, err?.message || err);
-            }
-        }));
+        let proslo = 0;
+        const neuspjeli = [];
+        for (let i = 0; i < unique.length; i += ISTOVREMENO) {
+            const serija = unique.slice(i, i + ISTOVREMENO);
+            const ishodi = await Promise.all(serija.map((uuid) => initJedanPolazak(bookingUrl, uuid)));
+            ishodi.forEach((ok, j) => (ok ? (proslo += 1) : neuspjeli.push(serija[j])));
+        }
+        console.log(`initBookings: ${proslo}/${unique.length} polazaka ima kapacitete`);
+        if (neuspjeli.length) {
+            // Popis ide u log da se popuna moze pokrenuti ciljano:
+            // `node deploy/backfill_bookings.js --timetable=<uuid>`
+            console.log(`initBookings: BEZ kapaciteta ostalo ${neuspjeli.length} polazaka:`, neuspjeli.join(", "));
+        }
     } catch (err) {
         console.log("initBookingsForDepartures error:", err?.message || err);
     }
