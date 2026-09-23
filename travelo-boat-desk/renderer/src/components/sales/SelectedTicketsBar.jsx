@@ -1,11 +1,13 @@
 import { Box, Button, Grid, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import CloseIcon from "@mui/icons-material/Close";
+import EditIcon from "@mui/icons-material/Edit";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
 import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 import ReturnTicketModal from "./ReturnTicketModal";
+import SubsidisedCartModal from "./SubsidisedCartModal";
 
 
 export default function SelectedTicketsBar() {
@@ -16,6 +18,8 @@ export default function SelectedTicketsBar() {
     // registru modala, jer prozor treba znati tocno na koju je stavku
     // kliknuto — luke, vrste karata i kolicine citaju se iz nje.
     const [povratnaZa, setPovratnaZa] = useState(null);
+    // Relacija ciji se popis povlastenih karata otvara.
+    const [povlasteneZa, setPovlasteneZa] = useState(null);
 
     // Rucni ispravak kolicine u kosarici: blagajnik klikne na broj i upise novi.
     // Prije se to moglo samo u sekciji karata, pa je ispravak zahtijevao
@@ -377,14 +381,30 @@ export default function SelectedTicketsBar() {
                               {/* Uklanjanje retka je sporedna radnja — mala
                                   ikona uz rub, da ne odvlaci od iznosa. */}
                               <TableCell align="right" sx={{ width: 36, p: 0 }}>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => ukloniRedak(row, ticket)}
-                                  title="Ukloni ovu vrstu karte"
-                                >
-                                  <CloseIcon fontSize="small" />
-                                </IconButton>
+                                {/* Kod povlastene karte brisanje cijelog retka
+                                    nije dovoljno jasno: redak je jedna iskaznica
+                                    s provjerenim pravom, a sto je tocno izdano
+                                    vidi se tek u razradi. Zato ondje stoji
+                                    pregled, a uklanjanje je u njemu. */}
+                                {ticket.povlastica ? (
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    onClick={() => setPovlasteneZa(row)}
+                                    title="Pregled povlastenih karata"
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                ) : (
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => ukloniRedak(row, ticket)}
+                                    title="Ukloni ovu vrstu karte"
+                                  >
+                                    <CloseIcon fontSize="small" />
+                                  </IconButton>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -428,6 +448,10 @@ export default function SelectedTicketsBar() {
 
       {povratnaZa ? (
         <ReturnTicketModal stavka={povratnaZa} onClose={() => setPovratnaZa(null)} />
+      ) : null}
+
+      {povlasteneZa ? (
+        <SubsidisedCartModal stavka={povlasteneZa} onClose={() => setPovlasteneZa(null)} />
       ) : null}
     </>
     )
