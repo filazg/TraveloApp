@@ -137,22 +137,27 @@ export default function SubsidisedCartModal({ stavka, onClose }) {
                                             <Typography sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
                                                 {p.pravo || "—"}
                                             </Typography>
-                                            {p.pravo ? (
-                                                upisZaPravo(t)?.ticket_label ? (
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {upisZaPravo(t).ticket_label}
-                                                    </Typography>
-                                                ) : (
+                                            {/* Naziv i opis se ne ponavljaju: naziv je upravo
+                                                ono cime ured zamjenjuje sluzbeni opis iz
+                                                Pravilnika. Dok naziva nema, opis je jedino sto
+                                                govori o kojem je pravu rijec, pa stoji uz
+                                                upozorenje da naziv treba upisati. */}
+                                            {p.pravo && (upisZaPravo(t)?.ticket_label ? (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {upisZaPravo(t).ticket_label}
+                                                </Typography>
+                                            ) : (
+                                                <>
                                                     <Typography variant="caption" color="warning.main">
                                                         naziv nije upisan
                                                     </Typography>
-                                                )
-                                            ) : null}
-                                            {upisZaPravo(t)?.opis && (
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {upisZaPravo(t).opis}
-                                                </Typography>
-                                            )}
+                                                    {upisZaPravo(t)?.opis && (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {upisZaPravo(t).opis}
+                                                        </Typography>
+                                                    )}
+                                                </>
+                                            ))}
                                         </Stack>
                                     </TableCell>
                                     <TableCell sx={{ whiteSpace: "nowrap" }}>{p.otok || "—"}</TableCell>
