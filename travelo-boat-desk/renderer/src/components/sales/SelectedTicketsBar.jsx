@@ -1,5 +1,6 @@
-import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Box, Button, Grid, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import CloseIcon from "@mui/icons-material/Close";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
 import { useEffect, useState } from "react";
@@ -66,6 +67,31 @@ export default function SelectedTicketsBar() {
             path: 'saleData/addedTickets',
             value: sve.map((t) => (jeIsta(t) ? stavka : t)),
         }));
+    };
+
+    // Uklanjanje JEDNOG retka. Redak je vrsta karte na toj relaciji, a kod
+    // povlastenih i konkretna iskaznica — isti kljuc po kojem se stavke i
+    // grupiraju, inace bi se uklonila i tuda karta istog tipa.
+    const kljucTipaStavke = (t) =>
+        `${t.ticket_type_uuid}|${t.povlastica?.identifikator?.vrijednost || ''}|${t.povlastica?.pratnja ? 'pratnja' : ''}`;
+
+    const ukloniRedak = (row, ticket) => {
+        const kljuc = kljucTipaStavke(ticket);
+        const iskaznica = ticket.povlastica?.identifikator?.vrijednost || null;
+        // Pratnja (MOSI) postoji samo uz nositelja kartice i besplatna je. Kad
+        // se makne nositelj, mora otici i ona — inace u kosarici ostane
+        // besplatna karta bez osobe uz koju ide.
+        const nositeljSPratnjom = iskaznica && ticket.povlastica && !ticket.povlastica.pratnja;
+
+        const preostale = (appData.saleData?.addedTickets || []).filter((t) => {
+            if (t.sales_route_uuid !== row.sales_route_uuid) return true;
+            if (kljucTipaStavke(t) === kljuc) return false;
+            if (nositeljSPratnjom
+                && t.povlastica?.pratnja
+                && t.povlastica?.identifikator?.vrijednost === iskaznica) return false;
+            return true;
+        });
+        dispatch(setStateData({ path: 'saleData/addedTickets', value: preostale }));
     };
 
     const zavrsiUnos = (row, ticket) => {
@@ -258,6 +284,7 @@ export default function SelectedTicketsBar() {
                             <TableCell align="right">
                               iznos
                             </TableCell>
+                            <TableCell align="right" sx={{ width: 36, p: 0 }} />
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -324,6 +351,18 @@ export default function SelectedTicketsBar() {
                               <TableCell align="right">
                                 {ticket.total_price} EUR
                               </TableCell>
+                              {/* Uklanjanje retka je sporedna radnja — mala
+                                  ikona uz rub, da ne odvlaci od iznosa. */}
+                              <TableCell align="right" sx={{ width: 36, p: 0 }}>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => ukloniRedak(row, ticket)}
+                                  title="Ukloni ovu vrstu karte"
+                                >
+                                  <CloseIcon fontSize="small" />
+                                </IconButton>
+                              </TableCell>
                             </TableRow>
                           ))}
 
@@ -351,7 +390,7 @@ export default function SelectedTicketsBar() {
                       size="small"
                       onClick={(e) => handleRemove(e, row)}
                     >
-                      UKLONI
+                      UKLONI SVE
                     </Button>
                   </Box>
                 </>
