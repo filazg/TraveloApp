@@ -307,10 +307,10 @@ export default function SelectedTicketsBar() {
                                 stupci imaju svoje sirine — inace se pri duzem
                                 iznosu (veca kolicina) stupci pomicu iz retka
                                 u redak. */}
-                            <TableCell sx={{ width: 'auto' }}>
+                            <TableCell sx={{ width: 'auto', textAlign: 'left' }}>
                               tip karte
                             </TableCell>
-                            <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap' }}>
+                            <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap', textAlign: 'right' }}>
                               kol
                             </TableCell>
                             {/* Na uskom zaslonu se cijena skriva. Mora biti
@@ -321,11 +321,12 @@ export default function SelectedTicketsBar() {
                                 display: { xs: 'none', sm: 'table-cell' },
                                 width: 96,
                                 whiteSpace: 'nowrap',
+                                textAlign: 'right',
                               }}
                             >
                               cijena
                             </TableCell>
-                            <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap' }}>
+                            <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap', textAlign: 'right' }}>
                               iznos
                             </TableCell>
                             <TableCell align="right" sx={{ width: 36, p: 0 }} />
@@ -341,10 +342,10 @@ export default function SelectedTicketsBar() {
                                 },
                               }}
                             >
-                              <TableCell component="th" scope="row" sx={{ wordBreak: 'break-word' }}>
+                              <TableCell component="th" scope="row" sx={{ wordBreak: 'break-word', textAlign: 'left' }}>
                                 {nazivKarte(ticket)}
                               </TableCell>
-                              <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                              <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                                 {uredjujeSe === kljucRetka(row, ticket) ? (
                                   <TextField
                                     autoFocus
@@ -360,7 +361,7 @@ export default function SelectedTicketsBar() {
                                       // ne smije ostaviti stavku bez kolicine.
                                       if (e.key === "Escape") { setUredjujeSe(null); setUpisano(""); }
                                     }}
-                                    inputProps={{ inputMode: "numeric", style: { textAlign: "right", width: 40, padding: 0 } }}
+                                    inputProps={{ inputMode: "numeric", style: { textAlign: "right", width: "100%", padding: 0 } }}
                                   />
                                 ) : smijeSeMijenjati(ticket) ? (
                                   <Box
@@ -372,7 +373,8 @@ export default function SelectedTicketsBar() {
                                     sx={{
                                       cursor: "pointer",
                                       display: "inline-block",
-                                      minWidth: 32,
+                                      textAlign: "right",
+                                      minWidth: 24,
                                       px: 0.5,
                                       borderRadius: 1,
                                       textDecoration: "underline dotted",
@@ -389,11 +391,12 @@ export default function SelectedTicketsBar() {
                                 sx={{
                                   display: { xs: 'none', sm: 'table-cell' },
                                   whiteSpace: 'nowrap',
+                                  textAlign: 'right',
                                 }}
                               >
                                 {Number(ticket.single_price).toFixed(2)} EUR
                               </TableCell>
-                              <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                              <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                                 {Number(ticket.total_price).toFixed(2)} EUR
                               </TableCell>
                               {/* Uklanjanje retka je sporedna radnja — mala
@@ -419,21 +422,22 @@ export default function SelectedTicketsBar() {
                             const zbroj = zbrojPovlastenih(row);
                             return (
                               <TableRow>
-                                <TableCell component="th" scope="row" sx={{ wordBreak: 'break-word' }}>
+                                <TableCell component="th" scope="row" sx={{ wordBreak: 'break-word', textAlign: 'left' }}>
                                   Povlaštene
                                 </TableCell>
-                                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                                   {zbroj.kolicina}
                                 </TableCell>
                                 <TableCell align="right"
                                   sx={{
                                     display: { xs: 'none', sm: 'table-cell' },
                                     whiteSpace: 'nowrap',
+                                    textAlign: 'right',
                                   }}
                                 >
                                   <Typography variant="body2" color="text.secondary">—</Typography>
                                 </TableCell>
-                                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                                   {zbroj.iznos.toFixed(2)} EUR
                                 </TableCell>
                                 <TableCell align="right" sx={{ p: 0 }}>
