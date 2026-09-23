@@ -3,12 +3,13 @@
         "oib": "32137068117"
     },
     "yescor": {
+        "_comment": "F2 e-racun (YesCor ExchangeHub). Tajne NISU u repou: postavi YESCOR_CLIENT_SECRET i YESCOR_APP_SECRET u okolini posluzitelja.",
         "environment": "demo",
         "token_url": "https://erp.yescor.hr/app/identity/realms/demo-exchange-provider/protocol/openid-connect/token",
         "api_url": "https://demo.exchangehub.yescor.hr/api/v1",
         "client_id": "hr_32137068117_3e970",
-        "client_secret": "dbQtIeFEWRtuJgCIMOThmBUPMNa9jura",
-        "app_secret": "Tech4Beez-31E0B4F5-9789-46DF-94D9-4E52B9DB92FF"
+        "client_secret": "",
+        "app_secret": ""
     },
     "akd": {
         "seop": {
@@ -44,5 +45,15 @@
         "password": "",
         "organisation_id": "2",
         "link_to_book": "T4B TRANSPORT"
+    },
+    "sudreg": {
+        "_comment": "Sudski registar. Kljucevi NISU u repou: postavi SUDREG_CLIENT_ID i SUDREG_CLIENT_SECRET u okolini posluzitelja.",
+        "environment": "test",
+        "token_url_test": "https://sudreg-data-test.gov.hr/api/oauth/token",
+        "api_url_test": "https://sudreg-data-test.gov.hr/api/javni",
+        "token_url_prod": "https://sudreg-data.gov.hr/api/oauth/token",
+        "api_url_prod": "https://sudreg-data.gov.hr/api/javni",
+        "client_id": "",
+        "client_secret": ""
     }
 }
