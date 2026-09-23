@@ -69,14 +69,23 @@ export default function SeopDiscountsTab() {
         [prava]
     );
 
+    // Sprema se i pravo bez postotka ako mu je upisan naziv: online SEOP
+    // postotak daje sam, ali naziv na karti treba i tada. Redak bez ijednog od
+    // to dvoje nema sto zapisati.
+    const zaSpremanje = useMemo(
+        () => (prava || []).filter((p) => Number(p.discount_pct) > 0 || String(p.ticket_label || "").trim()),
+        [prava]
+    );
+
     const spremi = async () => {
         setSpremanje(true);
         setPoruka(null);
         try {
             // Šalju se samo prava s postotkom. Redak vraćen na 0 nestaje, čime
             // se popust stvarno povlači s uređaja, a ne ostaje tiho vrijediti.
-            const discounts = sPopustom.map((p) => ({
+            const discounts = zaSpremanje.map((p) => ({
                 code: p.code,
+                ticket_label: String(p.ticket_label || "").trim() || null,
                 discount_pct: Number(p.discount_pct) || 0,
                 is_active: p.is_active !== false,
             }));
@@ -84,7 +93,7 @@ export default function SeopDiscountsTab() {
             setPoruka({
                 severity: "success",
                 text: discounts.length
-                    ? `Spremljeno ${discounts.length} prava s popustom.`
+                    ? `Spremljeno ${discounts.length} prava.`
                     : "Spremljeno — nijedno pravo nema popust, uređaji bez mreže neće primjenjivati popust.",
             });
             ucitaj();
@@ -142,6 +151,7 @@ export default function SeopDiscountsTab() {
                         <TableRow>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Šifra</TableCell>
                             <TableCell sx={{ fontWeight: 800 }}>Pravo</TableCell>
+                            <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Naziv na karti</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Razred</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Prebivalište</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }} align="right">Popust %</TableCell>
@@ -162,6 +172,15 @@ export default function SeopDiscountsTab() {
                                         )}
                                     </TableCell>
                                     <TableCell>{p.opis || "—"}</TableCell>
+                                    <TableCell>
+                                        <TextField
+                                            size="small"
+                                            value={p.ticket_label || ""}
+                                            placeholder="npr. Otočani – umirovljenici"
+                                            onChange={(e) => postavi(p.code, "ticket_label", e.target.value.slice(0, 60))}
+                                            sx={{ width: 240 }}
+                                        />
+                                    </TableCell>
                                     <TableCell>
                                         {razred
                                             ? <Chip size="small" color={razred.color} label={razred.label} />
@@ -194,7 +213,7 @@ export default function SeopDiscountsTab() {
                         })}
                         {!prikazani.length && (
                             <TableRow>
-                                <TableCell colSpan={6}>
+                                <TableCell colSpan={7}>
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                                         Nijedno pravo nema upisan popust.
                                     </Typography>

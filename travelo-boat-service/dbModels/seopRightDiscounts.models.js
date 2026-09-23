@@ -27,6 +27,12 @@ module.exports = (sequelize) => {
             // 0 znači „bez popusta" — cjenik vrijedi kakav jest.
             discount_pct: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
 
+            // Naziv koji se ispisuje na karti umjesto šifre prava. Blagajniku i
+            // putniku „03K" ne znači ništa, a puni opis iz Pravilnika je predug
+            // za redak košarice i za papir — zato ured upisuje kratak naziv.
+            // Prazno znači da se ponaša kao dosad (naziv iz cjenika).
+            ticket_label: { type: DataTypes.STRING, allowNull: true },
+
             // Ugašeno pravo se ne šalje na uređaje. Služi da se popust povuče
             // bez brisanja upisanog postotka, kad ga treba vratiti.
             is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },

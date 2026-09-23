@@ -48,8 +48,13 @@ const updateSeopRightDiscountsController = async (req, res) => {
                     data: { message: `Postotak za pravo ${code} mora biti između 0 i 100.` },
                 });
             }
+            // Naziv je slobodan tekst, ali ne neogranicen: redak kosarice i
+            // papir imaju svoju sirinu, pa se visak odrezuje ovdje, a ne na
+            // svakom prikazu posebno.
+            const label = String(r?.ticket_label || "").trim().slice(0, 60);
             zaUpis.push({
                 code,
+                ticket_label: label || null,
                 discount_pct: pct,
                 is_active: r?.is_active !== false,
                 updated_by: data.updated_by || null,

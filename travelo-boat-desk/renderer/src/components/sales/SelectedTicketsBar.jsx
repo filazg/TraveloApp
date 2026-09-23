@@ -29,6 +29,18 @@ export default function SelectedTicketsBar() {
 
     const kljucRetka = (row, ticket) => `${row.sales_route_uuid}|${ticket.ticket_type_uuid}`;
 
+    // Naziv koji se pokazuje za povlastenu kartu. Dosad je ondje stajalo golo
+    // "SEOP"/"MOSI" — oznaka sustava, ne ono sto putnik kupuje. Ured sada uz
+    // sifru prava upisuje naziv (Integracije -> AKD -> SEOP -> Popusti) i on
+    // ima prednost; bez upisanog naziva ostaje kako je bilo.
+    const nazivKarte = (ticket) => {
+        const pravo = String(ticket.povlastica?.pravo || "").trim();
+        if (!pravo) return ticket.ticket_type_name;
+        const upis = (appData.basicData?.seop_right_discounts || [])
+            .find((r) => String(r.code || "").trim() === pravo);
+        return upis?.ticket_label || ticket.ticket_type_name;
+    };
+
     const postaviKolicinu = (row, ticket, tekst) => {
         const broj = Math.max(0, Math.min(999, parseInt(tekst, 10) || 0));
         const sve = appData.saleData?.addedTickets || [];
@@ -268,20 +280,29 @@ export default function SelectedTicketsBar() {
                       <Table size="small" aria-label="a dense table">
                         <TableHead>
                           <TableRow>
-                            <TableCell>
+                            {/* Naziv uzima sav preostali prostor, brojcani
+                                stupci imaju svoje sirine — inace se pri duzem
+                                iznosu (veca kolicina) stupci pomicu iz retka
+                                u redak. */}
+                            <TableCell sx={{ width: '100%' }}>
                               tip karte
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap' }}>
                               kol
                             </TableCell>
+                            {/* Na uskom zaslonu se cijena skriva. Mora biti
+                                `table-cell`, ne `block`: blok izlazi iz retka
+                                tablice i razbija poravnanje ostalih stupaca. */}
                             <TableCell align="right"
                               sx={{
-                                display: { xs: 'none', sm: 'block' }
+                                display: { xs: 'none', sm: 'table-cell' },
+                                width: 96,
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               cijena
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap' }}>
                               iznos
                             </TableCell>
                             <TableCell align="right" sx={{ width: 36, p: 0 }} />
@@ -297,10 +318,10 @@ export default function SelectedTicketsBar() {
                                 },
                               }}
                             >
-                              <TableCell component="th" scope="row">
-                                {ticket.ticket_type_name}
+                              <TableCell component="th" scope="row" sx={{ width: '100%' }}>
+                                {nazivKarte(ticket)}
                               </TableCell>
-                              <TableCell align="right">
+                              <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap' }}>
                                 {uredjujeSe === kljucRetka(row, ticket) ? (
                                   <TextField
                                     autoFocus
@@ -316,7 +337,7 @@ export default function SelectedTicketsBar() {
                                       // ne smije ostaviti stavku bez kolicine.
                                       if (e.key === "Escape") { setUredjujeSe(null); setUpisano(""); }
                                     }}
-                                    inputProps={{ inputMode: "numeric", style: { textAlign: "right", width: 48 } }}
+                                    inputProps={{ inputMode: "numeric", style: { textAlign: "right", width: 40, padding: 0 } }}
                                   />
                                 ) : smijeSeMijenjati(ticket) ? (
                                   <Box
@@ -343,13 +364,15 @@ export default function SelectedTicketsBar() {
                               </TableCell>
                               <TableCell align="right"
                                 sx={{
-                                  display: { xs: 'none', sm: 'block' }
+                                  display: { xs: 'none', sm: 'table-cell' },
+                                  width: 96,
+                                  whiteSpace: 'nowrap',
                                 }}
                               >
-                                {ticket.single_price} EUR
+                                {Number(ticket.single_price).toFixed(2)} EUR
                               </TableCell>
-                              <TableCell align="right">
-                                {ticket.total_price} EUR
+                              <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap' }}>
+                                {Number(ticket.total_price).toFixed(2)} EUR
                               </TableCell>
                               {/* Uklanjanje retka je sporedna radnja — mala
                                   ikona uz rub, da ne odvlaci od iznosa. */}

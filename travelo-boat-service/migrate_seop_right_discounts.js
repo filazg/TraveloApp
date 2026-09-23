@@ -26,6 +26,13 @@ const { initSequelize, getSequelize } = require("./config/database");
     `);
     console.log("  · tablica seop_right_discounts");
 
+    // Naziv na karti je dodan naknadno, pa ide zasebnim ALTER-om — postojece
+    // instalacije ne smiju izgubiti upisane postotke.
+    await sequelize.query(
+        `ALTER TABLE seop_right_discounts ADD COLUMN IF NOT EXISTS ticket_label varchar(255)`
+    );
+    console.log("  · kolona ticket_label");
+
     const [[{ count }]] = await sequelize.query(`SELECT count(*)::int AS count FROM seop_right_discounts`);
     console.log(`  · upisanih prava: ${count}`);
 
