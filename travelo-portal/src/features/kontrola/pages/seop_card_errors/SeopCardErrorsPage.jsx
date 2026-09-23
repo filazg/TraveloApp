@@ -19,6 +19,17 @@ const RAZLOZI = {
 };
 const razlogInfo = (r) => RAZLOZI[r] || { label: r || "—", color: "default" };
 
+// Odakle popust na karti. Na ovoj stranici je gotovo uvijek „povjerenje" —
+// pravo se nije provjerilo, pa je postotak operaterova odluka — ali karta zna i
+// druge izvore, pa se ne pretpostavlja.
+const IZVOR = {
+    povjerenje: "odluka operatera",
+    lokalni_katalog: "lokalni šifarnik",
+    seop: "SEOP",
+};
+
+const fmtEur = (v) => (v === null || v === undefined || v === "" ? "—" : `${Number(v).toFixed(2)} €`);
+
 const fmtVrijeme = (v) => {
     if (!v) return "—";
     const d = new Date(v);
@@ -121,6 +132,50 @@ export default function SeopCardErrorsPage() {
             renderCell: (p) => {
                 const i = razlogInfo(p.value);
                 return <Chip size="small" color={i.color} label={i.label} />;
+            },
+        },
+        {
+            // Razlog govori zasto pravo nije provjereno; ovo govori koliko je
+            // operater na to dao. Bez oba podatka kontrola nema sto usporediti.
+            field: "popust_postotak",
+            headerName: "Popust",
+            width: 170,
+            sortable: true,
+            renderCell: (p) => {
+                const pct = Number(p.value);
+                if (!(pct > 0)) return <Typography variant="body2" color="text.secondary">puna cijena</Typography>;
+                const izvor = IZVOR[p.row.popust_izvor] || p.row.popust_izvor;
+                return (
+                    <Stack spacing={0} sx={{ lineHeight: 1.2 }}>
+                        <Typography variant="body2" fontWeight={800}>{pct} %</Typography>
+                        {izvor ? (
+                            <Typography variant="caption" color="text.secondary">{izvor}</Typography>
+                        ) : null}
+                    </Stack>
+                );
+            },
+        },
+        {
+            field: "naplaceno",
+            headerName: "Naplaćeno",
+            width: 150,
+            sortable: true,
+            renderCell: (p) => {
+                if (p.value === null || p.value === undefined) {
+                    return <Typography variant="body2" color="text.secondary">—</Typography>;
+                }
+                const redovna = Number(p.row.redovna_cijena);
+                const iznos = Number(p.value);
+                return (
+                    <Stack spacing={0} sx={{ lineHeight: 1.2 }}>
+                        <Typography variant="body2" fontWeight={800}>{fmtEur(iznos)}</Typography>
+                        {redovna > iznos ? (
+                            <Typography variant="caption" color="text.secondary">
+                                redovna {fmtEur(redovna)}
+                            </Typography>
+                        ) : null}
+                    </Stack>
+                );
             },
         },
         { field: "napomena", headerName: "Napomena", width: 280, renderCell: (p) => p.value || "—" },
