@@ -206,9 +206,6 @@ export default function SubsidisedCartModal({ stavka, onClose }) {
                         Količina se ovdje ne mijenja: svaka karta glasi na jednu provjerenu iskaznicu.
                         Dodatna karta se izdaje kroz POVLAŠTENE KARTICE, uz novu provjeru.
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                        Naziv na karti upisuje se uz šifru prava u portalu: Integracije → AKD → SEOP → Popusti.
-                    </Typography>
                 </Box>
             </DialogContent>
 
