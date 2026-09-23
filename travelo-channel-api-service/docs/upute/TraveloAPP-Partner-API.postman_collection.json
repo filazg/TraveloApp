@@ -70,11 +70,11 @@
             "type": "text/javascript",
             "exec": [
               "// control_code = SHA512(k + travel_from + travel_date + travel_to)",
-              "const k = pm.collectionVariables.get('k');",
+              "const k = pm.variables.get('k');",
               "const body = {",
-              "  travel_from: pm.collectionVariables.get('travel_from'),",
-              "  travel_to: pm.collectionVariables.get('travel_to'),",
-              "  travel_date: pm.collectionVariables.get('travel_date')",
+              "  travel_from: pm.variables.get('travel_from'),",
+              "  travel_to: pm.variables.get('travel_to'),",
+              "  travel_date: pm.variables.get('travel_date')",
               "};",
               "const raw = k + body.travel_from + body.travel_date + body.travel_to;",
               "body.control_code = CryptoJS.SHA512(raw).toString();",
@@ -120,10 +120,10 @@
             "type": "text/javascript",
             "exec": [
               "// control_code = SHA512(k + order_number + broj_stavki + suma total_item_price)",
-              "const k = pm.collectionVariables.get('k');",
-              "const order_number = pm.collectionVariables.get('order_number');",
+              "const k = pm.variables.get('k');",
+              "const order_number = pm.variables.get('order_number');",
               "let items = [];",
-              "try { items = JSON.parse(pm.collectionVariables.get('order_items') || '[]'); } catch (e) {}",
+              "try { items = JSON.parse(pm.variables.get('order_items') || '[]'); } catch (e) {}",
               "const sum = items.reduce((s, i) => s + Number(i.total_item_price || 0), 0);",
               "const raw = k + order_number + items.length + sum;",
               "const body = { order_number, order_items: items, control_code: CryptoJS.SHA512(raw).toString() };",
@@ -141,7 +141,7 @@
               "if (r && r.order_number) pm.collectionVariables.set('order_number', r.order_number);",
               "// total_amount za confirm/cancel control_code (= suma stavki narudzbe).",
               "let items = [];",
-              "try { items = JSON.parse(pm.collectionVariables.get('order_items') || '[]'); } catch (e) {}",
+              "try { items = JSON.parse(pm.variables.get('order_items') || '[]'); } catch (e) {}",
               "pm.collectionVariables.set('total_amount', items.reduce((s, i) => s + Number(i.total_item_price || 0), 0));"
             ]
           }
@@ -165,10 +165,10 @@
             "exec": [
               "// control_code = SHA512(k + order_uuid + order_number + total_amount)",
               "// order_number i total_amount idu iz odgovora na /order (ne saljemo ih u tijelu).",
-              "const k = pm.collectionVariables.get('k');",
-              "const order_uuid = pm.collectionVariables.get('order_uuid');",
-              "const order_number = pm.collectionVariables.get('order_number');",
-              "const total_amount = pm.collectionVariables.get('total_amount');",
+              "const k = pm.variables.get('k');",
+              "const order_uuid = pm.variables.get('order_uuid');",
+              "const order_number = pm.variables.get('order_number');",
+              "const total_amount = pm.variables.get('total_amount');",
               "const raw = k + order_uuid + order_number + total_amount;",
               "const body = { order_uuid, control_code: CryptoJS.SHA512(raw).toString() };",
               "pm.variables.set('reqBody', JSON.stringify(body, null, 2));"
@@ -193,10 +193,10 @@
             "type": "text/javascript",
             "exec": [
               "// control_code = SHA512(k + order_uuid + order_number + total_amount) — isto kao confirm.",
-              "const k = pm.collectionVariables.get('k');",
-              "const order_uuid = pm.collectionVariables.get('order_uuid');",
-              "const order_number = pm.collectionVariables.get('order_number');",
-              "const total_amount = pm.collectionVariables.get('total_amount');",
+              "const k = pm.variables.get('k');",
+              "const order_uuid = pm.variables.get('order_uuid');",
+              "const order_number = pm.variables.get('order_number');",
+              "const total_amount = pm.variables.get('total_amount');",
               "const raw = k + order_uuid + order_number + total_amount;",
               "const body = { order_uuid, control_code: CryptoJS.SHA512(raw).toString() };",
               "pm.variables.set('reqBody', JSON.stringify(body, null, 2));"
