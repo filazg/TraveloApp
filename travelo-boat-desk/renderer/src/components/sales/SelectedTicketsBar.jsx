@@ -417,12 +417,7 @@ export default function SelectedTicketsBar() {
                             return (
                               <TableRow>
                                 <TableCell component="th" scope="row" sx={{ width: '100%' }}>
-                                  Povlaštene karte
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                    {povlasteneKarte(row).length === 1
-                                      ? '1 iskaznica'
-                                      : `${povlasteneKarte(row).length} iskaznica`} — klik na olovku za razradu
-                                  </Typography>
+                                  Povlaštene
                                 </TableCell>
                                 <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap' }}>
                                   {zbroj.kolicina}
