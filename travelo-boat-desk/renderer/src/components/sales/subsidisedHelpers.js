@@ -30,6 +30,22 @@ export const POPUSTI_POVJERENJE = [
     { pct: 100, naziv: "Besplatno (100 %)" },
 ];
 
+// Razlaganje naplacenog iznosa na lucku pristojbu, osnovicu i PDV — ista
+// pravila kao na posluzitelju (`splitAmount` u finalizeTerminalSaleController):
+// lucka je 6 % bruto iznosa, ostatak se dijeli po stopi PDV-a. Drzi se ovdje da
+// povlastena karta ne bi imala razlaganje iz cjenika, a naplatu s popustom.
+const LUCKA_STOPA = 0.06;
+const PDV_STOPA = 0.25;
+
+export const razloziIznos = (iznos) => {
+    const bruto = Number(iznos) || 0;
+    const lucka = +(bruto * LUCKA_STOPA).toFixed(2);
+    const netoSPdvom = bruto - lucka;
+    const osnovica = +(netoSPdvom / (1 + PDV_STOPA)).toFixed(2);
+    const pdv = +(netoSPdvom - osnovica).toFixed(2);
+    return { total_vat_base: osnovica, total_vat: pdv, total_harbor_tax: lucka };
+};
+
 export const buildIslandTickets = (data, { cardData = null, fallbackRoute = null } = {}) => {
     let cardDataToAdd = {};
     if (data.type === "VIRTUAL CARD") {
@@ -65,9 +81,12 @@ export const buildIslandTickets = (data, { cardData = null, fallbackRoute = null
         // Iznos je izracunat po pravilu linije; `price.price` je samo osnovica.
         single_price: data.free ? 0 : (data.iznos ?? data.price.price),
         total_price: data.free ? 0 : (data.iznos ?? data.price.price),
-        total_vat_base: data.free ? 0 : data.price.vat_base,
-        total_vat: data.free ? 0 : data.price.vat_amount,
-        total_harbor_tax: data.free ? 0 : data.price.port_tax,
+        // Razlaganje ide iz NAPLACENOG iznosa, ne iz cjenika. Dosad su se
+        // osnovica, PDV i lucka pristojba prepisivali iz cjenika u punom
+        // iznosu, pa je povlastena karta imala naplaceno 2,98 a razlozeno 5,97
+        // — racun sam sebi nije stimao, a temeljnica prema SAOP-u nije mogla
+        // biti uravnotezena. Popust umanjuje prihod, pa umanjuje i sve troje.
+        ...razloziIznos(data.free ? 0 : (data.iznos ?? data.price.price)),
         quantity: 1,
         tickets: [{ uuid: uuid(), code: uuid() }],
         card_data: cardDataToAdd,
