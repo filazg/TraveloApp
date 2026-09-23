@@ -108,12 +108,24 @@ const provjere = [
         naziv: "AKD SEOP",
         opis: "mTLS veza prema PlovKarte",
         async izvrsi() {
-            const r = await zovi(PORTOVI.akd, "/seop/test-veze", { method: "POST", body: {} });
+            // U `mock` okolini se prema AKD-u namjerno ne ide (VM je sa stranog
+            // IP-a mrezno blokiran, pa bi provjera visila do timeouta i
+            // prijavljivala kvar koji je zapravo odluka).
+            const t = await zovi(PORTOVI.control, "/integrations_config");
+            const okolina = t.json?.data?.akd?.seop?.environment || "";
+            if (okolina === "mock") {
+                return { oznaka: UPOZ, opis: "okolina je mock — prema SEOP-u se ne ide, uredaji dobivaju canned odgovore" };
+            }
+            const r = await zovi(PORTOVI.akd, "/seop/test-veze", { method: "POST", body: {}, timeout: 20000 });
             const d = r.json?.data || r.json || {};
             if (r.status === 200 && (d.ok === true || d.uspjeh === true)) {
                 return { oznaka: OK, opis: d.poruka || d.message || "veza radi" };
             }
-            return { oznaka: PAO, opis: d.poruka || d.message || r.greska || `status ${r.status}` };
+            const razlog = d.poruka || d.message || r.greska || `status ${r.status}`;
+            // Timeout prema AKD-u je gotovo uvijek mrezna zabrana, ne kvar kod
+            // nas — vrijedi to reci odmah, da se ne trazi po certifikatima.
+            const mrezno = /timeout|ETIMEDOUT|EHOSTUNREACH|ECONNRESET/i.test(razlog);
+            return { oznaka: PAO, opis: razlog + (mrezno ? " (AKD pusta samo HR mreze — sa stranog IP-a je blokiran)" : "") };
         },
     },
     {
