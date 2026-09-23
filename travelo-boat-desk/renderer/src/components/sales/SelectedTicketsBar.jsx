@@ -320,7 +320,7 @@ export default function SelectedTicketsBar() {
                             <TableCell sx={{ width: 'auto', textAlign: 'left' }}>
                               tip karte
                             </TableCell>
-                            <TableCell align="right" sx={{ width: 56, whiteSpace: 'nowrap', textAlign: 'right' }}>
+                            <TableCell align="right" sx={{ width: 44, whiteSpace: 'nowrap', textAlign: 'right' }}>
                               kol
                             </TableCell>
                             {/* Na uskom zaslonu se cijena skriva. Mora biti
@@ -329,14 +329,14 @@ export default function SelectedTicketsBar() {
                             <TableCell align="right"
                               sx={{
                                 display: { xs: 'none', sm: 'table-cell' },
-                                width: 100,
+                                width: 90,
                                 whiteSpace: 'nowrap',
                                 textAlign: 'right',
                               }}
                             >
                               cijena
                             </TableCell>
-                            <TableCell align="right" sx={{ width: 124, whiteSpace: 'nowrap', textAlign: 'right' }}>
+                            <TableCell align="right" sx={{ width: 114, whiteSpace: 'nowrap', textAlign: 'right' }}>
                               iznos
                             </TableCell>
                             <TableCell align="right" sx={{ width: 34, p: 0 }} />

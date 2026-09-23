@@ -226,15 +226,17 @@ export default function SalesScreen() {
               wrap="nowrap"
               sx={{ height: "100%", width: "100%", flexWrap: "nowrap" }}
             >
-              {/* Odredišta (lijevo) */}
-              <Grid sx={{ width: 445, flexShrink: 0, height: "100%" }}>
+              {/* Odredišta (lijevo) — uži od ostalih stupaca jer su mu retci
+                  kratki (luka + vrijeme). Oslobođena širina ide Košarici, gdje
+                  se pri većoj količini lomio redak s iznosima. */}
+              <Grid sx={{ width: 400, flexShrink: 0, height: "100%" }}>
                 <ColumnPanel title="Odredišta">
                   <TripsBar/>
                 </ColumnPanel>
               </Grid>
 
               {/* Karte (sredina) */}
-              <Grid sx={{ width: 430, flexShrink: 0, height: "100%" }}>
+              <Grid sx={{ width: 360, flexShrink: 0, height: "100%" }}>
                 <ColumnPanel title="Karte">
                   {selectedDepartureData ? (
                     <TripPricesBar/>
@@ -246,8 +248,9 @@ export default function SalesScreen() {
                 </ColumnPanel>
               </Grid>
 
-              {/* Košarica (desno) */}
-              <Grid sx={{ width: 430, flexShrink: 0, height: "100%" }}>
+              {/* Košarica (desno) — najširi stupac: nosi naziv karte, količinu,
+                  cijenu, iznos i uklanjanje retka u istom redu. */}
+              <Grid sx={{ width: 545, flexShrink: 0, height: "100%" }}>
                 <ColumnPanel title="Košarica">
                   <SelectedTicketsBar />
                 </ColumnPanel>
