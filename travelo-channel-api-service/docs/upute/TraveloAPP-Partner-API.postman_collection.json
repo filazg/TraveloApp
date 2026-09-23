@@ -6,22 +6,67 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:6040" },
-    { "key": "tid", "value": "SABOOK001" },
-    { "key": "otp", "value": "" },
-    { "key": "k", "value": "" },
-    { "key": "token", "value": "" },
-    { "key": "travel_from", "value": "HR479" },
-    { "key": "travel_to", "value": "HR364" },
-    { "key": "travel_date", "value": "2026-09-05" },
-    { "key": "order_number", "value": "BW-TEST-001" },
-    { "key": "order_items", "value": "[]" },
-    { "key": "trip_uuid", "value": "" },
-    { "key": "order_uuid", "value": "" },
-    { "key": "total_amount", "value": "" }
+    {
+      "key": "base_url",
+      "value": "http://localhost:6040"
+    },
+    {
+      "key": "tid",
+      "value": "SABOOK001"
+    },
+    {
+      "key": "otp",
+      "value": ""
+    },
+    {
+      "key": "k",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "travel_from",
+      "value": "HR479"
+    },
+    {
+      "key": "travel_to",
+      "value": "HR364"
+    },
+    {
+      "key": "travel_date",
+      "value": "2026-09-05"
+    },
+    {
+      "key": "order_number",
+      "value": "BW-TEST-001"
+    },
+    {
+      "key": "order_items",
+      "value": "[]"
+    },
+    {
+      "key": "trip_uuid",
+      "value": ""
+    },
+    {
+      "key": "order_uuid",
+      "value": ""
+    },
+    {
+      "key": "total_amount",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -40,15 +85,35 @@
         }
       ],
       "request": {
-        "auth": { "type": "noauth" },
+        "auth": {
+          "type": "noauth"
+        },
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"tid\": \"{{tid}}\",\n  \"otp\": \"{{otp}}\"\n}",
-          "options": { "raw": { "language": "json" } }
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
-        "url": { "raw": "{{base_url}}/auth/api_sales_login", "host": ["{{base_url}}"], "path": ["auth", "api_sales_login"] },
+        "url": {
+          "raw": "{{base_url}}/auth/api_sales_login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "auth",
+            "api_sales_login"
+          ]
+        },
         "description": "Vraca { token }. Token vrijedi 24h i ide u Authorization: Bearer <token> svakog daljnjeg poziva. Rate limit: 10/min."
       }
     },
@@ -57,7 +122,15 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": { "raw": "{{base_url}}/harbors", "host": ["{{base_url}}"], "path": ["harbors"] },
+        "url": {
+          "raw": "{{base_url}}/harbors",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "harbors"
+          ]
+        },
         "description": "Popis luka. U svim daljnjim pozivima luka se identificira s harbor_code."
       }
     },
@@ -105,9 +178,30 @@
       ],
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{{reqBody}}", "options": { "raw": { "language": "json" } } },
-        "url": { "raw": "{{base_url}}/search_trip", "host": ["{{base_url}}"], "path": ["search_trip"] },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{reqBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/search_trip",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "search_trip"
+          ]
+        },
         "description": "Pretraga polazaka. Cijena je TVOJA nabavna cijena. Prazni trips = nema polaska tog dana (nije greska). control_code se racuna automatski (pre-request)."
       }
     },
@@ -149,9 +243,30 @@
       ],
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{{reqBody}}", "options": { "raw": { "language": "json" } } },
-        "url": { "raw": "{{base_url}}/order", "host": ["{{base_url}}"], "path": ["order"] },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{reqBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/order",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "order"
+          ]
+        },
         "description": "Kreira DRAFT (rezervira mjesta, karte jos ne postoje). Vraca order_uuid (nas) — spremi ga. 409 = nema dovoljno mjesta. order_uuid/order_number/total_amount se spremaju automatski (test)."
       }
     },
@@ -178,9 +293,30 @@
       ],
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{{reqBody}}", "options": { "raw": { "language": "json" } } },
-        "url": { "raw": "{{base_url}}/confirm_order", "host": ["{{base_url}}"], "path": ["confirm_order"] },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{reqBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/confirm_order",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "confirm_order"
+          ]
+        },
         "description": "Izdaje karte (tek sad postoje i naplacuju se). Vraca tickets s ticket_code (to putnik pokazuje pri ukrcaju). Potvrdi tek nakon uspjesne naplate."
       }
     },
@@ -206,9 +342,30 @@
       ],
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{{reqBody}}", "options": { "raw": { "language": "json" } } },
-        "url": { "raw": "{{base_url}}/cancel_order", "host": ["{{base_url}}"], "path": ["cancel_order"] },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{{reqBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/cancel_order",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "cancel_order"
+          ]
+        },
         "description": "Bez dodatnih polja stornira cijelu narudzbu. Za djelomicno: dodaj 'tickets' s ticket_uuid. return_amount = iznos koji ti se odobrava. Vec stornirana karta se ne stornira dvaput."
       }
     },
@@ -216,25 +373,346 @@
       "name": "07 Trip details",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"trip_uuid\": \"{{trip_uuid}}\"\n}",
-          "options": { "raw": { "language": "json" } }
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
-        "url": { "raw": "{{base_url}}/trip_details", "host": ["{{base_url}}"], "path": ["trip_details"] },
+        "url": {
+          "raw": "{{base_url}}/trip_details",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "trip_details"
+          ]
+        },
         "description": "Sve luke na tom polasku, u redoslijedu plovidbe (medupostaje i vremena). Bez control_code-a."
       }
     },
     {
       "name": "08 Documentation",
       "request": {
-        "auth": { "type": "noauth" },
+        "auth": {
+          "type": "noauth"
+        },
         "method": "GET",
         "header": [],
-        "url": { "raw": "{{base_url}}/documentation", "host": ["{{base_url}}"], "path": ["documentation"] },
+        "url": {
+          "raw": "{{base_url}}/documentation",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "documentation"
+          ]
+        },
         "description": "Javna dokumentacija API-ja (bez auth-a)."
       }
+    },
+    {
+      "name": "99 Negativni testovi (autentikacija i autorizacija)",
+      "description": "Provjera da API odbija ono sto mora odbiti. Sretan put pokazuje da integracija radi; ovo pokazuje da nije otvorena. Pokrenuti nakon 01-06, jer koristi token i narudzbu iz njih.",
+      "item": [
+        {
+          "name": "99.1 Bez tokena → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('bez tokena je 401', () => pm.expect(pm.response.code).to.eql(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/harbors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "harbors"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "99.2 Neispravan token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('neispravan token je 401', () => pm.expect(pm.response.code).to.eql(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/harbors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "harbors"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "nevaljan.token.ovdje",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "99.3 Krivi control_code → 400",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Namjerno pogresan potpis: ispravna polja, ali potpisana praznim kljucem.",
+                  "const body = {",
+                  "  travel_from: pm.variables.get('travel_from'),",
+                  "  travel_to: pm.variables.get('travel_to'),",
+                  "  travel_date: pm.variables.get('travel_date'),",
+                  "  control_code: CryptoJS.SHA512('nije-nas-kljuc').toString()",
+                  "};",
+                  "pm.variables.set('reqBodyKrivi', JSON.stringify(body, null, 2));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('krivi potpis je 400', () => pm.expect(pm.response.code).to.eql(400));",
+                  "pm.test('poruka kaze sto je krivo', () => pm.expect(pm.response.json().msg).to.include('control_code'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{reqBodyKrivi}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/search_trip",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "search_trip"
+              ]
+            }
+          }
+        },
+        {
+          "name": "99.4 Bez control_code → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('bez potpisa je 400', () => pm.expect(pm.response.code).to.eql(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"travel_from\": \"{{travel_from}}\",\n  \"travel_to\": \"{{travel_to}}\",\n  \"travel_date\": \"{{travel_date}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/search_trip",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "search_trip"
+              ]
+            }
+          }
+        },
+        {
+          "name": "99.5 Tuda/nepostojeca narudzba → 404",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Narudzba koja nije partnerova (ovdje izmisljeni uuid). Servis namjerno",
+                  "// vraca isti 404 i za tudu i za nepostojecu — da se popis narudzbi ne da",
+                  "// mapirati probavanjem.",
+                  "const body = { order_uuid: '00000000-0000-0000-0000-000000000000', control_code: 'nebitno' };",
+                  "pm.variables.set('reqBodyTuda', JSON.stringify(body, null, 2));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('tuda narudzba je 404', () => pm.expect(pm.response.code).to.eql(404));",
+                  "pm.test('ne otkriva postoji li', () => pm.expect(pm.response.json().msg).to.eql('Order not found'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{reqBodyTuda}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/confirm_order",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "confirm_order"
+              ]
+            }
+          }
+        },
+        {
+          "name": "99.6 Prijava s krivim OTP-om → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('krivi OTP ne daje token', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400, 401]);",
+                  "  pm.expect(pm.response.text()).to.not.include('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tid\": \"{{tid}}\",\n  \"otp\": \"posve-krivi-otp\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/api_sales_login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "api_sales_login"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
