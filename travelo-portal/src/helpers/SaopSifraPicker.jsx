@@ -16,6 +16,50 @@ import { resolveBackendUrl } from "./backendUrl";
 // svježe čitanje, za slučaj da je knjigovodstvo upravo otvorilo novu šifru.
 const api = axios.create({ baseURL: resolveBackendUrl("/app"), withCredentials: true });
 
+// Zajednička memorija za sve instance ovog polja.
+//
+// Bez nje je svako otvaranje obrasca značilo novi odlazak u SAOP: na Linijama
+// su dva polja (unos i izmjena), pa se šifarnik čitao iznova pri svakom kliku.
+// Šifre se mijenjaju rijetko — knjigovodstvo otvori novu jednom u par mjeseci —
+// a čekanje je bilo pri svakom otvaranju.
+//
+// `uTijeku` pamti zahtjev koji je već krenuo, da dva polja na istom ekranu ne
+// pošalju dva ista poziva. `pretplatnici` služe da osvježavanje jednim gumbom
+// vrijedi za sva polja te vrste, a ne samo za ono na kojem je kliknuto.
+const TRAJANJE_MS = 10 * 60 * 1000;
+const memorija = new Map();
+const pretplatnici = new Map();
+
+const javiSvima = (kind, stavke) => {
+    for (const f of (pretplatnici.get(kind) || [])) f(stavke);
+};
+
+const dohvatiSifarnik = async (kind, svjeze) => {
+    const zapamceno = memorija.get(kind);
+    if (!svjeze && zapamceno) {
+        if (zapamceno.uTijeku) return zapamceno.uTijeku;
+        if (Date.now() - zapamceno.kad < TRAJANJE_MS) return zapamceno.stavke;
+    }
+    const zahtjev = api
+        .get("/portal/backoffice/seyfor_codebook", { params: { kind, ...(svjeze ? { refresh: 1 } : {}) } })
+        .then((r) => {
+            const podaci = r.data?.data?.data ?? r.data?.data ?? r.data;
+            const stavke = podaci?.items || [];
+            memorija.set(kind, { stavke, kad: Date.now(), uTijeku: null });
+            javiSvima(kind, stavke);
+            return stavke;
+        })
+        .catch((e) => {
+            // Neuspjeh se ne pamti: sljedeće otvaranje mora smjeti pokušati
+            // ponovno, inače bi jedan ispad SAOP-a zaključao polje do osvježenja
+            // cijele stranice.
+            memorija.delete(kind);
+            throw e;
+        });
+    memorija.set(kind, { stavke: zapamceno?.stavke || [], kad: 0, uTijeku: zahtjev });
+    return zahtjev;
+};
+
 const NASLOVI = {
     cost_centers: "Mjesto troška (SAOP)",
     cost_units: "Nositelj troška (SAOP)",
@@ -30,7 +74,8 @@ const istaSifra = (a, b) => {
 };
 
 export default function SaopSifraPicker({ kind, value, onChange, label, disabled, sx }) {
-    const [stavke, setStavke] = useState([]);
+    // Zapamćeni popis se prikaže odmah, bez čekanja i bez treptaja.
+    const [stavke, setStavke] = useState(() => memorija.get(kind)?.stavke || []);
     const [ucitava, setUcitava] = useState(false);
     const [greska, setGreska] = useState(null);
 
@@ -38,11 +83,7 @@ export default function SaopSifraPicker({ kind, value, onChange, label, disabled
         setUcitava(true);
         setGreska(null);
         try {
-            const r = await api.get("/portal/backoffice/seyfor_codebook", {
-                params: { kind, ...(svjeze ? { refresh: 1 } : {}) },
-            });
-            const podaci = r.data?.data?.data ?? r.data?.data ?? r.data;
-            setStavke(podaci?.items || []);
+            setStavke(await dohvatiSifarnik(kind, svjeze));
         } catch (e) {
             setGreska(e?.response?.data?.data?.message || e.message || "Šifarnik nije dostupan");
             setStavke([]);
@@ -51,7 +92,17 @@ export default function SaopSifraPicker({ kind, value, onChange, label, disabled
         }
     }, [kind]);
 
-    useEffect(() => { dohvati(false); }, [dohvati]);
+    useEffect(() => {
+        // Osvježavanje pokrenuto s drugog polja iste vrste vrijedi i ovdje.
+        const popis = pretplatnici.get(kind) || [];
+        pretplatnici.set(kind, [...popis, setStavke]);
+        const zapamceno = memorija.get(kind);
+        const svjeze = zapamceno && !zapamceno.uTijeku && Date.now() - zapamceno.kad < TRAJANJE_MS;
+        if (!svjeze) dohvati(false);
+        return () => {
+            pretplatnici.set(kind, (pretplatnici.get(kind) || []).filter((f) => f !== setStavke));
+        };
+    }, [kind, dohvati]);
 
     // Zatečena vrijednost možda nije u popisu (stara ili pogrešna šifra). Tada
     // se i dalje prikazuje, uz napomenu — da se vidi što je upisano, umjesto da
