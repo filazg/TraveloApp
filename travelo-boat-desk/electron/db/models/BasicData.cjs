@@ -261,6 +261,13 @@ const seopRightDiscountsModel = sequelize.define('seop_right_discounts',{
     opis:{
         type:Sequelize.STRING,
         allowNull:true
+    },
+    // Naziv koji se putniku pokazuje umjesto sifre prava. Dolazi iz sifarnika
+    // popusta i vrijedi uvijek — i kad je pravo utvrdio SEOP, jer SEOP naziv
+    // ne salje. Bez ovog stupca se naziv tiho gubio pri sinkronizaciji.
+    ticket_label:{
+        type:Sequelize.STRING,
+        allowNull:true
     }
 },{
     freezeTableName:true
