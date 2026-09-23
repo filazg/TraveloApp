@@ -300,7 +300,17 @@ export default function SelectedTicketsBar() {
                           iz sadrzaja, pa svaka relacija dobije svoje i stupci
                           medu karticama ne stoje jedan ispod drugoga. Sirine se
                           zadaju jednom, u zaglavlju. */}
-                      <Table size="small" aria-label="a dense table" sx={{ tableLayout: 'fixed', width: '100%' }}>
+                      <Table
+                        size="small"
+                        aria-label="a dense table"
+                        sx={{
+                          tableLayout: 'fixed',
+                          width: '100%',
+                          // Zadani razmak od 16 px s obje strane pojede pola
+                          // uskog stupca, pa iznos vise ne stane u njega.
+                          '& td, & th': { px: 1 },
+                        }}
+                      >
                         <TableHead>
                           <TableRow>
                             {/* Naziv uzima sav preostali prostor, brojcani
@@ -310,7 +320,7 @@ export default function SelectedTicketsBar() {
                             <TableCell sx={{ width: 'auto', textAlign: 'left' }}>
                               tip karte
                             </TableCell>
-                            <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap', textAlign: 'right' }}>
+                            <TableCell align="right" sx={{ width: 56, whiteSpace: 'nowrap', textAlign: 'right' }}>
                               kol
                             </TableCell>
                             {/* Na uskom zaslonu se cijena skriva. Mora biti
@@ -319,17 +329,17 @@ export default function SelectedTicketsBar() {
                             <TableCell align="right"
                               sx={{
                                 display: { xs: 'none', sm: 'table-cell' },
-                                width: 96,
+                                width: 100,
                                 whiteSpace: 'nowrap',
                                 textAlign: 'right',
                               }}
                             >
                               cijena
                             </TableCell>
-                            <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap', textAlign: 'right' }}>
+                            <TableCell align="right" sx={{ width: 124, whiteSpace: 'nowrap', textAlign: 'right' }}>
                               iznos
                             </TableCell>
-                            <TableCell align="right" sx={{ width: 36, p: 0 }} />
+                            <TableCell align="right" sx={{ width: 34, p: 0 }} />
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -384,7 +394,7 @@ export default function SelectedTicketsBar() {
                                     {ticket.quantity}
                                   </Box>
                                 ) : (
-                                  ticket.quantity
+                                  <Box sx={{ width: '100%', textAlign: 'right' }}>{ticket.quantity}</Box>
                                 )}
                               </TableCell>
                               <TableCell align="right"
@@ -394,10 +404,14 @@ export default function SelectedTicketsBar() {
                                   textAlign: 'right',
                                 }}
                               >
-                                {Number(ticket.single_price).toFixed(2)} EUR
+                                <Box sx={{ width: '100%', textAlign: 'right' }}>
+                                  {Number(ticket.single_price).toFixed(2)} EUR
+                                </Box>
                               </TableCell>
                               <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                                {Number(ticket.total_price).toFixed(2)} EUR
+                                <Box sx={{ width: '100%', textAlign: 'right' }}>
+                                  {Number(ticket.total_price).toFixed(2)} EUR
+                                </Box>
                               </TableCell>
                               {/* Uklanjanje retka je sporedna radnja — mala
                                   ikona uz rub, da ne odvlaci od iznosa. */}
