@@ -170,17 +170,25 @@ const provjere = [
     console.log("");
     console.log("Provjera vanjskih veza — samo citanje, nista se ne salje.");
     console.log("");
-    let palo = 0;
-    for (const p of provjere) {
-        let ishod;
+
+    // Provjere idu USPOREDNO. Blokirana veza ceka do isteka timeouta, pa bi
+    // redom trajalo koliko i zbroj cekanja — ovako traje koliko najsporija.
+    const ishodi = await Promise.all(provjere.map(async (p) => {
+        const t0 = Date.now();
         try {
-            ishod = await p.izvrsi();
+            const r = await p.izvrsi();
+            return { p, ...r, ms: Date.now() - t0 };
         } catch (e) {
-            ishod = { oznaka: PAO, opis: e?.message || String(e) };
+            return { p, oznaka: PAO, opis: e?.message || String(e), ms: Date.now() - t0 };
         }
-        if (ishod.oznaka === PAO) palo += 1;
-        console.log(`${ishod.oznaka} ${p.naziv.padEnd(22)} ${ishod.opis}`);
-        console.log(`      ${p.opis}`);
+    }));
+
+    let palo = 0;
+    for (const i of ishodi) {
+        if (i.oznaka === PAO) palo += 1;
+        const trajanje = i.ms >= 1000 ? `${(i.ms / 1000).toFixed(1)}s` : `${i.ms}ms`;
+        console.log(`${i.oznaka} ${i.p.naziv.padEnd(22)} ${i.opis}`);
+        console.log(`      ${i.p.opis}  ·  ${trajanje}`);
     }
     console.log("");
     console.log(palo ? `Palo provjera: ${palo}` : "Sve veze rade.");
