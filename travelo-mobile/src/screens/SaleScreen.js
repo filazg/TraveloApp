@@ -783,12 +783,18 @@ export default function SaleScreen() {
 
     const dodajKartu = (karta) => setIslandTickets((arr) => [...arr, karta]);
 
+    // Osnovica povlaštene karte: MOSI (invalidnost) popust ide na REDOVNU cijenu,
+    // SEOP (otočna) na otočnu cijenu iz cjenika. MOSI-only linije nemaju otočnu
+    // cijenu, pa je za MOSI osnovica uvijek redovna.
+    //
+    // Izdvojeno je da prikaz i potvrda gledaju isti red cjenika: prije je prikaz
+    // računao iz otočne, a potvrda odustajala kad nje nema — pa je cijena
+    // ispadala 0,00 €, a gumb Potvrdi tiho nije radio ništa.
+    const osnovicaPovlastene = islandResult?.sustav === 'MOSI' ? redovniRed : islandPriceRow;
+
     const confirmIslandPurchase = () => {
         const smije = islandResult?.smije_se_prodati ?? islandResult?.ima_pravo;
-        // Osnovica: MOSI (invalidnost) popust ide na REDOVNU cijenu, SEOP (otočna)
-        // na otočnu cijenu iz cjenika. MOSI-only linije nemaju otočnu cijenu, pa je
-        // za MOSI osnovica uvijek redovna.
-        const baza = islandResult?.sustav === 'MOSI' ? redovniRed : islandPriceRow;
+        const baza = osnovicaPovlastene;
         if (!smije || !baza) return;
         const redovna = Number(redovniRed?.price ?? baza.price);
         const unit = cijenaPovlastene(islandResult, baza);
@@ -1516,15 +1522,24 @@ export default function SaleScreen() {
                                         </Text>
                                     </TouchableOpacity>
                                 )}
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                                    <Text style={{ marginRight: 8 }}>Cijena:</Text>
-                                    <Text style={[islandStyles.priceOld, { textDecorationLine: 'line-through' }]}>
-                                        {Number(redovniRed?.price ?? islandPriceRow?.price ?? 0).toFixed(2)} €
+                                {osnovicaPovlastene ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                                        <Text style={{ marginRight: 8 }}>Cijena:</Text>
+                                        {islandResult.primjeni_popust ? (
+                                            <Text style={[islandStyles.priceOld, { textDecorationLine: 'line-through' }]}>
+                                                {Number(osnovicaPovlastene.price).toFixed(2)} €
+                                            </Text>
+                                        ) : null}
+                                        <Text style={islandStyles.priceNew}>
+                                            {cijenaPovlastene(islandResult, osnovicaPovlastene).toFixed(2)} €
+                                        </Text>
+                                    </View>
+                                ) : (
+                                    <Text style={islandStyles.error}>
+                                        Za ovu relaciju nema otočne cijene u cjeniku — karta se ne može izdati.
+                                        Dodaj je u portalu (Plovidba → Cjenik) pa ponovi provjeru.
                                     </Text>
-                                    <Text style={islandStyles.priceNew}>
-                                        {cijenaPovlastene(islandResult, islandPriceRow).toFixed(2)} €
-                                    </Text>
-                                </View>
+                                )}
                             </View>
                         )}
 
@@ -1628,7 +1643,7 @@ export default function SaleScreen() {
                                     <Text style={islandStyles.btnPrimaryText}>{islandChecking ? 'Provjera…' : 'Provjeri pravo'}</Text>
                                 </TouchableOpacity>
                             )}
-                            {islandResult && (islandResult.smije_se_prodati ?? islandResult.ima_pravo) && (
+                            {islandResult && (islandResult.smije_se_prodati ?? islandResult.ima_pravo) && osnovicaPovlastene && (
                                 <TouchableOpacity style={islandStyles.btnPrimary} onPress={confirmIslandPurchase}>
                                     <Text style={islandStyles.btnPrimaryText}>Potvrdi</Text>
                                 </TouchableOpacity>
