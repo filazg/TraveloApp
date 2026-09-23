@@ -296,14 +296,18 @@ export default function SelectedTicketsBar() {
                     {/* Bijela unutar plave kartice — da se razrada karata
                         odvoji od stavke, a ne stopi s njom. */}
                     <TableContainer component={Paper} variant="outlined" sx={{ my: 1, px: 1.5, py: 0.5 }}>
-                      <Table size="small" aria-label="a dense table">
+                      {/* `tableLayout: fixed` — bez toga preglednik sirine racuna
+                          iz sadrzaja, pa svaka relacija dobije svoje i stupci
+                          medu karticama ne stoje jedan ispod drugoga. Sirine se
+                          zadaju jednom, u zaglavlju. */}
+                      <Table size="small" aria-label="a dense table" sx={{ tableLayout: 'fixed', width: '100%' }}>
                         <TableHead>
                           <TableRow>
                             {/* Naziv uzima sav preostali prostor, brojcani
                                 stupci imaju svoje sirine — inace se pri duzem
                                 iznosu (veca kolicina) stupci pomicu iz retka
                                 u redak. */}
-                            <TableCell sx={{ width: '100%' }}>
+                            <TableCell sx={{ width: 'auto' }}>
                               tip karte
                             </TableCell>
                             <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap' }}>
@@ -337,10 +341,10 @@ export default function SelectedTicketsBar() {
                                 },
                               }}
                             >
-                              <TableCell component="th" scope="row" sx={{ width: '100%' }}>
+                              <TableCell component="th" scope="row" sx={{ wordBreak: 'break-word' }}>
                                 {nazivKarte(ticket)}
                               </TableCell>
-                              <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap' }}>
+                              <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                                 {uredjujeSe === kljucRetka(row, ticket) ? (
                                   <TextField
                                     autoFocus
@@ -384,18 +388,17 @@ export default function SelectedTicketsBar() {
                               <TableCell align="right"
                                 sx={{
                                   display: { xs: 'none', sm: 'table-cell' },
-                                  width: 96,
                                   whiteSpace: 'nowrap',
                                 }}
                               >
                                 {Number(ticket.single_price).toFixed(2)} EUR
                               </TableCell>
-                              <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap' }}>
+                              <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                                 {Number(ticket.total_price).toFixed(2)} EUR
                               </TableCell>
                               {/* Uklanjanje retka je sporedna radnja — mala
                                   ikona uz rub, da ne odvlaci od iznosa. */}
-                              <TableCell align="right" sx={{ width: 36, p: 0 }}>
+                              <TableCell align="right" sx={{ p: 0 }}>
                                 <IconButton
                                   size="small"
                                   color="error"
@@ -416,25 +419,24 @@ export default function SelectedTicketsBar() {
                             const zbroj = zbrojPovlastenih(row);
                             return (
                               <TableRow>
-                                <TableCell component="th" scope="row" sx={{ width: '100%' }}>
+                                <TableCell component="th" scope="row" sx={{ wordBreak: 'break-word' }}>
                                   Povlaštene
                                 </TableCell>
-                                <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap' }}>
+                                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                                   {zbroj.kolicina}
                                 </TableCell>
                                 <TableCell align="right"
                                   sx={{
                                     display: { xs: 'none', sm: 'table-cell' },
-                                    width: 96,
                                     whiteSpace: 'nowrap',
                                   }}
                                 >
                                   <Typography variant="body2" color="text.secondary">—</Typography>
                                 </TableCell>
-                                <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap' }}>
+                                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                                   {zbroj.iznos.toFixed(2)} EUR
                                 </TableCell>
-                                <TableCell align="right" sx={{ width: 36, p: 0 }}>
+                                <TableCell align="right" sx={{ p: 0 }}>
                                   <IconButton
                                     size="small"
                                     color="primary"
