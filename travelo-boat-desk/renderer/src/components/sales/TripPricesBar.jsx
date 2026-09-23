@@ -169,8 +169,8 @@ export default function TripPricesBar() {
                           component={Paper}
                           variant="accent"
                           sx={{
-                            my: 1,
-                            p: 1.5,
+                            my: 0.75,
+                            p: 1,
                           }}
                         >
                           <Table size="small" aria-label="a dense table">
@@ -240,8 +240,8 @@ export default function TripPricesBar() {
                                             }
                                             sx={{
                                               gridArea: "one1",
-                                              height: 65,
-                                              fontSize: "1.5rem",
+                                              height: 48,
+                                              fontSize: "1.25rem",
                                             }}
                                           >
                                             <RemoveIcon />
@@ -262,11 +262,11 @@ export default function TripPricesBar() {
                                               }}
                                               inputProps={{
                                                 inputMode: "numeric",
-                                                style: { textAlign: "center", fontSize: "1.5rem", height: 65, padding: 0 },
+                                                style: { textAlign: "center", fontSize: "1.25rem", height: 48, padding: 0 },
                                               }}
                                               sx={{
-                                                width: 160,
-                                                "& .MuiOutlinedInput-root": { height: 65, borderRadius: 0 },
+                                                width: 130,
+                                                "& .MuiOutlinedInput-root": { height: 48, borderRadius: 0 },
                                               }}
                                             />
                                           ) : (
@@ -280,9 +280,9 @@ export default function TripPricesBar() {
                                               title="Klik za ručni unos količine"
                                               sx={{
                                                 gridArea: "one1",
-                                                height: 65,
-                                                width: 160,
-                                                fontSize: "1.5rem",
+                                                height: 48,
+                                                width: 130,
+                                                fontSize: "1.25rem",
                                               }}
                                             >
                                               {showQuantity(price)}
@@ -297,8 +297,8 @@ export default function TripPricesBar() {
                                             }
                                             sx={{
                                               gridArea: "one1",
-                                              height: 65,
-                                              fontSize: "1.5rem",
+                                              height: 48,
+                                              fontSize: "1.25rem",
                                             }}
                                           >
                                             <AddIcon />
