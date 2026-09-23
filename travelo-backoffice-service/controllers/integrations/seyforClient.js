@@ -121,7 +121,70 @@ const findCustomerByOib = async (oib) => {
     return list[0] || null;
 };
 
+// --- Sifarnici analitike (citanje) ---------------------------------------
+//
+// Mjesta troska, nositelji i referenti zive u iCenteru; kod nas se samo biraju.
+// Ne prepisuju se u nasu bazu: popisi su mali (7-27 kB) i stizu za pola
+// sekunde, pa bi vlastita kopija donijela samo jos jedan izvor istine koji zna
+// zastarjeti. Drze se kratko u memoriji, da otvaranje forme ne znaci poziv za
+// svaki pritisak tipke.
+const MEMORIJA_MS = 10 * 60 * 1000;
+const spremnik = new Map();
+
+const uNiz = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+
+// Svaki sifarnik ima svoje nazive polja, ali nama trebaju iste tri stvari:
+// sifra, opis i je li aktivan.
+const SIFARNICI = {
+    cost_centers: {
+        put: "/api/costcenters",
+        korijen: "ArrayOfCostCenter",
+        stavka: "CostCenter",
+        sifra: "CostCenterId",
+        opis: "CostCenterDescription",
+    },
+    cost_units: {
+        put: "/api/costunits",
+        korijen: "ArrayOfCostUnit",
+        stavka: "CostUnit",
+        sifra: "CostUnitId",
+        opis: "CostUnitDescription",
+    },
+    clerks: {
+        put: "/api/clerks",
+        korijen: "ArrayOfClerk",
+        stavka: "Clerk",
+        sifra: "ClerkId",
+        opis: "ClerkDescription",
+    },
+};
+
+const dohvatiSifarnik = async (vrsta, { svjeze = false } = {}) => {
+    const def = SIFARNICI[vrsta];
+    if (!def) throw new Error(`nepoznat sifarnik: ${vrsta}`);
+
+    const zapamceno = spremnik.get(vrsta);
+    if (!svjeze && zapamceno && Date.now() - zapamceno.kad < MEMORIJA_MS) {
+        return { ...zapamceno.podaci, iz_memorije: true };
+    }
+
+    const parsed = await callApi("get", def.put);
+    const stavke = uNiz(parsed?.[def.korijen]?.[def.stavka]).map((r) => ({
+        code: String(r?.[def.sifra] ?? "").trim(),
+        name: String(r?.[def.opis] ?? "").trim(),
+        // `Active` je "true"/"false" kao tekst; sve osim izricitog "false" se
+        // racuna aktivnim, da nova stavka bez tog polja ne ispadne iz popisa.
+        is_active: String(r?.Active ?? "true").toLowerCase() !== "false",
+    })).filter((r) => r.code);
+
+    const podaci = { kind: vrsta, items: stavke, fetched_at: new Date().toISOString() };
+    spremnik.set(vrsta, { kad: Date.now(), podaci });
+    return { ...podaci, iz_memorije: false };
+};
+
 module.exports = {
+    dohvatiSifarnik,
+    VRSTE_SIFARNIKA: Object.keys(SIFARNICI),
     addCustomer,
     updateCustomer,
     findCustomerByOib,

@@ -13,6 +13,7 @@ import TransferList from "../../../../helpers/TransferList";
 // za popis linija koje se uređaju zabranjuju.
 import { boatSliceData, getBoatThunk } from "../../../boat/boatSlice";
 import LogoUpload from "./LogoUpload";
+import SaopSifraPicker from "../../../../helpers/SaopSifraPicker";
 
 
 export default function BillingDevicesPage (){
@@ -621,15 +622,10 @@ export default function BillingDevicesPage (){
                             )}
                         </>
                     )}
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        label={t('backoffice.billing_devices.cost_center')}
-                        placeholder={t('backoffice.billing_devices.cost_center')}
+                    <SaopSifraPicker
+                        kind="cost_centers"
                         value={newData.cost_center || ""}
-                        onChange={handleChange}
-                        name="cost_center"
+                        onChange={(v) => handleChange({ target: { name: "cost_center", value: v } })}
                         sx={{ mt: 1 }}
                     />
                     {(newData.type === 'pc' || newData.type === 'mobile') && (

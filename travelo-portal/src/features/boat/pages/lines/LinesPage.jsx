@@ -7,6 +7,7 @@ import { setAuthData } from "../../../auth/authSlice";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../../boatSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import SaopSifraPicker from "../../../../helpers/SaopSifraPicker";
 
 
 export default function LinesPage (){
@@ -215,16 +216,13 @@ export default function LinesPage (){
                                 <MenuItem key={type.id} value={type} >{type.name}</MenuItem>
                             ))}
                     </TextField>
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        label="Nositelj troška (SAOP)"
-                        placeholder="npr. NT-9141"
+                    {/* Šifra se bira iz SAOP-a, ne upisuje: ručno upisan broj
+                        koji ondje ne postoji obori knjiženje tek kod njih. */}
+                    <SaopSifraPicker
+                        kind="cost_units"
                         value={newData.saop_cost_bearer || ""}
-                        onChange={handleChange}
-                        name="saop_cost_bearer"
-                        sx={{ mt:1 }}
+                        onChange={(v) => handleChange({ target: { name: "saop_cost_bearer", value: v } })}
+                        sx={{ mt: 1 }}
                     />
                     <Button
                         type="submit"
@@ -335,16 +333,11 @@ export default function LinesPage (){
                             mt:1
                         }}
                     />
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        label="Nositelj troška (SAOP)"
-                        placeholder="npr. NT-9141"
+                    <SaopSifraPicker
+                        kind="cost_units"
                         value={editedData?.saop_cost_bearer || ""}
-                        onChange={(e)=>setEditedData({...editedData, saop_cost_bearer: e.target.value})}
-                        name="saop_cost_bearer"
-                        sx={{ mt:1 }}
+                        onChange={(v) => setEditedData({ ...editedData, saop_cost_bearer: v })}
+                        sx={{ mt: 1 }}
                     />
 
                     {/* Povlastene kartice.

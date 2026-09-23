@@ -9,6 +9,7 @@ import { authSliceData, resetAuthData, setAuthData } from "../../../auth/authSli
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
 import TransferList from "../../../../helpers/TransferList";
+import SaopSifraPicker from "../../../../helpers/SaopSifraPicker";
 
 
 export default function UsersPage (){
@@ -403,16 +404,11 @@ export default function UsersPage (){
                         name="code"
                         sx={{ mt:1 }}
                     />
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        label="SAOP ID"
-                        placeholder="npr. 0000046"
+                    <SaopSifraPicker
+                        kind="clerks"
                         value={newData.saop_clerk_id || ""}
-                        onChange={handleChange}
-                        name="saop_clerk_id"
-                        sx={{ mt:1 }}
+                        onChange={(v) => handleChange({ target: { name: "saop_clerk_id", value: v } })}
+                        sx={{ mt: 1 }}
                     />
                     {addError && <Alert severity="error" sx={{ mt: 2 }} onClose={() => setAddError("")}>{addError}</Alert>}
                     <Button
@@ -586,16 +582,11 @@ export default function UsersPage (){
                         name="code"
                         sx={{ mt:1 }}
                     />
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        label="SAOP ID"
-                        placeholder="npr. 0000046"
+                    <SaopSifraPicker
+                        kind="clerks"
                         value={editedData?.saop_clerk_id || ""}
-                        onChange={handleChangeEdit}
-                        name="saop_clerk_id"
-                        sx={{ mt:1 }}
+                        onChange={(v) => handleChangeEdit({ target: { name: "saop_clerk_id", value: v } })}
+                        sx={{ mt: 1 }}
                     />
                     <Typography textAlign='center' fontWeight={700} sx={{mt:3}}>Moduli</Typography>
                     <TransferList
