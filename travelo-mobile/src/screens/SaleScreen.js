@@ -49,6 +49,16 @@ function SitnoPolje({ oznaka, vrijednost }) {
     );
 }
 
+// Popust na povjerenje — isti izbor kao na blagajni
+// (subsidisedHelpers.POPUSTI_POVJERENJE). Bez potvrđenog prava ne zna se koliki
+// popust pripada, ali putnik ga može imati, pa odluku donosi operater i ona se
+// bilježi kao njegova (`popust_izvor: 'povjerenje'`).
+const POPUSTI_POVJERENJE = [
+    { pct: 0, naziv: 'Puna cijena' },
+    { pct: 50, naziv: 'Popust 50 %' },
+    { pct: 100, naziv: 'Besplatno (100 %)' },
+];
+
 const RAZLOZI_GRESKE = [
     { kljuc: 'nemoguce_ocitati', naziv: 'Nemoguće očitati karticu' },
     { kljuc: 'kartica_ostecena', naziv: 'Kartica oštećena' },
@@ -155,6 +165,7 @@ export default function SaleScreen() {
     // se izdaje na povjerenje, ali djelatnik mora upisati razlog + napomenu.
     const [greskaRazlog, setGreskaRazlog] = useState(null);
     const [greskaNapomena, setGreskaNapomena] = useState('');
+    const [povjerenjePopust, setPovjerenjePopust] = useState(0);
 
     // Sve route_uuid-ovi koji pripadaju odabranom polasku — koristi se za fetch
     // svih karata polaska iz svih prodajnih kanala (validacija scope).
@@ -532,6 +543,7 @@ export default function SaleScreen() {
             setRucniSustav('SEOP');
             setGreskaRazlog(null);
             setGreskaNapomena('');
+            setPovjerenjePopust(0);
             if (akdCardAvailable) akdStopScan().catch(() => {});
             // Još jedan native hide nakon unmount-a (re-fokus na hidden scan).
             setTimeout(() => { akdHideKeyboard().catch(() => {}); }, 150);
@@ -666,10 +678,14 @@ export default function SaleScreen() {
     // pa se to mora i zapisati: `popust_izvor` razdvaja popust koji je dao SEOP
     // od onoga koji je terminal odredio sam. Bez te razlike se u Kontroli
     // poslije ne bi znalo po cemu je karta naplacena.
-    const blokPovlastice = ({ ishod, pratnja = false, uvijekProdaj = false, offline = false, redovna, cijenaRed, bezMreze = null }) => {
+    const blokPovlastice = ({ ishod, pratnja = false, uvijekProdaj = false, offline = false, redovna, cijenaRed, bezMreze = null, popustNaPovjerenje = 0 }) => {
         const lokalni = bezMreze?.primijenjen === true;
+        // Na povjerenje popust ne dolazi ni od SEOP-a ni iz sifarnika nego ga
+        // dodjeljuje operater, pa se i biljezi kao njegova odluka — u Kontroli
+        // se mora vidjeti po cemu je karta naplacena.
+        const povjerenje = uvijekProdaj && Number(popustNaPovjerenje) > 0;
         const popust = uvijekProdaj
-            ? 0
+            ? (povjerenje ? Number(popustNaPovjerenje) : 0)
             : (lokalni ? Number(bezMreze.popust_postotak) : Number(ishod?.popust_postotak || 0));
 
         return {
@@ -683,7 +699,7 @@ export default function SaleScreen() {
             pravo: ishod?.pravo_na_pp || islandCardInfo?.basicRight || null,
             otok: ishod?.otok || islandCardInfo?.islandName || null,
             popust_postotak: popust,
-            popust_izvor: popust > 0 ? (lokalni ? 'lokalni_katalog' : 'seop') : null,
+            popust_izvor: popust > 0 ? (povjerenje ? 'povjerenje' : lokalni ? 'lokalni_katalog' : 'seop') : null,
             // Namjena se uzima s reda cjenika koji se stvarno prodaje: povlastena
             // karta i karta punom cijenom nisu ista vrsta u SEOP-u.
             namjena: (cijenaRed || islandPriceRow)?.seop_type || null,
@@ -840,18 +856,29 @@ export default function SaleScreen() {
         closeIslandModal();
     };
 
+    // Osnovica karte na povjerenje: otočna cijena iz cjenika, a na MOSI-only
+    // linijama (nemaju otočnu) redovna.
+    const redPovjerenja = islandPriceRow || redovniRed;
+
+    // Cijena karte izdane na povjerenje: osnovica umanjena za popust koji je
+    // operater odabrao. Bez odabira je to puna otočna cijena.
+    const iznosPovjerenja = () => {
+        const osnovica = Number(redPovjerenja?.price || 0);
+        return +(osnovica * (1 - Number(povjerenjePopust || 0) / 100)).toFixed(2);
+    };
+
     // Izdavanje otočne bez potvrđenog prava — na povjerenje, uz obavezan razlog.
-    // Cijena je otočna iz cjenika (kao povlaštena), SEOP dojava ide s uvijekProdaj,
-    // a `greska` blok (razlog+napomena) ide u Kontrolu na portalu.
+    // Cijena je otočna iz cjenika umanjena za popust koji je operater odabrao,
+    // SEOP dojava ide s uvijekProdaj, a `greska` blok (razlog+napomena) ide u
+    // Kontrolu na portalu.
     const izdajUzRazlog = () => {
-        // MOSI-only linije nemaju otočnu cijenu — tada je osnovica redovna.
-        const red = islandPriceRow || redovniRed;
+        const red = redPovjerenja;
         if (!greskaRazlog || !red) return;
         const redovna = Number(redovniRed?.price ?? red.price);
         dodajKartu({
             ticket_type_uuid: red.ticket_type_uuid,
             ticket_type_name: red.ticket_type_name || 'Povlaštena karta',
-            single_price: Number(red.price),
+            single_price: iznosPovjerenja(),
             povlastica: {
                 ...blokPovlastice({
                     ishod: islandResult,
@@ -859,6 +886,7 @@ export default function SaleScreen() {
                     offline: islandOffline,
                     redovna,
                     cijenaRed: red,
+                    popustNaPovjerenje: povjerenjePopust,
                 }),
                 greska: { razlog: greskaRazlog, napomena: greskaNapomena.trim() || null },
             },
@@ -1625,6 +1653,34 @@ export default function SaleScreen() {
                                     onChangeText={setGreskaNapomena}
                                     multiline
                                 />
+
+                                {/* Bez potvrđenog prava ne zna se koliki popust
+                                    pripada, ali putnik ga može imati — pa odluku
+                                    donosi operater i ona se bilježi kao njegova. */}
+                                <Text style={islandStyles.popustNaslov}>Popust na povjerenje:</Text>
+                                <View style={islandStyles.razlogRed}>
+                                    {POPUSTI_POVJERENJE.map((o) => (
+                                        <TouchableOpacity
+                                            key={o.pct}
+                                            style={[islandStyles.popustBtn, povjerenjePopust === o.pct && islandStyles.popustBtnAktivan]}
+                                            onPress={() => setPovjerenjePopust(o.pct)}
+                                        >
+                                            <Text style={[islandStyles.razlogText, povjerenjePopust === o.pct && islandStyles.razlogTextAktivan]}>
+                                                {o.naziv}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                                {redPovjerenja ? (
+                                    <Text style={islandStyles.popustIznos}>
+                                        Naplaćuje se: {iznosPovjerenja().toFixed(2)} €
+                                        {povjerenjePopust > 0 ? ` (umjesto ${Number(redPovjerenja.price).toFixed(2)} €)` : ''}
+                                    </Text>
+                                ) : (
+                                    <Text style={islandStyles.error}>
+                                        Za ovu relaciju nema otočne cijene u cjeniku — karta se ne može izdati.
+                                    </Text>
+                                )}
                             </View>
                         )}
 
@@ -1653,11 +1709,15 @@ export default function SaleScreen() {
                                 dojava ide s uvijekProdaj, a razlog+napomena u Kontrolu. */}
                             {(!islandChecking && ((islandResult && !(islandResult.smije_se_prodati ?? islandResult.ima_pravo)) || islandOffline || !!islandError)) && (
                                 <TouchableOpacity
-                                    style={[islandStyles.btnPuna, !greskaRazlog && { opacity: 0.5 }]}
-                                    disabled={!greskaRazlog}
+                                    style={[islandStyles.btnPuna, (!greskaRazlog || !redPovjerenja) && { opacity: 0.5 }]}
+                                    disabled={!greskaRazlog || !redPovjerenja}
                                     onPress={izdajUzRazlog}
                                 >
-                                    <Text style={islandStyles.btnPrimaryText}>Izdaj otočnu</Text>
+                                    <Text style={islandStyles.btnPrimaryText}>
+                                        {povjerenjePopust === 100
+                                            ? 'Izdaj besplatno'
+                                            : `Izdaj otočnu — ${iznosPovjerenja().toFixed(2)} €`}
+                                    </Text>
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -1692,6 +1752,16 @@ const islandStyles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
     },
     razlogBtnAktivan: { backgroundColor: colors.error, borderColor: colors.error },
+    // Popust na povjerenje je operaterova odluka, ne greska — zato narancasto,
+    // istom bojom kojom je i gumb za izdavanje.
+    popustNaslov: { fontWeight: '800', color: colors.textPrimary, marginTop: 10, marginBottom: 6 },
+    popustBtn: {
+        flex: 1, minWidth: 0, minHeight: 46, paddingVertical: 6, paddingHorizontal: 4,
+        borderRadius: 8, borderWidth: 1, borderColor: colors.warning, backgroundColor: colors.surface,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    popustBtnAktivan: { backgroundColor: colors.warning, borderColor: colors.warning },
+    popustIznos: { fontWeight: '800', color: colors.textPrimary, marginBottom: 4 },
     razlogText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textAlign: 'center' },
     razlogTextAktivan: { color: colors.textOnPrimary },
     napomenaInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, fontSize: 14, minHeight: 44, color: colors.textPrimary, backgroundColor: colors.surface, textAlignVertical: 'top' },
