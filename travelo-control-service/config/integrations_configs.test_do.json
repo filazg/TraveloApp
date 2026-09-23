@@ -13,7 +13,7 @@
     },
     "akd": {
         "seop": {
-            "environment": "mock",
+            "environment": "test",
             "url_test": "https://seop.akd.hr:9444/PlovKarte.svc",
             "url_prod": "https://seop.akd.hr:7444/PlovKarte.svc",
             "wsdl_test": "https://seop.akd.hr:9444/PlovKarte.svc?singleWsdl",
