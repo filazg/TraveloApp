@@ -40,12 +40,14 @@ export default function SubsidisedCartModal({ stavka, onClose }) {
 
     // Naziv upisan uz pravo (Integracije → AKD → SEOP → Popusti) ima prednost
     // pred oznakom sustava, isto kao u košarici.
-    const naziv = (t) => {
+    const upisZaPravo = (t) => {
         const pravo = String(t.povlastica?.pravo || "").trim();
-        const upis = (appData.basicData?.seop_right_discounts || [])
-            .find((r) => String(r.code || "").trim() === pravo);
-        return upis?.ticket_label || t.ticket_type_name;
+        if (!pravo) return null;
+        return (appData.basicData?.seop_right_discounts || [])
+            .find((r) => String(r.code || "").trim() === pravo) || null;
     };
+
+    const naziv = (t) => upisZaPravo(t)?.ticket_label || t.ticket_type_name;
 
     const ukloni = (karta) => {
         const iskaznica = karta.povlastica?.identifikator?.vrijednost || null;
@@ -83,7 +85,7 @@ export default function SubsidisedCartModal({ stavka, onClose }) {
                         <TableRow>
                             <TableCell sx={{ fontWeight: 800 }}>Karta</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Iskaznica</TableCell>
-                            <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Pravo</TableCell>
+                            <TableCell sx={{ fontWeight: 800 }}>Pravo / naziv na karti</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Otok</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }} align="right">Popust</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }} align="right">Cijena</TableCell>
@@ -126,7 +128,33 @@ export default function SubsidisedCartModal({ stavka, onClose }) {
                                             </Typography>
                                         )}
                                     </TableCell>
-                                    <TableCell sx={{ whiteSpace: "nowrap" }}>{p.pravo || "—"}</TableCell>
+                                    {/* Naziv nije svojstvo karte nego prava: upisan je uz
+                                        bas tu sifru u sifarniku popusta. Zato stoje zajedno —
+                                        da se vidi odakle naziv dolazi i sto treba ispraviti
+                                        ako je kriv. */}
+                                    <TableCell>
+                                        <Stack spacing={0.3}>
+                                            <Typography sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                                                {p.pravo || "—"}
+                                            </Typography>
+                                            {p.pravo ? (
+                                                upisZaPravo(t)?.ticket_label ? (
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {upisZaPravo(t).ticket_label}
+                                                    </Typography>
+                                                ) : (
+                                                    <Typography variant="caption" color="warning.main">
+                                                        naziv nije upisan
+                                                    </Typography>
+                                                )
+                                            ) : null}
+                                            {upisZaPravo(t)?.opis && (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {upisZaPravo(t).opis}
+                                                </Typography>
+                                            )}
+                                        </Stack>
+                                    </TableCell>
                                     <TableCell sx={{ whiteSpace: "nowrap" }}>{p.otok || "—"}</TableCell>
                                     <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                                         {Number(p.popust_postotak) > 0 ? (
@@ -174,9 +202,12 @@ export default function SubsidisedCartModal({ stavka, onClose }) {
                 </Table>
 
                 <Box sx={{ mt: 2 }}>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                         Količina se ovdje ne mijenja: svaka karta glasi na jednu provjerenu iskaznicu.
                         Dodatna karta se izdaje kroz POVLAŠTENE KARTICE, uz novu provjeru.
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                        Naziv na karti upisuje se uz šifru prava u portalu: Integracije → AKD → SEOP → Popusti.
                     </Typography>
                 </Box>
             </DialogContent>

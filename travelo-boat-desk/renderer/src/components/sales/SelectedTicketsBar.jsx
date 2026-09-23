@@ -37,6 +37,21 @@ export default function SelectedTicketsBar() {
     // "SEOP"/"MOSI" — oznaka sustava, ne ono sto putnik kupuje. Ured sada uz
     // sifru prava upisuje naziv (Integracije -> AKD -> SEOP -> Popusti) i on
     // ima prednost; bez upisanog naziva ostaje kako je bilo.
+    // Povlastene se u kosarici pokazuju kao JEDAN redak. Prije je svaka
+    // iskaznica imala svoj, pa je kod grupe putnika kosarica narasla toliko da
+    // se obicne karte vise nisu vidjele — a razlika medu tim redcima (pravo,
+    // otok, popust) ionako se ne vidi bez razrade. Razrada je u modalu.
+    const obicneKarte = (row) => (row.ticketsData || []).filter((t) => !t.povlastica);
+    const povlasteneKarte = (row) => (row.ticketsData || []).filter((t) => t.povlastica);
+
+    const zbrojPovlastenih = (row) => povlasteneKarte(row).reduce(
+        (z, t) => ({
+            kolicina: z.kolicina + (Number(t.quantity) || 0),
+            iznos: z.iznos + (Number(t.total_price) || 0),
+        }),
+        { kolicina: 0, iznos: 0 }
+    );
+
     const nazivKarte = (ticket) => {
         const pravo = String(ticket.povlastica?.pravo || "").trim();
         if (!pravo) return ticket.ticket_type_name;
@@ -313,7 +328,7 @@ export default function SelectedTicketsBar() {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {row.ticketsData.map((ticket) => (
+                          {obicneKarte(row).map((ticket) => (
                             <TableRow
                               key={ticket.ticket_uuid}
                               sx={{
@@ -381,33 +396,62 @@ export default function SelectedTicketsBar() {
                               {/* Uklanjanje retka je sporedna radnja — mala
                                   ikona uz rub, da ne odvlaci od iznosa. */}
                               <TableCell align="right" sx={{ width: 36, p: 0 }}>
-                                {/* Kod povlastene karte brisanje cijelog retka
-                                    nije dovoljno jasno: redak je jedna iskaznica
-                                    s provjerenim pravom, a sto je tocno izdano
-                                    vidi se tek u razradi. Zato ondje stoji
-                                    pregled, a uklanjanje je u njemu. */}
-                                {ticket.povlastica ? (
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => ukloniRedak(row, ticket)}
+                                  title="Ukloni ovu vrstu karte"
+                                >
+                                  <CloseIcon fontSize="small" />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+
+                          {/* Zbirni redak povlastenih. Cijena se ne prikazuje
+                              jer se po kartama razlikuje (svaka nosi svoje
+                              pravo i popust) — jedan iznos ondje bio bi
+                              netocan, a prosjek besmislen. */}
+                          {povlasteneKarte(row).length > 0 && (() => {
+                            const zbroj = zbrojPovlastenih(row);
+                            return (
+                              <TableRow>
+                                <TableCell component="th" scope="row" sx={{ width: '100%' }}>
+                                  Povlaštene karte
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                    {povlasteneKarte(row).length === 1
+                                      ? '1 iskaznica'
+                                      : `${povlasteneKarte(row).length} iskaznica`} — klik na olovku za razradu
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right" sx={{ width: 64, whiteSpace: 'nowrap' }}>
+                                  {zbroj.kolicina}
+                                </TableCell>
+                                <TableCell align="right"
+                                  sx={{
+                                    display: { xs: 'none', sm: 'table-cell' },
+                                    width: 96,
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  <Typography variant="body2" color="text.secondary">—</Typography>
+                                </TableCell>
+                                <TableCell align="right" sx={{ width: 110, whiteSpace: 'nowrap' }}>
+                                  {zbroj.iznos.toFixed(2)} EUR
+                                </TableCell>
+                                <TableCell align="right" sx={{ width: 36, p: 0 }}>
                                   <IconButton
                                     size="small"
                                     color="primary"
                                     onClick={() => setPovlasteneZa(row)}
-                                    title="Pregled povlastenih karata"
+                                    title="Razrada povlaštenih karata"
                                   >
                                     <EditIcon fontSize="small" />
                                   </IconButton>
-                                ) : (
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => ukloniRedak(row, ticket)}
-                                    title="Ukloni ovu vrstu karte"
-                                  >
-                                    <CloseIcon fontSize="small" />
-                                  </IconButton>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })()}
 
                         </TableBody>
                       </Table>
