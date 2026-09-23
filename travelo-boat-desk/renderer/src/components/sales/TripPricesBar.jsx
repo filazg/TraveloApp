@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuid } from "uuid";
-import { allAppData, resetStateData, setStateData, updateTicketsCounter } from "../../store/appSlice";
+import { allAppData, setStateData } from "../../store/appSlice";
 import { Box, Button, ButtonGroup, Grid, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableRow, TextField } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -21,133 +21,100 @@ export default function TripPricesBar() {
     // POVLAŠTENE KARTICE modal jer zahtijevaju otočnu iskaznicu.
     const pricesToShow = appData.searchData?.selectedTripPrices?.filter((price)=> price.is_island !== true)
 
-    const showQuantity = (id) => {
-      if (appData.searchData?.ticketsCounter?.length < 1) {
-        return 0;
-      } else {
-        const quantity = appData.searchData?.ticketsCounter?.find(
-          (number) =>
-            number.data.ticket_type_uuid && number.data.ticket_type_uuid === id
-        );
-        return quantity?.quantity;
+    // Kolicina koja se prikazuje je ona koja je VEC u kosarici. Prije se
+    // brojalo u zasebnom stanju pa se gumbom prebacivalo, zbog cega je ista
+    // karta na dva mjesta znala pokazivati razlicit broj. Sada je kosarica
+    // jedini izvor istine, a +/- i rucni unos pisu ravno u nju.
+    const rutaZaPrice = (price) => {
+      const brojac = appData.searchData?.ticketsCounter?.find(
+        (c) => c.data?.ticket_type_uuid === price.ticket_type_uuid
+      );
+      return brojac?.sales_route || appData.searchData?.selectedTrip || null;
+    };
+
+    // Kosarica drzi i povlastene karte; njih se ovdje ne dira jer svaka nosi
+    // svoju iskaznicu i mijenja se kroz svoj modal.
+    const stavkaUKosarici = (price) => {
+      const ruta = rutaZaPrice(price);
+      if (!ruta?.uuid) return null;
+      return (appData.saleData?.addedTickets || []).find(
+        (t) => t.sales_route_uuid === ruta.uuid
+          && t.ticket_type_uuid === price.ticket_type_uuid
+          && !t.povlastica
+      ) || null;
+    };
+
+    const showQuantity = (price) => stavkaUKosarici(price)?.quantity || 0;
+
+    // Gornja granica je zastita od omaske u tipkanju; stvarni kapacitet polaska
+    // provjerava posluzitelj pri rezervaciji.
+    const postaviKolicinu = (price, novaKolicina) => {
+      const ruta = rutaZaPrice(price);
+      if (!ruta?.uuid) return;
+      const broj = Math.max(0, Math.min(999, parseInt(novaKolicina, 10) || 0));
+      const sve = appData.saleData?.addedTickets || [];
+      const jeIsta = (t) => t.sales_route_uuid === ruta.uuid
+        && t.ticket_type_uuid === price.ticket_type_uuid
+        && !t.povlastica;
+      const postojeca = sve.find(jeIsta);
+
+      if (broj === 0) {
+        dispatch(setStateData({ path: 'saleData/addedTickets', value: sve.filter((t) => !jeIsta(t)) }));
+        return;
       }
-    };
 
+      // Sifre karata se ne rade iznova pri svakoj promjeni: vec dodane zadrze
+      // svoju, a visak se odreze. Inace bi ispravak kolicine promijenio oznaku
+      // karte koja je blagajniku vec na ekranu.
+      const tickets = (postojeca?.tickets || []).slice(0, broj);
+      while (tickets.length < broj) tickets.push({ uuid: uuid(), code: uuid() });
 
-    const handlePlus = (e, price) => {
-      const quantity = appData.searchData?.ticketsCounter.find(
-        (number) =>
-          number.data.ticket_type_uuid &&
-          number.data.ticket_type_uuid === price.ticket_type_uuid
-      );
-      const value = quantity.quantity + 1;
-      const counter = {
-        id: price.id,
-        data: price,
-        quantity: value,
+      const stavka = {
+        ...(postojeca || {}),
+        id: postojeca?.id ?? sve.length + 1,
+        sales_route_uuid: ruta.uuid,
+        line_code: ruta.line_code,
+        line_name: ruta.line_name,
+        departure: ruta.departure,
+        departure_harbor_id: ruta.departure_harbor_id,
+        departure_harbor_name: ruta.departure_harbor_name,
+        arrival: ruta.arrival,
+        arrival_harbor_id: ruta.arrival_harbor_id,
+        arrival_harbor_name: ruta.arrival_harbor_name,
+        ticket_type_name: price.ticket_type_name,
+        ticket_type_id: price.ticket_type_id,
+        ticket_type_uuid: price.ticket_type_uuid,
+        ticket_group_uuid: postojeca?.ticket_group_uuid || uuid(),
+        single_price: price.price,
+        // Jedinicni iznosi se pamte da ih kosarica moze preračunati pri
+        // izmjeni kolicine, bez dijeljenja zbroja (koje zna odlutati u lipi).
+        unit_vat_base: price.vat_base,
+        unit_vat: price.vat_amount,
+        unit_harbor_tax: price.port_tax,
+        total_price: price.price * broj,
+        total_vat_base: price.vat_base * broj,
+        total_vat: price.vat_amount * broj,
+        total_harbor_tax: price.port_tax * broj,
+        quantity: broj,
+        tickets,
       };
-      //console.log(counter);
-      dispatch(updateTicketsCounter({ path: price.id, value: counter }));
-    };
 
-    const handleMinus = (e, price) => {
-      //console.log(price);
-      const quantity = appData.searchData?.ticketsCounter.find(
-        (number) =>
-          number.data.ticket_type_uuid &&
-          number.data.ticket_type_uuid === price.ticket_type_uuid
-      );
-      let value = quantity.quantity - 1;
-
-      if (value < 1) {
-        value = 0;
-      }
-      const counter = {
-        id: price.id,
-        data: price,
-        quantity: value,
-      };
-      dispatch(updateTicketsCounter({ path: price.id, value: counter }));
-    };
-
-    // Kolicina se upisuje kroz isti brojac koji pune + i -, da kosarica ne zna
-    // odakle je broj dosao. Gornja granica je zdravorazumska zastita od omaske
-    // u tipkanju; stvarni kapacitet polaska provjerava posluzitelj pri rezervaciji.
-    const upisiKolicinu = (price, tekst) => {
-      const broj = Math.max(0, Math.min(999, parseInt(tekst, 10) || 0));
-      const postojeci = appData.searchData?.ticketsCounter?.find(
-        (number) => number.data.ticket_type_uuid
-          && number.data.ticket_type_uuid === price.ticket_type_uuid
-      );
-      if (!postojeci) return;
-      dispatch(updateTicketsCounter({
-        path: price.id,
-        value: { id: price.id, data: price, quantity: broj },
+      dispatch(setStateData({
+        path: 'saleData/addedTickets',
+        value: postojeca ? sve.map((t) => (jeIsta(t) ? stavka : t)) : [...sve, stavka],
       }));
     };
+
+    const handlePlus = (e, price) => postaviKolicinu(price, showQuantity(price) + 1);
+    const handleMinus = (e, price) => postaviKolicinu(price, showQuantity(price) - 1);
+
+    const upisiKolicinu = (price, tekst) => postaviKolicinu(price, tekst);
 
     const zavrsiUnos = (price) => {
       upisiKolicinu(price, upisano);
       setUredjujeSe(null);
       setUpisano("");
     };
-
-    const handleAddTickets = (e) => {
-      console.log("DODAJ U KOSARICU");
-      e.preventDefault();
-      let ticketsToAdd = appData.saleData.addedTickets || [];
-      let num = 0;
-      for (const newTicketData of appData.searchData.ticketsCounter) {
-      if (newTicketData) {
-        if (newTicketData.quantity > 0) {
-          let ticketsCodes = [];
-          for (let i = 0; i < newTicketData.quantity; i++) {
-            const newCode = {
-              uuid: uuid(),
-              code: uuid(),
-            };
-            ticketsCodes = [...ticketsCodes, newCode];
-          }
-          num++;
-          console.log('NEW TICKETS', newTicketData)
-          const newTicket = {
-            id: num,
-            sales_route_uuid: newTicketData.sales_route.uuid,
-            line_code: newTicketData.sales_route.line_code,
-            line_name: newTicketData.sales_route.line_name,
-            departure: newTicketData.sales_route.departure,
-            departure_harbor_id:newTicketData.sales_route.departure_harbor_id,
-            departure_harbor_name:newTicketData.sales_route.departure_harbor_name,
-            arrival: newTicketData.sales_route.arrival,
-            arrival_harbor_id: newTicketData.sales_route.arrival_harbor_id,
-            arrival_harbor_name:newTicketData.sales_route.arrival_harbor_name,
-            ticket_type_name: newTicketData.data.ticket_type_name,
-            ticket_type_id: newTicketData.data.ticket_type_id,
-            ticket_type_uuid: newTicketData.data.ticket_type_uuid,
-            ticket_group_uuid: uuid(),
-            single_price: newTicketData.data.price,
-            total_price: newTicketData.data.price * newTicketData.quantity,
-            total_vat_base:newTicketData.data.vat_base * newTicketData.quantity,
-            total_vat: newTicketData.data.vat_amount * newTicketData.quantity,
-            total_harbor_tax:newTicketData.data.port_tax * newTicketData.quantity,
-            quantity: newTicketData.quantity,
-            tickets: ticketsCodes,
-          };
-          console.log(newTicket)
-          dispatch(resetStateData({path:'searchData/selectedTrip'}))
-          dispatch(resetStateData({path:'searchData/selectedTripPrices'}))
-          dispatch(resetStateData({path:'searchData/ticketsCounter'}))
-          ticketsToAdd = [...ticketsToAdd, newTicket];
-        }
-      }
-    }
-    dispatch(setStateData({path:'saleData/addedTickets' ,value: ticketsToAdd }));
-    }
-
-    const canSelectTickets = [
-      appData.searchData?.ticketsCounter?.find((tic)=>tic.quantity > 0)
-    ].every(Boolean)
-
 
     return (
     <>
@@ -308,7 +275,7 @@ export default function TripPricesBar() {
                                               color="primary"
                                               onClick={() => {
                                                 setUredjujeSe(price.ticket_type_uuid);
-                                                setUpisano(String(showQuantity(price.ticket_type_uuid) || ""));
+                                                setUpisano(String(showQuantity(price) || ""));
                                               }}
                                               title="Klik za ručni unos količine"
                                               sx={{
@@ -318,9 +285,7 @@ export default function TripPricesBar() {
                                                 fontSize: "1.5rem",
                                               }}
                                             >
-                                              {showQuantity(
-                                                price.ticket_type_uuid
-                                              )}
+                                              {showQuantity(price)}
                                             </Button>
                                           )}
 
@@ -355,41 +320,6 @@ export default function TripPricesBar() {
                 )}
               </Grid>
             </Grid>
-            {/* Gumb ostaje prikovan za dno stupca dok se lista tipova karata
-                skrola iznad njega — inače bi kod duljeg cjenika ispao izvan
-                vidljivog dijela i blagajnik bi ga morao tražiti skrolanjem. */}
-            {/* Traka na dnu stupca — negativne margine ponište padding panela
-                pa gumb ide od ruba do ruba, a donji kutovi prate zaobljenje
-                kartice (borderRadius 3 = 12px). */}
-            <Grid
-              sx={{
-                flexShrink: 0,
-                mx: -1,
-                mb: -1,
-                mt: 1,
-                borderTop: 1,
-                borderColor: "divider",
-              }}
-            >
-              <Button
-                variant="contained"
-                color="success"
-                disabled={!canSelectTickets}
-                sx={{
-                  width: "100%",
-                  height: 88,
-                  borderRadius: 0,
-                  borderBottomLeftRadius: 12,
-                  borderBottomRightRadius: 12,
-                  // Glavna radnja u stupcu — veći tekst od ostalih gumba.
-                  fontSize: "1.25rem",
-                }}
-                onClick={handleAddTickets}
-              >
-                DODAJ ODABRANO
-              </Button>
-            </Grid>
-
           </Grid>
         </>
       ) : (

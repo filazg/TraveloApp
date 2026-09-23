@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
+import { Box, Button, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useDispatch, useSelector } from "react-redux";
 import { allAppData, setStateData } from "../../store/appSlice";
@@ -15,6 +15,64 @@ export default function SelectedTicketsBar() {
     // registru modala, jer prozor treba znati tocno na koju je stavku
     // kliknuto — luke, vrste karata i kolicine citaju se iz nje.
     const [povratnaZa, setPovratnaZa] = useState(null);
+
+    // Rucni ispravak kolicine u kosarici: blagajnik klikne na broj i upise novi.
+    // Prije se to moglo samo u sekciji karata, pa je ispravak zahtijevao
+    // uklanjanje cijele stavke i ponovni odabir.
+    const [uredjujeSe, setUredjujeSe] = useState(null);
+    const [upisano, setUpisano] = useState("");
+
+    // Povlastena karta nosi svoju iskaznicu i pravo provjereno za tocno jednu
+    // osobu, pa joj se kolicina ovdje ne dira — mijenja se kroz svoj modal.
+    const smijeSeMijenjati = (ticket) => !ticket.povlastica;
+
+    const kljucRetka = (row, ticket) => `${row.sales_route_uuid}|${ticket.ticket_type_uuid}`;
+
+    const postaviKolicinu = (row, ticket, tekst) => {
+        const broj = Math.max(0, Math.min(999, parseInt(tekst, 10) || 0));
+        const sve = appData.saleData?.addedTickets || [];
+        const jeIsta = (t) => t.sales_route_uuid === row.sales_route_uuid
+            && t.ticket_type_uuid === ticket.ticket_type_uuid
+            && !t.povlastica;
+        const postojeca = sve.find(jeIsta);
+        if (!postojeca) return;
+
+        if (broj === 0) {
+            dispatch(setStateData({ path: 'saleData/addedTickets', value: sve.filter((t) => !jeIsta(t)) }));
+            return;
+        }
+
+        // Sifre vec dodanih karata ostaju iste, visak se odreze.
+        const tickets = (postojeca.tickets || []).slice(0, broj);
+        while (tickets.length < broj) tickets.push({ uuid: uuid(), code: uuid() });
+
+        // Jedinicni iznosi se citaju s naljepnice stavke; starije stavke ih
+        // nemaju, pa se tada izvedu iz zbroja.
+        const kol = postojeca.quantity || 1;
+        const jedVatBase = postojeca.unit_vat_base ?? (Number(postojeca.total_vat_base) || 0) / kol;
+        const jedVat = postojeca.unit_vat ?? (Number(postojeca.total_vat) || 0) / kol;
+        const jedTaksa = postojeca.unit_harbor_tax ?? (Number(postojeca.total_harbor_tax) || 0) / kol;
+
+        const stavka = {
+            ...postojeca,
+            quantity: broj,
+            tickets,
+            total_price: Number(postojeca.single_price) * broj,
+            total_vat_base: jedVatBase * broj,
+            total_vat: jedVat * broj,
+            total_harbor_tax: jedTaksa * broj,
+        };
+        dispatch(setStateData({
+            path: 'saleData/addedTickets',
+            value: sve.map((t) => (jeIsta(t) ? stavka : t)),
+        }));
+    };
+
+    const zavrsiUnos = (row, ticket) => {
+        postaviKolicinu(row, ticket, upisano);
+        setUredjujeSe(null);
+        setUpisano("");
+    };
 
     const createTicketsGroup = async () => {
       //await dispatch(setStateData({path:'status', value:'loading'}))
@@ -216,7 +274,45 @@ export default function SelectedTicketsBar() {
                                 {ticket.ticket_type_name}
                               </TableCell>
                               <TableCell align="right">
-                                {ticket.quantity}
+                                {uredjujeSe === kljucRetka(row, ticket) ? (
+                                  <TextField
+                                    autoFocus
+                                    size="small"
+                                    variant="standard"
+                                    value={upisano}
+                                    onChange={(e) => setUpisano(e.target.value.replace(/[^0-9]/g, ""))}
+                                    onFocus={(e) => e.target.select()}
+                                    onBlur={() => zavrsiUnos(row, ticket)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") { zavrsiUnos(row, ticket); }
+                                      // Escape vraca staro stanje: promasena brojka
+                                      // ne smije ostaviti stavku bez kolicine.
+                                      if (e.key === "Escape") { setUredjujeSe(null); setUpisano(""); }
+                                    }}
+                                    inputProps={{ inputMode: "numeric", style: { textAlign: "right", width: 48 } }}
+                                  />
+                                ) : smijeSeMijenjati(ticket) ? (
+                                  <Box
+                                    onClick={() => {
+                                      setUredjujeSe(kljucRetka(row, ticket));
+                                      setUpisano(String(ticket.quantity || ""));
+                                    }}
+                                    title="Klik za izmjenu kolicine"
+                                    sx={{
+                                      cursor: "pointer",
+                                      display: "inline-block",
+                                      minWidth: 32,
+                                      px: 0.5,
+                                      borderRadius: 1,
+                                      textDecoration: "underline dotted",
+                                      "&:hover": { bgcolor: "action.hover" },
+                                    }}
+                                  >
+                                    {ticket.quantity}
+                                  </Box>
+                                ) : (
+                                  ticket.quantity
+                                )}
                               </TableCell>
                               <TableCell align="right"
                                 sx={{
