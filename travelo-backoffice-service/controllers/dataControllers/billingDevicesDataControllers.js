@@ -421,6 +421,12 @@ const updateBillingDeviceController = async(req,res)=>{
 
                 const updateBillingDevice = await BillingDevicesModel.update({
                         name:data.name,
+                        // Mjesto troska (SAOP) se dosad upisivalo samo pri
+                        // dodavanju, pa se pogresna sifra nije mogla ispraviti
+                        // kroz portal — a bez ispravne sifre temeljnica tog
+                        // uredaja ne prolazi knjizenje. Kad polje ne stigne,
+                        // zadrzava se postojece (stariji klijenti ga ne salju).
+                        ...(data.cost_center !== undefined ? { cost_center: data.cost_center } : {}),
                         otp: isWeb ? null : (data.otp ?? billingDeviceExist.otp),
                         tid: isWeb ? null : (data.tid ?? billingDeviceExist.tid),
                         device_model: deviceModel,

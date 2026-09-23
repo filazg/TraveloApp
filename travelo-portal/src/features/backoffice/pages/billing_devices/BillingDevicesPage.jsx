@@ -942,18 +942,15 @@ export default function BillingDevicesPage (){
                             mt:1
                         }}
                     />
-                    <TextField
-                        type="text"
-                        variant="outlined"
-                        fullWidth
-                        disabled
-                        label={t('backoffice.billing_devices.cost_center')}
-                        placeholder={t('backoffice.billing_devices.cost_center')}
+                    {/* Mjesto troska je bilo zakljucano, pa se pogresna sifra
+                        (npr. 111, kojeg u iCenteru nema) nije mogla ispraviti
+                        bez zahvata u bazu — a bez ispravne sifre temeljnica tog
+                        uredaja ne prolazi knjizenje. */}
+                    <SaopSifraPicker
+                        kind="cost_centers"
                         value={editedData?.cost_center || ""}
-                        name="cost_center"
-                        sx={{
-                            mt:1
-                        }}
+                        onChange={(v) => handleChangeEdit({ target: { name: "cost_center", value: v } })}
+                        sx={{ mt: 1 }}
                     />
                     <TextField
                         type="text"
