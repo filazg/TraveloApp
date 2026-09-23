@@ -566,8 +566,8 @@ function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }
                                                         : "—"}
                                                 </TableCell>
                                                 <TableCell>{j.Analytics?.CostCentre || ""}</TableCell>
-                                                <TableCell>{j.Analytics?.CostBearer || ""}</TableCell>
-                                                <TableCell>{j.Analytics?.Referent || ""}</TableCell>
+                                                <TableCell>{j.Analytics?.CostUnit || ""}</TableCell>
+                                                <TableCell>{j.Analytics?.Clerk || ""}</TableCell>
                                                 <TableCell>{j.Analytics?.AdvancePeriod || ""}</TableCell>
                                                 <TableCell>{j.VATIdentificationNumber || ""}</TableCell>
                                             </TableRow>

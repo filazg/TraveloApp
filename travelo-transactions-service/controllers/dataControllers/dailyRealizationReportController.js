@@ -81,6 +81,17 @@ const fetchReferences = async () => {
     return { billingDevices, paymentMethods, users, usersByMark, accounts, mappings, company, lines };
 };
 
+// Sifre analitike iCenter drzi kao sedmeroznamenkaste, s vodecim nulama
+// (kupac 0000556, a u prvom prototipu i mjesto troska 0000016). Nasi sifarnici
+// drze isti broj bez nula ("24"), pa se dopunjuje ovdje — jednom, na izlazu
+// prema SAOP-u, umjesto da se prepisuje sifarnik i rijec "24" prestane biti
+// citljiva u portalu. Nebrojcana sifra se ne dira, prazno ostaje prazno.
+const sifraAnalitike = (v) => {
+    const s = String(v ?? "").trim();
+    if (!s) return "";
+    return /^[0-9]+$/.test(s) ? s.padStart(7, "0") : s;
+};
+
 const resolveAccount = (mappingKey, mappings, accounts) => {
     const m = mappings.get(mappingKey);
     if (!m) return null;
@@ -203,8 +214,8 @@ const buildJournalEntries = (day, bucket, refs) => {
     // Per-line revenue side
     for (const [, lineBucket] of bucket.lines) {
         const analyticsBase = {
-            CostCentre: bucket.cost_center || "",
-            CostBearer: lineBucket.saop_cost_bearer || "",
+            CostCentre: sifraAnalitike(bucket.cost_center),
+            CostUnit: sifraAnalitike(lineBucket.saop_cost_bearer),
         };
         // PDV per line
         if (accVAT && Math.abs(lineBucket.vat) > 0.005) {
@@ -300,7 +311,7 @@ const buildJournalEntries = (day, bucket, refs) => {
                 CreditAmountInDomesticCurrency: 0,
                 JournalType: "IRA",
                 ReferenceDocument: ref,
-                Analytics: { CostCentre: bucket.cost_center || "", Referent: clerkId || "" },
+                Analytics: { CostCentre: sifraAnalitike(bucket.cost_center), Clerk: sifraAnalitike(clerkId) },
             });
         }
     }
@@ -328,8 +339,8 @@ const buildJournalEntries = (day, bucket, refs) => {
             CustomerName: v.buyer_name || "",
             VATIdentificationNumber: v.buyer_oib || "",
             Analytics: {
-                CostCentre: bucket.cost_center || "",
-                Referent: v.saop_clerk_id || "",
+                CostCentre: sifraAnalitike(bucket.cost_center),
+                Clerk: sifraAnalitike(v.saop_clerk_id),
             },
         });
         if (!v.buyer_oib) {
@@ -342,8 +353,8 @@ const buildJournalEntries = (day, bucket, refs) => {
         for (const [, r] of bucket.reclassifications) {
             if (Math.abs(r.vat_base) < 0.005) continue;
             const analyticsBase = {
-                CostCentre: bucket.cost_center || "",
-                CostBearer: r.saop_cost_bearer || "",
+                CostCentre: sifraAnalitike(bucket.cost_center),
+                CostUnit: sifraAnalitike(r.saop_cost_bearer),
                 AdvancePeriod: r.src_period,
             };
             if (accPRED) {
@@ -378,8 +389,8 @@ const buildJournalEntries = (day, bucket, refs) => {
         for (const [, r] of dijeliLucku ? bucket.reclassifications : []) {
             if (Math.abs(r.harbor_tax || 0) < 0.005) continue;
             const analyticsBase = {
-                CostCentre: bucket.cost_center || "",
-                CostBearer: r.saop_cost_bearer || "",
+                CostCentre: sifraAnalitike(bucket.cost_center),
+                CostUnit: sifraAnalitike(r.saop_cost_bearer),
                 AdvancePeriod: r.src_period,
             };
             {
@@ -766,6 +777,9 @@ const sendDailyRealizationToErpController = async (req, res) => {
             date,
             cost_center: costCenter,
             message: error?.message || "Slanje u SAOP nije uspjelo.",
+            // Sirovi odgovor ide uz poruku: kad odbijenica ima vise stavki ili
+            // kad poruka ne objasni dovoljno, mora se imati sto pogledati.
+            response: error?.raw || null,
         });
     }
 };

@@ -33,8 +33,22 @@ const buildHeaders = (cfg) => ({
 
 // Odgovor iCentera je XML, a poruka o gresci zna doci i u zaglavlju
 // `x-icenter-message` — bez nje se iz samog statusa ne vidi sto je odbijeno.
+//
+// Odbijenica dolazi kao <ArrayOfError><Error><Level/><Message/></Error>…, pa se
+// vade same recenice: knjigovodi treba "Na stavci nedostaje mjesto troska…", a
+// ne cijela omotnica s namespaceovima. Sirovi odgovor ide dalje zasebno, za
+// slucaj da treba pogledati sto je tocno stiglo.
+const izvadiPoruke = (tekst) => {
+    if (typeof tekst !== "string") return [];
+    return [...tekst.matchAll(/<Message>([\s\S]*?)<\/Message>/g)]
+        .map((m) => m[1].trim())
+        .filter(Boolean);
+};
+
 const poruka = (resp) => {
     const zaglavlje = resp?.headers?.["x-icenter-message"] || "";
+    const izXmla = izvadiPoruke(resp?.data);
+    if (izXmla.length) return [zaglavlje, ...izXmla].filter(Boolean).join(" ");
     const tijelo = typeof resp?.data === "string" ? resp.data.slice(0, 500) : "";
     return [zaglavlje, tijelo].filter(Boolean).join(" | ");
 };
@@ -60,7 +74,11 @@ const addJournal = async (nalog) => {
     });
 
     if (resp.status >= 400) {
-        throw new Error(`seyfor AddJournal → ${resp.status} ${poruka(resp)}`);
+        const greska = new Error(`SAOP je odbio temeljnicu (${resp.status}): ${poruka(resp)}`);
+        greska.status = resp.status;
+        greska.raw = typeof resp.data === "string" ? resp.data.slice(0, 2000) : resp.data;
+        greska.xml = xml;
+        throw greska;
     }
     return {
         status: resp.status,
