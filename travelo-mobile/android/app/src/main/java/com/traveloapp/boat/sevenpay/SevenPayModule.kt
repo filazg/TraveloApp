@@ -1,4 +1,4 @@
-package com.travelomobile.sevenpay
+package com.traveloapp.boat.sevenpay
 
 import android.app.Activity
 import android.content.Intent

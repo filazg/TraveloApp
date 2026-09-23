@@ -63,7 +63,7 @@ src/
 ## Sunmi V2s integracije
 
 ### HW QR/barcode scanner
-Native Kotlin bridge u `android/app/src/main/java/com/travelomobile/sunmi/`:
+Native Kotlin bridge u `android/app/src/main/java/com/traveloapp/boat/sunmi/`:
 - `SunmiScannerModule.kt` registrira BroadcastReceiver na action
   `com.sunmi.scanner.ACTION_DATA_CODE_RECEIVED` i emitira event `SunmiScan` u JS
 - `SunmiScannerPackage.kt` registriran u `MainApplication.kt`

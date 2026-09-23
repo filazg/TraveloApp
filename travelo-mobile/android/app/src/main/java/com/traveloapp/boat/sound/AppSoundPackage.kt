@@ -1,13 +1,13 @@
-package com.travelomobile.sevenpay
+package com.traveloapp.boat.sound
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
-class SevenPayPackage : ReactPackage {
+class AppSoundPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-        listOf(SevenPayModule(reactContext))
+        listOf(AppSoundModule(reactContext))
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
         emptyList()

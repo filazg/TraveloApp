@@ -41,8 +41,8 @@ Play Store odbija upload s `versionCode` koji je već korišten.
 
 ## Prije objave provjeriti
 
-- `applicationId` je `hr.koris.roko` — privremeno posuđen zbog TapLinx ključa
-  registriranog za taj paket. Pod tim ID-em aplikacija ne može ići na Play
-  račun TraveloAppa; za objavu treba vlastiti TapLinx ključ i povratak na
-  `com.travelomobile`.
+- `applicationId` je `com.traveloapp.boat`, uz vlastiti TapLinx ključ
+  registriran za taj paket (`AkdCardModule.TAP_LINX_KEY`). Njih dvoje se
+  mijenjaju zajedno — paket bez pripadajućeg ključa znači da čitanje kartica
+  prestaje raditi. `namespace` je isti niz, pa se ne pamte dva imena.
 - `usesCleartextTraffic` je `true` (potreban za HTTP backend u testiranju).

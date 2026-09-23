@@ -1,13 +1,13 @@
-package com.travelomobile.akd
+package com.traveloapp.boat.auth
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
-class AkdCardPackage : ReactPackage {
+class AppAuthPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-        listOf(AkdCardModule(reactContext))
+        listOf(AppAuthModule(reactContext))
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
         emptyList()

@@ -1,4 +1,4 @@
-package com.travelomobile.auth
+package com.traveloapp.boat.auth
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.facebook.react.bridge.Promise

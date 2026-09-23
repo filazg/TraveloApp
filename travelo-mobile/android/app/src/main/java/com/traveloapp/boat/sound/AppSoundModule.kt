@@ -1,4 +1,4 @@
-package com.travelomobile.sound
+package com.traveloapp.boat.sound
 
 import android.content.Context
 import android.media.AudioManager

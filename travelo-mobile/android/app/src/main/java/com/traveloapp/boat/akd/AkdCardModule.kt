@@ -1,4 +1,4 @@
-package com.travelomobile.akd
+package com.traveloapp.boat.akd
 
 import android.app.Activity
 import android.content.Context

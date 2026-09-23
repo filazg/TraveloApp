@@ -1,4 +1,4 @@
-package com.travelomobile.sunmi
+package com.traveloapp.boat.sunmi
 
 import android.content.BroadcastReceiver
 import android.content.Context

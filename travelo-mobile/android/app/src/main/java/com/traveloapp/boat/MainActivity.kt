@@ -1,4 +1,4 @@
-package com.travelomobile
+package com.traveloapp.boat
 
 import android.content.Intent
 import android.view.KeyEvent
@@ -6,11 +6,11 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-import com.travelomobile.akd.AkdCardModule
+import com.traveloapp.boat.akd.AkdCardModule
 
 class MainActivity : ReactActivity() {
 
-    override fun getMainComponentName(): String = "TraveloMobile"
+    override fun getMainComponentName(): String = "TraveloAppBoatMobile"
 
     override fun createReactActivityDelegate(): ReactActivityDelegate =
         DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
@@ -27,7 +27,7 @@ class MainActivity : ReactActivity() {
     // CatalystInstance.destroy() + reload. Progutaj te eventove prije nego
     // ReactActivity ih proslijedi dev support handleru.
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        android.util.Log.d("TraveloMobile", "onKeyDown keyCode=$keyCode")
+        android.util.Log.d("TraveloAppBoat", "onKeyDown keyCode=$keyCode")
         if (shouldSwallowKey(keyCode)) return true
         return super.onKeyDown(keyCode, event)
     }

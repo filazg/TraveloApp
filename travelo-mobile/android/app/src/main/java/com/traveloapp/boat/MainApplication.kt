@@ -1,4 +1,4 @@
-package com.travelomobile
+package com.traveloapp.boat
 
 import android.app.Application
 import com.facebook.react.PackageList
@@ -11,11 +11,11 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
-import com.travelomobile.sunmi.SunmiScannerPackage
-import com.travelomobile.akd.AkdCardPackage
-import com.travelomobile.sound.AppSoundPackage
-import com.travelomobile.auth.AppAuthPackage
-import com.travelomobile.sevenpay.SevenPayPackage
+import com.traveloapp.boat.sunmi.SunmiScannerPackage
+import com.traveloapp.boat.akd.AkdCardPackage
+import com.traveloapp.boat.sound.AppSoundPackage
+import com.traveloapp.boat.auth.AppAuthPackage
+import com.traveloapp.boat.sevenpay.SevenPayPackage
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 
@@ -68,7 +68,7 @@ class MainApplication : Application(), ReactApplication {
                 FirebaseApp.initializeApp(this, opts)
             }
         } catch (e: Exception) {
-            android.util.Log.w("TraveloMobile", "FirebaseApp init failed: ${e.message}")
+            android.util.Log.w("TraveloAppBoat", "FirebaseApp init failed: ${e.message}")
         }
         if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
             load()

@@ -81,7 +81,10 @@ android {
         aidl true
     }
 
-    namespace "com.travelomobile"
+    // Namespace (paket Kotlin izvora, R i BuildConfig klase) namjerno je
+    // isti kao applicationId — nema razloga da se razlikuju, a razlika je
+    // dosad samo zbunjivala pri citanju stack traceova.
+    namespace "com.traveloapp.boat"
     defaultConfig {
         // Vlastiti applicationId — TapLinx ključ (AkdCardModule.TAP_LINX_KEY) je
         // registriran za com.traveloapp.boat na NXP-u (inspire.nxp.com/mifare).
