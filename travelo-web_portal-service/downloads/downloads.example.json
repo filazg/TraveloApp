@@ -15,6 +15,14 @@
       "description": "Prodaja, storno i zatvaranje smjene.",
       "category": "Upute",
       "order": 10
+    },
+    {
+      "file": "travelo-desk-signing.cer",
+      "title": "Certifikat za Travelo Boat Desk",
+      "description": "Javni certifikat kojim je potpisana blagajna. Posadi se u Pouzdane korijenske certifikacijske autoritete; preduvjet za automatsko azuriranje.",
+      "category": "Certifikat",
+      "order": 10,
+      "category_order": 15
     }
   ]
 }

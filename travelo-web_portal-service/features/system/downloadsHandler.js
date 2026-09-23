@@ -18,6 +18,10 @@ const PO_NASTAVKU = {
     '.apk': { category: 'Aplikacije', category_order: 10 },
     '.pdf': { category: 'Upute', category_order: 20 },
     '.docx': { category: 'Upute', category_order: 20 },
+    // Certifikat kojim je potpisana blagajna i skripta koja ga sadi na stroj —
+    // preduvjet za automatsko azuriranje, pa stoje odmah uz aplikacije.
+    '.cer': { category: 'Certifikat', category_order: 15 },
+    '.ps1': { category: 'Certifikat', category_order: 15 },
 };
 
 const poNastavku = (naziv) => PO_NASTAVKU[path.extname(naziv).toLowerCase()] || {};
