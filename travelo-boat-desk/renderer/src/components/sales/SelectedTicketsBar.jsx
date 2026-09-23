@@ -426,7 +426,7 @@ export default function SelectedTicketsBar() {
                                   Povlaštene
                                 </TableCell>
                                 <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                                  {zbroj.kolicina}
+                                  <Box sx={{ width: '100%', textAlign: 'right' }}>{zbroj.kolicina}</Box>
                                 </TableCell>
                                 <TableCell align="right"
                                   sx={{
@@ -435,10 +435,10 @@ export default function SelectedTicketsBar() {
                                     textAlign: 'right',
                                   }}
                                 >
-                                  <Typography variant="body2" color="text.secondary">—</Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'right' }}>—</Typography>
                                 </TableCell>
                                 <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                                  {zbroj.iznos.toFixed(2)} EUR
+                                  <Box sx={{ width: '100%', textAlign: 'right' }}>{zbroj.iznos.toFixed(2)} EUR</Box>
                                 </TableCell>
                                 <TableCell align="right" sx={{ p: 0 }}>
                                   <IconButton
