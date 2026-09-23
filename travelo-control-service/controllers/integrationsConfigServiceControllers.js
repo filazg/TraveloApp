@@ -15,6 +15,31 @@ const SEVENPAY_ENV = {
     ecr_id: "SEVENPAY_ECR_ID",
 };
 
+// SAOP (Seyfor iCenter) — isti razlog kao kod 7pay: lozinka integracijskog
+// korisnika ne pripada repou. Ostatak (URL, korisnik, organizacija, knjiga)
+// nije tajna i stoji u configu, da se ne mora postavljati na svakom stroju.
+const SEYFOR_ENV = {
+    base_url: "SEYFOR_BASE_URL",
+    username: "SEYFOR_USERNAME",
+    password: "SEYFOR_PASSWORD",
+    organisation_id: "SEYFOR_ORGANISATION_ID",
+    link_to_book: "SEYFOR_LINK_TO_BOOK",
+};
+
+const applySeyforEnv = (cfg) => {
+    const base = { ...(cfg?.seyfor || {}) };
+    let changed = false;
+    for (const [key, envName] of Object.entries(SEYFOR_ENV)) {
+        const value = process.env[envName];
+        if (value !== undefined && value !== "") {
+            base[key] = value;
+            changed = true;
+        }
+    }
+    if (!changed) return cfg;
+    return { ...cfg, seyfor: base };
+};
+
 const applySevenPayEnv = (cfg) => {
     const base = { ...(cfg?.sevenpay || {}) };
     let changed = false;
@@ -32,7 +57,7 @@ const applySevenPayEnv = (cfg) => {
 const getIntegrationsConfigController = async (req, res) => {
     try {
         const cfg = await readConfig("integrations_configs");
-        res.send({ status: 200, data: applySevenPayEnv(cfg) });
+        res.send({ status: 200, data: applySeyforEnv(applySevenPayEnv(cfg)) });
     } catch (error) {
         console.log("getIntegrationsConfigController error:", error?.message || error);
         res.status(500).send({ status: 500, error: "failed to read integrations config" });

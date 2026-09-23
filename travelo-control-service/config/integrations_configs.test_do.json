@@ -36,5 +36,13 @@
         "merchant_tax_id": "",
         "version": "2.1",
         "ecr_id": 1234
+    },
+    "seyfor": {
+        "_comment": "SAOP (Seyfor iCenter) — knjizenje temeljnica i sifarnici analitike. Lozinka NIJE u repou: postavi SEYFOR_PASSWORD u okolini posluzitelja (isti obrazac kao 7pay).",
+        "base_url": "https://seyfor.krilo.hr:8383/iCenterApi",
+        "username": "intapi",
+        "password": "",
+        "organisation_id": "2",
+        "link_to_book": "T4B TRANSPORT"
     }
 }
