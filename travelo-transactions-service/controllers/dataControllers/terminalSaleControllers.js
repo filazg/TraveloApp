@@ -287,6 +287,8 @@ const addTerminalSaleController = async(req,res)=>{
                         email: data.basic_data?.client_email || '',
                     };
                     const result = await sendInvoiceToYescor({
+                        // Modeli trebaju za PDF privitak (racun kupcu uz e-racun).
+                        models: req.app.locals.models,
                         invoice: data.invoice,
                         items: data.invoice.invoice_items || data.items || [],
                         company,

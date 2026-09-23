@@ -347,6 +347,8 @@ const finalizeWebSaleController = async (req, res) => {
             try {
                 const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
                 const result = await sendInvoiceToYescor({
+                    // Modeli trebaju za PDF privitak (racun kupcu uz e-racun).
+                    models: req.app.locals.models,
                     invoice: {
                         invoice_uuid,
                         invoice_no,

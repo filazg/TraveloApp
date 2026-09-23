@@ -124,6 +124,20 @@ ${redci.map(taxSubtotalBlock).join('')}
     </cac:TaxTotal>`;
 };
 
+// Popratni dokument uz racun (EN 16931 BG-24). Sadrzaj ide ugraden u XML kao
+// base64 — primatelj tako uz e-racun dobije i PDF, bez zasebne isporuke.
+//
+// Mjesto u dokumentu odreduje UBL sekvenca: iza zaglavlja i referenci, a prije
+// AccountingSupplierParty. Na krivom mjestu shema odbija dokument.
+const attachmentBlock = (a, index) => `
+  <cac:AdditionalDocumentReference>
+    <cbc:ID>${xmlEscape(a.id || `PRILOG-${index + 1}`)}</cbc:ID>
+    ${a.description ? tag('cbc:DocumentDescription', a.description) : ''}
+    <cac:Attachment>
+      <cbc:EmbeddedDocumentBinaryObject mimeCode="${xmlEscape(a.mime || 'application/pdf')}" filename="${xmlEscape(a.filename || 'prilog.pdf')}">${a.base64 || ''}</cbc:EmbeddedDocumentBinaryObject>
+    </cac:Attachment>
+  </cac:AdditionalDocumentReference>`;
+
 const invoiceLineBlock = (l, index) => `
     <cac:InvoiceLine>
       <cbc:ID>${index + 1}</cbc:ID>
@@ -167,6 +181,10 @@ function buildUblInvoice(data) {
     const cus = data.customer || {};
     const pay = data.payment || { means_code: '10' };
     const items = Array.isArray(data.items) ? data.items : [];
+    // Privitci (npr. PDF racuna). Bez njih se ne ispisuje nista, pa stariji
+    // pozivatelji ostaju nepromijenjeni.
+    const privitci = (Array.isArray(data.attachments) ? data.attachments : [])
+        .filter((a) => a && a.base64);
     const tot = data.totals || {};
 
     // HR CIUS 2025 extension — HRFISK20Data sadrži HR-specific tax blocks
@@ -226,7 +244,7 @@ ${hrExtension}
   <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
   ${inv.note ? `<cbc:Note>${xmlEscape(inv.note)}</cbc:Note>` : ''}
   <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
-  ${inv.buyer_reference ? `<cbc:BuyerReference>${xmlEscape(inv.buyer_reference)}</cbc:BuyerReference>` : ''}
+  ${inv.buyer_reference ? `<cbc:BuyerReference>${xmlEscape(inv.buyer_reference)}</cbc:BuyerReference>` : ''}${privitci.map(attachmentBlock).join('')}
 ${supplierBlock(sup, data.operator)}
 ${customerBlock(cus)}
     <cac:PaymentMeans>

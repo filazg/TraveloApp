@@ -1,5 +1,36 @@
 const { buildUblInvoice } = require('./yescorUblBuilder');
 const { sendInvoice } = require('./yescorClient');
+const { buildInvoicePdfBuffer } = require('../dataControllers/invoicePdfController');
+
+// Gornja granica za ugradeni PDF. Base64 napuhne sadrzaj za trecinu, a cijeli
+// dokument ide u jednom zahtjevu — predimenzionirani privitak bi srusio slanje
+// racuna, sto je gore nego racun bez privitka.
+const MAX_PRIVITAK_B = 2 * 1024 * 1024;
+
+// PDF racuna kao privitak uz e-racun. Ne rusi slanje: kad se PDF ne moze
+// napraviti (nema modela, racun jos nije u bazi, predugacak ispis), racun ide
+// bez njega i to se zabiljezi u log.
+const pripremiPdfPrivitak = async ({ models, invoice_uuid, broj }) => {
+    if (!models || !invoice_uuid) return null;
+    try {
+        const buffer = await buildInvoicePdfBuffer({ models, invoice_uuid });
+        if (!buffer || !buffer.length) return null;
+        if (buffer.length > MAX_PRIVITAK_B) {
+            console.log(`[yescor] PDF racuna ${broj} je ${buffer.length} B — preko granice, salje se bez privitka`);
+            return null;
+        }
+        return {
+            id: 'RACUN-PDF',
+            description: 'Racun u PDF obliku',
+            filename: `racun-${String(broj || invoice_uuid).replace(/[^\w.-]+/g, '_')}.pdf`,
+            mime: 'application/pdf',
+            base64: buffer.toString('base64'),
+        };
+    } catch (e) {
+        console.log('[yescor] PDF privitak nije napravljen:', e?.message || e);
+        return null;
+    }
+};
 
 // Map internal invoice + items + company + buyer → UBL data struct.
 // Zove se nakon uspješnog InvoiceModel.create u finalize flow.
@@ -13,6 +44,7 @@ const sendInvoiceToYescor = async ({
     operator,        // { mark, oib }
     buyer,           // { buyer_name, buyer_oib, buyer_address, buyer_postal_code, buyer_town, buyer_country, buyer_email }
     paymentMeans,    // '10' cash / '48' card / '30' transfer
+    models,          // sequelize modeli — trebaju za PDF privitak (neobavezno)
 }) => {
     // 1) Izračun ukupnih iznosa (neto per liniji → net total + VAT).
     // Naš model: invoice_amount = bruto ukupno; invoice_vat_base = PDV osnovica;
@@ -48,7 +80,15 @@ const sendInvoiceToYescor = async ({
             ? `${invoice.invoice_fiskal_no}/${invoice.invoice_year || iso.slice(0,4)}`
             : String(invoice.invoice_no || invoice.invoice_uuid).slice(0, 20));
 
+    // Kupac uz e-racun dobiva i PDF: UBL nosi podatke, PDF ono sto covjek cita.
+    const pdfPrivitak = await pripremiPdfPrivitak({
+        models,
+        invoice_uuid: invoice.invoice_uuid,
+        broj: invoiceNoFormatted,
+    });
+
     const ublXml = buildUblInvoice({
+        attachments: pdfPrivitak ? [pdfPrivitak] : [],
         invoice: {
             id: invoiceNoFormatted,
             issue_date: iso.slice(0, 10),
