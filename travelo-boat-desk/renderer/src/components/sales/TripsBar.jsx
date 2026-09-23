@@ -133,8 +133,8 @@ export default function TripsBar() {
               variant="accent"
               sx={{
                 width: "100%",
-                my: 1,
-                p: 1.5,
+                my: 0.75,
+                p: 1,
                 ...(jeOdabrana(departure) && {
                   borderWidth: 2,
                   borderColor: "primary.main",
@@ -166,9 +166,15 @@ export default function TripsBar() {
                   {departure.actual_arrival || departure.arrival}
                 </Typography>
               </Box>
-              <Grid alignItems="flex-end" mt={1}>
+              <Grid alignItems="flex-end" mt={0.5}>
                 <TableContainer>
-                  <Table size="small" aria-label="a dense table">
+                  {/* Zaglavlje i vrijednosti su kratki, pa im zadani razmak od
+                      6 px gore i dolje udvostrucuje visinu bez potrebe. */}
+                  <Table
+                    size="small"
+                    aria-label="a dense table"
+                    sx={{ '& td, & th': { py: 0.25, px: 0.5, lineHeight: 1.3 } }}
+                  >
                     <TableHead>
                       <TableRow>
                         <TableCell align="center">PUTNICI</TableCell>
