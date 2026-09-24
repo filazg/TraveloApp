@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { getModels } = require("../dbModels");
+const { poljaUredaja } = require("./naplatniUredaj");
 
 // Upis „greške s povlaštenom karticom" — otočna karta izdana bez potvrđenog
 // prava jer se iskaznica nije mogla očitati/provjeriti. Zove se iz prodajnih
@@ -17,7 +18,7 @@ async function zabiljeziGreskuKartice(ticket, povlastica, ctx = {}) {
             ticket_uuid: ticket.ticket_uuid || null,
             ticket_code: ticket.ticket_code || null,
             invoice_uuid: ticket.invoice_uuid || ctx.invoice_uuid || null,
-            terminal_uuid: ctx.terminal_uuid || null,
+            ...(await poljaUredaja(ctx.terminal_uuid, "terminal")),
             operator: ctx.operator || null,
             line_code: ticket.line_code || null,
             line_name: ticket.line_name || null,

@@ -21,6 +21,10 @@ module.exports = (sequelize) => {
 
             // Tko i gdje je izdao.
             terminal_uuid: { type: DataTypes.STRING, allowNull: true },
+            // Broj i naziv uredaja uz uuid — u Kontroli se uredaj trazi po
+            // onome sto blagajnik vidi na svom ekranu.
+            terminal_tid: { type: DataTypes.STRING, allowNull: true },
+            terminal_name: { type: DataTypes.STRING, allowNull: true },
             operator: { type: DataTypes.STRING, allowNull: true },
 
             // Relacija — da se u Kontroli vidi na kojoj je liniji izdana.

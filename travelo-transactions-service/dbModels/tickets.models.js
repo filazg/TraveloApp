@@ -160,6 +160,24 @@ module.exports =  (sequelize) =>{
                 type: DataTypes.STRING,
                 allowNull: true
             },
+            // Naplatni uredaj s kojeg je karta prodana. Uuid sam po sebi nikome
+            // nista ne znaci, pa uz njega stoje i broj (TID) i naziv — onako
+            // kako uredaj pise na svom ekranu i u izvjestajima. Racun uredaj
+            // nosi, ali karta ne: kad se poslije trazi s koje je blagajne
+            // izasla, trebalo je ici preko racuna, a karte iz drugih kanala
+            // (web, partner, API) racun ni nemaju.
+            billing_device_uuid:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+            billing_device_tid:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
+            billing_device_name:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             // Tko je kartu prodao kroz partnersku prodaju. Partner ima vise
             // korisnika, a obracun im razraduje promet po osobi — bez ovoga se
             // zna samo da je prodao "partner".

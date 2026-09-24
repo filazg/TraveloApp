@@ -359,6 +359,11 @@ const finalizeTerminalSaleController = async (req, res) => {
                     status: autoValidate ? "validated" : "created",
                     validate_data: autoValidate ? new Date() : null,
                     ticket_qr,
+                    // Naplatni uređaj s kojeg je prodano. Ide na svaku kartu, ne
+                    // samo na račun: karta se traži po uređaju i kad računa nema.
+                    billing_device_uuid: bd.uuid || null,
+                    billing_device_tid: bd.tid || null,
+                    billing_device_name: bd.name || null,
                     // Otočna/povlaštena karta — sve što dojava prodaje traži, u
                     // obliku u kojem je blagajna dobila od akd servisa.
                     ...poljaPovlastice(it),

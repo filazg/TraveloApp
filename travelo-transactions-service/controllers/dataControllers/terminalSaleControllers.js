@@ -7,6 +7,7 @@ const { poljaPovlastice } = require("../../helpers/povlastica");
 const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatch");
 const { zabiljeziGreskuKartice } = require("../../helpers/seopGreske");
 const { upsertKupcaUAdresar } = require("../../helpers/addressbookWriteThrough");
+const { poljaUredaja } = require("../../helpers/naplatniUredaj");
 const sequelize = getSequelize();
 
 // Terminal šalje svoje retke zajedno s lokalnim `id`-em (SQLite broji od 1 po
@@ -128,6 +129,10 @@ const addTerminalSaleController = async(req,res)=>{
                         itemDetailsToAdd = [...itemDetailsToAdd, stripLocalKeys(detail)]
                     }
                 }
+                // Broj i naziv uredaja se razrjesavaju jednom po prodaji, ne po
+                // svakoj karti — sifarnik je isti za sve karte istog racuna.
+                const uredajZaKarte = await poljaUredaja(data.invoice?.invoice_billing_device_uuid);
+
                 for(const ticket of data.tickets){
                     ticket.order_uuid = ticket.order_number,
                     ticket.single_price = ticket.ticket_single_price,
@@ -170,6 +175,11 @@ const addTerminalSaleController = async(req,res)=>{
                         Object.assign(ticket, poljaPovlastice({ povlastica: ticket.povlastica }));
                     }
                     delete ticket.povlastica;
+
+                    // Uredaj s kojeg je prodano. Blagajna ga salje na racunu, a
+                    // karta ga dosad nije nosila — pa se s koje je blagajne
+                    // karta izasla moglo saznati samo preko racuna.
+                    Object.assign(ticket, uredajZaKarte);
 
                     const zaBazu = stripLocalKeys(ticket);
                     ticketsToAdd = [...ticketsToAdd, zaBazu];

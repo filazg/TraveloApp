@@ -84,6 +84,16 @@ module.exports = (sequelize) => {
                 type: DataTypes.STRING,
                 allowNull: true,
             },
+            // Broj i naziv uredaja uz uuid: u Kontroli se uredaj trazi po
+            // onome sto blagajnik vidi na svom ekranu, ne po uuid-u.
+            terminal_tid: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            terminal_name: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
             operator: {
                 type: DataTypes.STRING,
                 allowNull: true,

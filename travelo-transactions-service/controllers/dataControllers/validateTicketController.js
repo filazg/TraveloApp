@@ -1,4 +1,5 @@
 const { podigniSignal } = require("./syncSignalsController");
+const { poljaUredaja } = require("../../helpers/naplatniUredaj");
 const { procitajSuffix, suffixIzQr } = require("../../helpers/ticketCopyMark");
 const { VRSTE } = require("../../helpers/ticketControlTypes");
 const { reportValidation, releaseBookings } = require("../../helpers/bookingClient");
@@ -55,7 +56,9 @@ const validateTicketController = async (req, res) => {
                 is_conflict,
                 conflict_reason,
                 conflict_type,
-                terminal_uuid: terminal_uuid || null,
+                // Uz uuid i broj/naziv uredaja — u Kontroli se validacija trazi
+                // po onome sto blagajnik vidi, ne po uuid-u.
+                ...(await poljaUredaja(terminal_uuid, "terminal")),
                 operator: operator || null,
                 // Polazak s kojeg je ocitano salje uredaj: posluzitelj zna kojoj
                 // voznji karta pripada, ali ne i gdje je covjek stajao.

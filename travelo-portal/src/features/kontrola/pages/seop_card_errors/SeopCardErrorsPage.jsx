@@ -179,6 +179,14 @@ export default function SeopCardErrorsPage() {
             },
         },
         { field: "napomena", headerName: "Napomena", width: 280, renderCell: (p) => p.value || "—" },
+        {
+            // Uredaj se pokazuje brojem ili nazivom; uuid ovdje nikome nista ne
+            // znaci, a zapisi ga od sada nose uz sebe.
+            field: "uredaj",
+            headerName: "Uređaj",
+            width: 150,
+            valueGetter: (_v, r) => r.terminal_tid || r.terminal_name || "—",
+        },
         { field: "operator", headerName: "Operater", width: 160, renderCell: (p) => p.value || "—" },
         { field: "ticket_code", headerName: "Broj karte", width: 150, renderCell: (p) => p.value || "—" },
     ];
