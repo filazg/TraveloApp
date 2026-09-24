@@ -1,6 +1,5 @@
 const axios = require('axios');
 const { getCoreServiceConfigData } = require('../configServices/configSyncController');
-const { dohvatiSifarnik } = require('../../handlers/basicDataHandlers');
 
 // Proxy: terminal/check_island_card → akd-service /povlastica/provjeri.
 //
@@ -45,6 +44,12 @@ const izvadiIdentifikator = (data) => {
 const opisiTerminal = async (terminalUuid) => {
     if (!terminalUuid) return null;
     try {
+        // Uvoz je namjerno ovdje, a ne na vrhu datoteke: `basicDataHandlers` vec
+        // trazi ovaj modul (zbog popusta po pravu), pa bi uvoz na vrhu zatvorio
+        // krug. Node tada jednoj strani preda nedovrsen modul i `dohvatiSifarnik`
+        // ispadne nedefiniran — zapis je zbog toga dobivao samo uuid, bez broja
+        // i naziva uredaja. U trenutku poziva su oba modula ucitana do kraja.
+        const { dohvatiSifarnik } = require('../../handlers/basicDataHandlers');
         const { billingDevicesData } = await dohvatiSifarnik();
         const uredaj = (billingDevicesData?.data?.billing_devices || [])
             .find((u) => u.uuid === terminalUuid) || null;
