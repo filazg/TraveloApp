@@ -25,6 +25,12 @@ const formatDate = (v) => {
     return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("hr-HR");
 };
 
+// Uredaj se pokazuje brojem, a ako ga nema — nazivom. Uuid se ne pokazuje:
+// blagajnik ga nigdje ne vidi, pa mu u pregledu nema sto ni raditi. Poziv koji
+// nije krenuo s uredaja (portal, pozadinska radnja) pokazuje svoj izvor.
+const oznakaUredaja = (r) =>
+    r?.terminal_tid || r?.terminal_naziv || (r?.izvor && r.izvor !== "terminal" ? r.izvor : "—");
+
 const danaUnazad = (n) => {
     const d = new Date();
     d.setDate(d.getDate() - n);
@@ -94,7 +100,7 @@ export default function AkdLogsPage() {
         const m = new Map();
         for (const l of logs) {
             if (!l.terminal_uuid) continue;
-            if (!m.has(l.terminal_uuid)) m.set(l.terminal_uuid, l.terminal_tid || l.terminal_naziv || l.terminal_uuid);
+            if (!m.has(l.terminal_uuid)) m.set(l.terminal_uuid, oznakaUredaja(l));
         }
         return [...m.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1]), "hr"));
     }, [logs]);
@@ -116,7 +122,7 @@ export default function AkdLogsPage() {
         { field: "metoda", headerName: "Metoda", width: 190, valueGetter: (v) => v || "—" },
         {
             field: "uredaj", headerName: "Uređaj", width: 170,
-            valueGetter: (_v, r) => r.terminal_tid || r.terminal_naziv || (r.izvor === "terminal" ? r.terminal_uuid : r.izvor) || "—",
+            valueGetter: (_v, r) => oznakaUredaja(r),
         },
         { field: "iskaznica", headerName: "Iskaznica", width: 130, valueGetter: (v) => v || "—" },
         { field: "line_no", headerName: "Linija", width: 80, valueGetter: (v) => v || "—" },
@@ -210,7 +216,7 @@ export default function AkdLogsPage() {
                     {detalj?.metoda || "Poziv"} — {formatDate(detalj?.createdAt)}
                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 400 }}>
                         {detalj?.sustav} · {detalj?.okolina || "?"} · HTTP {detalj?.http_status ?? "—"} · {detalj?.trajanje_ms ?? "—"} ms
-                        {detalj?.terminal_tid ? ` · uređaj ${detalj.terminal_tid}` : ""}
+                        {detalj && oznakaUredaja(detalj) !== "—" ? ` · uređaj ${oznakaUredaja(detalj)}` : ""}
                         {detalj?.iskaznica ? ` · iskaznica ${detalj.iskaznica}` : ""}
                     </Typography>
                 </DialogTitle>
