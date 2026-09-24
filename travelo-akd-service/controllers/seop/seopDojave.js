@@ -118,7 +118,7 @@ async function dojaviProdajuOPK(p) {
         <seop:lozinka>${x(postavke.lozinka)}</seop:lozinka>
       </seop:DojaviProdajuOPKEur>`;
 
-    const odgovor = await callSeop({ method: 'DojaviProdajuOPKEur', bodyXml });
+    const odgovor = await callSeop({ method: 'DojaviProdajuOPKEur', bodyXml, kontekst: p.kontekst || {} });
     return citajProdaju(odgovor, 'DojaviProdajuOPKEurResponse', 'DojaviProdajuOPKEurResult', postavke, zastitniKod);
 }
 
@@ -162,7 +162,7 @@ async function dojaviProdajuPPK(p) {
         <seop:lozinka>${x(postavke.lozinka)}</seop:lozinka>
       </seop:DojaviProdajuPPK_3Eur>`;
 
-    const odgovor = await callSeop({ method: 'DojaviProdajuPPK_3Eur', bodyXml });
+    const odgovor = await callSeop({ method: 'DojaviProdajuPPK_3Eur', bodyXml, kontekst: p.kontekst || {} });
     return citajProdaju(odgovor, 'DojaviProdajuPPK_3EurResponse', 'DojaviProdajuPPK_3EurResult', postavke, zastitniKod);
 }
 
@@ -209,7 +209,7 @@ function citajProdaju(odgovor, imeOdgovora, imeRezultata, postavke, zastitniKod)
 
 // Ista metoda za oboje: utrošak nosi vrijeme, storno ga nema. Zato i dva
 // različita stringa za potpis.
-async function dojaviCvikanje({ ipk, vremTros = null, voyageID = null, povlastena = false }) {
+async function dojaviCvikanje({ ipk, vremTros = null, voyageID = null, povlastena = false, kontekst = {} }) {
     const metoda = vremTros ? 'DojaviCvikanje' : 'Storno';
     // Storno koristi svoj prekidač (`send_storno`); cvikanje se dijeli na
     // običnu/povlaštenu po `povlastena`.
@@ -229,11 +229,11 @@ async function dojaviCvikanje({ ipk, vremTros = null, voyageID = null, povlasten
         <seop:lozinka>${x(postavke.lozinka)}</seop:lozinka>
       </seop:DojaviCvikanje>`;
 
-    const odgovor = await callSeop({ method: 'DojaviCvikanje', bodyXml });
+    const odgovor = await callSeop({ method: 'DojaviCvikanje', bodyXml, kontekst });
     return citajTrojku(odgovor, 'DojaviCvikanjeResponse', 'DojaviCvikanjeResult', postavke);
 }
 
-async function ponistiCvikanje({ ipk, povlastena = false }) {
+async function ponistiCvikanje({ ipk, povlastena = false, kontekst = {} }) {
     const { postavke, preskoci } = await pripremi('PonistiCvikanjePojedinacna', { povlastena });
     if (preskoci) return preskoci;
 
@@ -247,7 +247,7 @@ async function ponistiCvikanje({ ipk, povlastena = false }) {
         <seop:lozinka>${x(postavke.lozinka)}</seop:lozinka>
       </seop:PonistiCvikanjePojedinacna>`;
 
-    const odgovor = await callSeop({ method: 'PonistiCvikanjePojedinacna', bodyXml });
+    const odgovor = await callSeop({ method: 'PonistiCvikanjePojedinacna', bodyXml, kontekst });
     return citajTrojku(odgovor, 'PonistiCvikanjePojedinacnaResponse', 'PonistiCvikanjePojedinacnaResult', postavke);
 }
 
@@ -275,7 +275,7 @@ async function dojaviIsplovljenje(p) {
         <seop:lozinka>${x(postavke.lozinka)}</seop:lozinka>
       </seop:DojaviIsplovljenje>`;
 
-    const odgovor = await callSeop({ method: 'DojaviIsplovljenje', bodyXml });
+    const odgovor = await callSeop({ method: 'DojaviIsplovljenje', bodyXml, kontekst: p.kontekst || {} });
     return citajTrojku(odgovor, 'DojaviIsplovljenjeResponse', 'DojaviIsplovljenjeResult', postavke);
 }
 

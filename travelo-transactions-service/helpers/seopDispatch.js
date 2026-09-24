@@ -27,6 +27,23 @@ async function pozovi(putanja, tijelo) {
     return r.data?.data ?? r.data ?? {};
 }
 
+// Podaci za zapis poziva (Sistem → AKD log). Dojavu šalje poslužitelj, ali
+// uvijek za konkretnu kartu — pa se uz nju bilježi i s kojeg je uređaja karta
+// prodana, koja je iskaznica na njoj i na kojoj je liniji. Bez toga se u logu
+// vidi samo da je „nešto" dojavljeno.
+const kontekstKarte = (t) => ({
+    terminal_uuid: t?.billing_device_uuid || null,
+    terminal_tid: t?.billing_device_tid || null,
+    terminal_naziv: t?.billing_device_name || null,
+    izvor: "servis",
+    iskaznica: t?.seop_card_no || null,
+    id_vrsta: t?.seop_id_vrsta || null,
+    line_no: t?.line_code || null,
+    relacija: t?.departure_harbor_id && t?.arrival_harbor_id
+        ? `${t.departure_harbor_id} - ${t.arrival_harbor_id}`
+        : null,
+});
+
 // Otočna/povlaštena karta ide kroz PPK, sve ostalo kroz OPK.
 const jePovlastena = (t) => t?.seop_sustav === "SEOP" || !!t?.seop_card_no;
 
@@ -62,6 +79,7 @@ async function dispatchProdaja(TicketsModel, t, ctx = {}) {
         oznPristupTocke: ctx.oznPristupTocke || "",
         visestruka: false,
         masa: null,
+        kontekst: kontekstKarte(t),
     };
 
     try {
@@ -102,6 +120,7 @@ async function dispatchCvikanje(TicketsModel, t, { vremTros, voyageID } = {}) {
             vremTros: vremTros || new Date().toISOString(),
             voyageID: voyageID || t.departure_uuid || t.voyage_id || null,
             povlastena: jePovlastena(t),
+            kontekst: kontekstKarte(t),
         });
         if (odgovor?.preskoceno) { zapisi("cvikanje isključeno prekidačem:", t.ticket_code); return; }
         if (odgovor?.ok && odgovor.transakcija) {
@@ -135,7 +154,7 @@ async function dispatchPonistenje(TicketsModel, t) {
     const g = smijeRadnju(t, "ponistenje");
     if (!g.smije) { zapisi("poništenje preskočeno:", t.ticket_code, "-", g.razlog); return; }
     try {
-        const odgovor = await pozovi("/seop/ponisti-cvikanje", { ipk: t.seop_ipk, povlastena: jePovlastena(t) });
+        const odgovor = await pozovi("/seop/ponisti-cvikanje", { ipk: t.seop_ipk, povlastena: jePovlastena(t), kontekst: kontekstKarte(t) });
         if (odgovor?.preskoceno) { zapisi("poništenje isključeno prekidačem:", t.ticket_code); return; }
         if (odgovor?.ok) {
             // Pravo vraćeno — karta opet samo „prodano".

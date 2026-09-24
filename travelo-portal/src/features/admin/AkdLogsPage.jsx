@@ -57,6 +57,9 @@ export default function AkdLogsPage() {
     const [iskaznica, setIskaznica] = useState("");
     const [samo, setSamo] = useState("");
     const [sustav, setSustav] = useState("");
+    // Metoda se bira iz onoga sto je u dohvacenim zapisima — popis metoda ovisi
+    // o tome sto se stvarno zvalo, a ne o tome sto SEOP nudi.
+    const [metoda, setMetoda] = useState("");
     // Uređaj se bira iz onoga što je u dohvaćenim zapisima — popis naplatnih
     // uređaja ovdje nije potreban, a zanimaju samo oni koji su AKD i zvali.
     const [terminal, setTerminal] = useState("");
@@ -86,8 +89,15 @@ export default function AkdLogsPage() {
     // Filtri koji suzuju sam upit idu na poslužitelj; uređaj se bira nad već
     // dohvaćenim zapisima jer se popis uređaja iz njih i izvodi.
     const trazi = useCallback(() => {
-        load({ from, to, iskaznica: iskaznica.trim() || undefined, samo: samo || undefined, sustav: sustav || undefined, limit: 1000 });
-    }, [load, from, to, iskaznica, samo, sustav]);
+        load({
+            from, to,
+            iskaznica: iskaznica.trim() || undefined,
+            samo: samo || undefined,
+            sustav: sustav || undefined,
+            metoda: metoda || undefined,
+            limit: 1000,
+        });
+    }, [load, from, to, iskaznica, samo, sustav, metoda]);
 
     // Prvi dohvat ide sa zadanim rasponom, ne kroz `trazi` — inace bi se popis
     // osvjezavao na svaku promjenu filtra, pa i usred tipkanja broja iskaznice.
@@ -95,6 +105,11 @@ export default function AkdLogsPage() {
         if (username !== ADMIN_USER) return;
         load({ from: danaUnazad(7), to: new Date().toISOString().slice(0, 10), limit: 1000 });
     }, [username, load]);
+
+    const metode = useMemo(
+        () => [...new Set(logs.map((l) => l.metoda).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+        [logs]
+    );
 
     const uredaji = useMemo(() => {
         const m = new Map();
@@ -166,6 +181,16 @@ export default function AkdLogsPage() {
                         <MenuItem value="">Svi pozivi</MenuItem>
                         <MenuItem value="greske">Samo greške</MenuItem>
                         <MenuItem value="poruke">S porukom AKD-a</MenuItem>
+                    </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ minWidth: 190 }}>
+                    <InputLabel id="f-metoda">Metoda</InputLabel>
+                    <Select labelId="f-metoda" label="Metoda" value={metoda} onChange={(e) => setMetoda(e.target.value)}>
+                        <MenuItem value="">Sve metode</MenuItem>
+                        {metode.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                        {/* Odabrana metoda mora ostati vidljiva i kad je nova
+                            pretraga vise ne vraca — inace polje ispadne prazno. */}
+                        {metoda && !metode.includes(metoda) && <MenuItem value={metoda}>{metoda}</MenuItem>}
                     </Select>
                 </FormControl>
                 <FormControl size="small" sx={{ minWidth: 120 }}>
