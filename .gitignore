@@ -43,3 +43,11 @@ old/
 
 # jednokratne backfill skripte za nazive luka — ne u repo
 **/backfill_harbor_names.js
+
+# Certifikati. `.p12` nosi privatni kljuc i nema sto traziti u repou — na
+# posluzitelj se dize zasebno (portal: Integracije → AKD → SEOP). `kapetan-luka.p12`
+# je u povijesti od prije ovog pravila i zato je izuzet; ne dodavati nove.
+*.p12
+*.pfx
+*.key
+!travelo-akd-service/cert/kapetan-luka.p12
