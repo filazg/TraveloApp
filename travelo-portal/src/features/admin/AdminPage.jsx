@@ -2,6 +2,7 @@ import { Alert, Box, Card, CardActionArea, Stack, Typography } from "@mui/materi
 import DevicesIcon from "@mui/icons-material/Devices";
 import LoginIcon from "@mui/icons-material/Login";
 import DevicesOtherIcon from "@mui/icons-material/DevicesOther";
+import CreditCardIcon from "@mui/icons-material/CreditCard";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { authSliceData } from "../auth/authSlice";
@@ -96,6 +97,12 @@ export default function AdminPage() {
             subtitle: "Zadnje stanje po uređaju — verzija i spajanje",
             icon: DevicesOtherIcon,
             path: "/admin/devices",
+        },
+        {
+            title: "AKD log",
+            subtitle: "Pozivi prema SEOP-u i MOSI-ju s odgovorima",
+            icon: CreditCardIcon,
+            path: "/admin/akd_logs",
         },
     ];
 

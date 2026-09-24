@@ -185,5 +185,8 @@ const ocistiMemorijuSifarnika = () => {
 
 module.exports = {
     getTerminalBasicDataHandler,
-    ocistiMemorijuSifarnika
+    ocistiMemorijuSifarnika,
+    // Sifarnik uredaja treba i AKD zapis (broj i naziv blagajne uz poziv), pa
+    // se dijeli umjesto da se isti podaci dohvacaju drugi put.
+    dohvatiSifarnik
 }

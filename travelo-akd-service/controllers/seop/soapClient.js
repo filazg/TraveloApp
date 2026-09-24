@@ -5,6 +5,7 @@ const path = require('path');
 const { URL } = require('url');
 const { XMLParser } = require('fast-xml-parser');
 const { getIntegrationsConfigData } = require('../configSyncController');
+const { zapisiPoziv, kontekstZapisa } = require('../../helpers/akdLog');
 const { loadP12 } = require('./seopCrypto');
 const { dohvatiPostavke } = require('./seopSettings');
 
@@ -26,7 +27,10 @@ const razrijesiPutanju = (ime) => {
 // "SEOP.AKD/IServiceName/MetodName" — točan namespace WSDL definira; mi
 // koristimo "SEOP.AKD/" + metoda jer je u dosadašnjim primjerima radilo s
 // targetNamespace="SEOP.AKD".
-async function callSeop({ method, bodyXml, soapAction }) {
+// `kontekst` nosi tko je poziv izazvao i na koju se iskaznicu odnosi. SOAP sloj
+// to ne zna sam, a bez toga zapis u logu ne bi imalo po cemu filtrirati.
+async function callSeop({ method, bodyXml, soapAction, kontekst = {} }) {
+    const zapoceto = Date.now();
     const cfg = getIntegrationsConfigData()?.akd?.seop || {};
     // Okolina, certifikat i lozinke dolaze iz postavki koje ured uređuje u
     // portalu; iz datoteke ostaju samo URL-ovi, koje AKD ne mijenja.
@@ -86,6 +90,47 @@ async function callSeop({ method, bodyXml, soapAction }) {
         }
     }
 
+    // Poslovni ishod SEOP-a NIJE greska prijenosa: „Iskaznica nije pronadena
+    // (MXRF1)" stigne kao uredan HTTP 200 bez Faulta. Da se u logu moze naci
+    // zasto putniku pravo nije priznato, poruka se izvlaci i onda kad je poziv
+    // tehnicki prosao.
+    //
+    // Cita se opcenito, bez znanja o metodi: pod Body stoji jedan <…Response>,
+    // a u njemu jedan <…Result> s poljem Poruka. Sifra ishoda je sufiks te
+    // poruke u zagradi (TR5KM, SXVC3, MXRF1).
+    const poslovniIshod = (parsed) => {
+        try {
+            const body = parsed?.Envelope?.Body;
+            if (!body) return null;
+            const odgovor = Object.keys(body).find((k) => k.endsWith('Response'));
+            if (!odgovor) return null;
+            const rezultat = body[odgovor];
+            const kljuc = Object.keys(rezultat || {}).find((k) => k.endsWith('Result'));
+            const r = kljuc ? rezultat[kljuc] : null;
+            const poruka = r && (r.Poruka ?? r.m_Item6);
+            if (!poruka) return null;
+            const tekst = String(typeof poruka === 'object' ? (poruka['#text'] ?? '') : poruka).trim();
+            if (!tekst) return null;
+            const m = tekst.match(/\(([A-Z0-9]{3,8})\)\s*$/);
+            return { opis: tekst, kod: m ? m[1] : null };
+        } catch (e) {
+            return null;
+        }
+    };
+
+    // Sve sto se dalje dogodi — uredan odgovor, SOAP Fault ili prekid veze —
+    // zavrsi u logu. Zapis ide iz jedne tocke jer kroz nju prolaze SVI pozivi
+    // prema SEOP-u (provjere, dojave, test veze).
+    const zapisi = (dodatno) => zapisiPoziv({
+        sustav: 'SEOP',
+        metoda: method,
+        okolina: env,
+        trajanje_ms: Date.now() - zapoceto,
+        zahtjev: envelope,
+        ...kontekstZapisa(kontekst),
+        ...dodatno,
+    });
+
     return await new Promise((resolve, reject) => {
         const req = https.request(opts, (resp) => {
             const chunks = [];
@@ -121,10 +166,25 @@ async function callSeop({ method, bodyXml, soapAction }) {
                 } catch (e) {
                     // body nije XML — vratit ćemo raw
                 }
+                // Fault je greska i kad stigne s HTTP 200; obratno, HTTP 500
+                // bez Faulta je i dalje neuspjeh. Zato se `ok` izvodi iz oboje.
+                const ishod = fault ? null : poslovniIshod(parsed);
+                zapisi({
+                    ok: !fault && resp.statusCode >= 200 && resp.statusCode < 300,
+                    http_status: resp.statusCode,
+                    greska_kod: fault ? (fault.seop_kod ?? fault.code ?? null) : (ishod?.kod || null),
+                    greska_opis: fault ? (fault.seop_opis || fault.reason || null) : (ishod?.opis || null),
+                    odgovor: body,
+                });
                 resolve({ httpStatus: resp.statusCode, headers: resp.headers, body, parsed, fault, soapAction: action });
             });
         });
-        req.on('error', reject);
+        req.on('error', (e) => {
+            // Prekinuta veza je najcesci kvar i nigdje ne ostavlja trag osim
+            // ovdje — AKD u tom slucaju nije ni odgovorio.
+            zapisi({ ok: false, greska_kod: e?.code || 'VEZA', greska_opis: e?.message || String(e) });
+            reject(e);
+        });
         req.write(envelope);
         req.end();
     });

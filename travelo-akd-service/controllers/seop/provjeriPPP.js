@@ -111,6 +111,8 @@ async function provjeriPPP({
     oznLuke2,
     brLinije,
     datPut,
+    // Tko je provjeru izazvao — ide samo u zapis poziva, na sam upit ne utjece.
+    kontekst = {},
 }) {
     if (!oznLuke1 || !oznLuke2 || !brLinije || !datPut) {
         throw new Error('ProvjeriPPP: nedostaje oznLuke1/oznLuke2/brLinije/datPut');
@@ -142,7 +144,7 @@ async function provjeriPPP({
         <seop:datPut>${fmtSeopDate(datPut)}</seop:datPut>
       </seop:ProvjeriPPP>`;
 
-    const resp = await callSeop({ method: 'ProvjeriPPP', bodyXml });
+    const resp = await callSeop({ method: 'ProvjeriPPP', bodyXml, kontekst });
     return interpretResponse(resp);
 }
 

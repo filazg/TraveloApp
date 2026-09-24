@@ -4,7 +4,11 @@ const { cancelTicketsController } = require('../../controllers/coreServiceContro
 const handleCheckIslandCardFeature = async (req, res) => {
     try {
         const payload = req.body?.body || req.body || {};
-        const { status, body } = await checkIslandCardController(payload);
+        // Uredaj je poznat samo ovdje: gateway u zaglavlje stavi sadrzaj tokena,
+        // a uredaj svoj uuid ne salje u tijelu. Bez toga se u AKD logu ne bi
+        // znalo s koje je blagajne provjera krenula.
+        const terminalUuid = req.body?.header?.data?.t || null;
+        const { status, body } = await checkIslandCardController({ ...payload, terminal_uuid: terminalUuid });
         res.status(status).send(body);
     } catch (error) {
         console.log('handleCheckIslandCardFeature error:', error?.message || error);

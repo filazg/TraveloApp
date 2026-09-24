@@ -62,7 +62,7 @@ const {
 const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
 const { handleGetDownloadsFeature, handleDownloadFileFeature } = require('../features/system/downloadsHandler');
 const { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete, handleDeskUpdaterActivate } = require('../features/system/deskUpdaterHandlers');
-const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature } = require('../features/system/adminLogsHandlers');
+const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature } = require('../features/system/adminLogsHandlers');
 const router = express.Router();
 
 //BACKOFFICE ROUTES
@@ -535,5 +535,9 @@ router
 router
     .route('/admin/device_connections')
     .post(handleGetDeviceConnectionsFeature)
+
+router
+    .route('/admin/akd_logs')
+    .post(handleGetAkdLogsFeature)
 
 module.exports = router

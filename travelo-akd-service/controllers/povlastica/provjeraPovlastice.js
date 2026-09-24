@@ -90,7 +90,7 @@ async function provjeriPovlasticu(ulaz = {}) {
 
     const ishod = sustav === "MOSI"
         ? await provjeriMosi({ ulaz, pravila })
-        : await provjeriSeop({ vrsta, vrijednost, ruta, datum, pravila });
+        : await provjeriSeop({ vrsta, vrijednost, ruta, datum, pravila, inicijator: ulaz.inicijator });
 
     const odgovor = { ...zajednicko, ...ishod };
 
@@ -123,7 +123,7 @@ async function provjeriPovlasticu(ulaz = {}) {
     return odgovor;
 }
 
-async function provjeriSeop({ vrsta, vrijednost, ruta, datum, pravila }) {
+async function provjeriSeop({ vrsta, vrijednost, ruta, datum, pravila, inicijator = null }) {
     if (pravila.seop_mode === "ne" || !pravila.nadena) {
         return odbij(
             pravila.nadena
@@ -139,6 +139,15 @@ async function provjeriSeop({ vrsta, vrijednost, ruta, datum, pravila }) {
         oznLuke2: ruta.arrival_harbor_code,
         brLinije: String(ruta.line_no),
         datPut: datum,
+        // Zapis poziva (Sistem -> AKD log) treba znati tko je pitao i za koga:
+        // bez toga se poslije ne moze naci provjera po iskaznici ni po uredaju.
+        kontekst: {
+            ...(inicijator || {}),
+            iskaznica: vrijednost,
+            id_vrsta: vrsta,
+            line_no: String(ruta.line_no),
+            relacija: `${ruta.departure_harbor_code} - ${ruta.arrival_harbor_code}`,
+        },
     });
 
     const pravo = sirovo.pravo_na_pp || null;

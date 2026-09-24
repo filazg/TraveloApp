@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { getCoreServiceConfigData } = require('../configServices/configSyncController');
+const { dohvatiSifarnik } = require('../../handlers/basicDataHandlers');
 
 // Proxy: terminal/check_island_card → akd-service /povlastica/provjeri.
 //
@@ -39,6 +40,26 @@ const izvadiIdentifikator = (data) => {
     return null;
 };
 
+// Uredaj se opisuje brojem i nazivom, ne samo uuid-om: u logu se trazi po
+// onome sto blagajnik vidi na svom ekranu.
+const opisiTerminal = async (terminalUuid) => {
+    if (!terminalUuid) return null;
+    try {
+        const { billingDevicesData } = await dohvatiSifarnik();
+        const uredaj = (billingDevicesData?.data?.billing_devices || [])
+            .find((u) => u.uuid === terminalUuid) || null;
+        return {
+            terminal_uuid: terminalUuid,
+            terminal_tid: uredaj?.tid || null,
+            terminal_naziv: uredaj?.name || uredaj?.device_name || null,
+            izvor: 'terminal',
+        };
+    } catch (e) {
+        // Sifarnik nije dostupan — uuid je i dalje bolji od nicega.
+        return { terminal_uuid: terminalUuid, izvor: 'terminal' };
+    }
+};
+
 const checkIslandCardController = async (data) => {
     try {
         const identifikator = izvadiIdentifikator(data);
@@ -64,6 +85,10 @@ const checkIslandCardController = async (data) => {
             },
             datum: data?.date || new Date().toISOString(),
             kartica: data?.kartica || null,
+            // Tko pita — ide samo u zapis poziva (Sistem -> AKD log). TID i
+            // naziv se dodaju ovdje jer sifarnik uredaja ionako stoji u
+            // memoriji ovog servisa; inace bi ih portal morao naknadno traziti.
+            inicijator: await opisiTerminal(data?.terminal_uuid),
         }, { timeout: 12000, validateStatus: () => true });
         return { status: response.status, body: response.data };
     } catch (error) {

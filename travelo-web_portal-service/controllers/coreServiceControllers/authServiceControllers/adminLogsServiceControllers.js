@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { getMainServiceConfigData } = require('../../configServices/configSyncController');
+const { getMainServiceConfigData, getCoreServiceConfigData } = require('../../configServices/configSyncController');
 
 // auth-service je u main_services (port 5200). Read endpointi su interni
 // (server-to-server); pristup na razini korisnika ograničava BFF handler.
@@ -24,4 +24,15 @@ const getDeviceConnectionsController = async () => {
     return resp.data; // { devices: [...] }
 };
 
-module.exports = { getLoginLogsController, getDeviceConnectionsController };
+// AKD log stoji u boat servisu, uz ostale SEOP postavke — akd servis nema svoju
+// bazu. Filtri se prosljeduju kakvi jesu; njih tumaci boat.
+const getAkdLogsController = async (params = {}) => {
+    const core = getCoreServiceConfigData();
+    const resp = await axios.get(core.services.boat.url + '/akd_logs', {
+        params,
+        timeout: AUTH_TIMEOUT_MS,
+    });
+    return resp.data?.data || {};
+};
+
+module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController };

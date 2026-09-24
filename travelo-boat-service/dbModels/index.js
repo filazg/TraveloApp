@@ -12,6 +12,7 @@ const timetablesPricesModelsFactory = require("./timetablesPrices.models");
 const ticketTemplatesModelsFactory = require("./ticketTemplates.models");
 const seopSettingsModelsFactory = require("./seopSettings.models");
 const seopRightDiscountsModelsFactory = require("./seopRightDiscounts.models");
+const akdLogsModelsFactory = require("./akdLogs.models");
 const mosiSettingsModelsFactory = require("./mosiSettings.models");
 
 let models = null;
@@ -33,6 +34,7 @@ function initModels() {
       ...ticketTemplatesModelsFactory(sequelize),
       ...seopSettingsModelsFactory(sequelize),
       ...seopRightDiscountsModelsFactory(sequelize),
+      ...akdLogsModelsFactory(sequelize),
       ...mosiSettingsModelsFactory(sequelize)
     };
   }

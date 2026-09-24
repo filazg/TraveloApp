@@ -11,6 +11,7 @@ const { getSailingsController, getSailingDetailsController, startSailingControll
 const { listTicketTemplatesController, getTicketTemplateController, upsertTicketTemplateController } = require('../controllers/dataControllers/ticketTemplatesControllers');
 const { getSeopSettingsController, getSeopSettingsInternalController, updateSeopSettingsController, setSeopCertController } = require('../controllers/dataControllers/seopSettingsControllers');
 const { getSeopRightDiscountsController, updateSeopRightDiscountsController } = require('../controllers/dataControllers/seopRightDiscountsControllers');
+const { createAkdLogController, listAkdLogsController } = require('../controllers/dataControllers/akdLogsControllers');
 const { getMosiSettingsController, getMosiSettingsInternalController, updateMosiSettingsController, setMosiCertController } = require('../controllers/dataControllers/mosiSettingsControllers');
 const router = express.Router();
 
@@ -44,6 +45,12 @@ router
 // Popusti po pravu na povlasteni prijevoz — koriste se kad se SEOP ne moze
 // pitati (blagajna/mobilna bez mreze). Portal ih ureduje, akd servis ih cita i
 // prosljeduje uredajima uz katalog prava.
+// Zapis poziva prema AKD-u. Upisuje akd servis, cita portal (Sistem -> AKD log).
+router
+    .route('/akd_logs')
+    .get(listAkdLogsController)
+    .post(createAkdLogController)
+
 router
     .route('/seop_right_discounts')
     .get(getSeopRightDiscountsController)
