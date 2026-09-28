@@ -69,6 +69,14 @@ const systemSettingsDataModel = sequelize.define('system_settings',{
         allowNull:true,
         defaultValue: DEFAULTS.printer_cut
     },
+    // Slobodno storniranje: ukljuceno znaci da se storno ne veze uz vrijeme
+    // polaska. Iskljuceno (zadano) — storno je moguc do isteka roka nakon
+    // polaska (ROK_NAKON_POLASKA_MIN u invoiceDataService).
+    free_storno:{
+        type: Sequelize.BOOLEAN,
+        allowNull:true,
+        defaultValue: false
+    },
     // Početak numeracije pri preseljenju blagajne na drugo računalo. Brojevi se
     // inače izvode iz MAX-a u lokalnoj tablici računa, a ta je na novom
     // računalu prazna — numeracija bi krenula od 1 i ponovila već izdane

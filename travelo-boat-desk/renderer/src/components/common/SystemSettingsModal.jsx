@@ -415,6 +415,38 @@ export default function SystemSettingsModal() {
                     }
                     labelPlacement="start"
                 />
+                <FormControlLabel
+                    sx={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    ml: 0,
+                    }}
+                    control={
+                    <Switch
+                        checked={settingsData?.free_storno === true}
+                        onChange={(e) =>
+                        setNewSettingsData((prev) => ({
+                            ...prev,
+                            free_storno: e.target.checked,
+                        }))
+                        }
+                    />
+                    }
+                    label={
+                    <Box>
+                        <Typography>
+                            Slobodno storniranje
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            {settingsData?.free_storno === true
+                                ? "Storno nije vezan uz vrijeme polaska."
+                                : "Storno je moguć do 30 min nakon polaska."}
+                        </Typography>
+                    </Box>
+                    }
+                    labelPlacement="start"
+                />
                 </Box>
 
             {/* Numeracija se izvodi iz najvećeg broja u lokalnoj tablici računa.

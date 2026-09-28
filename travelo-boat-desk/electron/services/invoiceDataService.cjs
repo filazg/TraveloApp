@@ -11,6 +11,7 @@ const { invoicesModel, invoiceTransportItemsModel } = require("../db/models/Invo
 const { ticketsGroupsModel, ticketsModel } = require("../db/models/TicketsData.cjs");
 const { invoicePrintHelper, cancelInvoicePrint, copyInvoicePrint, copyAllTickets } = require("../helpers/printHelpers/invoicePrintHelper.cjs");
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs");
+const { salesRoutesDataModel } = require("../db/models/TransportData.cjs");
 const { ticketCopyPrintsModel } = require("../db/models/TicketCopyPrints.cjs");
 
 
@@ -481,6 +482,10 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData, storno
     if (['canceled', 'canceled-orginal', 'canceled-partial'].includes(invoiceData.invoice_status)) {
       console.log('cancelInvoiceService: račun je već storniran —', invoiceData.invoice_status)
       return { ok: false, error: { message: 'Račun je već storniran i ne može se stornirati ponovno.' } }
+    }
+    const rokRacuna = await provjeriRokStornaService({ invoice_uuid: invoiceData.invoice_uuid })
+    if (!rokRacuna.allowed) {
+      return { ok: false, error: { message: rokRacuna.reason } }
     }
     const itemsForInvoice = await invoiceTransportItemsModel.findAll({
       where:{
@@ -955,6 +960,10 @@ const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPc
       console.log('cancelTicketService: karta je već stornirana —', ticketState.ticket_code)
       return { ok: false, error: { message: 'Karta je već stornirana i ne može se stornirati ponovno.' } }
     }
+    const rokKarte = await provjeriRokStornaService({ ticket_uuid: ticketState.ticket_uuid })
+    if (!rokKarte.allowed) {
+      return { ok: false, error: { message: rokKarte.reason } }
+    }
 
     const ticketsGroup = await ticketsGroupsModel.findAll({
       where:{
@@ -1315,8 +1324,10 @@ const hhmm = (datum) => String(datum.getHours()).padStart(2, '0') + ':' + String
 
 // Ocjena roka. Nepoznat ili neprepoznat polazak ne blokira storno — blagajnik
 // tada odlučuje sam, kao i dosad; radije propustiti nego zaustaviti povrat na
-// podatku koji se nije dao pročitati.
-const ocijeniRok = (polazakText) => {
+// podatku koji se nije dao pročitati. Uz ukljuceno „Slobodno storniranje" rok
+// se ne gleda uopce.
+const ocijeniRok = (polazakText, slobodno = false) => {
+  if (slobodno) return { allowed: true, warning: '', minutes_left: null };
   const polazak = parsirajPolazak(polazakText);
   if (!polazak) return { allowed: true, warning: '', minutes_left: null };
   const sada = new Date();
@@ -1335,6 +1346,57 @@ const ocijeniRok = (polazakText) => {
     warning: `Brod je isplovio u ${hhmm(polazak)} — za storno je ostalo još ${preostalo} min.`,
     minutes_left: preostalo,
   };
+};
+
+const slobodnoStorniranje = async () =>
+  (await systemSettingsDataModel.findOne())?.free_storno === true;
+
+// Polazak po kojem se mjeri rok. Pomaknut polazak vrijedi po novom vremenu
+// (actual_departure) — brod koji kasni jos nije isplovio. Ako rute vise nema u
+// lokalnom plovidbenom redu, vrijedi vrijeme zapisano na karti.
+const polazakZaRok = async (salesRouteUuid, zapisano) => {
+  if (salesRouteUuid) {
+    const ruta = await salesRoutesDataModel.findOne({ where: { uuid: salesRouteUuid } });
+    if (ruta) return ruta.actual_departure || ruta.departure || zapisano;
+  }
+  return zapisano;
+};
+
+// Smije li se karta ili racun stornirati s obzirom na vrijeme polaska. Zove se
+// prije odabira postotka i kartičnog povrata (sučelje), i još jednom u samom
+// stornu, jer između ta dva trenutka rok može isteći.
+// Racun se ne smije stornirati cim je ijedna njegova jos aktivna karta izvan
+// roka — takva karta se ne vraca, a ostale se mogu stornirati pojedinacno.
+const provjeriRokStornaService = async ({ ticket_uuid = null, invoice_uuid = null } = {}) => {
+  const slobodno = await slobodnoStorniranje();
+  if (slobodno) return { allowed: true, reason: '', warning: '' };
+
+  let karte = [];
+  if (ticket_uuid) {
+    const karta = await ticketsModel.findOne({ where: { ticket_uuid } });
+    if (karta) karte = [karta.toJSON()];
+  } else if (invoice_uuid) {
+    const racun = await invoicesModel.findOne({ where: { invoice_uuid } });
+    if (racun) {
+      karte = (await ticketsModel.findAll({ where: { order_number: racun.order_number } }))
+        .map((k) => k.toJSON())
+        .filter((k) => !(k.ticket_status === 'CANCELED' || k.ticket_is_canceled || k.ticket_deactivate));
+    }
+  }
+
+  let upozorenje = '';
+  for (const karta of karte) {
+    const rok = ocijeniRok(await polazakZaRok(karta.sales_route_uuid, karta.ticket_departure));
+    if (!rok.allowed) {
+      return {
+        allowed: false,
+        reason: invoice_uuid ? `Karta ${karta.ticket_code}: ${rok.reason}` : rok.reason,
+        warning: '',
+      };
+    }
+    if (rok.warning && !upozorenje) upozorenje = rok.warning;
+  }
+  return { allowed: true, reason: '', warning: upozorenje };
 };
 
 // Jedinstven prikaz karte, bez obzira dolazi li iz lokalne baze ili s
@@ -1380,7 +1442,10 @@ const lookupExternalTicketService = async (ticketCode) => {
         ? { allowed: false, reason: 'Karta je već stornirana.', minutes_left: 0 }
         : validirana
           ? { allowed: false, reason: 'Karta je validirana — putnik je ukrcan, pa storno nije moguć.', minutes_left: 0 }
-          : ocijeniRok(karta.ticket_departure);
+          : ocijeniRok(
+              await polazakZaRok(karta.sales_route_uuid, karta.ticket_departure),
+              await slobodnoStorniranje(),
+            );
       // Kartično plaćanje na ovoj blagajni ima i povrat na karticu preko POS
       // terminala, a to ide samo kroz popis karata — ovdje bi novac bio vraćen
       // samo na papiru.
@@ -1427,7 +1492,12 @@ const lookupExternalTicketService = async (ticketCode) => {
     }
     // Rok se računa ovdje, a ne na poslužitelju, jer se mjeri prema satu
     // blagajne — to je vrijeme koje blagajnik i putnik gledaju.
-    const rok = podaci.allowed ? ocijeniRok(podaci.ticket?.departure_planed) : { allowed: false };
+    const rok = podaci.allowed
+      ? ocijeniRok(
+          await polazakZaRok(podaci.ticket?.sales_route_uuid, podaci.ticket?.departure_planed),
+          settingsData?.free_storno === true,
+        )
+      : { allowed: false };
     return {
       ok: true,
       local: false,
@@ -1658,6 +1728,7 @@ module.exports = {
   getInvoicesDataService,
   getInvoiceDataService,
   lookupExternalTicketService,
+  provjeriRokStornaService,
   cancelExternalTicketService,
   getInvoicesDetailsDataService,
   createInvoiceService,

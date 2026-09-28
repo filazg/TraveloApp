@@ -8,7 +8,7 @@ const { checkIslandCardService } = require("../services/islandCardService.cjs");
 const { lookupSudreg } = require("../services/sudregService.cjs");
 const { getAddressbook } = require("../services/addressbookService.cjs");
 const { getShiftsDataService, openNewShiftService, closeShiftService, shiftSummaryService, reprintShiftService, syncPendingShiftsService } = require("../services/shiftsDataService.cjs");
-const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService, lookupExternalTicketService, cancelExternalTicketService } = require("../services/invoiceDataService.cjs");
+const { createInvoiceService, getInvoicesDataService, cancelInvoiceService, getInvoicesDetailsDataService, printInvoiceCopyService, printAllTicketsCopyService, getTicketsDataService, printTicketCopyService, getInvoiceDataService, cancelTicketService, refreshInvoiceF2StatusService, refreshPendingF2InvoicesService, getNextInvoiceNumbersService, syncPendingInvoicesService, lookupExternalTicketService, cancelExternalTicketService, provjeriRokStornaService } = require("../services/invoiceDataService.cjs");
 const { getBuyersDataService } = require("../services/buyersDataService.cjs");
 const { otpPaymentHandler } = require("../helpers/paymentHelpers/otpPaymentHelper.cjs");
 const { setSystemSetingsDataService, getSystemSetingsDataService } = require("../services/systemSettingsDataService.cjs");
@@ -260,6 +260,16 @@ function registerAppIpc() {
       return ok(data);
     } catch (e) {
       return fail("Traženje karte nije uspjelo", e?.stack || String(e));
+    }
+  });
+  // Rok za storno s obzirom na polazak — pita se prije odabira postotka i
+  // kartičnog povrata, da novac ne ode na karticu za storno koji ne prolazi.
+  ipcMain.handle("app:checkStornoRokIPC", async (_event, in_data) => {
+    try {
+      const data = await provjeriRokStornaService(in_data);
+      return ok(data);
+    } catch (e) {
+      return fail("Provjera roka za storno nije uspjela", e?.stack || String(e));
     }
   });
   ipcMain.handle("app:cancelExternalTicketIPC", async (_event, in_data) => {

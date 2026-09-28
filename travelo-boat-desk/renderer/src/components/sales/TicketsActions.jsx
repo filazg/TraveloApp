@@ -59,6 +59,13 @@ export default function TicketsActions ({ params, rowId}) {
     };
     
     const handleCancelTicket = async()=>{
+        // Rok s obzirom na polazak provjerava se prije svega — prije odabira
+        // postotka i prije kartičnog povrata, koji se ne da poništiti.
+        const rok = (await window.api.app.checkStornoRokIPC({ ticket_uuid: params.row.ticket_uuid }))?.data
+        if (rok && rok.allowed === false) {
+            await dispatch(setStateData({path:'alertData', value:{ message: rok.reason, severity:'error' }}))
+            return
+        }
         // Postotak se bira prije svega ostalog — ako blagajnik odustane, ništa se
         // ne dira. Bez definiranog šifarnika storno nije moguć, jednako kao na
         // mobilnoj: slobodan upis postotka više ne postoji.

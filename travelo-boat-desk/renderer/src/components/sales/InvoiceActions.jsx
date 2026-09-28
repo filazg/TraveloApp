@@ -64,6 +64,13 @@ export default function InvoicesActions ({ params, rowId}) {
 
     const handleCancelInvoice = async () => {
         console.log('InVOICE DATA',params.row)
+        // Rok s obzirom na polazak provjerava se prije svega — prije odabira
+        // postotka i prije kartičnog povrata, koji se ne da poništiti.
+        const rok = (await window.api.app.checkStornoRokIPC({ invoice_uuid: params.row.invoice_uuid }))?.data
+        if (rok && rok.allowed === false) {
+            await dispatch(setStateData({path:'alertData', value:{ message: rok.reason, severity:'error' }}))
+            return
+        }
         // Postotak se bira prije svega ostalog — ako blagajnik odustane, ništa se
         // ne dira. Bez šifarnika storno nije moguć; slobodan upis ne postoji.
         if (!stornoPicker.percentages.length) {
