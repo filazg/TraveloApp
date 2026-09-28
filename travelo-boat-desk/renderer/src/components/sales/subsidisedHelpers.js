@@ -44,17 +44,30 @@ export const seopBezPrava = (ishod) =>
 // Red cjenika po kojem se prodaje povlaštena karta za pravo. Pravu je u
 // šifarniku popusta (portal: Integracije → AKD → SEOP → Popusti) pridružena
 // vrsta karte; karta se tada prodaje po cijeni te vrste za relaciju i nosi tu
-// vrstu. Bez pridružene vrste — ili kad relacija nema cijenu te vrste —
-// vrijedi opća otočna cijena, kao dosad. `cijene` su redci cjenika jedne
-// relacije.
-export const otocnaCijenaZaPravo = (cijene = [], popusti = [], pravo = null) => {
+// vrstu. Ako relacija nema cijenu te vrste, cijene nema (null) — karta se ne
+// prodaje po nekoj drugoj cijeni, a nemaCijeneZaPravo kaže zašto. Opća otočna
+// cijena vrijedi samo za pravo bez pridružene vrste. `cijene` su redci
+// cjenika jedne relacije.
+const upisZaPravo = (popusti, pravo) => {
     const sifra = String(pravo || "").trim();
-    const upis = sifra ? (popusti || []).find((p) => String(p.code || "").trim() === sifra) : null;
+    return sifra ? (popusti || []).find((p) => String(p.code || "").trim() === sifra) || null : null;
+};
+
+export const otocnaCijenaZaPravo = (cijene = [], popusti = [], pravo = null) => {
+    const upis = upisZaPravo(popusti, pravo);
     if (upis?.ticket_type_uuid) {
-        const red = (cijene || []).find((c) => c.ticket_type_uuid === upis.ticket_type_uuid && c.is_active !== false);
-        if (red) return red;
+        return (cijene || []).find((c) => c.ticket_type_uuid === upis.ticket_type_uuid && c.is_active !== false) || null;
     }
     return (cijene || []).find((c) => c.is_island === true && c.is_active !== false) || null;
+};
+
+// Poruka kad pravu pridružena vrsta karte nema cijenu na relaciji; inače null.
+export const nemaCijeneZaPravo = (cijene = [], popusti = [], pravo = null) => {
+    const upis = upisZaPravo(popusti, pravo);
+    if (!upis?.ticket_type_uuid) return null;
+    if ((cijene || []).some((c) => c.ticket_type_uuid === upis.ticket_type_uuid && c.is_active !== false)) return null;
+    const naziv = upis.ticket_type_name || "pridruženu pravu";
+    return `Za vrstu karte „${naziv}" (pravo ${upis.code}) nema cijene na ovoj relaciji — karta se ne može izdati. Dodaj cijenu u cjenik plovidbenog reda.`;
 };
 
 // Kratki opis stupnja za prikaz uz podatke s kartice.

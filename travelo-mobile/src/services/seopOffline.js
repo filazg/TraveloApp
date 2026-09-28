@@ -113,16 +113,28 @@ export const seopBezPrava = (ishod) =>
 
 // Red cjenika po kojem se prodaje povlaštena karta za pravo — vrsta karte
 // pridružena pravu u šifarniku popusta (portal: Integracije → AKD → SEOP →
-// Popusti). Bez pridružene vrste, ili kad relacija nema cijenu te vrste,
-// vrijedi opća otočna cijena. Isto pravilo kao u blagajni (subsidisedHelpers).
-export const otocnaCijenaZaPravo = (cijene = [], popusti = [], pravo = null) => {
+// Popusti). Ako relacija nema cijenu te vrste, cijene nema (null), a
+// nemaCijeneZaPravo kaže zašto; opća otočna cijena vrijedi samo za pravo bez
+// pridružene vrste. Isto pravilo kao u blagajni (subsidisedHelpers).
+const upisZaPravo = (popusti, pravo) => {
     const sifra = String(pravo || '').trim();
-    const upis = sifra ? (popusti || []).find((p) => String(p.code || '').trim() === sifra) : null;
+    return sifra ? (popusti || []).find((p) => String(p.code || '').trim() === sifra) || null : null;
+};
+
+export const otocnaCijenaZaPravo = (cijene = [], popusti = [], pravo = null) => {
+    const upis = upisZaPravo(popusti, pravo);
     if (upis?.ticket_type_uuid) {
-        const red = (cijene || []).find((c) => c.ticket_type_uuid === upis.ticket_type_uuid && c.is_active !== false);
-        if (red) return red;
+        return (cijene || []).find((c) => c.ticket_type_uuid === upis.ticket_type_uuid && c.is_active !== false) || null;
     }
     return (cijene || []).find((c) => c.is_island === true && c.is_active !== false) || null;
+};
+
+export const nemaCijeneZaPravo = (cijene = [], popusti = [], pravo = null) => {
+    const upis = upisZaPravo(popusti, pravo);
+    if (!upis?.ticket_type_uuid) return null;
+    if ((cijene || []).some((c) => c.ticket_type_uuid === upis.ticket_type_uuid && c.is_active !== false)) return null;
+    const naziv = upis.ticket_type_name || 'pridruženu pravu';
+    return `Za vrstu karte „${naziv}" (pravo ${upis.code}) nema cijene na ovoj relaciji — karta se ne može izdati. Dodaj cijenu u cjenik plovidbenog reda.`;
 };
 
 export const opisSeopStupnja = (pct) =>

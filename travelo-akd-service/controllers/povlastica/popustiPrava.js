@@ -97,6 +97,8 @@ async function popustiZaUredaje() {
                 ticket_label: r.ticket_label || null,
                 // Vrsta karte po kojoj uređaj prodaje povlaštenu kartu za ovo pravo.
                 ticket_type_uuid: r.ticket_type_uuid || null,
+                // Naziv za poruku kad relacija nema cijenu te vrste.
+                ticket_type_name: r.ticket_type_name || null,
                 discount_pct: Number(r.discount_pct) || 0,
                 // Uređaj po ovome odlučuje smije li pravo proći na liniji u modu
                 // „prebivalište". Nepoznata šifra nije rezidentska — uže

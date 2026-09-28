@@ -274,6 +274,10 @@ const seopRightDiscountsModel = sequelize.define('seop_right_discounts',{
     ticket_type_uuid:{
         type:Sequelize.STRING,
         allowNull:true
+    },
+    ticket_type_name:{
+        type:Sequelize.STRING,
+        allowNull:true
     }
 },{
     freezeTableName:true

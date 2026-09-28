@@ -11,6 +11,7 @@ import {
     provjeriKarticuNaRuti,
     cijenaPovlastene,
     otocnaCijenaZaPravo,
+    nemaCijeneZaPravo,
     blokPovlastice as buildBlokPovlastice,
     buildIslandTickets,
     RAZLOZI_GRESKE,
@@ -50,19 +51,19 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
     const [rucniUnos, setRucniUnos] = useState("");
 
     // Otočna cijena odabrane povratne rute (par luka, oba smjera).
-    const cijenaRed = useMemo(() => {
-        if (!ruta) return null;
+    const cijeneRelacije = useMemo(() => {
+        if (!ruta) return [];
         const sve = appData.transportData?.route_prices || [];
-        const relacija = sve.filter((p) => p.timetable_uuid === ruta.timetable_uuid
+        return sve.filter((p) => p.timetable_uuid === ruta.timetable_uuid
             && ((p.harbor_from_code === ruta.departure_harbor_id && p.harbor_to_code === ruta.arrival_harbor_id)
                 || (p.harbor_to_code === ruta.departure_harbor_id && p.harbor_from_code === ruta.arrival_harbor_id)));
-        // Po vrsti karte pridruženoj pravu, inače otočna (otocnaCijenaZaPravo).
-        return otocnaCijenaZaPravo(
-            relacija,
-            appData.basicData?.seop_right_discounts || [],
-            provjera?.pravo_na_pp || kartica?.F2?.BasicRight,
-        );
-    }, [ruta, appData.transportData, appData.basicData, provjera, kartica]);
+    }, [ruta, appData.transportData]);
+    const pravoKartice = provjera?.pravo_na_pp || kartica?.F2?.BasicRight;
+    // Po vrsti karte pridruženoj pravu, inače otočna (otocnaCijenaZaPravo).
+    const cijenaRed = useMemo(() => (ruta
+        ? otocnaCijenaZaPravo(cijeneRelacije, appData.basicData?.seop_right_discounts || [], pravoKartice)
+        : null), [ruta, cijeneRelacije, appData.basicData, pravoKartice]);
+    const porukaBezCijene = nemaCijeneZaPravo(cijeneRelacije, appData.basicData?.seop_right_discounts || [], pravoKartice);
 
     const provjeriKarticu = async (k, ident) => {
         setRadi(true);
@@ -201,7 +202,7 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
             </DialogTitle>
             <DialogContent dividers>
                 {!cijenaRed ? (
-                    <Alert severity="error">Za povratnu relaciju nije unesena otočna cijena. Otočne se ne mogu prodati.</Alert>
+                    <Alert severity="error">{porukaBezCijene || "Za povratnu relaciju nije unesena otočna cijena. Otočne se ne mogu prodati."}</Alert>
                 ) : faza === "identifikacija" ? (
                     <>
                         <Button

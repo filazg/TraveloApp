@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { alpha, Box, Button, Divider, FormControl, IconButton, InputLabel, MenuItem, Modal, Paper, Select, Stack, TextField, Typography } from "@mui/material";
+import { Alert, alpha, Box, Button, Divider, FormControl, IconButton, InputLabel, MenuItem, Modal, Paper, Select, Stack, TextField, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import { useDispatch, useSelector } from "react-redux";
@@ -13,6 +13,7 @@ import {
   popustBezMreze,
   opisSeopStupnja,
   otocnaCijenaZaPravo,
+  nemaCijeneZaPravo,
   blokPovlastice as buildBlokPovlastice,
   RAZLOZI_GRESKE,
   POPUSTI_POVJERENJE,
@@ -834,9 +835,20 @@ function odlukaIGumbi(cijenaRed, sustav) {
   // Karta je besplatna kad je takav izracun, a ne kad SEOP javi pravo 100 %:
   // na liniji koja ne primjenjuje popust vrijedi cjenik i za takvo pravo.
   const gratis = iznos === 0
+  // Pravu je pridružena vrsta karte, a relacija nema njezinu cijenu.
+  const porukaBezCijene = !cijenaRed && sustav === 'SEOP'
+    ? nemaCijeneZaPravo(
+        appData.searchData?.selectedTripPrices || [],
+        appData.basicData?.seop_right_discounts || [],
+        provjera?.pravo_na_pp || cardData?.F2?.BasicRight,
+      )
+    : null
 
   return (
     <>
+      {porukaBezCijene ? (
+        <Alert severity="error" sx={{ mb: 1 }}>{porukaBezCijene}</Alert>
+      ) : null}
       <Typography align="center" sx={{ fontWeight: 800, py: 1 }} color={bezVeze ? "warning.main" : (smije ? "success.main" : "error.main")}>
         {bezVeze
           ? 'SEOP NIJE DOSTUPAN — PRAVO NIJE PROVJERENO'

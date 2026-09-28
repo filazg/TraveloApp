@@ -9,7 +9,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import { allAppData } from "../../store/appSlice";
-import { popustBezMreze, otocnaCijenaZaPravo } from "./subsidisedHelpers";
+import { popustBezMreze, otocnaCijenaZaPravo, nemaCijeneZaPravo } from "./subsidisedHelpers";
 
 // Povratna OTOČNA karta u zasebnom modalu (Način 1 iz "Povlaštene karte", a
 // kasnije i Način 2 iz košarice). Bira se datum povratka + polazak u obrnutom
@@ -74,19 +74,19 @@ export default function IslandReturnModal({
     const ruta = povratneRute.find((r) => r.uuid === rutaUuid) || null;
 
     // Otočna cijena povratne rute (timetable + par luka, oba smjera).
-    const cijenaRed = useMemo(() => {
-        if (!ruta) return null;
+    const cijeneRelacije = useMemo(() => {
+        if (!ruta) return [];
         const sve = appData.transportData?.route_prices || [];
-        const relacija = sve.filter((p) => p.timetable_uuid === ruta.timetable_uuid
+        return sve.filter((p) => p.timetable_uuid === ruta.timetable_uuid
             && ((p.harbor_from_code === ruta.departure_harbor_id && p.harbor_to_code === ruta.arrival_harbor_id)
                 || (p.harbor_to_code === ruta.departure_harbor_id && p.harbor_from_code === ruta.arrival_harbor_id)));
-        // Po vrsti karte pridruženoj pravu, inače otočna (otocnaCijenaZaPravo).
-        return otocnaCijenaZaPravo(
-            relacija,
-            appData.basicData?.seop_right_discounts || [],
-            provjera?.pravo_na_pp || kartica?.F2?.BasicRight,
-        );
-    }, [ruta, appData.transportData, appData.basicData, provjera, kartica]);
+    }, [ruta, appData.transportData]);
+    const pravoKartice = provjera?.pravo_na_pp || kartica?.F2?.BasicRight;
+    // Po vrsti karte pridruženoj pravu, inače otočna (otocnaCijenaZaPravo).
+    const cijenaRed = useMemo(() => (ruta
+        ? otocnaCijenaZaPravo(cijeneRelacije, appData.basicData?.seop_right_discounts || [], pravoKartice)
+        : null), [ruta, cijeneRelacije, appData.basicData, pravoKartice]);
+    const porukaBezCijene = nemaCijeneZaPravo(cijeneRelacije, appData.basicData?.seop_right_discounts || [], pravoKartice);
 
     const provjeri = async () => {
         if (!ruta) return;
@@ -291,7 +291,7 @@ export default function IslandReturnModal({
                             </Typography>
                         ) : null}
                         {(smije || naPovjerenjeMoguce) && !cijenaRed ? (
-                            <Alert severity="error">Za povratnu relaciju nije unesena otočna cijena.</Alert>
+                            <Alert severity="error">{porukaBezCijene || "Za povratnu relaciju nije unesena otočna cijena."}</Alert>
                         ) : null}
                         {naPovjerenjeMoguce && cijenaRed ? (
                             <Alert severity="warning" sx={{ mb: 1.5 }}>
