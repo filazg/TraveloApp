@@ -133,8 +133,8 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
         setPovjerenjePopust(0);
     };
 
-    // Cijena karte izdane na povjerenje: otocna cijena iz cjenika umanjena za
-    // popust koji je operater odabrao.
+    // Cijena karte izdane na povjerenje: otocna cijena iz cjenika ili
+    // besplatno, kako je operater odabrao.
     const iznosPovjerenja = cijenaRed
         ? +(Number(cijenaRed.price) * (1 - Number(povjerenjePopust || 0) / 100)).toFixed(2)
         : 0;
@@ -289,7 +289,7 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
                                     onChange={(e) => setGreskaNapomena(e.target.value)}
                                     sx={{ mb: 1.5 }}
                                 />
-                                <Typography sx={{ fontWeight: 800, mb: 1 }}>Popust na povjerenje:</Typography>
+                                <Typography sx={{ fontWeight: 800, mb: 1 }}>Cijena na povjerenje:</Typography>
                                 <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
                                     {POPUSTI_POVJERENJE.map((o) => (
                                         <Button
@@ -315,10 +315,8 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
                                     {!cijenaRed
                                         ? "NEMA OTOČNE CIJENE ZA RELACIJU"
                                         : povjerenjePopust === 100
-                                            ? "IZDAJ POVRATNU BESPLATNO (100 %)"
-                                            : povjerenjePopust > 0
-                                                ? `IZDAJ POVRATNU S POPUSTOM ${povjerenjePopust} % — ${iznosPovjerenja.toFixed(2)} EUR`
-                                                : `IZDAJ POVRATNU NA POVJERENJE ${iznosPovjerenja.toFixed(2)} EUR`}
+                                            ? "IZDAJ POVRATNU BESPLATNO"
+                                            : `IZDAJ POVRATNU NA POVJERENJE ${iznosPovjerenja.toFixed(2)} EUR`}
                                 </Button>
                                 <Button variant="outlined" fullWidth onClick={naSljedecu} sx={{ height: 48, mt: 1 }}>
                                     {indeks >= kolicina ? "ZATVORI" : "PRESKOČI OVU KARTICU"}

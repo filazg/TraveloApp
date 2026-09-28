@@ -137,16 +137,12 @@ export default function IslandReturnModal({
     const smije = bezVeze
         ? odlukaBezMreze?.pravo_vrijedi === true
         : provjera?.smije_se_prodati === true;
-    // Cijena po istom pravilu kao za polaznu: postotak iz sifarnika ako ga
-    // linija primjenjuje, inace otocna cijena iz cjenika.
+    // Cijena po istom pravilu kao za polaznu (cijenaPovlastene): bez mreze
+    // stupanj iz sifarnika, inace odluka posluzitelja.
     const iznos = !cijenaRed || !provjera
         ? 0
         : bezVeze
-            ? (smije
-                ? (odlukaBezMreze?.primjeni_popust
-                    ? +(Number(cijenaRed.price) * (1 - Number(odlukaBezMreze.popust_postotak) / 100)).toFixed(2)
-                    : +Number(cijenaRed.price).toFixed(2))
-                : 0)
+            ? (smije ? cijenaPovlastene(odlukaBezMreze, cijenaRed) : 0)
             : cijenaPovlastene(provjera, cijenaRed);
 
     // Povratna na povjerenje: kartica se ni ovdje ne da provjeriti, ali razlog je
@@ -296,7 +292,7 @@ export default function IslandReturnModal({
                         {naPovjerenjeMoguce && cijenaRed ? (
                             <Alert severity="warning" sx={{ mb: 1.5 }}>
                                 Pravo se ni za povratnu ne može potvrditi. Karta se izdaje na povjerenje, s istim
-                                razlogom i istim popustom kao polazna{popustPovjerenja > 0 ? ` (${popustPovjerenja} %)` : " (puna otočna cijena)"} — i tako se vidi u Kontroli.
+                                razlogom i istom cijenom kao polazna{popustPovjerenja >= 100 ? " (besplatno)" : " (otočna cijena)"} — i tako se vidi u Kontroli.
                             </Alert>
                         ) : null}
                         {(smije || naPovjerenjeMoguce) && cijenaRed ? (

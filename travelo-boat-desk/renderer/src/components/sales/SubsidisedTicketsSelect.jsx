@@ -11,6 +11,7 @@ import {
   provjeriKarticuNaRuti,
   cijenaPovlastene,
   popustBezMreze,
+  opisSeopStupnja,
   blokPovlastice as buildBlokPovlastice,
   RAZLOZI_GRESKE,
   POPUSTI_POVJERENJE,
@@ -661,14 +662,15 @@ const virtualSeopCards =[
 
 
 
-// Postotak popusta za prikaz. Kad je posluzitelj odgovorio, vrijedi njegova
-// odluka; bez mreze vrijedi sifarnik. Na liniji koja popust ne primjenjuje
-// cijena ide iz cjenika, pa postotak ne bi bio istina.
+// Popust za prikaz. Kad je posluzitelj odgovorio, vrijedi njegova odluka; bez
+// mreze vrijedi sifarnik. Na liniji koja popust ne primjenjuje cijena ide iz
+// cjenika, pa postotak ne bi bio istina. Na liniji koja ga primjenjuje SEOP-ov
+// postotak je stupanj prava (seopStupanj), pa se pise sto znaci, a ne broj.
 function popustZaPrikaz() {
   if (provjera?.smije_se_prodati === true && provjera?.primjeni_popust !== true) return 'po cjeniku';
-  if (provjera?.primjeni_popust === true && provjera?.popust_postotak != null) return `${provjera.popust_postotak} %`;
+  if (provjera?.primjeni_popust === true && provjera?.popust_postotak != null) return opisSeopStupnja(provjera.popust_postotak);
   const bezMreze = provjera?.offline === true ? odlukaBezMreze() : null;
-  if (bezMreze?.primijenjen) return `${bezMreze.popust_postotak} %`;
+  if (bezMreze?.primijenjen) return opisSeopStupnja(bezMreze.popust_postotak);
   const izSifarnika = (appData.basicData?.seop_right_discounts || [])
     .find((p) => String(p.code) === String(cardData?.F2?.BasicRight));
   return izSifarnika?.discount_pct != null ? `${izSifarnika.discount_pct} %` : '—';
@@ -739,11 +741,8 @@ function ponudiLokalniPopust(cijenaRed, sustav) {
     );
   }
 
-  // Cijena se racuna istim pravilom kao s mrezom: linija ili primjenjuje
-  // postotak na cijenu iz cjenika, ili vrijedi otocna cijena kakva jest.
-  const iznos = odluka.primjeni_popust
-    ? +(Number(cijenaRed.price) * (1 - odluka.popust_postotak / 100)).toFixed(2)
-    : +Number(cijenaRed.price).toFixed(2);
+  // Cijena se racuna istim pravilom kao s mrezom (cijenaPovlastene).
+  const iznos = cijenaPovlastene(odluka, cijenaRed);
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -766,10 +765,8 @@ function ponudiLokalniPopust(cijenaRed, sustav) {
         sx={{ height: 88, width: "100%", fontSize: "1.25rem" }}
       >
         {iznos === 0
-          ? `BESPLATNA KARTA (POPUST ${odluka.popust_postotak}%)`
-          : odluka.primjeni_popust
-            ? `IZDAJ S POPUSTOM ${odluka.popust_postotak}% — ${iznos.toFixed(2)} EUR`
-            : `IZDAJ PO OTOČNOJ CIJENI — ${iznos.toFixed(2)} EUR`}
+          ? 'BESPLATNA KARTA'
+          : `IZDAJ PO OTOČNOJ CIJENI — ${iznos.toFixed(2)} EUR`}
       </Button>
 
       {/* Povratna je uvijek ponuda, i bez mreze: putnik se vraca istim danom
@@ -801,8 +798,8 @@ function bezMrezeOdluceno(sustav) {
   return odluka.odluceno === true && odluka.pravo_vrijedi === true;
 }
 
-// Cijena karte izdane na povjerenje: otocna cijena iz cjenika umanjena za
-// popust koji je operater odabrao. Bez odabira je to puna otocna cijena.
+// Cijena karte izdane na povjerenje: otocna cijena iz cjenika ili besplatno,
+// kako je operater odabrao. Bez odabira je to otocna cijena.
 function iznosPovjerenja(cijenaRed) {
   const osnovica = Number(cijenaRed?.price || 0);
   return +(osnovica * (1 - Number(povjerenjePopust || 0) / 100)).toFixed(2);
@@ -842,7 +839,9 @@ function odlukaIGumbi(cijenaRed, sustav) {
               // Popust stvarno dolazi sa SEOP-a → pokaži postotak / besplatno.
               ? (gratis
                   ? 'KORISNIK IMA PRAVO NA BESPLATNU KARTU'
-                  : `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%`)
+                  : sustav === 'MOSI'
+                    ? `KORISNIK IMA PRAVO NA POPUST ${provjera.popust_postotak}%`
+                    : 'KORISNIK IMA PRAVO NA OTOČNU KARTU')
               // Cijena ide iz cjenika — postotak/„besplatno" bi zbunjivao jer
               // popust nije od SEOP-a; samo potvrdi pravo na povlaštenu.
               : 'KORISNIK IMA PRAVO NA POVLAŠTENU KARTU')
@@ -965,7 +964,7 @@ function odlukaIGumbi(cijenaRed, sustav) {
               moze imati — pa odluku donosi operater i ona se biljezi kao
               njegova. Isti raspored gumba kao za razloge. */}
           <Typography sx={{ fontWeight: 800, mb: 1 }}>
-            Popust na povjerenje:
+            Cijena na povjerenje:
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
             {POPUSTI_POVJERENJE.map((o) => (
@@ -1010,10 +1009,8 @@ function odlukaIGumbi(cijenaRed, sustav) {
             {!cijenaRed
               ? 'NEMA OTOČNE CIJENE ZA RELACIJU'
               : povjerenjePopust === 100
-                ? 'IZDAJ OTOČNU BESPLATNO (100 %)'
-                : povjerenjePopust > 0
-                  ? `IZDAJ OTOČNU S POPUSTOM ${povjerenjePopust} % — ${iznosPovjerenja(cijenaRed).toFixed(2)} EUR`
-                  : `IZDAJ OTOČNU ${iznosPovjerenja(cijenaRed).toFixed(2)} EUR`}
+                ? 'IZDAJ OTOČNU BESPLATNO'
+                : `IZDAJ OTOČNU ${iznosPovjerenja(cijenaRed).toFixed(2)} EUR`}
           </Button>
 
           {/* Povratna vrijedi i ovdje: putnik kojem se kartica ne da provjeriti
