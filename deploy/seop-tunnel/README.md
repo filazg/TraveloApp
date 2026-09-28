@@ -15,6 +15,17 @@ Administrators, pa se mapa vidi **samo iz PowerShella pokrenutog kao administrat
 | `known_hosts` | nastaje sam pri prvom spajanju |
 | `tunel.log` | dnevnik spajanja |
 
+Prava na kljuc - ssh pod SYSTEM-om odbija kljuc koji smije citati jos netko
+(`UNPROTECTED PRIVATE KEY FILE` / `bad permissions`). Na kljucu smiju ostati
+**samo** SYSTEM i Administrators (SID-ovi jer su imena grupa lokalizirana):
+
+```powershell
+$k = 'C:\ProgramData\Travelo\seop-tunnel\id_ed25519'
+icacls $k /setowner "*S-1-5-18"
+icacls $k /inheritance:r /grant:r "*S-1-5-18:F" "*S-1-5-32-544:F"
+icacls $k /remove "RACUNALO\korisnik"   # svaki drugi redak koji icacls $k pokaze
+```
+
 Registracija zadatka (admin PowerShell; rucni tunel prije toga zatvoriti):
 
 ```powershell
@@ -51,6 +62,7 @@ curl -s -X POST localhost:7070/seop/test-veze -d '{}' -H 'Content-Type: applicat
 |---|---|
 | `ECONNREFUSED 127.0.0.1:9444` na VM-u | tunel nije gore - provjeri zadatak i `tunel.log` |
 | u logu `remote port forwarding failed` | stara veza drzi port; na VM-u `pkill -u seoptunel` |
-| u logu `Permission denied (publickey)` | na VM-u nije ovaj kljuc |
+| u logu `bad permissions` pa `Permission denied` | na kljucu ima jos netko osim SYSTEM/Administrators - vidi gore |
+| u logu `Permission denied (publickey)` bez `bad permissions` | na VM-u nije ovaj kljuc |
 | mapa "ne postoji", zadatak se ne vidi | PowerShell nije pokrenut kao administrator |
 | tunel radi, SEOP i dalje mock | okolina u `integrations_configs.test_do.json` (`akd.seop.environment`) |
