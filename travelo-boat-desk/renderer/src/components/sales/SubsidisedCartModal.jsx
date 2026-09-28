@@ -162,14 +162,15 @@ export default function SubsidisedCartModal({ stavka, onClose }) {
                                     </TableCell>
                                     <TableCell sx={{ whiteSpace: "nowrap" }}>{p.otok || "—"}</TableCell>
                                     <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-                                        {Number(p.popust_postotak) > 0 ? (
+                                        {/* SEOP-ov postotak je stupanj prava, ne popust: 50 %
+                                            znači otočnu cijenu, pa bi „50 %" uz punu otočnu
+                                            cijenu zbunjivao. Piše se samo besplatna karta. */}
+                                        {Number(p.popust_postotak) >= 100 ? (
                                             <Stack spacing={0.3} alignItems="flex-end">
-                                                <Typography sx={{ fontWeight: 700 }}>{p.popust_postotak} %</Typography>
+                                                <Typography sx={{ fontWeight: 700 }}>100 %</Typography>
                                                 {izvor && <Chip size="small" color={izvor.color} label={izvor.label} />}
                                             </Stack>
-                                        ) : (
-                                            <Typography variant="body2" color="text.secondary">po cjeniku</Typography>
-                                        )}
+                                        ) : null}
                                     </TableCell>
                                     <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                                         <Stack spacing={0.3} alignItems="flex-end">

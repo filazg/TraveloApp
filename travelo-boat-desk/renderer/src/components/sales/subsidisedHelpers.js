@@ -187,7 +187,8 @@ export const provjeriKarticuNaRuti = async ({ vrsta, vrijednost, sustav = "SEOP"
                 ima_pravo: false,
                 smije_se_prodati: false,
                 token: null,
-                razlog: "SEOP je vratio 0 % — korisnik nema pravo na otočnu kartu.",
+                // Pokazuje se SEOP-ova poruka (npr. „…nije s otoka Hvara te nema pravo…"); vlastiti tekst samo kad je nema.
+                razlog: ishod.poruka || "Korisnik nema pravo na otočnu kartu na ovoj relaciji.",
             };
         }
         return ishod;
