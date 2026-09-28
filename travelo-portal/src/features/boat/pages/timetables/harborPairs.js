@@ -1,8 +1,21 @@
 // Parovi luka za koje se unosi cijena.
 //
 // Uvijek se grade svi uredeni parovi — cijena se u pravilu vodi po smjeru.
+//
+// Luke se skupljaju iz polazaka I dolazaka, redom kojim se prvi put pojave.
+// Samo iz polazaka nije dovoljno: red u jednom smjeru (npr. Split → Vis
+// nedjeljom) ima polazak samo iz Splita, pa Vis nije ulazio u popis i nije
+// nastajala nijedna relacija za cijenu.
 export const buildHarborPairs = (uniqueHarbors) => {
-    const luke = uniqueHarbors || [];
+    const luke = [];
+    const dodaj = (kod, naziv) => {
+        if (!kod || luke.some((l) => l.departure_harbor_id === kod)) return;
+        luke.push({ departure_harbor_id: kod, departure_harbor_name: naziv });
+    };
+    for (const r of uniqueHarbors || []) {
+        dodaj(r.departure_harbor_id, r.departure_harbor_name);
+        dodaj(r.arrival_harbor_id, r.arrival_harbor_name);
+    }
     const pairs = [];
     let counter = 0;
     for (const har of luke) {
