@@ -35,6 +35,8 @@ export const ENDPOINTS = {
     // Provjera prije storna — je li karta validirana na ukrcaju (transactions
     // /storno_check). Odbijeni pokušaj poslužitelj sam upisuje u Kontrolu.
     stornoCheck: '/terminals/terminal/storno_check',
+    // Pokušaj storna izvan roka — samo zapis u Kontrolu (transactions /storno_attempt).
+    stornoAttempt: '/terminals/terminal/storno_attempt',
     // Ispis kopije karte — poslužitelj vraća redni broj kopije i tri znaka.
     ticketCopyPrint: '/terminals/terminal/ticket_copy_print',
     // Smjene — upsert (POST) + lista (GET).

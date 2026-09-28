@@ -388,8 +388,26 @@ const invoiceTransportItemsModel = sequelize.define('invoice_transport_items',{
     freezeTableName: true
 })
 
+// Pokušaji storna izvan roka koji još nisu stigli na poslužitelj
+// (Kontrola → Storniranje). Blagajna storno ne dopušta, ali pokušaj mora biti
+// vidljiv — bez veze čeka ovdje i šalje se uz zaostale račune.
+const stornoAttemptsModel = sequelize.define('storno_attempts',{
+    id:{
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    payload:{
+        type: Sequelize.JSON,
+        allowNull: false
+    },
+},{
+    freezeTableName: true
+})
+
 module.exports={
     invoicesModel,
     invoiceTaxModel,
-    invoiceTransportItemsModel
+    invoiceTransportItemsModel,
+    stornoAttemptsModel
 }

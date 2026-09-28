@@ -67,11 +67,49 @@ const stornoCheckController = async (req, res) => {
     }
 };
 
+// Pokušaj storna izvan roka (30 min nakon polaska). Rok provjerava uređaj sam i
+// storno ne dopušta, pa bi bez ovoga pokušaj ostao nevidljiv. Uređaj pokušaje
+// bez veze čuva i šalje kasnije, pa svaki nosi svoje vrijeme (attempted_at).
+// Karta koje na poslužitelju još nema upisuje se s podacima koje je poslao
+// uređaj.
+const stornoAttemptController = async (req, res) => {
+    try {
+        const { TicketsModel } = getModels();
+        const body = req.body?.body || req.body || {};
+        const pokusaji = Array.isArray(body.attempts) ? body.attempts.filter((a) => a?.ticket_uuid) : [];
+        if (!pokusaji.length) {
+            return res.status(400).send({ status: 400, data: { message: "attempts required" } });
+        }
+        const redovi = await TicketsModel.findAll({
+            where: { ticket_uuid: { [Op.in]: pokusaji.map((a) => a.ticket_uuid) } },
+            raw: true,
+        });
+        const poUuid = {};
+        for (const r of redovi) if (!poUuid[r.ticket_uuid]) poUuid[r.ticket_uuid] = r;
+
+        const karte = pokusaji.map((a) => ({ ...a, ...(poUuid[a.ticket_uuid] || {}), polazak: a.polazak, attempted_at: a.attempted_at }));
+        await zabiljeziStorna(karte, {
+            outcome: "odbijeno_rok",
+            source: body.source || null,
+            terminal_uuid: body.terminal_uuid || null,
+            operator: body.operator || null,
+            slobodno_storniranje: body.slobodno_storniranje,
+        });
+        res.send({ status: 200, data: { recorded: karte.length } });
+    } catch (error) {
+        console.log("stornoAttemptController error:", error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 // Kontrola → „Storniranje". Razvrstavanje je upisano uz zapis; „validirane"
 // su storna i odbijeni pokušaji karata koje su bile validirane očitanjem.
 const KATEGORIJE = ["prije_polaska", "u_roku", "nakon_roka", "nepoznato"];
 
 const jeValidirana = (r) => r.outcome === "odbijeno_validirana" || !!r.validated_at;
+// Vremenske kartice broje storna i pokušaje izvan roka; pokušaj storna
+// validirane karte ide samo u „Validirane".
+const uVremenskoj = (r) => r.outcome === "storno" || r.outcome === "odbijeno_rok";
 
 const listTicketStornosController = async (req, res) => {
     try {
@@ -94,15 +132,13 @@ const listTicketStornosController = async (req, res) => {
 
         const sve = rows.map((r) => ({ ...r, validirana: jeValidirana(r) }));
         const counts = { sve: sve.length, validirane: sve.filter((r) => r.validirana).length };
-        for (const k of KATEGORIJE) counts[k] = sve.filter((r) => r.kategorija === k && r.outcome === "storno").length;
+        for (const k of KATEGORIJE) counts[k] = sve.filter((r) => r.kategorija === k && uVremenskoj(r)).length;
 
-        // Odbijeni pokušaj nije storno, pa ulazi samo u „Sve" i „Validirane" —
-        // inače bi ga vremenske kategorije brojale kao vraćen novac.
         const k = req.query.kategorija;
         const stornos = k === "validirane"
             ? sve.filter((r) => r.validirana)
             : KATEGORIJE.includes(k)
-                ? sve.filter((r) => r.kategorija === k && r.outcome === "storno")
+                ? sve.filter((r) => r.kategorija === k && uVremenskoj(r))
                 : sve;
 
         res.send({ status: 200, data: { stornos, counts } });
@@ -112,4 +148,4 @@ const listTicketStornosController = async (req, res) => {
     }
 };
 
-module.exports = { stornoCheckController, listTicketStornosController };
+module.exports = { stornoCheckController, stornoAttemptController, listTicketStornosController };

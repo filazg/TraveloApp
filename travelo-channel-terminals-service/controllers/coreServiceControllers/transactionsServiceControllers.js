@@ -114,6 +114,19 @@ const stornoCheckController = async (data) => {
     }
 };
 
+// Pokušaj storna izvan roka — transactions /storno_attempt (samo zapis).
+const stornoAttemptController = async (data) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const url = coreConfigData.services.transactions.url + '/storno_attempt';
+        const response = await axios.post(url, data, { timeout: 15000, validateStatus: () => true });
+        return { status: response.status, body: response.data };
+    } catch (error) {
+        console.log('stornoAttemptController error:', error?.message || error);
+        return { status: 500, body: { data: { message: error.message } } };
+    }
+};
+
 const upsertTerminalShiftController = async (data) => {
     try {
         const coreConfigData = await getCoreServiceConfigData();
@@ -140,6 +153,7 @@ const listShiftsController = async (params) => {
 
 module.exports = {
     stornoCheckController,
+    stornoAttemptController,
     logTicketCopyPrintController,
     addTerminalSaleController,
     finalizeTerminalSaleController,

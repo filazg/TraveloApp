@@ -14,7 +14,7 @@ import api from '../api/client';
 import { ENDPOINTS } from '../api/config';
 import { markTicketsCanceled, markInvoiceCanceled, saveSale, markInvoiceSynced } from '../db/repo';
 import { buildLocalStorno } from '../store/localSale';
-import { ucitajSlobodnoStorniranje, polazakZaRok, ocijeniRok } from '../services/stornoRok';
+import { ucitajSlobodnoStorniranje, polazakZaRok, ocijeniRok, prijaviPokusajeIzvanRoka } from '../services/stornoRok';
 import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
 
@@ -188,6 +188,14 @@ export default function DocumentsScreen() {
         }
         const rokovi = await ocijeniRokove(stillActive);
         const uRoku = stillActive.filter((t) => rokovi[t.ticket_uuid]?.allowed !== false);
+        // Otvaranje storna je pokušaj: karte kojima je rok istekao bilježe se u
+        // Kontrolu, iako se u prozoru ne mogu ni označiti.
+        const izvanRokaKarte = stillActive.filter((t) => rokovi[t.ticket_uuid]?.allowed === false);
+        prijaviPokusajeIzvanRoka(izvanRokaKarte, {
+            operator: `${auth.operator?.user_name || ''} ${auth.operator?.user_surname || ''}`.trim() || null,
+            terminalUuid: sync.basicData?.billing_device_uuid || null,
+            salesRoutes: sync.salesRoutes,
+        }).catch(() => {});
         if (!uRoku.length) {
             Alert.alert('Storno', rokovi[stillActive[0].ticket_uuid]?.reason || 'Rok za storno je istekao.');
             return;
@@ -229,6 +237,15 @@ export default function DocumentsScreen() {
         const rokovi = await ocijeniRokove(detailTickets.filter((t) => stornoTicketUuids[t.ticket_uuid]));
         const izvanRoka = Object.values(rokovi).find((r) => r.allowed === false);
         if (izvanRoka) {
+            // Rok je istekao dok je prozor bio otvoren — i to je pokušaj.
+            prijaviPokusajeIzvanRoka(
+                detailTickets.filter((t) => rokovi[t.ticket_uuid]?.allowed === false),
+                {
+                    operator: `${auth.operator?.user_name || ''} ${auth.operator?.user_surname || ''}`.trim() || null,
+                    terminalUuid,
+                    salesRoutes: sync.salesRoutes,
+                },
+            ).catch(() => {});
             setStornoRokovi((m) => ({ ...m, ...rokovi }));
             Alert.alert('Storno', izvanRoka.reason);
             return;

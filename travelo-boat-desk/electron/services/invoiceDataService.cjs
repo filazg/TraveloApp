@@ -7,7 +7,7 @@ const { Op } = require("sequelize");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
 const { companyModel, usersModel } = require("../db/models/BasicData.cjs");
 const { shiftModel } = require("../db/models/ShiftsData.cjs");
-const { invoicesModel, invoiceTransportItemsModel } = require("../db/models/InvoicesData.cjs");
+const { invoicesModel, invoiceTransportItemsModel, stornoAttemptsModel } = require("../db/models/InvoicesData.cjs");
 const { ticketsGroupsModel, ticketsModel } = require("../db/models/TicketsData.cjs");
 const { invoicePrintHelper, cancelInvoicePrint, copyInvoicePrint, copyAllTickets } = require("../helpers/printHelpers/invoicePrintHelper.cjs");
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs");
@@ -1244,6 +1244,8 @@ const refreshPendingF2InvoicesService = async () => {
 // Backend (addTerminalSaleController) je idempotentan po invoice_uuid pa je retry siguran.
 // Pozovi pri startu app-a i nakon svake nove prodaje (best-effort, ne ruši UI).
 const syncPendingInvoicesService = async () => {
+  // Pokušaji storna izvan roka putuju uz zaostale račune.
+  await posaljiPokusajeStorna();
   try {
     const settingsData = await systemSettingsDataModel.findOne()
     const pairingData = await pairingDataModel.findOne()
@@ -1391,6 +1393,73 @@ const stornoBlok = async (karte, postotak) => {
   };
 };
 
+// Pokušaji storna izvan roka — Kontrola → Storniranje. Svaki se najprije
+// spremi lokalno, pa pošalje; što ne prođe zbog mreže, ide uz zaostale račune
+// (syncPendingInvoicesService). `karte` su lokalne karte ili karta s
+// poslužitelja (storno tuđe karte) — polja se čitaju iz oba oblika.
+const posaljiPokusajeStorna = async () => {
+  try {
+    const red = await stornoAttemptsModel.findAll({ order: [['id', 'ASC']] });
+    if (!red.length) return;
+    const settingsData = await systemSettingsDataModel.findOne();
+    const pairingData = await pairingDataModel.findOne();
+    if (!settingsData?.backend_url || !pairingData?.token) return;
+    for (const zapis of red) {
+      try {
+        const odgovor = await axios.post(settingsData.backend_url + '/terminals/terminal/storno_attempt', zapis.payload, {
+          headers: { authorization: 'Bearer ' + pairingData.token },
+          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+          timeout: 15000,
+          validateStatus: () => true,
+        });
+        // 4xx neće proći ni kasnije; ostaje samo ono što je palo na mreži.
+        if (odgovor.status < 500) await zapis.destroy();
+      } catch (e) {
+        break;
+      }
+    }
+  } catch (e) {
+    console.log('posaljiPokusajeStorna:', e?.message || e);
+  }
+};
+
+const prijaviPokusajeIzvanRoka = async (karte, { user = null } = {}) => {
+  try {
+    if (!karte?.length) return;
+    const sada = new Date().toISOString();
+    const attempts = [];
+    for (const k of karte) {
+      const ruta = k.sales_route_uuid || k.route_uuid || null;
+      const zapisano = k.ticket_departure || k.departure_planed || k.departure || null;
+      attempts.push({
+        ticket_uuid: k.ticket_uuid,
+        ticket_code: k.ticket_code || null,
+        ticket_type_name: k.ticket_type_name || null,
+        single_price: k.ticket_single_price ?? k.single_price ?? null,
+        line_code: k.line_code || null,
+        line_name: k.line_name || null,
+        departure_harbor_name: k.ticket_departure_harbor_name || k.departure_harbor_name || null,
+        arrival_harbor_name: k.ticket_arrival_harbor_name || k.arrival_harbor_name || null,
+        route_uuid: ruta,
+        departure_planed: k.ticket_departure_planed || k.departure_planed || null,
+        polazak: await polazakZaRok(ruta, zapisano),
+        attempted_at: sada,
+      });
+    }
+    await stornoAttemptsModel.create({
+      payload: {
+        source: 'desk',
+        operator: imeOperatera(user),
+        slobodno_storniranje: await slobodnoStorniranje(),
+        attempts,
+      },
+    });
+    posaljiPokusajeStorna().catch(() => {});
+  } catch (e) {
+    console.log('prijaviPokusajeIzvanRoka:', e?.message || e);
+  }
+};
+
 // Je li koja karta validirana očitanjem na ukrcaju — zna samo poslužitelj,
 // jer blagajna karte ne očitava (njezina validacija je automatska pri prodaji
 // i ne sprječava storno). Poslužitelj odbijeni pokušaj sam upisuje u Kontrolu.
@@ -1452,16 +1521,26 @@ const provjeriRokStornaService = async ({ ticket_uuid = null, invoice_uuid = nul
   }
 
   let upozorenje = '';
+  let prvaOdbijena = null;
+  const izvanRoka = [];
   for (const karta of karte) {
     const rok = ocijeniRok(await polazakZaRok(karta.sales_route_uuid, karta.ticket_departure), slobodno);
     if (!rok.allowed) {
-      return {
-        allowed: false,
-        reason: invoice_uuid ? `Karta ${karta.ticket_code}: ${rok.reason}` : rok.reason,
-        warning: '',
-      };
+      izvanRoka.push(karta);
+      if (!prvaOdbijena) prvaOdbijena = { karta, rok };
+      continue;
     }
     if (rok.warning && !upozorenje) upozorenje = rok.warning;
+  }
+  if (prvaOdbijena) {
+    // Pokušaj ide u Kontrolu — za račun sve njegove karte izvan roka.
+    await prijaviPokusajeIzvanRoka(izvanRoka, { user });
+    const { karta, rok } = prvaOdbijena;
+    return {
+      allowed: false,
+      reason: invoice_uuid ? `Karta ${karta.ticket_code}: ${rok.reason}` : rok.reason,
+      warning: '',
+    };
   }
   // Validacija vrijedi i uz „Slobodno storniranje" — ono ukida samo rok.
   const validacija = await provjeriValidacijuNaPosluzitelju(karte, { operator: imeOperatera(user) });
@@ -1516,6 +1595,8 @@ const lookupExternalTicketService = async (ticketCode) => {
       if (rok.allowed) {
         const validacija = await provjeriValidacijuNaPosluzitelju([karta]);
         if (!validacija.allowed) rok = { allowed: false, reason: validacija.reason, minutes_left: 0 };
+      } else if (!stornirana) {
+        await prijaviPokusajeIzvanRoka([karta]);
       }
       // Kartično plaćanje na ovoj blagajni ima i povrat na karticu preko POS
       // terminala, a to ide samo kroz popis karata — ovdje bi novac bio vraćen
@@ -1569,6 +1650,9 @@ const lookupExternalTicketService = async (ticketCode) => {
           settingsData?.free_storno === true,
         )
       : { allowed: false };
+    if (podaci.allowed && !rok.allowed && podaci.ticket?.ticket_uuid) {
+      await prijaviPokusajeIzvanRoka([podaci.ticket]);
+    }
     return {
       ok: true,
       local: false,

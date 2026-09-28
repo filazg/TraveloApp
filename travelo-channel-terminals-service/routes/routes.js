@@ -6,7 +6,7 @@ const { handleGetBookingDataDeskTerminalsFeature } = require('../features/deskTe
 const { handleFinalizeSaleFeature } = require('../features/deskTerminals/finalizeSaleFeature');
 const { handleVoyageTicketsFeature, handleValidateTicketFeature,
     handleTicketCopyPrintFeature, handleBuyersListFeature } = require('../features/deskTerminals/voyageTicketsFeature');
-const { handleCheckIslandCardFeature, handleCancelTicketsFeature, handleStornoCheckFeature } = require('../features/deskTerminals/akdFeature');
+const { handleCheckIslandCardFeature, handleCancelTicketsFeature, handleStornoCheckFeature, handleStornoAttemptFeature } = require('../features/deskTerminals/akdFeature');
 const { handleUpsertTerminalShiftFeature, handleListShiftsFeature } = require('../features/deskTerminals/shiftDataFeature');
 const { handleExternalTicketFeature } = require('../features/deskTerminals/externalTicketFeature');
 const { handleGetSyncSignalsFeature } = require('../features/deskTerminals/syncSignalFeature');
@@ -91,6 +91,10 @@ router
 router
     .route('/terminal/storno_check')
     .post(handleStornoCheckFeature)
+
+router
+    .route('/terminal/storno_attempt')
+    .post(handleStornoAttemptFeature)
 
 // Traženje karte prodane na drugom prodajnom mjestu, za storno na blagajni.
 router

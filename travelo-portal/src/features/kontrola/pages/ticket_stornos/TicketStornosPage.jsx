@@ -14,8 +14,8 @@ import { setAuthData } from "../../../auth/authSlice";
 //
 // Rok za storno na uređajima je 30 min nakon polaska (osim uz „Slobodno
 // storniranje"), pa se storna razvrstavaju po tome kad su napravljena u odnosu
-// na polazak. Odbijeni pokušaj storna validirane karte nije storno — novac nije
-// vraćen — pa se vidi samo u „Sve" i „Validirane".
+// na polazak. Odbijeni pokušaji (nakon roka, validirana karta) nisu storno —
+// novac nije vraćen — pa nose svoju oznaku u stupcu Ishod.
 const KARTICE = {
     prije_polaska: {
         label: "Prije polaska",
@@ -30,7 +30,7 @@ const KARTICE = {
     nakon_roka: {
         label: "Nakon roka",
         color: "error",
-        opis: "Storno napravljen više od 30 min nakon polaska — moguće samo uz uključeno „Slobodno storniranje\" ili sa starijeg uređaja.",
+        opis: "Storno više od 30 min nakon polaska (moguć samo uz uključeno „Slobodno storniranje\" ili sa starijeg uređaja) i odbijeni pokušaji storna nakon roka.",
     },
     validirane: {
         label: "Validirane",
@@ -134,6 +134,9 @@ export default function TicketStornosPage() {
                 if (r.outcome === "odbijeno_validirana") {
                     return <Chip size="small" color="error" variant="outlined" label="Odbijen — validirana" />;
                 }
+                if (r.outcome === "odbijeno_rok") {
+                    return <Chip size="small" color="error" variant="outlined" label="Odbijen — nakon roka" />;
+                }
                 const k = KARTICE[r.kategorija];
                 return <Chip size="small" color={k?.color || "default"} label={k?.label || "Nepoznat polazak"} />;
             },
@@ -226,7 +229,7 @@ export default function TicketStornosPage() {
 
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     Svako storno karte — pojedinačno ili s računom — i svaki odbijeni pokušaj storna
-                    validirane karte. Vrijeme od polaska mjeri se od polaska po kojem je uređaj računao
+                    (nakon roka ili validirane karte). Vrijeme od polaska mjeri se od polaska po kojem je uređaj računao
                     rok (kod pomaknutog polaska to je novo vrijeme).
                 </Typography>
 

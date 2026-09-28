@@ -8,6 +8,7 @@ import { startSyncStream, stopSyncStream } from '../api/syncStream';
 import { autoCloseStaleShiftThunk, loadCurrentOpenThunk, loadRecentShiftsThunk, shiftsData, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
 import { syncPendingSalesThunk } from '../store/slices/salesSlice';
 import { posaljiKopije } from '../services/ticketCopies';
+import { posaljiPokusajeStorna } from '../services/stornoRok';
 import { pruneValidationLog } from '../db/repo';
 import { refreshOpenVoyageTicketsThunk, syncPendingValidationsThunk } from '../store/slices/validationSlice';
 import { openDb } from '../db/db';
@@ -186,6 +187,7 @@ export default function AppNavigator() {
         const push = () => {
             dispatch(syncPendingSalesThunk());
             posaljiKopije();
+            posaljiPokusajeStorna().catch(() => {});
         };
         push();
         const timer = setInterval(push, SYNC_RETRY_MS);

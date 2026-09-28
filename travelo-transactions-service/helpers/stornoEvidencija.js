@@ -59,13 +59,15 @@ async function zabiljeziStorna(karte, ctx = {}) {
         if (!karte?.length) return;
         const { TicketStornoModel } = getModels();
         const stornoAt = datum(ctx.storno_at);
+        // Pokušaj s uređaja nosi svoje vrijeme po karti (red čekanja offline).
+        const vrijemeKarte = (k) => (k.attempted_at ? datum(k.attempted_at) : stornoAt);
         const validacije = await validacijeKarata(karte.map((k) => k.ticket_uuid));
         const uredaj = await poljaUredaja(ctx.terminal_uuid, "terminal");
         const pct = ctx.percentage != null ? Number(ctx.percentage) : null;
         const polasci = ctx.polasci || {};
 
         const redovi = karte.map((k) => {
-            const polazak = polasci[k.ticket_uuid] || k.departure || k.departure_planed || null;
+            const polazak = polasci[k.ticket_uuid] || k.polazak || k.departure || k.departure_planed || null;
             const cijena = Number(k.single_price ?? k.ticket_single_price ?? 0) || 0;
             return {
                 uuid: crypto.randomUUID(),
@@ -79,7 +81,7 @@ async function zabiljeziStorna(karte, ctx = {}) {
                 storno_invoice_uuid: ctx.storno_invoice_uuid || null,
                 storno_invoice_code: ctx.storno_invoice_code || null,
                 percentage: pct,
-                refund_amount: pct != null && ctx.outcome !== "odbijeno_validirana" ? +(cijena * pct / 100).toFixed(2) : null,
+                refund_amount: pct != null && (ctx.outcome || "storno") === "storno" ? +(cijena * pct / 100).toFixed(2) : null,
                 line_code: k.line_code || null,
                 line_name: k.line_name || null,
                 departure_harbor_name: k.departure_harbor_name || null,
@@ -87,8 +89,8 @@ async function zabiljeziStorna(karte, ctx = {}) {
                 route_uuid: k.route_uuid || null,
                 departure_planed: k.departure_planed || null,
                 polazak,
-                storno_at: stornoAt,
-                ...razvrstaj(polazak, stornoAt),
+                storno_at: vrijemeKarte(k),
+                ...razvrstaj(polazak, vrijemeKarte(k)),
                 validated_at: validacije[k.ticket_uuid] || null,
                 slobodno_storniranje: ctx.slobodno_storniranje == null ? null : Boolean(ctx.slobodno_storniranje),
                 ...uredaj,

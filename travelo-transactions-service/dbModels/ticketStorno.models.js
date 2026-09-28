@@ -18,7 +18,7 @@ module.exports = (sequelize) => {
             id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
             uuid: { type: DataTypes.STRING, allowNull: true },
 
-            // storno | odbijeno_validirana
+            // storno | odbijeno_validirana | odbijeno_rok
             outcome: { type: DataTypes.STRING, allowNull: false, defaultValue: "storno" },
             // desk | mobile | portal | druga_blagajna
             source: { type: DataTypes.STRING, allowNull: true },

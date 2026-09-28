@@ -5,6 +5,8 @@
 // vezan uz vrijeme polaska. Isključeno (zadano) — karta se može stornirati do
 // ROK_NAKON_POLASKA_MIN minuta nakon polaska. Postavka je po uređaju.
 import { getSetting, setSetting } from '../db/db';
+import api from '../api/client';
+import { ENDPOINTS } from '../api/config';
 
 export const ROK_NAKON_POLASKA_MIN = 30;
 
@@ -64,4 +66,59 @@ export const ocijeniRok = (polazakText, slobodno = false) => {
         reason: '',
         warning: `Brod je isplovio u ${hhmm(polazak)} — za storno je ostalo još ${preostalo} min.`,
     };
+};
+
+// Pokušaji storna izvan roka — Kontrola → Storniranje. Uređaj storno ne
+// dopušta, ali pokušaj mora biti vidljiv. Bez veze se čuvaju u redu čekanja
+// (settings, ključ ispod) i šalju iz AppNavigatora zajedno s ostalim zaostalim.
+const KLJUC_RED = 'pending_storno_attempts';
+
+const ucitajRed = async () => {
+    try { return JSON.parse((await getSetting(KLJUC_RED)) || '[]') || []; } catch { return []; }
+};
+
+export const posaljiPokusajeStorna = async () => {
+    const red = await ucitajRed();
+    if (!red.length) return;
+    const ostalo = [];
+    for (const paket of red) {
+        try {
+            await api.post(ENDPOINTS.stornoAttempt, paket, { timeout: 15000 });
+        } catch (e) {
+            // 4xx neće proći ni kasnije; čuva se samo ono što je palo na mreži.
+            const status = Number(e?.response?.status || 0);
+            if (!status || status >= 500) ostalo.push(paket);
+        }
+    }
+    await setSetting(KLJUC_RED, JSON.stringify(ostalo));
+};
+
+// `karte` su karte kojima je rok istekao, `rokovi` njihove ocjene.
+export const prijaviPokusajeIzvanRoka = async (karte, { operator = null, terminalUuid = null, salesRoutes = [] } = {}) => {
+    if (!karte?.length) return;
+    const sada = new Date().toISOString();
+    const paket = {
+        source: 'mobile',
+        operator,
+        terminal_uuid: terminalUuid,
+        slobodno_storniranje: await ucitajSlobodnoStorniranje(),
+        attempts: karte.map((t) => ({
+            ticket_uuid: t.ticket_uuid,
+            ticket_code: t.ticket_code || null,
+            ticket_type_name: t.ticket_type_name || null,
+            single_price: t.single_price ?? null,
+            line_code: t.line_code || null,
+            line_name: t.line_name || null,
+            departure_harbor_name: t.departure_harbor_name || null,
+            arrival_harbor_name: t.arrival_harbor_name || null,
+            route_uuid: t.route_uuid || null,
+            departure_planed: t.departure_planed || null,
+            polazak: polazakZaRok(t, salesRoutes),
+            attempted_at: sada,
+        })),
+    };
+    const red = await ucitajRed();
+    red.push(paket);
+    await setSetting(KLJUC_RED, JSON.stringify(red));
+    posaljiPokusajeStorna().catch(() => {});
 };
