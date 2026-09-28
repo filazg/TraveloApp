@@ -111,6 +111,20 @@ const jeSeopStupanj = (ishod) =>
 export const seopBezPrava = (ishod) =>
     jeSeopStupanj(ishod) && !(Number(ishod?.popust_postotak) > 0);
 
+// Red cjenika po kojem se prodaje povlaštena karta za pravo — vrsta karte
+// pridružena pravu u šifarniku popusta (portal: Integracije → AKD → SEOP →
+// Popusti). Bez pridružene vrste, ili kad relacija nema cijenu te vrste,
+// vrijedi opća otočna cijena. Isto pravilo kao u blagajni (subsidisedHelpers).
+export const otocnaCijenaZaPravo = (cijene = [], popusti = [], pravo = null) => {
+    const sifra = String(pravo || '').trim();
+    const upis = sifra ? (popusti || []).find((p) => String(p.code || '').trim() === sifra) : null;
+    if (upis?.ticket_type_uuid) {
+        const red = (cijene || []).find((c) => c.ticket_type_uuid === upis.ticket_type_uuid && c.is_active !== false);
+        if (red) return red;
+    }
+    return (cijene || []).find((c) => c.is_island === true && c.is_active !== false) || null;
+};
+
 export const opisSeopStupnja = (pct) =>
     Number(pct) >= 100 ? 'besplatno' : Number(pct) > 0 ? 'otočna cijena' : 'nema prava';
 

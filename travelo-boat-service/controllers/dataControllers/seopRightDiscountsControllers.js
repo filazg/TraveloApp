@@ -55,6 +55,8 @@ const updateSeopRightDiscountsController = async (req, res) => {
             zaUpis.push({
                 code,
                 ticket_label: label || null,
+                ticket_type_uuid: r?.ticket_type_uuid || null,
+                ticket_type_name: r?.ticket_type_uuid ? (r?.ticket_type_name || null) : null,
                 discount_pct: pct,
                 is_active: r?.is_active !== false,
                 updated_by: data.updated_by || null,

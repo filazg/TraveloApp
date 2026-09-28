@@ -10,6 +10,7 @@ import {
     identifikatorSKartice,
     provjeriKarticuNaRuti,
     cijenaPovlastene,
+    otocnaCijenaZaPravo,
     blokPovlastice as buildBlokPovlastice,
     buildIslandTickets,
     RAZLOZI_GRESKE,
@@ -52,12 +53,16 @@ export default function IslandReturnScanner({ ruta, kolicina, onClose }) {
     const cijenaRed = useMemo(() => {
         if (!ruta) return null;
         const sve = appData.transportData?.route_prices || [];
-        return sve.find((p) => p.timetable_uuid === ruta.timetable_uuid
-            && p.is_island === true
-            && p.is_active !== false
+        const relacija = sve.filter((p) => p.timetable_uuid === ruta.timetable_uuid
             && ((p.harbor_from_code === ruta.departure_harbor_id && p.harbor_to_code === ruta.arrival_harbor_id)
-                || (p.harbor_to_code === ruta.departure_harbor_id && p.harbor_from_code === ruta.arrival_harbor_id))) || null;
-    }, [ruta, appData.transportData]);
+                || (p.harbor_to_code === ruta.departure_harbor_id && p.harbor_from_code === ruta.arrival_harbor_id)));
+        // Po vrsti karte pridruženoj pravu, inače otočna (otocnaCijenaZaPravo).
+        return otocnaCijenaZaPravo(
+            relacija,
+            appData.basicData?.seop_right_discounts || [],
+            provjera?.pravo_na_pp || kartica?.F2?.BasicRight,
+        );
+    }, [ruta, appData.transportData, appData.basicData, provjera, kartica]);
 
     const provjeriKarticu = async (k, ident) => {
         setRadi(true);

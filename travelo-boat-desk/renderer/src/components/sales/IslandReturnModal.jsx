@@ -9,7 +9,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import { allAppData } from "../../store/appSlice";
-import { popustBezMreze } from "./subsidisedHelpers";
+import { popustBezMreze, otocnaCijenaZaPravo } from "./subsidisedHelpers";
 
 // Povratna OTOČNA karta u zasebnom modalu (Način 1 iz "Povlaštene karte", a
 // kasnije i Način 2 iz košarice). Bira se datum povratka + polazak u obrnutom
@@ -77,12 +77,16 @@ export default function IslandReturnModal({
     const cijenaRed = useMemo(() => {
         if (!ruta) return null;
         const sve = appData.transportData?.route_prices || [];
-        return sve.find((p) => p.timetable_uuid === ruta.timetable_uuid
-            && p.is_island === true
-            && p.is_active !== false
+        const relacija = sve.filter((p) => p.timetable_uuid === ruta.timetable_uuid
             && ((p.harbor_from_code === ruta.departure_harbor_id && p.harbor_to_code === ruta.arrival_harbor_id)
-                || (p.harbor_to_code === ruta.departure_harbor_id && p.harbor_from_code === ruta.arrival_harbor_id))) || null;
-    }, [ruta, appData.transportData]);
+                || (p.harbor_to_code === ruta.departure_harbor_id && p.harbor_from_code === ruta.arrival_harbor_id)));
+        // Po vrsti karte pridruženoj pravu, inače otočna (otocnaCijenaZaPravo).
+        return otocnaCijenaZaPravo(
+            relacija,
+            appData.basicData?.seop_right_discounts || [],
+            provjera?.pravo_na_pp || kartica?.F2?.BasicRight,
+        );
+    }, [ruta, appData.transportData, appData.basicData, provjera, kartica]);
 
     const provjeri = async () => {
         if (!ruta) return;

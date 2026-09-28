@@ -26,7 +26,7 @@ import {
 import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
 import { prijaviPokusaj, zabiljeziOcitanje } from '../services/validationAttempts';
-import { popustBezMreze, cijenaPovlastene, opisSeopStupnja, primijeniStupanj, POPUSTI_POVJERENJE } from '../services/seopOffline';
+import { popustBezMreze, cijenaPovlastene, opisSeopStupnja, primijeniStupanj, POPUSTI_POVJERENJE, otocnaCijenaZaPravo } from '../services/seopOffline';
 import { ENDPOINTS } from '../api/config';
 import { loadRecentBuyers, saveBuyer, syncAddressbook, findTicketByUuidOrCode, loadValidationLogForRoutes } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
@@ -502,9 +502,15 @@ export default function SaleScreen() {
         () => pricesForPairAll.filter((p) => p.is_island !== true),
         [pricesForPairAll]
     );
+    // Cijena povlaštene: po vrsti karte pridruženoj pravu (šifarnik popusta),
+    // inače otočna. Pravo je poznato tek nakon očitanja/provjere.
     const islandPriceRow = useMemo(
-        () => pricesForPairAll.find((p) => p.is_island === true) || null,
-        [pricesForPairAll]
+        () => otocnaCijenaZaPravo(
+            pricesForPairAll,
+            sync.basicData?.seop_right_discounts || [],
+            islandResult?.pravo_na_pp || islandCardInfo?.basicRight,
+        ),
+        [pricesForPairAll, sync.basicData, islandResult, islandCardInfo]
     );
 
     const total = useMemo(() => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
-    Alert, Box, Button, Chip, CircularProgress, Divider, FormControlLabel,
+    Alert, Box, Button, Chip, CircularProgress, Divider, FormControlLabel, MenuItem,
     Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
@@ -37,6 +37,9 @@ export default function SeopDiscountsTab() {
     // Prava bez upisanog popusta su većina popisa, a ured obično dira samo
     // nekoliko njih — prekidač ih skloni da se izmijenjeni redci vide odjednom.
     const [samoSPopustom, setSamoSPopustom] = useState(false);
+    // Vrste karata iz šifarnika (Brod → Tipovi karata) — pravu se pridružuje
+    // jedna, pa se povlaštena karta prodaje po njezinoj cijeni iz cjenika.
+    const [vrsteKarata, setVrsteKarata] = useState([]);
 
     const ucitaj = async () => {
         setUcitavanje(true);
@@ -52,6 +55,22 @@ export default function SeopDiscountsTab() {
     };
 
     useEffect(() => { ucitaj(); /* eslint-disable-next-line */ }, []);
+
+    useEffect(() => {
+        api.get("/portal/boat/tickets_types")
+            .then((r) => {
+                const popis = unwrap(r);
+                setVrsteKarata((Array.isArray(popis) ? popis : []).filter((t) => t.is_active !== false));
+            })
+            .catch(() => setVrsteKarata([]));
+    }, []);
+
+    const postaviVrstu = (code, uuid) => {
+        const vrsta = vrsteKarata.find((t) => t.uuid === uuid) || null;
+        setPrava((arr) => arr.map((p) => (p.code === code
+            ? { ...p, ticket_type_uuid: vrsta?.uuid || null, ticket_type_name: vrsta?.name || null }
+            : p)));
+    };
 
     const postavi = (code, polje, vrijednost) => {
         setPrava((arr) => arr.map((p) => (p.code === code ? { ...p, [polje]: vrijednost } : p)));
@@ -73,7 +92,9 @@ export default function SeopDiscountsTab() {
     // postotak daje sam, ali naziv na karti treba i tada. Redak bez ijednog od
     // to dvoje nema sto zapisati.
     const zaSpremanje = useMemo(
-        () => (prava || []).filter((p) => Number(p.discount_pct) > 0 || String(p.ticket_label || "").trim()),
+        () => (prava || []).filter((p) => Number(p.discount_pct) > 0
+            || String(p.ticket_label || "").trim()
+            || p.ticket_type_uuid),
         [prava]
     );
 
@@ -86,6 +107,8 @@ export default function SeopDiscountsTab() {
             const discounts = zaSpremanje.map((p) => ({
                 code: p.code,
                 ticket_label: String(p.ticket_label || "").trim() || null,
+                ticket_type_uuid: p.ticket_type_uuid || null,
+                ticket_type_name: p.ticket_type_uuid ? (p.ticket_type_name || null) : null,
                 discount_pct: Number(p.discount_pct) || 0,
                 is_active: p.is_active !== false,
             }));
@@ -127,6 +150,11 @@ export default function SeopDiscountsTab() {
                 primjena SEOP popusta. Dok je mreža dostupna, postotak dolazi sa SEOP-a i ovdje
                 upisano se ne koristi.
             </Typography>
+            <Typography variant="body2" color="text.secondary">
+                Vrsta karte određuje po kojoj se cijeni iz cjenika relacije prodaje povlaštena karta s tim
+                pravom (i s mrežom i bez nje) — umjesto opće otočne cijene. Ako za relaciju nema cijene te
+                vrste, vrijedi otočna cijena. Bez odabira ostaje otočna cijena.
+            </Typography>
 
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <Chip
@@ -146,12 +174,13 @@ export default function SeopDiscountsTab() {
             <Divider />
 
             <Box sx={{ width: "100%", overflowX: "auto" }}>
-                <Table size="small" sx={{ minWidth: 720 }}>
+                <Table size="small" sx={{ minWidth: 960 }}>
                     <TableHead>
                         <TableRow>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Šifra</TableCell>
                             <TableCell sx={{ fontWeight: 800 }}>Pravo</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Naziv na karti</TableCell>
+                            <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Vrsta karte</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Razred</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }}>Prebivalište</TableCell>
                             <TableCell sx={{ fontWeight: 800, whiteSpace: "nowrap" }} align="right">Popust %</TableCell>
@@ -180,6 +209,27 @@ export default function SeopDiscountsTab() {
                                             onChange={(e) => postavi(p.code, "ticket_label", e.target.value.slice(0, 60))}
                                             sx={{ width: 240 }}
                                         />
+                                    </TableCell>
+                                    <TableCell>
+                                        <TextField
+                                            select
+                                            size="small"
+                                            value={vrsteKarata.some((t) => t.uuid === p.ticket_type_uuid) ? p.ticket_type_uuid : ""}
+                                            onChange={(e) => postaviVrstu(p.code, e.target.value)}
+                                            sx={{ width: 220 }}
+                                            SelectProps={{ displayEmpty: true }}
+                                        >
+                                            <MenuItem value="">
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {p.ticket_type_uuid && !vrsteKarata.some((t) => t.uuid === p.ticket_type_uuid)
+                                                        ? `${p.ticket_type_name || "nepoznata"} (neaktivna)`
+                                                        : "Otočna cijena"}
+                                                </Typography>
+                                            </MenuItem>
+                                            {vrsteKarata.map((t) => (
+                                                <MenuItem key={t.uuid} value={t.uuid}>{t.name}</MenuItem>
+                                            ))}
+                                        </TextField>
                                     </TableCell>
                                     <TableCell>
                                         {razred
@@ -213,7 +263,7 @@ export default function SeopDiscountsTab() {
                         })}
                         {!prikazani.length && (
                             <TableRow>
-                                <TableCell colSpan={7}>
+                                <TableCell colSpan={8}>
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                                         Nijedno pravo nema upisan popust.
                                     </Typography>

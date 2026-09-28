@@ -33,6 +33,12 @@ module.exports = (sequelize) => {
             // Prazno znači da se ponaša kao dosad (naziv iz cjenika).
             ticket_label: { type: DataTypes.STRING, allowNull: true },
 
+            // Vrsta karte za ovo pravo. Povlaštena karta se prodaje po cijeni
+            // te vrste iz cjenika relacije (umjesto opće otočne cijene) i nosi
+            // tu vrstu — i za kapacitet i na računu. Prazno = otočna cijena.
+            ticket_type_uuid: { type: DataTypes.STRING, allowNull: true },
+            ticket_type_name: { type: DataTypes.STRING, allowNull: true },
+
             // Ugašeno pravo se ne šalje na uređaje. Služi da se popust povuče
             // bez brisanja upisanog postotka, kad ga treba vratiti.
             is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },

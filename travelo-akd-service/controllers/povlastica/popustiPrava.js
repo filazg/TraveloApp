@@ -53,6 +53,8 @@ async function katalogSPopustima() {
             razred: razredPrava(code),
             rezident: pravoJeRezidentsko(code),
             ticket_label: upis?.ticket_label || null,
+            ticket_type_uuid: upis?.ticket_type_uuid || null,
+            ticket_type_name: upis?.ticket_type_name || null,
             discount_pct: upis ? Number(upis.discount_pct) || 0 : 0,
             is_active: upis ? upis.is_active !== false : true,
             upisano: !!upis,
@@ -70,6 +72,8 @@ async function katalogSPopustima() {
             razred: razredPrava(code),
             rezident: false,
             ticket_label: upis.ticket_label || null,
+            ticket_type_uuid: upis.ticket_type_uuid || null,
+            ticket_type_name: upis.ticket_type_name || null,
             discount_pct: Number(upis.discount_pct) || 0,
             is_active: upis.is_active !== false,
             upisano: true,
@@ -91,6 +95,8 @@ async function popustiZaUredaje() {
                 code,
                 // Naziv koji uredaj ispisuje umjesto sifre prava.
                 ticket_label: r.ticket_label || null,
+                // Vrsta karte po kojoj uređaj prodaje povlaštenu kartu za ovo pravo.
+                ticket_type_uuid: r.ticket_type_uuid || null,
                 discount_pct: Number(r.discount_pct) || 0,
                 // Uređaj po ovome odlučuje smije li pravo proći na liniji u modu
                 // „prebivalište". Nepoznata šifra nije rezidentska — uže

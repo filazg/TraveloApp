@@ -12,6 +12,7 @@ import {
   cijenaPovlastene,
   popustBezMreze,
   opisSeopStupnja,
+  otocnaCijenaZaPravo,
   blokPovlastice as buildBlokPovlastice,
   RAZLOZI_GRESKE,
   POPUSTI_POVJERENJE,
@@ -683,7 +684,12 @@ function seopCardDetails() {
   // Prikazuje se samo ono po cemu blagajnik odlucuje: tko je, koje pravo, koliki
   // popust i za koji otok. Adresa i mjesto prebivalista su izbaceni — otok pise
   // posebno, a stupac je zbog njih bio dvostruko duzi.
-  const priceForSeopTicket = appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true)
+  // Cijena po vrsti karte pridruženoj pravu (šifarnik popusta), inače otočna.
+  const priceForSeopTicket = otocnaCijenaZaPravo(
+    appData.searchData?.selectedTripPrices || [],
+    appData.basicData?.seop_right_discounts || [],
+    provjera?.pravo_na_pp || cardData?.F2?.BasicRight,
+  )
   const smije = provjera?.smije_se_prodati === true
   // Bez veze sa SEOP-om ploha nije crvena: nije rijec o odbijenici nego o tome
   // da provjere nije bilo, a odluka se donosi lokalno ispod.
@@ -1290,7 +1296,11 @@ function virtualCardDetails() {
                     {odlukaIGumbi(
                       rucniSustav === 'MOSI'
                         ? redovnaCijenaRelacije()
-                        : appData.searchData?.selectedTripPrices?.find((price) => price.is_island === true),
+                        : otocnaCijenaZaPravo(
+                            appData.searchData?.selectedTripPrices || [],
+                            appData.basicData?.seop_right_discounts || [],
+                            provjera?.pravo_na_pp,
+                          ),
                       rucniSustav
                     )}
                   </StatusPanel>

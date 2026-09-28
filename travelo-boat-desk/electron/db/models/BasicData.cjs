@@ -268,6 +268,12 @@ const seopRightDiscountsModel = sequelize.define('seop_right_discounts',{
     ticket_label:{
         type:Sequelize.STRING,
         allowNull:true
+    },
+    // Vrsta karte za pravo — povlaštena karta se prodaje po cijeni te vrste
+    // iz cjenika relacije (otocnaCijenaZaPravo u subsidisedHelpers).
+    ticket_type_uuid:{
+        type:Sequelize.STRING,
+        allowNull:true
     }
 },{
     freezeTableName:true

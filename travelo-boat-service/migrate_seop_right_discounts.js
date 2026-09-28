@@ -33,6 +33,15 @@ const { initSequelize, getSequelize } = require("./config/database");
     );
     console.log("  · kolona ticket_label");
 
+    // Vrsta karte po pravu — cijena i vrsta povlaštene karte pri prodaji.
+    await sequelize.query(
+        `ALTER TABLE seop_right_discounts ADD COLUMN IF NOT EXISTS ticket_type_uuid varchar(255)`
+    );
+    await sequelize.query(
+        `ALTER TABLE seop_right_discounts ADD COLUMN IF NOT EXISTS ticket_type_name varchar(255)`
+    );
+    console.log("  · kolone ticket_type_uuid, ticket_type_name");
+
     const [[{ count }]] = await sequelize.query(`SELECT count(*)::int AS count FROM seop_right_discounts`);
     console.log(`  · upisanih prava: ${count}`);
 
