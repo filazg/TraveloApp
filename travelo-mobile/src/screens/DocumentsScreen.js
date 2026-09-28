@@ -14,6 +14,7 @@ import api from '../api/client';
 import { ENDPOINTS } from '../api/config';
 import { markTicketsCanceled, markInvoiceCanceled, saveSale, markInvoiceSynced } from '../db/repo';
 import { buildLocalStorno } from '../store/localSale';
+import { ucitajSlobodnoStorniranje, polazakZaRok, ocijeniRok } from '../services/stornoRok';
 import { colors, shadows, layout } from '../theme/colors';
 import HomeButton from '../components/HomeButton';
 
@@ -42,6 +43,9 @@ export default function DocumentsScreen() {
     // Storno state
     const [stornoOpen, setStornoOpen] = useState(false);
     const [stornoTicketUuids, setStornoTicketUuids] = useState({}); // { ticket_uuid: true }
+    // Rok za storno po karti ({ ticket_uuid: { allowed, reason, warning } }) —
+    // karta izvan roka se ne može označiti (vidi services/stornoRok.js).
+    const [stornoRokovi, setStornoRokovi] = useState({});
     const [stornoPaymentUuid, setStornoPaymentUuid] = useState('');
     const [stornoPct, setStornoPct] = useState('');
     const [stornoSubmitting, setStornoSubmitting] = useState(false);
@@ -156,7 +160,16 @@ export default function DocumentsScreen() {
     };
 
     // ---- STORNO ----
-    const openStorno = () => {
+    // Rok se računa u trenutku poziva, jer između otvaranja prozora i potvrde
+    // može isteći.
+    const ocijeniRokove = async (karte) => {
+        const slobodno = await ucitajSlobodnoStorniranje();
+        const rokovi = {};
+        for (const t of karte) rokovi[t.ticket_uuid] = ocijeniRok(polazakZaRok(t, sync.salesRoutes), slobodno);
+        return rokovi;
+    };
+
+    const openStorno = async () => {
         if (!selected) return;
         const r = invoiceRaw(selected);
         // Storno račun NE može biti dalje storniran (vidi memoriju "Pravila storna").
@@ -173,8 +186,15 @@ export default function DocumentsScreen() {
             Alert.alert('Storno', 'Sve karte su već stornirane.');
             return;
         }
+        const rokovi = await ocijeniRokove(stillActive);
+        const uRoku = stillActive.filter((t) => rokovi[t.ticket_uuid]?.allowed !== false);
+        if (!uRoku.length) {
+            Alert.alert('Storno', rokovi[stillActive[0].ticket_uuid]?.reason || 'Rok za storno je istekao.');
+            return;
+        }
         const initial = {};
-        for (const t of stillActive) initial[t.ticket_uuid] = true;
+        for (const t of uRoku) initial[t.ticket_uuid] = true;
+        setStornoRokovi(rokovi);
         setStornoTicketUuids(initial);
         // Predloži najveći ponuđeni postotak (obično puni povrat); blagajnik ga
         // može promijeniti, ali samo na jednu od dopuštenih vrijednosti.
@@ -187,6 +207,7 @@ export default function DocumentsScreen() {
     const closeStorno = () => {
         setStornoOpen(false);
         setStornoTicketUuids({});
+        setStornoRokovi({});
         setStornoPct('');
         setStornoPaymentUuid('');
     };
@@ -205,6 +226,13 @@ export default function DocumentsScreen() {
         if (!stornoPaymentUuid) { Alert.alert('Storno', 'Odaberite način povrata.'); return; }
         const terminalUuid = sync.basicData?.billing_device_uuid;
         if (!terminalUuid) { Alert.alert('Storno', 'Nije postavljen naplatni uređaj.'); return; }
+        const rokovi = await ocijeniRokove(detailTickets.filter((t) => stornoTicketUuids[t.ticket_uuid]));
+        const izvanRoka = Object.values(rokovi).find((r) => r.allowed === false);
+        if (izvanRoka) {
+            setStornoRokovi((m) => ({ ...m, ...rokovi }));
+            Alert.alert('Storno', izvanRoka.reason);
+            return;
+        }
 
         setStornoSubmitting(true);
         try {
@@ -519,10 +547,13 @@ export default function DocumentsScreen() {
                         <ScrollView style={{ maxHeight: 240, marginTop: 12 }}>
                             {detailTickets.filter((t) => !t.is_canceled).map((t) => {
                                 const checked = !!stornoTicketUuids[t.ticket_uuid];
+                                const rok = stornoRokovi[t.ticket_uuid];
+                                const izvanRoka = rok?.allowed === false;
                                 return (
                                     <TouchableOpacity
                                         key={t.ticket_uuid}
-                                        style={styles.ticketRow}
+                                        style={[styles.ticketRow, izvanRoka && { opacity: 0.5 }]}
+                                        disabled={izvanRoka}
                                         onPress={() => setStornoTicketUuids((m) => ({ ...m, [t.ticket_uuid]: !checked }))}
                                     >
                                         <Text style={[styles.checkbox, checked && styles.checkboxOn]}>{checked ? '☑' : '☐'}</Text>
@@ -531,6 +562,11 @@ export default function DocumentsScreen() {
                                                 {t.ticket_type_name}{t.is_island && t.seop_card_no ? ` — ${t.seop_card_no}` : ''}
                                             </Text>
                                             <Text style={styles.ticketSub}>Kod: {t.ticket_code}</Text>
+                                            {izvanRoka || rok?.warning ? (
+                                                <Text style={[styles.ticketSub, { color: izvanRoka ? colors.error : colors.warning }]}>
+                                                    {izvanRoka ? rok.reason : rok.warning}
+                                                </Text>
+                                            ) : null}
                                         </View>
                                         <Text style={styles.ticketPrice}>{fmtEUR(t.single_price)}</Text>
                                     </TouchableOpacity>

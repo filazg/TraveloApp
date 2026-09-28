@@ -80,18 +80,71 @@ export const popustBezMreze = ({
         };
     }
 
-    // Linija popust primjenjuje, ali se postotak ne zna. Prodaja po otočnoj
-    // cijeni bi tada naplatila više nego što pripada, pa se radije ne odlučuje.
+    // Linija popust primjenjuje, ali se stupanj ne zna. 0 % u šifarniku je i
+    // zadana vrijednost nepopunjenog retka, pa se iz njega ne zaključuje da
+    // prava nema — odluka ostaje operateru, uz razlog.
     if (!upis || !(Number(upis.discount_pct) > 0)) {
         return neznam(`Za pravo ${sifra} nije postavljen popust (Integracije → AKD → SEOP → Popusti).`);
     }
 
+    const pct = Number(upis.discount_pct);
     return {
         odluceno: true,
         pravo_vrijedi: true,
         primjeni_popust: true,
-        popust_postotak: Number(upis.discount_pct),
+        popust_postotak: pct,
         primijenjen: true,
-        razlog: `Popust ${Number(upis.discount_pct)}% po pravu ${sifra} — iz lokalnog šifarnika, bez provjere u SEOP-u.`,
+        razlog: `${pct >= 100 ? 'Besplatna karta' : 'Otočna cijena'} po pravu ${sifra} — iz lokalnog šifarnika, bez provjere u SEOP-u.`,
     };
 };
+
+// Na liniji koja primjenjuje popust sa SEOP-a postotak nije množitelj nego
+// stupanj prava (očitovanje AKD-a, 2026-09):
+//   0 %   — nema prava na otočnu kartu
+//   50 %  — otočna karta po cijeni iz cjenika otočnih karata
+//   100 % — besplatna karta
+// MOSI postotak dolazi iz postavki linije i ostaje pravi popust. Isto pravilo
+// kao u blagajni (subsidisedHelpers.js).
+const jeSeopStupanj = (ishod) =>
+    ishod?.primjeni_popust === true && (ishod?.sustav || 'SEOP') === 'SEOP';
+
+export const seopBezPrava = (ishod) =>
+    jeSeopStupanj(ishod) && !(Number(ishod?.popust_postotak) > 0);
+
+export const opisSeopStupnja = (pct) =>
+    Number(pct) >= 100 ? 'besplatno' : Number(pct) > 0 ? 'otočna cijena' : 'nema prava';
+
+// Kako se računa povlaštena cijena, odlučuje linija (postavka u portalu):
+//   primjeni_popust — SEOP: stupanj prava (100 % besplatno, inače otočna
+//                     cijena); MOSI: na cijenu iz cjenika primijeni postotak
+//   inače           — naplati cijenu iz cjenika, kakva jest
+// Vrijedi i za lokalnu odluku bez mreže (popustBezMreze), koja uvijek znači SEOP.
+export const cijenaPovlastene = (ishod, red) => {
+    const osnovica = Number(red?.price || 0);
+    if (!ishod?.primjeni_popust) return +osnovica.toFixed(2);
+    const pct = Number(ishod.popust_postotak || 0);
+    if (jeSeopStupanj(ishod)) return pct >= 100 ? 0 : +osnovica.toFixed(2);
+    return +(osnovica * (1 - pct / 100)).toFixed(2);
+};
+
+// SEOP je pravo priznao, ali s 0 % — po stupnjevima to znači da otočne karte
+// nema. Poslužitelj to još ne zna, pa se odgovor ovdje pretvara u odbijenu
+// provjeru: bez tokena, a operateru ostaje izdavanje uz razlog.
+export const primijeniStupanj = (ishod) => {
+    if ((ishod?.smije_se_prodati ?? ishod?.ima_pravo) && seopBezPrava(ishod)) {
+        return {
+            ...ishod,
+            ima_pravo: false,
+            smije_se_prodati: false,
+            token: null,
+            razlog: 'SEOP je vratio 0 % — korisnik nema pravo na otočnu kartu.',
+        };
+    }
+    return ishod;
+};
+
+// Dvije mogućnosti i ništa između: otočna cijena iz cjenika ili besplatno.
+export const POPUSTI_POVJERENJE = [
+    { pct: 0, naziv: 'Otočna cijena' },
+    { pct: 100, naziv: 'Besplatno' },
+];

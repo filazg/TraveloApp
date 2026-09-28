@@ -26,7 +26,7 @@ import {
 import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
 import { prijaviPokusaj, zabiljeziOcitanje } from '../services/validationAttempts';
-import { popustBezMreze } from '../services/seopOffline';
+import { popustBezMreze, cijenaPovlastene, opisSeopStupnja, primijeniStupanj, POPUSTI_POVJERENJE } from '../services/seopOffline';
 import { ENDPOINTS } from '../api/config';
 import { loadRecentBuyers, saveBuyer, syncAddressbook, findTicketByUuidOrCode, loadValidationLogForRoutes } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
@@ -49,15 +49,9 @@ function SitnoPolje({ oznaka, vrijednost }) {
     );
 }
 
-// Popust na povjerenje — isti izbor kao na blagajni
-// (subsidisedHelpers.POPUSTI_POVJERENJE). Bez potvrđenog prava ne zna se koliki
-// popust pripada, ali putnik ga može imati, pa odluku donosi operater i ona se
-// bilježi kao njegova (`popust_izvor: 'povjerenje'`).
-const POPUSTI_POVJERENJE = [
-    { pct: 0, naziv: 'Puna cijena' },
-    { pct: 50, naziv: 'Popust 50 %' },
-    { pct: 100, naziv: 'Besplatno (100 %)' },
-];
+// Popust na povjerenje (POPUSTI_POVJERENJE, seopOffline.js) — isti izbor kao na
+// blagajni. Bez potvrđenog prava odluku donosi operater i ona se bilježi kao
+// njegova (`popust_izvor: 'povjerenje'`).
 
 const RAZLOZI_GRESKE = [
     { kljuc: 'nemoguce_ocitati', naziv: 'Nemoguće očitati karticu' },
@@ -627,7 +621,7 @@ export default function SaleScreen() {
                 },
                 date: matchingRoute.departure || `${matchingRoute.departure_date} ${matchingRoute.departure_time}`,
             });
-            const ishod = resp.data?.data || resp.data;
+            const ishod = primijeniStupanj(resp.data?.data || resp.data);
             setIslandResult(ishod);
             // Zvučni signal ishoda provjere — potvrđeno pravo daje uspješan ton,
             // odbijena iskaznica neuspješan (operater ne mora gledati u ekran).
@@ -738,9 +732,11 @@ export default function SaleScreen() {
     // cjenika, pa postotak ne bi bio istina.
     const popustZaPrikaz = () => {
         if (islandResult?.smije_se_prodati === true && islandResult?.primjeni_popust !== true) return 'po cjeniku';
-        if (islandResult?.primjeni_popust === true && islandResult?.popust_postotak != null) return `${islandResult.popust_postotak} %`;
+        if (islandResult?.primjeni_popust === true && islandResult?.popust_postotak != null) {
+            return islandResult.sustav === 'MOSI' ? `${islandResult.popust_postotak} %` : opisSeopStupnja(islandResult.popust_postotak);
+        }
         const odluka = odlukaBezMreze();
-        if (odluka?.primijenjen) return `${odluka.popust_postotak} %`;
+        if (odluka?.primijenjen) return opisSeopStupnja(odluka.popust_postotak);
         const upis = (sync.basicData?.seop_right_discounts || [])
             .find((p) => String(p.code || '').trim() === String(islandCardInfo?.basicRight || '').trim());
         return upis?.discount_pct != null ? `${upis.discount_pct} %` : '—';
@@ -763,11 +759,8 @@ export default function SaleScreen() {
         const red = islandPriceRow || redovniRed;
         if (!red || !odluka?.pravo_vrijedi) return;
         const redovna = Number(redovniRed?.price ?? red.price);
-        // Isto pravilo kao s mrežom: postotak na cijenu iz cjenika samo ako ga
-        // linija primjenjuje, inače otočna cijena kakva jest.
-        const unit = odluka.primjeni_popust
-            ? +(Number(red.price) * (1 - odluka.popust_postotak / 100)).toFixed(2)
-            : +Number(red.price).toFixed(2);
+        // Isto pravilo kao s mrežom (cijenaPovlastene).
+        const unit = cijenaPovlastene(odluka, red);
         dodajKartu({
             ticket_type_uuid: red.ticket_type_uuid,
             ticket_type_name: red.ticket_type_name || 'Povlaštena karta',
@@ -781,20 +774,6 @@ export default function SaleScreen() {
             }),
         });
         closeIslandModal();
-    };
-
-    // Kako se racuna povlastena cijena, odlucuje linija (postavka u portalu), i
-    // to je striktno ili-ili:
-    //   primjeni_popust — na cijenu iz cjenika primijeni postotak sa SEOP-a
-    //   inace           — naplati cijenu iz cjenika, kakva jest
-    // Nema iznimke za pravo na besplatan prijevoz: kad se popust ne primjenjuje,
-    // vrijedi cjenik i za njega.
-    const cijenaPovlastene = (ishod, red) => {
-        const osnovica = Number(red?.price || 0);
-        if (ishod?.primjeni_popust) {
-            return +(osnovica * (1 - Number(ishod.popust_postotak || 0) / 100)).toFixed(2);
-        }
-        return +osnovica.toFixed(2);
     };
 
     const dodajKartu = (karta) => setIslandTickets((arr) => [...arr, karta]);
@@ -860,8 +839,8 @@ export default function SaleScreen() {
     // linijama (nemaju otočnu) redovna.
     const redPovjerenja = islandPriceRow || redovniRed;
 
-    // Cijena karte izdane na povjerenje: osnovica umanjena za popust koji je
-    // operater odabrao. Bez odabira je to puna otočna cijena.
+    // Cijena karte izdane na povjerenje: otočna cijena ili besplatno, kako je
+    // operater odabrao. Bez odabira je to otočna cijena.
     const iznosPovjerenja = () => {
         const osnovica = Number(redPovjerenja?.price || 0);
         return +(osnovica * (1 - Number(povjerenjePopust || 0) / 100)).toFixed(2);
@@ -1531,7 +1510,13 @@ export default function SaleScreen() {
                         {islandResult && (islandResult.smije_se_prodati ?? islandResult.ima_pravo) && (
                             <View style={islandStyles.resultOk}>
                                 <Text style={islandStyles.resultOkTitle}>
-                                    Pravo potvrđeno — popust {islandResult.popust_postotak}%
+                                    {islandResult.sustav === 'MOSI'
+                                        ? `Pravo potvrđeno — popust ${islandResult.popust_postotak}%`
+                                        : islandResult.primjeni_popust
+                                            ? (Number(islandResult.popust_postotak) >= 100
+                                                ? 'Pravo potvrđeno — besplatna karta'
+                                                : 'Pravo potvrđeno — otočna karta')
+                                            : 'Pravo potvrđeno — povlaštena karta'}
                                     {islandResult.mock ? ' (MOCK)' : ''}
                                 </Text>
                                 {!!islandResult.otok && (
@@ -1553,7 +1538,7 @@ export default function SaleScreen() {
                                 {osnovicaPovlastene ? (
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                                         <Text style={{ marginRight: 8 }}>Cijena:</Text>
-                                        {islandResult.primjeni_popust ? (
+                                        {cijenaPovlastene(islandResult, osnovicaPovlastene) < Number(osnovicaPovlastene.price) ? (
                                             <Text style={[islandStyles.priceOld, { textDecorationLine: 'line-through' }]}>
                                                 {Number(osnovicaPovlastene.price).toFixed(2)} €
                                             </Text>
@@ -1595,9 +1580,7 @@ export default function SaleScreen() {
                                 );
                             }
                             if (!red) return null;
-                            const unit = odluka.primjeni_popust
-                                ? +(Number(red.price) * (1 - odluka.popust_postotak / 100)).toFixed(2)
-                                : +Number(red.price).toFixed(2);
+                            const unit = cijenaPovlastene(odluka, red);
                             return (
                                 <View style={islandStyles.bezMreze}>
                                     <Text style={islandStyles.bezMrezeNaslov}>
@@ -1608,7 +1591,7 @@ export default function SaleScreen() {
                                     </Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                                         <Text style={{ marginRight: 8 }}>Cijena:</Text>
-                                        {odluka.primjeni_popust && (
+                                        {unit < Number(red.price) && (
                                             <Text style={[islandStyles.priceOld, { textDecorationLine: 'line-through' }]}>
                                                 {Number(red.price).toFixed(2)} €
                                             </Text>
@@ -1619,9 +1602,7 @@ export default function SaleScreen() {
                                         <Text style={islandStyles.btnPrimaryText}>
                                             {unit === 0
                                                 ? 'Izdaj besplatnu kartu'
-                                                : odluka.primjeni_popust
-                                                    ? `Izdaj s popustom — ${unit.toFixed(2)} €`
-                                                    : `Izdaj po otočnoj cijeni — ${unit.toFixed(2)} €`}
+                                                : `Izdaj po otočnoj cijeni — ${unit.toFixed(2)} €`}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
@@ -1657,7 +1638,7 @@ export default function SaleScreen() {
                                 {/* Bez potvrđenog prava ne zna se koliki popust
                                     pripada, ali putnik ga može imati — pa odluku
                                     donosi operater i ona se bilježi kao njegova. */}
-                                <Text style={islandStyles.popustNaslov}>Popust na povjerenje:</Text>
+                                <Text style={islandStyles.popustNaslov}>Cijena na povjerenje:</Text>
                                 <View style={islandStyles.razlogRed}>
                                     {POPUSTI_POVJERENJE.map((o) => (
                                         <TouchableOpacity
