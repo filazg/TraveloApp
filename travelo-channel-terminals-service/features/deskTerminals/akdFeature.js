@@ -1,5 +1,5 @@
 const { checkIslandCardController } = require('../../controllers/coreServiceControllers/akdServiceControllers');
-const { cancelTicketsController } = require('../../controllers/coreServiceControllers/transactionsServiceControllers');
+const { cancelTicketsController, stornoCheckController } = require('../../controllers/coreServiceControllers/transactionsServiceControllers');
 
 const handleCheckIslandCardFeature = async (req, res) => {
     try {
@@ -27,4 +27,18 @@ const handleCancelTicketsFeature = async (req, res) => {
     }
 };
 
-module.exports = { handleCheckIslandCardFeature, handleCancelTicketsFeature };
+// Uređaj ne šalje svoj uuid u tijelu provjere — zna se iz tokena (zaglavlje
+// koje postavlja gateway), a treba za zapis pokušaja u Kontroli.
+const handleStornoCheckFeature = async (req, res) => {
+    try {
+        const payload = req.body?.body || req.body || {};
+        const terminalUuid = payload.terminal_uuid || req.body?.header?.data?.t || null;
+        const { status, body } = await stornoCheckController({ ...payload, terminal_uuid: terminalUuid });
+        res.status(status).send(body);
+    } catch (error) {
+        console.log('handleStornoCheckFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
+module.exports = { handleCheckIslandCardFeature, handleCancelTicketsFeature, handleStornoCheckFeature };

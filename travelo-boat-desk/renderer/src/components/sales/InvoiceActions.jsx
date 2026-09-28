@@ -66,7 +66,7 @@ export default function InvoicesActions ({ params, rowId}) {
         console.log('InVOICE DATA',params.row)
         // Rok s obzirom na polazak provjerava se prije svega — prije odabira
         // postotka i prije kartičnog povrata, koji se ne da poništiti.
-        const rok = (await window.api.app.checkStornoRokIPC({ invoice_uuid: params.row.invoice_uuid }))?.data
+        const rok = (await window.api.app.checkStornoRokIPC({ invoice_uuid: params.row.invoice_uuid, user: appData.logedUser }))?.data
         if (rok && rok.allowed === false) {
             await dispatch(setStateData({path:'alertData', value:{ message: rok.reason, severity:'error' }}))
             return

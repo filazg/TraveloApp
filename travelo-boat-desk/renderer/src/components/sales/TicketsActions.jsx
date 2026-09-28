@@ -61,7 +61,7 @@ export default function TicketsActions ({ params, rowId}) {
     const handleCancelTicket = async()=>{
         // Rok s obzirom na polazak provjerava se prije svega — prije odabira
         // postotka i prije kartičnog povrata, koji se ne da poništiti.
-        const rok = (await window.api.app.checkStornoRokIPC({ ticket_uuid: params.row.ticket_uuid }))?.data
+        const rok = (await window.api.app.checkStornoRokIPC({ ticket_uuid: params.row.ticket_uuid, user: appData.logedUser }))?.data
         if (rok && rok.allowed === false) {
             await dispatch(setStateData({path:'alertData', value:{ message: rok.reason, severity:'error' }}))
             return
@@ -97,8 +97,13 @@ export default function TicketsActions ({ params, rowId}) {
         if(invoiceData.data.invoice?.invoice_status === 'canceled-orginal' || invoiceData.data.invoice?.invoice_status === 'canceled'){
             await dispatch(setStateData({path:'alertData', value:{message:'Kartu nije moguće stornirati',severity:'error'}}))
         }else if(invoiceData.data.invoice?.invoice_status === 'canceled-partial'){
-            if(params.row.ticket_status === 'CANCELED' || params.row.ticket_status === 'VALIDATE' ){
-                await dispatch(setStateData({path:'alertData', value:{message:'Kartu nije moguće stornirati AA',severity:'error'}}))
+            // Validaciju na ukrcaju provjerava poslužitelj (checkStornoRokIPC gore);
+            // 'VALIDATE' je ovdje automatska validacija pri prodaji i ne priječi
+            // storno. Prije je ova grana javljala grešku, a storno svejedno
+            // prolazio jer isOk nije bio spušten.
+            if(params.row.ticket_status === 'CANCELED'){
+                isOk = false
+                await dispatch(setStateData({path:'alertData', value:{message:'Karta je već stornirana',severity:'error'}}))
             }else{
                if (!cancelPaymentMethod) {
                     const answer = await askForConfirmation(); // <— ovdje "stane" dok user ne klikne
@@ -114,8 +119,9 @@ export default function TicketsActions ({ params, rowId}) {
                 }
             }
         }else{
-            if(params.row.ticket_status === 'CANCELED' || params.row.ticket_status === 'VALIDATE' ){
-                await dispatch(setStateData({path:'alertData', value:{message:'Kartu nije moguće stornirati CCC',severity:'error'}}))
+            if(params.row.ticket_status === 'CANCELED'){
+                isOk = false
+                await dispatch(setStateData({path:'alertData', value:{message:'Karta je već stornirana',severity:'error'}}))
             }else{
                 if(invoiceData.data.invoice.invoice_payment_method_fiscal_mark === 'K'){
                     console.log('IFFFFF JEEEEE')

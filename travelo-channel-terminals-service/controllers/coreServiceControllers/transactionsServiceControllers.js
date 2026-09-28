@@ -100,6 +100,20 @@ const cancelTicketsController = async (data) => {
     }
 };
 
+// Provjera prije storna — je li koja karta validirana očitanjem (transactions
+// /storno_check). Validirana se ne stornira, a pokušaj se bilježi u Kontrolu.
+const stornoCheckController = async (data) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const url = coreConfigData.services.transactions.url + '/storno_check';
+        const response = await axios.post(url, data, { timeout: 15000, validateStatus: () => true });
+        return { status: response.status, body: response.data };
+    } catch (error) {
+        console.log('stornoCheckController error:', error?.message || error);
+        return { status: 500, body: { data: { message: error.message } } };
+    }
+};
+
 const upsertTerminalShiftController = async (data) => {
     try {
         const coreConfigData = await getCoreServiceConfigData();
@@ -125,6 +139,7 @@ const listShiftsController = async (params) => {
 };
 
 module.exports = {
+    stornoCheckController,
     logTicketCopyPrintController,
     addTerminalSaleController,
     finalizeTerminalSaleController,

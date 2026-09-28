@@ -234,6 +234,44 @@ export default function DocumentsScreen() {
             return;
         }
 
+        // Za evidenciju storna (Kontrola → Storniranje): tko, kada i po kojem
+        // polasku je mjeren rok. Ide i u _storno_payload, da ga ponovno slanje
+        // ne izgubi.
+        const operaterZaEvidenciju = `${auth.operator?.user_name || ''} ${auth.operator?.user_surname || ''}`.trim() || null;
+        const polasci = {};
+        for (const t of detailTickets) {
+            if (stornoTicketUuids[t.ticket_uuid]) polasci[t.ticket_uuid] = polazakZaRok(t, sync.salesRoutes) || null;
+        }
+        const evidencija = {
+            source: 'mobile',
+            operator: operaterZaEvidenciju,
+            storno_at: new Date().toISOString(),
+            polasci,
+            slobodno_storniranje: await ucitajSlobodnoStorniranje(),
+        };
+
+        // Validaciju na ukrcaju zna poslužitelj (očitanja sa svih uređaja).
+        // Validirana karta se ne stornira; bez veze storno prolazi, kao i dosad.
+        try {
+            const resp = await api.post(ENDPOINTS.stornoCheck, {
+                ticket_uuids: ticketUuids,
+                terminal_uuid: terminalUuid,
+                operator: evidencija.operator,
+                attempted_at: evidencija.storno_at,
+                polasci,
+                percentage: pct,
+                slobodno_storniranje: evidencija.slobodno_storniranje,
+                source: 'mobile',
+            }, { timeout: 10000 });
+            const provjera = resp.data?.data ?? resp.data ?? {};
+            if (provjera.allowed === false) {
+                Alert.alert('Storno', provjera.message || 'Karta je validirana na ukrcaju — storno nije moguć.');
+                return;
+            }
+        } catch (e) {
+            console.warn('storno_check nije uspio (offline?):', e?.message || e);
+        }
+
         setStornoSubmitting(true);
         try {
             // 1) LOCAL — generiraj storno račun samostalno (sljedeći broj iz iste
@@ -283,6 +321,7 @@ export default function DocumentsScreen() {
                 // Payload za sync retry — bez ovoga syncPendingSalesThunk ne zna
                 // koji ticket-i se storniraju ako audit POST padne sad.
                 _storno_payload: {
+                    ...evidencija,
                     ticket_uuids: ticketUuids,
                     terminal_uuid: terminalUuid,
                     payment_method_uuid: stornoPaymentUuid,
@@ -317,6 +356,7 @@ export default function DocumentsScreen() {
             //    storno račun kao synced=1 da nestane "Pending" badge u Dokumentima.
             //    Ako padne, ostaje 0 i pokupit će ga syncPendingSalesThunk kasnije.
             api.post(ENDPOINTS.cancelTickets, {
+                ...evidencija,
                 ticket_uuids: ticketUuids,
                 terminal_uuid: terminalUuid,
                 payment_method_uuid: stornoPaymentUuid,

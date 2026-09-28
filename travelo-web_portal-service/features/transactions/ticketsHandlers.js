@@ -19,7 +19,9 @@ const handleSearchTicketsFeature = async (req, res) => {
 
 const handleCancelTicketsFeature = async (req, res) => {
     const payload = req.body?.body || req.body || {};
-    const { status, body } = await cancelTicketsBackendController(payload);
+    // Izvor za evidenciju storna (Kontrola → Storniranje) — iz portala stornira
+    // Finance, ne blagajna.
+    const { status, body } = await cancelTicketsBackendController({ source: 'portal', ...payload });
     res.status(status).send(body);
 };
 

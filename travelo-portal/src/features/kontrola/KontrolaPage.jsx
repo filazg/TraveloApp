@@ -2,6 +2,7 @@ import { Box, Card, CardActionArea, Chip, Stack, Typography } from "@mui/materia
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CreditCardOffIcon from "@mui/icons-material/CreditCardOff";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
+import RemoveShoppingCartIcon from "@mui/icons-material/RemoveShoppingCart";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -94,6 +95,13 @@ const CARDS = [
         subtitle: "Povlaštene karte prodane bez veze sa SEOP-om",
         icon: CloudOffIcon,
         path: "/kontrola/offline_prodaja",
+        enabled: true,
+    },
+    {
+        label: "Storniranje",
+        subtitle: "Storna karata po vremenu od polaska i validirane",
+        icon: RemoveShoppingCartIcon,
+        path: "/kontrola/storniranje",
         enabled: true,
     },
 ];

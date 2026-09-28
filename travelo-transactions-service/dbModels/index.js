@@ -11,6 +11,7 @@ const syncSignalsModelsFactory = require("./syncSignals.models");
 const ticketCopyPrintModelsFactory = require("./ticketCopyPrint.models");
 const ticketValidationModelsFactory = require("./ticketValidation.models");
 const seopCardErrorModelsFactory = require("./seopCardError.models");
+const ticketStornoModelsFactory = require("./ticketStorno.models");
 
 let models = null;
 
@@ -30,7 +31,8 @@ function initModels() {
       ...syncSignalsModelsFactory(sequelize),
       ...ticketCopyPrintModelsFactory(sequelize),
       ...ticketValidationModelsFactory(sequelize),
-      ...seopCardErrorModelsFactory(sequelize)
+      ...seopCardErrorModelsFactory(sequelize),
+      ...ticketStornoModelsFactory(sequelize)
     };
   }
 

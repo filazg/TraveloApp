@@ -6,6 +6,7 @@ const { releaseBookings } = require("../../helpers/bookingClient");
 const { dodajStavku } = require("./paymentOrderControllers");
 const { podigniSignal } = require("./syncSignalsController");
 const { provjeriIban } = require("../../helpers/iban");
+const { zabiljeziStorna } = require("../../helpers/stornoEvidencija");
 
 // Opis povrata završi u platnom nalogu i vidi ga primatelj na izvatku, pa je
 // ispravan padež mjesto gdje se ne štedi.
@@ -107,6 +108,14 @@ const cancelTicketsController = async (req, res) => {
             // izvornoj transakciji čitaju se s računa kojim je karta plaćena.
             // Bez ovog bloka je povrat samo po odabranom sredstvu, kao i dosad.
             refund,
+            // Za evidenciju storna (Kontrola → Storniranje): tko, kada i po
+            // kojem polasku je uređaj mjerio rok. Stariji pozivatelji ih ne
+            // šalju — tada vrijedi vrijeme poslužitelja i polazak s karte.
+            source,
+            operator,
+            storno_at,
+            polasci,
+            slobodno_storniranje,
         } = req.body || {};
 
         if (!Array.isArray(ticket_uuids) || !ticket_uuids.length) {
@@ -356,6 +365,18 @@ const cancelTicketsController = async (req, res) => {
             { is_canceled: true, status: "canceled", deactivate: true, deactivate_data: invoiceDate },
             { where: { id: ticketIds } }
         );
+
+        await zabiljeziStorna(karteZaPovrat.map((t) => t.get({ plain: true })), {
+            source: source || null,
+            operator: operator || refund?.created_by || null,
+            terminal_uuid,
+            storno_at: storno_at || invoiceDate,
+            polasci: polasci || {},
+            percentage: pct,
+            storno_invoice_uuid: invoice_uuid,
+            storno_invoice_code: finalInvoiceCode,
+            slobodno_storniranje,
+        });
 
         // Release capacity in booking service (per ticket, qty=1 each since ticket rows are singular).
         // Ide po karti, ne po retku — inače bi dvostruko zapisana karta oslobodila

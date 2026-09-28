@@ -483,7 +483,7 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData, storno
       console.log('cancelInvoiceService: račun je već storniran —', invoiceData.invoice_status)
       return { ok: false, error: { message: 'Račun je već storniran i ne može se stornirati ponovno.' } }
     }
-    const rokRacuna = await provjeriRokStornaService({ invoice_uuid: invoiceData.invoice_uuid })
+    const rokRacuna = await provjeriRokStornaService({ invoice_uuid: invoiceData.invoice_uuid, user })
     if (!rokRacuna.allowed) {
       return { ok: false, error: { message: rokRacuna.reason } }
     }
@@ -635,6 +635,11 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData, storno
       payment_data: paymentData || {},
       invoice_canceled_pair:invoiceData.invoice_uuid
     };
+    // Karte koje ovaj storno poništava — sve još aktivne karte računa.
+    const karteRacuna = (await ticketsModel.findAll({ where: { order_number: invoiceData.order_number } }))
+      .map((k) => k.toJSON())
+      .filter((k) => !(k.ticket_status === 'CANCELED' || k.ticket_is_canceled || k.ticket_deactivate));
+    invoiceToAdd.storno_data = await stornoBlok(karteRacuna, stornoPct);
     // 1) Lokalna baza prvi.
     await invoicesModel.update({
       invoice_status:'canceled-orginal',
@@ -684,6 +689,7 @@ const cancelInvoiceService = async ({invoice, user, payment, paymentData, storno
       tickets_groups: ticketsGroupToAdd,
       items: itemsToAdd,
       tickets: [],
+      storno: invoiceToAdd.storno_data,
     }
     try {
       const sendInvoice = await axios.post(backendUrl + "/terminals/terminal/add_invoices", stornoEnvelope, {
@@ -960,7 +966,7 @@ const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPc
       console.log('cancelTicketService: karta je već stornirana —', ticketState.ticket_code)
       return { ok: false, error: { message: 'Karta je već stornirana i ne može se stornirati ponovno.' } }
     }
-    const rokKarte = await provjeriRokStornaService({ ticket_uuid: ticketState.ticket_uuid })
+    const rokKarte = await provjeriRokStornaService({ ticket_uuid: ticketState.ticket_uuid, user })
     if (!rokKarte.allowed) {
       return { ok: false, error: { message: rokKarte.reason } }
     }
@@ -1108,6 +1114,7 @@ const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPc
         payment_data: paymentData || {},
         invoice_canceled_pair:invoiceData.invoice_uuid
       };
+      invoiceToAdd.storno_data = await stornoBlok([ticketState.toJSON()], stornoPct);
 
       // 1) Lokalna baza prvi.
       await invoicesModel.update({
@@ -1158,6 +1165,7 @@ const cancelTicketService = async ({ticket, user, payment, paymentData, stornoPc
         tickets_groups: ticketsGroupToAdd,
         items: itemsToAdd,
         tickets: [],
+        storno: invoiceToAdd.storno_data,
       }
       try {
         const sendInvoice = await axios.post(backendUrl + "/terminals/terminal/add_invoices", stornoEnvelope, {
@@ -1272,6 +1280,9 @@ const syncPendingInvoicesService = async () => {
           tickets_groups: groups.map(g => g.toJSON()),
           items: itemsWithGroups,
           tickets: tickets.map(t => t.toJSON()),
+          // Storno račun nosi karte koje poništava; bez toga bi ponovno
+          // slanje ostavilo te karte važećima na poslužitelju.
+          ...(row.storno_data ? { storno: row.storno_data } : {}),
         }
         const resp = await axios.post(backendUrl + '/terminals/terminal/add_invoices', envelope, {
           headers: { authorization: 'Bearer ' + token },
@@ -1362,14 +1373,70 @@ const polazakZaRok = async (salesRouteUuid, zapisano) => {
   return zapisano;
 };
 
-// Smije li se karta ili racun stornirati s obzirom na vrijeme polaska. Zove se
-// prije odabira postotka i kartičnog povrata (sučelje), i još jednom u samom
-// stornu, jer između ta dva trenutka rok može isteći.
+const imeOperatera = (user) =>
+  [user?.user_name, user?.user_surname].filter(Boolean).join(' ') || user?.user_username || null;
+
+// Blok storna za poslužitelj (Kontrola → Storniranje): koje su karte
+// stornirane, postotak i polazak po kojem je uređaj mjerio rok.
+const stornoBlok = async (karte, postotak) => {
+  const polasci = {};
+  for (const k of karte) polasci[k.ticket_uuid] = await polazakZaRok(k.sales_route_uuid, k.ticket_departure);
+  return {
+    source: 'desk',
+    ticket_uuids: karte.map((k) => k.ticket_uuid),
+    percentage: Number.isFinite(Number(postotak)) && Number(postotak) > 0 ? Math.min(100, Number(postotak)) : 100,
+    polasci,
+    storno_at: new Date().toISOString(),
+    slobodno_storniranje: await slobodnoStorniranje(),
+  };
+};
+
+// Je li koja karta validirana očitanjem na ukrcaju — zna samo poslužitelj,
+// jer blagajna karte ne očitava (njezina validacija je automatska pri prodaji
+// i ne sprječava storno). Poslužitelj odbijeni pokušaj sam upisuje u Kontrolu.
+// Bez veze storno prolazi: bolje propustiti nego zaustaviti blagajnu.
+const provjeriValidacijuNaPosluzitelju = async (karte, { operator = null, percentage = null } = {}) => {
+  try {
+    const uuids = karte.map((k) => k.ticket_uuid).filter(Boolean);
+    if (!uuids.length) return { allowed: true };
+    const settingsData = await systemSettingsDataModel.findOne();
+    const pairingData = await pairingDataModel.findOne();
+    if (!settingsData?.backend_url || !pairingData?.token) return { allowed: true };
+    const blok = await stornoBlok(karte, percentage);
+    const odgovor = await axios.post(settingsData.backend_url + '/terminals/terminal/storno_check', {
+      ticket_uuids: uuids,
+      source: 'desk',
+      operator,
+      attempted_at: blok.storno_at,
+      polasci: blok.polasci,
+      percentage,
+      slobodno_storniranje: blok.slobodno_storniranje,
+    }, {
+      headers: { authorization: 'Bearer ' + pairingData.token },
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      timeout: 10000,
+      validateStatus: () => true,
+    });
+    const podaci = odgovor.data?.data ?? odgovor.data ?? {};
+    if (odgovor.status === 200 && podaci.allowed === false) {
+      return { allowed: false, reason: podaci.message || 'Karta je validirana na ukrcaju — storno nije moguć.' };
+    }
+    return { allowed: true };
+  } catch (e) {
+    console.log('storno_check nije uspio (offline?):', e?.message || e);
+    return { allowed: true };
+  }
+};
+
+// Smije li se karta ili racun stornirati: rok s obzirom na vrijeme polaska i
+// validacija na ukrcaju. Zove se prije odabira postotka i kartičnog povrata
+// (sučelje), i još jednom u samom stornu, jer između ta dva trenutka rok može
+// isteći.
 // Racun se ne smije stornirati cim je ijedna njegova jos aktivna karta izvan
-// roka — takva karta se ne vraca, a ostale se mogu stornirati pojedinacno.
-const provjeriRokStornaService = async ({ ticket_uuid = null, invoice_uuid = null } = {}) => {
+// roka ili validirana — takva karta se ne vraca, a ostale se mogu stornirati
+// pojedinacno.
+const provjeriRokStornaService = async ({ ticket_uuid = null, invoice_uuid = null, user = null } = {}) => {
   const slobodno = await slobodnoStorniranje();
-  if (slobodno) return { allowed: true, reason: '', warning: '' };
 
   let karte = [];
   if (ticket_uuid) {
@@ -1386,7 +1453,7 @@ const provjeriRokStornaService = async ({ ticket_uuid = null, invoice_uuid = nul
 
   let upozorenje = '';
   for (const karta of karte) {
-    const rok = ocijeniRok(await polazakZaRok(karta.sales_route_uuid, karta.ticket_departure));
+    const rok = ocijeniRok(await polazakZaRok(karta.sales_route_uuid, karta.ticket_departure), slobodno);
     if (!rok.allowed) {
       return {
         allowed: false,
@@ -1396,6 +1463,9 @@ const provjeriRokStornaService = async ({ ticket_uuid = null, invoice_uuid = nul
     }
     if (rok.warning && !upozorenje) upozorenje = rok.warning;
   }
+  // Validacija vrijedi i uz „Slobodno storniranje" — ono ukida samo rok.
+  const validacija = await provjeriValidacijuNaPosluzitelju(karte, { operator: imeOperatera(user) });
+  if (!validacija.allowed) return { allowed: false, reason: validacija.reason, warning: '' };
   return { allowed: true, reason: '', warning: upozorenje };
 };
 
@@ -1435,17 +1505,18 @@ const lookupExternalTicketService = async (ticketCode) => {
       const karta = lokalna.toJSON();
       const stornirana = karta.ticket_status === 'CANCELED' || !!karta.ticket_is_canceled || !!karta.ticket_deactivate;
       // Validirana karta je iskorištena — putnik je ukrcan, vožnja mu je
-      // pružena, pa nema što vratiti.
-      const validirana = !!karta.ticket_validate_data
-        || String(karta.ticket_status || '').toUpperCase().startsWith('VALID');
-      const rok = stornirana
+      // pružena, pa nema što vratiti. Blagajnina validacija je automatska pri
+      // prodaji i ne znači ukrcaj; ukrcaj (očitanje) zna samo poslužitelj.
+      let rok = stornirana
         ? { allowed: false, reason: 'Karta je već stornirana.', minutes_left: 0 }
-        : validirana
-          ? { allowed: false, reason: 'Karta je validirana — putnik je ukrcan, pa storno nije moguć.', minutes_left: 0 }
-          : ocijeniRok(
-              await polazakZaRok(karta.sales_route_uuid, karta.ticket_departure),
-              await slobodnoStorniranje(),
-            );
+        : ocijeniRok(
+            await polazakZaRok(karta.sales_route_uuid, karta.ticket_departure),
+            await slobodnoStorniranje(),
+          );
+      if (rok.allowed) {
+        const validacija = await provjeriValidacijuNaPosluzitelju([karta]);
+        if (!validacija.allowed) rok = { allowed: false, reason: validacija.reason, minutes_left: 0 };
+      }
       // Kartično plaćanje na ovoj blagajni ima i povrat na karticu preko POS
       // terminala, a to ide samo kroz popis karata — ovdje bi novac bio vraćen
       // samo na papiru.
@@ -1584,6 +1655,11 @@ const cancelExternalTicketService = async ({ ticket_code, user, payment, payment
         storno_invoice_fiskal_no: invoiceFiskalNo,
         storno_invoice_code: invoiceCode,
         storno_is_f2: false,
+        source: 'druga_blagajna',
+        operator: imeOperatera(user),
+        storno_at: new Date().toISOString(),
+        polasci: { [karta.ticket_uuid]: await polazakZaRok(karta.sales_route_uuid || karta.route_uuid, karta.departure_planed) },
+        slobodno_storniranje: await slobodnoStorniranje(),
       }, {
         headers: { authorization: 'Bearer ' + pairingData?.token },
         httpsAgent: new https.Agent({ rejectUnauthorized: false }),

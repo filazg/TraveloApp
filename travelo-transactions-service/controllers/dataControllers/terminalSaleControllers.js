@@ -8,6 +8,8 @@ const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatc
 const { zabiljeziGreskuKartice } = require("../../helpers/seopGreske");
 const { upsertKupcaUAdresar } = require("../../helpers/addressbookWriteThrough");
 const { poljaUredaja } = require("../../helpers/naplatniUredaj");
+const { zabiljeziStorna } = require("../../helpers/stornoEvidencija");
+const { podigniSignal } = require("./syncSignalsController");
 const sequelize = getSequelize();
 
 // Terminal šalje svoje retke zajedno s lokalnim `id`-em (SQLite broji od 1 po
@@ -229,6 +231,49 @@ const addTerminalSaleController = async(req,res)=>{
                 }
             } catch (e) {
                 console.log("[seop] hook (add_invoices) nije pokrenut:", e?.message || e);
+            }
+        }
+
+        // Storno s blagajne: račun stiže bez karata (tickets: []), a koje su
+        // karte stornirane nosi `data.storno`. Bez ovoga karte na poslužitelju
+        // ostaju važeće — mogu se validirati i ne vide se u Kontroli.
+        if (createdNewInvoice && Array.isArray(data.storno?.ticket_uuids) && data.storno.ticket_uuids.length) {
+            try {
+                const stornoAt = data.storno.storno_at ? new Date(data.storno.storno_at) : new Date();
+                const redovi = await TicketsModel.findAll({ where: { ticket_uuid: data.storno.ticket_uuids } });
+                if (redovi.length) {
+                    await TicketsModel.update(
+                        { is_canceled: true, status: "canceled", deactivate: true, deactivate_data: stornoAt },
+                        { where: { id: redovi.map((r) => r.id) } }
+                    );
+                    const karte = [];
+                    const vidjene = new Set();
+                    for (const r of redovi) {
+                        if (vidjene.has(r.ticket_uuid)) continue;
+                        vidjene.add(r.ticket_uuid);
+                        karte.push(r.get({ plain: true }));
+                    }
+                    await zabiljeziStorna(karte, {
+                        source: data.storno.source || "desk",
+                        operator: data.invoice?.operater_name || data.invoice?.invoice_operator_name || null,
+                        terminal_uuid: data.invoice?.invoice_billing_device_uuid || null,
+                        storno_at: stornoAt,
+                        polasci: data.storno.polasci || {},
+                        percentage: data.storno.percentage ?? null,
+                        storno_invoice_uuid: data.invoice?.invoice_uuid || null,
+                        storno_invoice_code: data.invoice?.invoice_code || null,
+                        slobodno_storniranje: data.storno.slobodno_storniranje,
+                    });
+                    await podigniSignal({
+                        SyncSignalsModel: req.app.locals.models.SyncSignalsModel,
+                        kind: "tickets",
+                        event: `storno ${data.invoice?.invoice_code || data.invoice?.invoice_uuid}`,
+                    }).catch(() => {});
+                }
+            } catch (e) {
+                // Račun je već spremljen; karte će ostati aktivne dok se ne
+                // storniraju drugim putem, ali prodaja se ne smije srušiti.
+                console.log("[storno] karte s blagajne nisu označene:", e?.message || e);
             }
         }
 

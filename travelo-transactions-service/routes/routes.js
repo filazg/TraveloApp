@@ -23,6 +23,7 @@ const {
 } = require('../controllers/dataControllers/partnerCommissionReportsController');
 const { listTicketsController } = require('../controllers/dataControllers/ticketsSearchController');
 const { cancelTicketsController } = require('../controllers/dataControllers/cancelTicketsController');
+const { stornoCheckController, listTicketStornosController } = require('../controllers/dataControllers/ticketStornoControllers');
 const { harborTaxReportController } = require('../controllers/dataControllers/harborTaxReportController');
 const { harborTaxPdfController } = require('../controllers/dataControllers/harborTaxPdfController');
 const { finalizeTerminalSaleController } = require('../controllers/dataControllers/finalizeTerminalSaleController');
@@ -212,6 +213,15 @@ router
 router
     .route('/cancel_tickets')
     .post(cancelTicketsController)
+
+// Storno: provjera validacije prije storna i pregled za Kontrolu.
+router
+    .route('/storno_check')
+    .post(stornoCheckController)
+
+router
+    .route('/ticket_stornos')
+    .get(listTicketStornosController)
 
 router
     .route('/harbor_tax_report')

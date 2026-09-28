@@ -98,6 +98,21 @@ export const fetchSeopOfflineSalesThunk = createAsyncThunk(
     }
 );
 
+// Storna karata i odbijeni pokušaji storna validiranih — Kontrola → Storniranje.
+// Brojači dolaze uvijek za cijelo razdoblje, bez obzira na odabranu karticu.
+export const fetchTicketStornosThunk = createAsyncThunk(
+    "kontrola/fetchTicketStornos",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/ticket_stornos", { params });
+            const payload = unwrapBff(resp) || {};
+            return { stornos: payload.stornos || [], counts: payload.counts || {} };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
 const kontrolaSlice = createSlice({
     name: "kontrola",
     initialState: {
@@ -110,6 +125,10 @@ const kontrolaSlice = createSlice({
         seopOfflineCounts: {},
         seopOfflineLoading: false,
         seopOfflineError: null,
+        ticketStornos: [],
+        ticketStornosCounts: {},
+        ticketStornosLoading: false,
+        ticketStornosError: null,
         // Brojači po vrsti — kartice pokazuju koliko ih je gdje. Pune se samo
         // kad se dohvaća bez filtra; s odabranom vrstom brojači drugih kartica
         // ne bi bili točni pa se namjerno ne diraju.
@@ -196,6 +215,19 @@ const kontrolaSlice = createSlice({
             .addCase(fetchSeopOfflineSalesThunk.rejected, (s, a) => {
                 s.seopOfflineLoading = false;
                 s.seopOfflineError = a.payload?.message || "Greška pri dohvatu";
+            })
+            .addCase(fetchTicketStornosThunk.pending, (s) => {
+                s.ticketStornosLoading = true;
+                s.ticketStornosError = null;
+            })
+            .addCase(fetchTicketStornosThunk.fulfilled, (s, a) => {
+                s.ticketStornosLoading = false;
+                s.ticketStornos = a.payload.stornos;
+                s.ticketStornosCounts = a.payload.counts || {};
+            })
+            .addCase(fetchTicketStornosThunk.rejected, (s, a) => {
+                s.ticketStornosLoading = false;
+                s.ticketStornosError = a.payload?.message || "Greška pri dohvatu";
             });
     },
 });

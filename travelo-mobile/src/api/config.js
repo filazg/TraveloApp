@@ -32,6 +32,9 @@ export const ENDPOINTS = {
     checkIslandCard: '/terminals/terminal/check_island_card',
     // Storno karata — proxy na transactions /cancel_tickets.
     cancelTickets: '/terminals/terminal/cancel_tickets',
+    // Provjera prije storna — je li karta validirana na ukrcaju (transactions
+    // /storno_check). Odbijeni pokušaj poslužitelj sam upisuje u Kontrolu.
+    stornoCheck: '/terminals/terminal/storno_check',
     // Ispis kopije karte — poslužitelj vraća redni broj kopije i tri znaka.
     ticketCopyPrint: '/terminals/terminal/ticket_copy_print',
     // Smjene — upsert (POST) + lista (GET).

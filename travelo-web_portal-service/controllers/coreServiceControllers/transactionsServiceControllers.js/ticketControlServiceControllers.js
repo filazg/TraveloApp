@@ -84,6 +84,21 @@ const getSeopOfflineSalesController = async (params = {}) => {
     }
 };
 
+// Storna karata i odbijeni pokušaji storna validiranih — Kontrola → Storniranje.
+const getTicketStornosController = async (params = {}) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(
+            coreConfigData.services.transactions.url + '/ticket_stornos',
+            { params }
+        );
+        return response.data?.data || { stornos: [], counts: {} };
+    } catch (error) {
+        console.log('getTicketStornosController error:', error?.message || error);
+        return { stornos: [], counts: {} };
+    }
+};
+
 // Vrste sukoba za kartice u portalu.
 const getConflictTypesController = async () => {
     try {
@@ -105,4 +120,5 @@ module.exports = {
     getTicketCopyPrintsController,
     getSeopCardErrorsController,
     getSeopOfflineSalesController,
+    getTicketStornosController,
 };

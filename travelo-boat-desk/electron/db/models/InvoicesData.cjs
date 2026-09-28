@@ -211,6 +211,13 @@ const invoicesModel = sequelize.define('invoices',{
         type: Sequelize.JSON,
         allowNull: true
     },
+    // Uz storno račun: koje su karte stornirane, postotak i polazak po kojem je
+    // mjeren rok. Šalje se poslužitelju (add_invoices → `storno`) i čuva se
+    // ovdje da ga ponovno slanje (syncPendingInvoicesService) ne izgubi.
+    storno_data:{
+        type: Sequelize.JSON,
+        allowNull: true
+    },
     fiskal_required:{
         type: Sequelize.BOOLEAN,
         allowNull: true
