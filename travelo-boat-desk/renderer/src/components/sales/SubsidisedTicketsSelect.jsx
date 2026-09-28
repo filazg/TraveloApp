@@ -11,7 +11,6 @@ import {
   provjeriKarticuNaRuti,
   cijenaPovlastene,
   popustBezMreze,
-  opisSeopStupnja,
   otocnaCijenaZaPravo,
   nemaCijeneZaPravo,
   blokPovlastice as buildBlokPovlastice,
@@ -664,18 +663,20 @@ const virtualSeopCards =[
 
 
 
-// Popust za prikaz. Kad je posluzitelj odgovorio, vrijedi njegova odluka; bez
-// mreze vrijedi sifarnik. Na liniji koja popust ne primjenjuje cijena ide iz
-// cjenika, pa postotak ne bi bio istina. Na liniji koja ga primjenjuje SEOP-ov
-// postotak je stupanj prava (seopStupanj), pa se pise sto znaci, a ne broj.
+// Popust za prikaz uz podatke s kartice. SEOP-ov postotak je stupanj prava, ne
+// popust (50 % = otočna cijena), pa se ispisuje samo besplatna karta — „100 %".
+// Inače se polje ne prikazuje. Na liniji koja popust ne primjenjuje karta nije
+// besplatna ni uz pravo 100 %, pa ni tada nema ispisa.
 function popustZaPrikaz() {
-  if (provjera?.smije_se_prodati === true && provjera?.primjeni_popust !== true) return 'po cjeniku';
-  if (provjera?.primjeni_popust === true && provjera?.popust_postotak != null) return opisSeopStupnja(provjera.popust_postotak);
+  if (provjera?.smije_se_prodati === true && provjera?.primjeni_popust !== true) return null;
+  if (provjera?.primjeni_popust === true && provjera?.popust_postotak != null) {
+    return Number(provjera.popust_postotak) >= 100 ? '100 %' : null;
+  }
   const bezMreze = provjera?.offline === true ? odlukaBezMreze() : null;
-  if (bezMreze?.primijenjen) return opisSeopStupnja(bezMreze.popust_postotak);
+  if (bezMreze?.primijenjen) return Number(bezMreze.popust_postotak) >= 100 ? '100 %' : null;
   const izSifarnika = (appData.basicData?.seop_right_discounts || [])
     .find((p) => String(p.code) === String(cardData?.F2?.BasicRight));
-  return izSifarnika?.discount_pct != null ? `${izSifarnika.discount_pct} %` : '—';
+  return Number(izSifarnika?.discount_pct) >= 100 ? '100 %' : null;
 }
 
 function seopCardDetails() {
@@ -707,7 +708,7 @@ function seopCardDetails() {
         <SitnoPolje oznaka="OIB" vrijednost={cardData.F2.OIB} />
         <SitnoPolje oznaka="Kartica" vrijednost={cardData.F2.CardNumber} />
         <SitnoPolje oznaka="Pravo" vrijednost={cardData.F2.BasicRight} />
-        <SitnoPolje oznaka="Popust" vrijednost={popustZaPrikaz()} />
+        {popustZaPrikaz() ? <SitnoPolje oznaka="Popust" vrijednost={popustZaPrikaz()} /> : null}
         <SitnoPolje oznaka="Otok" vrijednost={cardData.F2.IslandName} />
         <SitnoPolje
           oznaka="Vrijedi do"

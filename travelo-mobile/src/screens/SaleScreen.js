@@ -26,7 +26,7 @@ import {
 import api from '../api/client';
 import { payByCard, TX_SALE } from '../services/cardPayment';
 import { prijaviPokusaj, zabiljeziOcitanje } from '../services/validationAttempts';
-import { popustBezMreze, cijenaPovlastene, opisSeopStupnja, primijeniStupanj, POPUSTI_POVJERENJE, otocnaCijenaZaPravo, nemaCijeneZaPravo } from '../services/seopOffline';
+import { popustBezMreze, cijenaPovlastene, primijeniStupanj, POPUSTI_POVJERENJE, otocnaCijenaZaPravo, nemaCijeneZaPravo } from '../services/seopOffline';
 import { ENDPOINTS } from '../api/config';
 import { loadRecentBuyers, saveBuyer, syncAddressbook, findTicketByUuidOrCode, loadValidationLogForRoutes } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
@@ -739,19 +739,20 @@ export default function SaleScreen() {
         });
     };
 
-    // Postotak popusta za prikaz. Posluzitelj ima zadnju rijec; bez mreze
-    // vrijedi sifarnik. Na liniji koja popust ne primjenjuje cijena ide iz
-    // cjenika, pa postotak ne bi bio istina.
+    // Popust za prikaz uz karticu. SEOP-ov postotak je stupanj prava (50 % =
+    // otočna cijena), pa se ispisuje samo besplatna karta — „100 %"; inače se
+    // polje ne prikazuje. MOSI popust je pravi popust i ostaje u postotku.
     const popustZaPrikaz = () => {
-        if (islandResult?.smije_se_prodati === true && islandResult?.primjeni_popust !== true) return 'po cjeniku';
+        if (islandResult?.smije_se_prodati === true && islandResult?.primjeni_popust !== true) return null;
         if (islandResult?.primjeni_popust === true && islandResult?.popust_postotak != null) {
-            return islandResult.sustav === 'MOSI' ? `${islandResult.popust_postotak} %` : opisSeopStupnja(islandResult.popust_postotak);
+            if (islandResult.sustav === 'MOSI') return `${islandResult.popust_postotak} %`;
+            return Number(islandResult.popust_postotak) >= 100 ? '100 %' : null;
         }
         const odluka = odlukaBezMreze();
-        if (odluka?.primijenjen) return opisSeopStupnja(odluka.popust_postotak);
+        if (odluka?.primijenjen) return Number(odluka.popust_postotak) >= 100 ? '100 %' : null;
         const upis = (sync.basicData?.seop_right_discounts || [])
             .find((p) => String(p.code || '').trim() === String(islandCardInfo?.basicRight || '').trim());
-        return upis?.discount_pct != null ? `${upis.discount_pct} %` : '—';
+        return Number(upis?.discount_pct) >= 100 ? '100 %' : null;
     };
 
     // Je li terminal sam utvrdio pravo s kartice. Tada je karta ponuđena, pa
@@ -1328,7 +1329,10 @@ export default function SaleScreen() {
                                             t.povlastica?.pravo,
                                             t.povlastica?.uvijek_prodaj
                                                 ? (t.povlastica?.offline ? 'bez provjere' : 'bez prava — puna cijena')
-                                                : (t.povlastica?.popust_postotak ? `-${t.povlastica.popust_postotak}%` : null),
+                                                : (t.povlastica?.sustav === 'MOSI'
+                                                    ? (t.povlastica?.popust_postotak ? `-${t.povlastica.popust_postotak}%` : null)
+                                                    // SEOP: postotak je stupanj prava — piše se samo besplatna.
+                                                    : (Number(t.povlastica?.popust_postotak) >= 100 ? '100 %' : null)),
                                             t.povlastica?.pratnja ? 'pratnja' : null,
                                         ].filter(Boolean).join(' · ')}
                                     </Text>
@@ -1489,7 +1493,7 @@ export default function SaleScreen() {
                                     <SitnoPolje oznaka="OIB" vrijednost={islandCardInfo.oib} />
                                     <SitnoPolje oznaka="Kartica" vrijednost={islandCardInfo.cardNumber} />
                                     <SitnoPolje oznaka="Pravo" vrijednost={islandCardInfo.basicRight} />
-                                    <SitnoPolje oznaka="Popust" vrijednost={islandCardInfo.basicRight ? popustZaPrikaz() : null} />
+                                    {islandCardInfo.basicRight && popustZaPrikaz() ? <SitnoPolje oznaka="Popust" vrijednost={popustZaPrikaz()} /> : null}
                                     <SitnoPolje oznaka="Otok" vrijednost={islandCardInfo.islandName} />
                                 </View>
                             </View>
