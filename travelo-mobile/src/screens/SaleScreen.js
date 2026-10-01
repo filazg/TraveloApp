@@ -60,6 +60,7 @@ const RAZLOZI_GRESKE = [
     { kljuc: 'prekid_komunikacije', naziv: 'Prekid u komunikaciji' },
 ];
 import HomeButton from '../components/HomeButton';
+import ExtraTicketsModal, { kljucDodatne } from '../components/ExtraTicketsModal';
 import {
     ALIGN, STYLE, bindPrinter, commitPrinterBuffer, cutPaper, enterPrinterBuffer, exitPrinterBuffer,
     getPrinterStatus, initPrinter, lineWrap, printQRCode, printRawQR, printText, setAlignment, setFontSize,
@@ -132,6 +133,10 @@ export default function SaleScreen() {
     const [fromIdx, setFromIdx] = useState(0);
     const [toIdx, setToIdx] = useState(harbors.length > 1 ? 1 : 0);
     const [qtyByType, setQtyByType] = useState({});
+    // Dodatne karte (dojenče) po roditelju: { `${tipRoditelja}|${tipDodatne}`: broj }.
+    const [extraQty, setExtraQty] = useState({});
+    // Za koje se vrste roditelja otvara prozor dodatnih karata (niz uuid-a).
+    const [extrasZa, setExtrasZa] = useState(null);
     const [scanResult, setScanResult] = useState(null); // { code, at }
     const [paymentMethodUuid, setPaymentMethodUuid] = useState(null);
     // Otočne karte u košarici — svaka kao zaseban entry s SEOP metadata.
@@ -526,6 +531,40 @@ export default function SaleScreen() {
     }, [pricesForPair, qtyByType, islandTickets]);
 
     const anyQty = Object.values(qtyByType).some((n) => n > 0) || islandTickets.length > 0;
+
+    // --- Dodatne karte (dojenče) ---------------------------------------
+    // Veze vrsta karte → dodatna dolaze u osnovnim podacima (portal: Dodatne
+    // karte). Dodatnih smije biti najviše max_qty po karti roditelja; kad se
+    // karta roditelja smanji ili ukloni, višak se ne prodaje.
+    const vezeDodatnih = sync.basicData?.ticket_type_extras || [];
+    const imaDodatne = (tip) => vezeDodatnih.some((v) => v.parent_ticket_type_uuid === tip);
+    const kolicinaRoditelja = (tip) => (qtyByType[tip] || 0)
+        + islandTickets.filter((t) => t.ticket_type_uuid === tip && !t.povlastica?.pratnja).length;
+    const dodatneZaProdaju = useMemo(() => vezeDodatnih
+        .map((v) => {
+            const max = (Number(v.max_qty) || 1) * kolicinaRoditelja(v.parent_ticket_type_uuid);
+            const qty = Math.min(max, extraQty[kljucDodatne(v.parent_ticket_type_uuid, v.ticket_type_uuid)] || 0);
+            return {
+                roditelj: v.parent_ticket_type_uuid,
+                ticket_type_uuid: v.ticket_type_uuid,
+                ticket_type_name: v.ticket_type_name,
+                seop_type: v.seop_type,
+                max_qty: Number(v.max_qty) || 1,
+                qty,
+            };
+        })
+        .filter((d) => d.qty > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vezeDodatnih, extraQty, qtyByType, islandTickets]);
+    const roditeljiZaModal = (extrasZa || [])
+        .map((tip) => ({
+            tip,
+            naziv: (pricesForPairAll.find((p) => p.ticket_type_uuid === tip)
+                || islandTickets.find((t) => t.ticket_type_uuid === tip))?.ticket_type_name || '',
+            kolicina: kolicinaRoditelja(tip),
+            dodatne: vezeDodatnih.filter((v) => v.parent_ticket_type_uuid === tip),
+        }))
+        .filter((r) => r.kolicina > 0 && r.dodatne.length);
 
     const bumpQty = (uuid, delta) =>
         setQtyByType((q) => ({ ...q, [uuid]: Math.max(0, (q[uuid] || 0) + delta) }));
@@ -993,6 +1032,21 @@ export default function SaleScreen() {
                 route,
             });
         }
+        // Dodatne karte (dojenče) — bez naplate, uz kartu roditelja. Karte se
+        // na poslužitelju i u buildLocalSale vežu uz karte roditelja.
+        for (const d of dodatneZaProdaju) {
+            items.push({
+                ticket_type_uuid: d.ticket_type_uuid,
+                ticket_type_name: `${d.ticket_type_name} – dodatna`,
+                qty: d.qty,
+                unit_price: 0,
+                is_extra: true,
+                seop_namjena: d.seop_type || null,
+                extra_parent_type: d.roditelj,
+                extra_max_qty: d.max_qty,
+                route,
+            });
+        }
         if (!items.length) return;
 
         // Kartično plaćanje na terminalu ide preko 7pay-a; koji uređaj naplaćuje
@@ -1067,6 +1121,7 @@ export default function SaleScreen() {
                     Alert.alert('Ispis nije uspio', 'Račun je izdan i spremljen. Provjerite papir i ispišite kopiju iz Dokumenata.');
                 }
                 setQtyByType({});
+                setExtraQty({});
                 setIslandTickets([]);
                 dispatch(clearLastInvoice());
                 // Guranje zaostataka se pokušava i kad ova prodaja nije prošla —
@@ -1281,10 +1336,21 @@ export default function SaleScreen() {
                         const q = qtyByType[p.ticket_type_uuid] || 0;
                         return (
                             <View key={p.uuid} style={styles.catRow}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.catName}>{p.ticket_type_name}</Text>
+                                <TouchableOpacity
+                                    style={{ flex: 1 }}
+                                    disabled={!imaDodatne(p.ticket_type_uuid) || !q}
+                                    onPress={() => setExtrasZa([p.ticket_type_uuid])}
+                                >
+                                    <Text style={styles.catName}>
+                                        {p.ticket_type_name}{imaDodatne(p.ticket_type_uuid) && q ? '  ＋' : ''}
+                                    </Text>
                                     <Text style={styles.catPrice}>{fmtEUR(p.price)}</Text>
-                                </View>
+                                    {dodatneZaProdaju.filter((d) => d.roditelj === p.ticket_type_uuid).map((d) => (
+                                        <Text key={d.ticket_type_uuid} style={styles.catPrice}>
+                                            + {d.ticket_type_name} × {d.qty} (0,00 €)
+                                        </Text>
+                                    ))}
+                                </TouchableOpacity>
                                 <View style={styles.qtyRow}>
                                     <TouchableOpacity
                                         style={[styles.qtyBtn, q === 0 && styles.qtyBtnDisabled]}
@@ -1317,6 +1383,19 @@ export default function SaleScreen() {
                         >
                             <Text style={styles.islandBtnText}>+ Kupi povlaštenu kartu</Text>
                         </TouchableOpacity>
+                        {(() => {
+                            const tipovi = [...new Set(islandTickets.map((t) => t.ticket_type_uuid))].filter(imaDodatne);
+                            return tipovi.length ? (
+                                <TouchableOpacity style={styles.islandBtn} onPress={() => setExtrasZa(tipovi)}>
+                                    <Text style={styles.islandBtnText}>
+                                        + Dodatne karte uz povlaštene
+                                        {dodatneZaProdaju.filter((d) => tipovi.includes(d.roditelj)).reduce((z, d) => z + d.qty, 0)
+                                            ? ` (${dodatneZaProdaju.filter((d) => tipovi.includes(d.roditelj)).reduce((z, d) => z + d.qty, 0)})`
+                                            : ''}
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : null;
+                        })()}
                         {islandTickets.map((t, i) => (
                             <View key={`${t.povlastica?.identifikator?.vrijednost || 'x'}-${i}`} style={styles.islandRow}>
                                 <View style={{ flex: 1 }}>
@@ -1721,6 +1800,13 @@ export default function SaleScreen() {
                     </View>
                 </View>
             </Modal>
+            <ExtraTicketsModal
+                visible={!!extrasZa}
+                roditelji={roditeljiZaModal}
+                vrijednosti={extraQty}
+                onSave={(v) => { setExtraQty(v); setExtrasZa(null); }}
+                onClose={() => setExtrasZa(null)}
+            />
         </SafeAreaView>
     );
 }

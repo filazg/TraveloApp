@@ -42,6 +42,8 @@ export const syncBasicDataThunk = createAsyncThunk(
                     payment_7pay: payload.payment_7pay || null,
                     storno_percentages: payload.storno_percentages || [],
                     seop_right_discounts: payload.seop_right_discounts || [],
+                    // Dodatne karte uz vrstu karte (npr. Redovna → dojenče).
+                    ticket_type_extras: payload.ticket_type_extras || [],
                 }
                 : null;
             await saveBasicData(

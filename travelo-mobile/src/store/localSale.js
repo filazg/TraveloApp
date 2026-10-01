@@ -189,8 +189,28 @@ export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid
                 validate_data: autoValidated ? new Date().toISOString() : null,
                 route_uuid: r.route_uuid,
                 ...seopPolja,
+                // Dodatna karta (dojenče): bez naplate i bez zasebnog ispisa;
+                // poslužitelj je dojavljuje SEOP-u namjenom seop_namjena.
+                ...(it.is_extra ? {
+                    is_extra: true,
+                    seop_namjena: it.seop_namjena || null,
+                    extra_parent_type: it.extra_parent_type || null,
+                    extra_max_qty: Number(it.extra_max_qty) || 1,
+                    extra_of_ticket_uuid: null,
+                } : {}),
             });
         }
+    }
+
+    // Dodatne se vežu uz karte roditelja redom, najviše max po karti: prve max
+    // uz prvu kartu, sljedeće uz drugu… Veza služi ispisu i evidenciji.
+    const poRoditelju = {};
+    for (const t of tickets) {
+        if (!t.is_extra) continue;
+        const kljuc = `${t.route_uuid}|${t.extra_parent_type}|${t.ticket_type_uuid}`;
+        const k = (poRoditelju[kljuc] = (poRoditelju[kljuc] ?? -1) + 1);
+        const roditelji = tickets.filter((x) => !x.is_extra && x.route_uuid === t.route_uuid && x.ticket_type_uuid === t.extra_parent_type);
+        t.extra_of_ticket_uuid = (roditelji[Math.floor(k / (t.extra_max_qty || 1))] || roditelji[0])?.ticket_uuid || null;
     }
 
     // F1: fiskalna oznaka NO/PP/NU.

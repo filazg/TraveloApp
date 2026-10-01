@@ -75,6 +75,13 @@ export async function printShiftReport({ shift, basicData, isReprint }) {
 
 // Ispis pojedinačnih karata. args: { tickets, basicData, voyage, isReprint }
 export async function printTickets({ tickets, basicData, voyage, isReprint }) {
+    // Dodatne karte (dojenče) nemaju svoju kartu ni QR — pišu se uz naziv karte
+    // roditelja („Redovna + Dojenče – dodatna").
+    const dodatne = (tickets || []).filter((t) => t.is_extra);
+    tickets = (tickets || []).filter((t) => !t.is_extra).map((t) => {
+        const uz = dodatne.filter((d) => d.extra_of_ticket_uuid === t.ticket_uuid).map((d) => d.ticket_type_name);
+        return uz.length ? { ...t, ticket_type_name: `${t.ticket_type_name} + ${uz.join(' + ')}` } : t;
+    });
     if (!sunmiPrinterAvailable || !tickets?.length) return true;
     try {
         await nativePrintTickets({
