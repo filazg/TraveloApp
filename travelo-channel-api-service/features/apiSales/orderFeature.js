@@ -1,10 +1,22 @@
 const { apiCreateOrder } = require("../../controllers/coreServiceControllers/transactionsServiceControllers");
+const { getPricesController } = require("../../controllers/coreServiceControllers/salesServiceControllers");
 
 const handleOrderFeature = async (req, res) => {
     try {
         const { order_number, order_items } = req.body || {};
         if (!order_number || !Array.isArray(order_items) || !order_items.length) {
             return res.status(400).json({ msg: "order_number/order_items required" });
+        }
+
+        // Otočne karte se preko API-ja ne prodaju (traže provjeru iskaznice u
+        // SEOP-u). Pretraga ih ne vraća, a ovdje se odbija i narudžba koja bi
+        // ih ipak navela.
+        const pricesData = await getPricesController(req.partner.partner_uuid);
+        const otocne = new Set((pricesData?.data?.prices || [])
+            .filter((p) => p.is_island === true)
+            .map((p) => p.ticket_type_uuid));
+        if (order_items.some((i) => otocne.has(i.ticket_type_uuid))) {
+            return res.status(400).json({ msg: "Ticket type not available via API" });
         }
 
         const subtotal = order_items.reduce((sum, item) => sum + Number(item.total_item_price || 0), 0);

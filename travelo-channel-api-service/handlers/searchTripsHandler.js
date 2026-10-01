@@ -34,7 +34,9 @@ const searchTripsHandler = async (body, partnerUuid) => {
             route.departure_date === formattedTravelDate
     );
 
-    const allPrices = pricesData?.data?.prices || [];
+    // Otočne (povlaštene) karte se preko API-ja ne prodaju — traže provjeru
+    // otočne iskaznice u SEOP-u, a partner je nema kako napraviti.
+    const allPrices = (pricesData?.data?.prices || []).filter((p) => p.is_island !== true);
     const tripsForSend = [];
 
     for (const trip of tripsForSearch) {
