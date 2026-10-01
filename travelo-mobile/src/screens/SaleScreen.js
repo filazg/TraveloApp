@@ -539,7 +539,8 @@ export default function SaleScreen() {
     const vezeDodatnih = sync.basicData?.ticket_type_extras || [];
     const imaDodatne = (tip) => vezeDodatnih.some((v) => v.parent_ticket_type_uuid === tip);
     const kolicinaRoditelja = (tip) => (qtyByType[tip] || 0)
-        + islandTickets.filter((t) => t.ticket_type_uuid === tip && !t.povlastica?.pratnja).length;
+        // MOSI karta (i pratnja) ide na vrstu redovne karte, ali nije roditelj dodatnih.
+        + islandTickets.filter((t) => t.ticket_type_uuid === tip && !t.povlastica?.pratnja && t.povlastica?.sustav !== 'MOSI').length;
     const dodatneZaProdaju = useMemo(() => vezeDodatnih
         .map((v) => {
             const max = (Number(v.max_qty) || 1) * kolicinaRoditelja(v.parent_ticket_type_uuid);
@@ -1384,7 +1385,9 @@ export default function SaleScreen() {
                             <Text style={styles.islandBtnText}>+ Kupi povlaštenu kartu</Text>
                         </TouchableOpacity>
                         {(() => {
-                            const tipovi = [...new Set(islandTickets.map((t) => t.ticket_type_uuid))].filter(imaDodatne);
+                            const tipovi = [...new Set(islandTickets
+                                .filter((t) => t.povlastica?.sustav !== 'MOSI' && !t.povlastica?.pratnja)
+                                .map((t) => t.ticket_type_uuid))].filter(imaDodatne);
                             return tipovi.length ? (
                                 <TouchableOpacity style={styles.islandBtn} onPress={() => setExtrasZa(tipovi)}>
                                     <Text style={styles.islandBtnText}>

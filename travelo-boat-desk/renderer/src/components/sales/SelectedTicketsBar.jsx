@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 import ReturnTicketModal from "./ReturnTicketModal";
 import SubsidisedCartModal from "./SubsidisedCartModal";
-import ExtraTicketsModal, { uskladiDodatne } from "./ExtraTicketsModal";
+import ExtraTicketsModal, { uskladiDodatne, jeMosi } from "./ExtraTicketsModal";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
 
 
@@ -517,7 +517,8 @@ export default function SelectedTicketsBar() {
                                 <TableCell align="right" sx={{ p: 0, whiteSpace: 'nowrap' }}>
                                   {(() => {
                                     // Povlaštene vrste uz koje idu dodatne karte.
-                                    const tipovi = [...new Set(povlasteneKarte(row).map((t) => t.ticket_type_uuid))].filter(imaDodatne);
+                                    // MOSI karte nisu roditelji dodatnih karata.
+                                    const tipovi = [...new Set(povlasteneKarte(row).filter((t) => !jeMosi(t)).map((t) => t.ticket_type_uuid))].filter(imaDodatne);
                                     return tipovi.length ? (
                                       <IconButton size="small" color="primary" onClick={() => setDodatneZa({ row, tipovi })} title="Dodatne karte (npr. dojenče)">
                                         <ChildCareIcon fontSize="small" />

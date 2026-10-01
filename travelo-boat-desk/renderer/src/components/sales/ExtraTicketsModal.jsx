@@ -16,10 +16,14 @@ import { allAppData, setStateData } from "../../store/appSlice";
 // kartu roditelja se ispisuje kao „+ Dodatno", a poslužitelj je dojavljuje
 // SEOP-u njezinom namjenom.
 
-// Koliko je karata roditelja te vrste na relaciji (obične i povlaštene).
+// MOSI karta (i njezina pratnja) prodaje se na vrstu redovne karte, ali nije
+// karta uz koju idu dodatne — ne nudi se uz nju i ne broji se kao roditelj.
+export const jeMosi = (t) => t?.povlastica?.sustav === "MOSI" || !!t?.povlastica?.pratnja;
+
+// Koliko je karata roditelja te vrste na relaciji (obične i povlaštene, bez MOSI).
 export const kolicinaRoditelja = (sve, salesRouteUuid, tipUuid) =>
     (sve || [])
-        .filter((t) => t.sales_route_uuid === salesRouteUuid && t.ticket_type_uuid === tipUuid && !t.dodatna)
+        .filter((t) => t.sales_route_uuid === salesRouteUuid && t.ticket_type_uuid === tipUuid && !t.dodatna && !jeMosi(t))
         .reduce((z, t) => z + (Number(t.quantity) || 0), 0);
 
 // Dodatne ne smiju nadmašiti „max po karti × broj karata roditelja". Kad se
@@ -50,7 +54,7 @@ export default function ExtraTicketsModal({ row, roditeljTipovi, onClose }) {
     // Roditelji na ovoj relaciji koji imaju dodatne karte.
     const roditelji = useMemo(() => (roditeljTipovi || [])
         .map((tip) => {
-            const prvi = sve.find((t) => t.sales_route_uuid === row.sales_route_uuid && t.ticket_type_uuid === tip && !t.dodatna);
+            const prvi = sve.find((t) => t.sales_route_uuid === row.sales_route_uuid && t.ticket_type_uuid === tip && !t.dodatna && !jeMosi(t));
             return {
                 tip,
                 naziv: prvi?.ticket_type_name || "",
