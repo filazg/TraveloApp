@@ -1,6 +1,6 @@
 const axios = require("axios");
 const { pairingDataModel } = require("../db/models/Pairing.cjs");
-const { usersModel, companyModel, paymentMethodsModel, stornoPercentagesModel, seopRightDiscountsModel } = require("../db/models/BasicData.cjs");
+const { usersModel, companyModel, paymentMethodsModel, stornoPercentagesModel, seopRightDiscountsModel, ticketTypeExtrasModel } = require("../db/models/BasicData.cjs");
 const { salesRoutesDataModel, salesRoutePricesDataModel, linesDataModel, harborsDataModel } = require("../db/models/TransportData.cjs");
 const { systemSettingsDataModel } = require("../db/models/Settings.cjs");
 const https = require("https");
@@ -94,6 +94,12 @@ async function syncBasicDataService() {
       if (Array.isArray(basicData.data.seop_right_discounts)) {
         await seopRightDiscountsModel.truncate();
         await seopRightDiscountsModel.bulkCreate(basicData.data.seop_right_discounts);
+      }
+      // Dodatne karte uz vrstu karte. Stariji poslužitelj ih ne šalje — tada
+      // ostaje zadnje sinkronizirano.
+      if (Array.isArray(basicData.data.ticket_type_extras)) {
+        await ticketTypeExtrasModel.truncate();
+        await ticketTypeExtrasModel.bulkCreate(basicData.data.ticket_type_extras);
       }
       const dataToSend = basicData.data;
       return { users: dataToSend.users };

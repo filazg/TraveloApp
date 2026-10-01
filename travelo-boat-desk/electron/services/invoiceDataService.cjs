@@ -289,10 +289,32 @@ const createInvoiceService = async ({ user, items, payment, buyer, paymentData }
             // nema `vrRemIsc`.
             ticket_validate_data: ticktStatus === 'VALIDATE' ? new Date() : null,
             card_data:ticketGroup.card_data,
-            povlastica: ticketGroup.povlastica || null
+            povlastica: ticketGroup.povlastica || null,
+            // Dodatna karta (dojenče): veza na kartu roditelja postavlja se
+            // nakon što su izdane sve karte stavke, vidi ispod.
+            is_extra: !!ticketGroup.dodatna,
+            seop_namjena: ticketGroup.dodatna?.seop_type || null,
+            extra_of_ticket_uuid: null,
           }
           ticketsData = [...ticketsData, newTicket]
         }
+      }
+      // Dodatne karte se vežu uz karte roditelja iste stavke, najviše max_qty
+      // po karti roditelja — redom: prve max idu uz prvu kartu, sljedeće uz
+      // drugu… Veza služi ispisu („+ Dodatno" na karti roditelja) i evidenciji.
+      for (const ticketGroup of item.ticketsData) {
+        const d = ticketGroup.dodatna;
+        if (!d) continue;
+        const roditelji = ticketsData.filter((t) => t.order_item_uuid !== ticketGroup.ticket_uuid
+          && t.sales_route_uuid === item.sales_route_uuid
+          && t.ticket_type_uuid === d.roditelj_tip
+          && !t.is_extra);
+        const max = Math.max(1, Number(d.max_qty) || 1);
+        ticketsData
+          .filter((t) => t.order_item_uuid === ticketGroup.ticket_uuid)
+          .forEach((t, k) => {
+            t.extra_of_ticket_uuid = roditelji[Math.floor(k / max)]?.ticket_uuid || roditelji[0]?.ticket_uuid || null;
+          });
       }
       const itemAmount = newTicketGroup
           .map(({ total_price }) => total_price)

@@ -182,6 +182,9 @@ export default function ReturnTicketModal({ stavka, onClose }) {
     if (!stavka || !cjenik.length || kolicineDirane) return;
     const poVrsti = {};
     for (const t of stavka.ticketsData || []) {
+      // Dodatne karte (dojenče) nisu u cjeniku povratne — dodaju se ponovno
+      // kroz prozor dodatnih karata, uz kartu roditelja.
+      if (t.dodatna) continue;
       poVrsti[t.ticket_type_uuid] = Number(t.quantity) || 0;
     }
     const pocetne = {};

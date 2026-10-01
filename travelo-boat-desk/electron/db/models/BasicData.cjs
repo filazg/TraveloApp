@@ -284,10 +284,46 @@ const seopRightDiscountsModel = sequelize.define('seop_right_discounts',{
 })
 
 
+// Dodatne karte uz vrstu karte (npr. Redovna → dojenče), iz osnovnih podataka.
+// Uz kartu roditelja dodaju se bez naplate, do max_qty po karti. Naziv i SEOP
+// namjena dodatne vrste dolaze uz vezu, jer dodatna vrsta u cjeniku relacije
+// ne mora postojati.
+const ticketTypeExtrasModel = sequelize.define('ticket_type_extras',{
+    id:{
+        type:Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    parent_ticket_type_uuid:{
+        type:Sequelize.STRING,
+        allowNull:false
+    },
+    ticket_type_uuid:{
+        type:Sequelize.STRING,
+        allowNull:false
+    },
+    ticket_type_name:{
+        type:Sequelize.STRING,
+        allowNull:true
+    },
+    seop_type:{
+        type:Sequelize.STRING,
+        allowNull:true
+    },
+    max_qty:{
+        type:Sequelize.INTEGER,
+        allowNull:false,
+        defaultValue: 1
+    }
+},{
+    freezeTableName:true
+})
+
 module.exports={
     companyModel,
     usersModel,
     paymentMethodsModel,
     stornoPercentagesModel,
-    seopRightDiscountsModel
+    seopRightDiscountsModel,
+    ticketTypeExtrasModel
 }

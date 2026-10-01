@@ -350,6 +350,10 @@ const printInvoice = async ({ invoice, items, copy }) => {
 
 const printTickets = async ({ tickets,copy }) => {
     console.log('PRINT TICKETS')
+    // Dodatne karte (dojenče) se ne ispisuju zasebno, bez QR-a su — ispisuju
+    // se kao redak „+ Dodatno" na karti roditelja.
+    const dodatne = (tickets || []).filter((t) => t.is_extra);
+    tickets = (tickets || []).filter((t) => !t.is_extra);
     const settingsData = await systemSettingsDataModel.findOne()
     const osnovniPodaci = await companyModel.findOne()
     try {
@@ -401,6 +405,9 @@ const printTickets = async ({ tickets,copy }) => {
             // su jedna cjelina, pa su crte samo trošile papir i razbijale je.
             printer.leftRight("Passanger/Putnik", tickets[t].ticket_type_name);
             printer.leftRight("Line/Linija", tickets[t].line_name);
+            for (const d of dodatne.filter((x) => x.extra_of_ticket_uuid === tickets[t].ticket_uuid)) {
+                printer.leftRight("+ Dodatno/Extra", d.ticket_type_name);
+            }
             printer.drawLine();
             // Karta za pratnju (MOSI: pratnja putuje besplatno) - jasno oznaci da
             // se na vratima odmah vidi da je rijec o pratnji, a ne o nositelju.

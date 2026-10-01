@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 import ReturnTicketModal from "./ReturnTicketModal";
 import SubsidisedCartModal from "./SubsidisedCartModal";
+import ExtraTicketsModal, { uskladiDodatne } from "./ExtraTicketsModal";
+import ChildCareIcon from "@mui/icons-material/ChildCare";
 
 
 export default function SelectedTicketsBar() {
@@ -20,6 +22,12 @@ export default function SelectedTicketsBar() {
     const [povratnaZa, setPovratnaZa] = useState(null);
     // Relacija ciji se popis povlastenih karata otvara.
     const [povlasteneZa, setPovlasteneZa] = useState(null);
+    // Dodatne karte (dojenče) — relacija i vrste roditelja za koje se otvaraju.
+    const [dodatneZa, setDodatneZa] = useState(null);
+
+    // Vrste karata uz koje se mogu dodati dodatne (portal: Dodatne karte).
+    const tipoviSDodatnima = new Set((appData.basicData?.ticket_type_extras || []).map((v) => v.parent_ticket_type_uuid));
+    const imaDodatne = (tip) => tipoviSDodatnima.has(tip);
 
     // Rucni ispravak kolicine u kosarici: blagajnik klikne na broj i upise novi.
     // Prije se to moglo samo u sekciji karata, pa je ispravak zahtijevao
@@ -41,7 +49,8 @@ export default function SelectedTicketsBar() {
     // iskaznica imala svoj, pa je kod grupe putnika kosarica narasla toliko da
     // se obicne karte vise nisu vidjele — a razlika medu tim redcima (pravo,
     // otok, popust) ionako se ne vidi bez razrade. Razrada je u modalu.
-    const obicneKarte = (row) => (row.ticketsData || []).filter((t) => !t.povlastica);
+    const obicneKarte = (row) => (row.ticketsData || []).filter((t) => !t.povlastica && !t.dodatna);
+    const dodatneKarte = (row) => (row.ticketsData || []).filter((t) => t.dodatna);
     const povlasteneKarte = (row) => (row.ticketsData || []).filter((t) => t.povlastica);
 
     const zbrojPovlastenih = (row) => povlasteneKarte(row).reduce(
@@ -65,7 +74,8 @@ export default function SelectedTicketsBar() {
         const sve = appData.saleData?.addedTickets || [];
         const jeIsta = (t) => t.sales_route_uuid === row.sales_route_uuid
             && t.ticket_type_uuid === ticket.ticket_type_uuid
-            && !t.povlastica;
+            && !t.povlastica
+            && !t.dodatna;
         const postojeca = sve.find(jeIsta);
         if (!postojeca) return;
 
@@ -104,7 +114,7 @@ export default function SelectedTicketsBar() {
     // povlastenih i konkretna iskaznica — isti kljuc po kojem se stavke i
     // grupiraju, inace bi se uklonila i tuda karta istog tipa.
     const kljucTipaStavke = (t) =>
-        `${t.ticket_type_uuid}|${t.povlastica?.identifikator?.vrijednost || ''}|${t.povlastica?.pratnja ? 'pratnja' : ''}`;
+        `${t.ticket_type_uuid}|${t.povlastica?.identifikator?.vrijednost || ''}|${t.povlastica?.pratnja ? 'pratnja' : ''}|${t.dodatna?.roditelj_tip || ''}`;
 
     const ukloniRedak = (row, ticket) => {
         const kljuc = kljucTipaStavke(ticket);
@@ -153,8 +163,10 @@ export default function SelectedTicketsBar() {
             // Pratnja (MOSI) ima isti tip I istu iskaznicu kao nositelj, pa bi bez
             // zasebne oznake pala u istu grupu i izgubila svoj naziv „— pratnja",
             // oznaku pratnje i besplatnu cijenu (nositeljeva bi se prepisala na obje).
+            // Dodatna karta (dojenče) ima svoju grupu po roditelju — inače bi se
+            // spojila s kartom iste vrste prodanom normalno.
             const kljucTipa = (t) =>
-                `${t.ticket_type_uuid}|${t.povlastica?.identifikator?.vrijednost || ''}|${t.povlastica?.pratnja ? 'pratnja' : ''}`;
+                `${t.ticket_type_uuid}|${t.povlastica?.identifikator?.vrijednost || ''}|${t.povlastica?.pratnja ? 'pratnja' : ''}|${t.dodatna?.roditelj_tip || ''}`;
             const uniqueTicketType = ticeketsForRoute.filter(
                 (v, i, a) => a.findIndex((t) => kljucTipa(t) === kljucTipa(v)) === i
             );
@@ -195,7 +207,10 @@ export default function SelectedTicketsBar() {
                 // polje po polje, pa sve sto se ne navede tiho nestane — blok je
                 // tako ispadao iz prodaje i karta je na posluzitelju zavrsavala
                 // bez ijednog SEOP podatka.
-                povlastica: ticketType.povlastica || null
+                povlastica: ticketType.povlastica || null,
+                // Dodatna karta (dojenče): vrsta roditelja, max po karti i SEOP
+                // namjena — bez ovoga bi na računu bila obična karta od 0 €.
+                dodatna: ticketType.dodatna || null
                 };
                 ticketsGroupTicketType = [...ticketsGroupTicketType, addTicketsGroupTicketType];
             }
@@ -244,7 +259,13 @@ export default function SelectedTicketsBar() {
     };
 
     useEffect(() => {
-        //console.log(ticketsData)
+        // Dodatne karte ne smiju nadmašiti dopušteno uz karte roditelja (karta
+        // roditelja smanjena ili uklonjena) — višak se miče prije grupiranja.
+        const uskladjeno = uskladiDodatne(appData.saleData?.addedTickets);
+        if (uskladjeno !== appData.saleData?.addedTickets) {
+            dispatch(setStateData({ path: 'saleData/addedTickets', value: uskladjeno }));
+            return;
+        }
         createTicketsGroup()
     }, [appData.saleData?.addedTickets])
     useEffect(() => {
@@ -353,7 +374,16 @@ export default function SelectedTicketsBar() {
                               }}
                             >
                               <TableCell component="th" scope="row" sx={{ wordBreak: 'break-word', textAlign: 'left' }}>
-                                {nazivKarte(ticket)}
+                                {imaDodatne(ticket.ticket_type_uuid) ? (
+                                  <Box
+                                    onClick={() => setDodatneZa({ row, tipovi: [ticket.ticket_type_uuid] })}
+                                    title="Klik za dodatne karte (npr. dojenče)"
+                                    sx={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 0.5, textDecoration: "underline dotted" }}
+                                  >
+                                    {nazivKarte(ticket)}
+                                    <ChildCareIcon fontSize="inherit" color="primary" />
+                                  </Box>
+                                ) : nazivKarte(ticket)}
                               </TableCell>
                               <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                                 {uredjujeSe === kljucRetka(row, ticket) ? (
@@ -428,6 +458,36 @@ export default function SelectedTicketsBar() {
                             </TableRow>
                           ))}
 
+                          {/* Dodatne karte (dojenče) — bez naplate; količina se
+                              mijenja kroz prozor dodatnih karata. */}
+                          {dodatneKarte(row).map((ticket) => (
+                            <TableRow key={ticket.ticket_uuid}>
+                              <TableCell component="th" scope="row" sx={{ wordBreak: 'break-word', textAlign: 'left', pl: 2 }}>
+                                <Box
+                                  onClick={() => setDodatneZa({ row, tipovi: [ticket.dodatna.roditelj_tip] })}
+                                  sx={{ cursor: "pointer", color: "text.secondary" }}
+                                  title="Klik za izmjenu dodatnih karata"
+                                >
+                                  + {ticket.ticket_type_name}
+                                </Box>
+                              </TableCell>
+                              <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                                <Box sx={{ width: '100%', textAlign: 'right' }}>{ticket.quantity}</Box>
+                              </TableCell>
+                              <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap', textAlign: 'right' }}>
+                                <Box sx={{ width: '100%', textAlign: 'right' }}>0.00 EUR</Box>
+                              </TableCell>
+                              <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                                <Box sx={{ width: '100%', textAlign: 'right' }}>0.00 EUR</Box>
+                              </TableCell>
+                              <TableCell align="right" sx={{ p: 0 }}>
+                                <IconButton size="small" color="error" onClick={() => ukloniRedak(row, ticket)} title="Ukloni dodatne karte">
+                                  <CloseIcon fontSize="small" />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+
                           {/* Zbirni redak povlastenih. Cijena se ne prikazuje
                               jer se po kartama razlikuje (svaka nosi svoje
                               pravo i popust) — jedan iznos ondje bio bi
@@ -454,7 +514,16 @@ export default function SelectedTicketsBar() {
                                 <TableCell align="right" sx={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                                   <Box sx={{ width: '100%', textAlign: 'right' }}>{zbroj.iznos.toFixed(2)} EUR</Box>
                                 </TableCell>
-                                <TableCell align="right" sx={{ p: 0 }}>
+                                <TableCell align="right" sx={{ p: 0, whiteSpace: 'nowrap' }}>
+                                  {(() => {
+                                    // Povlaštene vrste uz koje idu dodatne karte.
+                                    const tipovi = [...new Set(povlasteneKarte(row).map((t) => t.ticket_type_uuid))].filter(imaDodatne);
+                                    return tipovi.length ? (
+                                      <IconButton size="small" color="primary" onClick={() => setDodatneZa({ row, tipovi })} title="Dodatne karte (npr. dojenče)">
+                                        <ChildCareIcon fontSize="small" />
+                                      </IconButton>
+                                    ) : null;
+                                  })()}
                                   <IconButton
                                     size="small"
                                     color="primary"
@@ -511,6 +580,10 @@ export default function SelectedTicketsBar() {
 
       {povlasteneZa ? (
         <SubsidisedCartModal stavka={povlasteneZa} onClose={() => setPovlasteneZa(null)} />
+      ) : null}
+
+      {dodatneZa ? (
+        <ExtraTicketsModal row={dodatneZa.row} roditeljTipovi={dodatneZa.tipovi} onClose={() => setDodatneZa(null)} />
       ) : null}
     </>
     )

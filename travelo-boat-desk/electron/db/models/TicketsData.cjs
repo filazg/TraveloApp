@@ -133,6 +133,21 @@ const ticketsModel = sequelize.define('tickets', {
     // Odluka posluzitelja o povlastici, onakva kakva je dobivena pri provjeri.
     // Putuje s kartom na posluzitelj, odakle se slaze dojava SEOP-u. `card_data`
     // je sirovi sadrzaj cipa i za dojavu ne sluzi.
+    // Dodatna karta (dojenče uz kartu roditelja): bez naplate, bez zasebnog
+    // ispisa — na karti roditelja ispisuje se kao „+ Dodatno". Poslužitelj je
+    // dojavljuje SEOP-u kao običnu kartu namjene seop_namjena.
+    is_extra:{
+        type: Sequelize.BOOLEAN,
+        allowNull: true
+    },
+    extra_of_ticket_uuid:{
+        type: Sequelize.STRING,
+        allowNull: true
+    },
+    seop_namjena:{
+        type: Sequelize.STRING,
+        allowNull: true
+    },
     povlastica:{
         type:Sequelize.JSON,
         allowNull: true

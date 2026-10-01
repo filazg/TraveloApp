@@ -41,6 +41,7 @@ export default function TripPricesBar() {
         (t) => t.sales_route_uuid === ruta.uuid
           && t.ticket_type_uuid === price.ticket_type_uuid
           && !t.povlastica
+          && !t.dodatna
       ) || null;
     };
 
@@ -55,7 +56,8 @@ export default function TripPricesBar() {
       const sve = appData.saleData?.addedTickets || [];
       const jeIsta = (t) => t.sales_route_uuid === ruta.uuid
         && t.ticket_type_uuid === price.ticket_type_uuid
-        && !t.povlastica;
+        && !t.povlastica
+        && !t.dodatna;
       const postojeca = sve.find(jeIsta);
 
       if (broj === 0) {
