@@ -1,6 +1,6 @@
 // Admin uvidi za portal (modul Administracija): log prijava + uređaji/verzije.
 // Pristup ograničen na jednog korisnika (isto kao desk_updater).
-const { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController } = require('../../controllers/coreServiceControllers/authServiceControllers/adminLogsServiceControllers');
+const { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController } = require('../../controllers/coreServiceControllers/authServiceControllers/adminLogsServiceControllers');
 
 const ALLOWED_USERS = (process.env.DESK_UPDATER_USERS || 'nfilipec')
     .split(',').map((s) => s.trim()).filter(Boolean);
@@ -91,4 +91,17 @@ const handleGetPartnerApiLogFeature = async (req, res) => {
     }
 };
 
-module.exports = { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature, handleGetPartnerApiLogFeature };
+// Adrese koje su prešle dopuštene okvire pozivanja API-ja.
+const handleGetPartnerApiLimitsFeature = async (req, res) => {
+    try {
+        if (!jeAdmin(req)) return res.status(403).send({ status: 403, data: { message: 'Pristup ograničen.' } });
+        const f = req.body?.body || {};
+        const data = await getPartnerApiLimitsController({ from: f.from || undefined, to: f.to || undefined });
+        return res.send({ status: 200, data: { adrese: data?.adrese || [], granice: data?.granice || {} } });
+    } catch (error) {
+        console.log('handleGetPartnerApiLimitsFeature error:', error?.message || error);
+        return res.status(500).send({ status: 500, data: { message: 'Greška pri dohvatu prekoračenja.' } });
+    }
+};
+
+module.exports = { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature, handleGetPartnerApiLogFeature, handleGetPartnerApiLimitsFeature };

@@ -114,4 +114,69 @@ const getPartnerApiLogController = async (req, res) => {
     }
 };
 
-module.exports = { createPartnerApiLogController, getPartnerApiLogsController, getPartnerApiLogController };
+// Adrese koje su prešle dopuštene okvire pozivanja API-ja. Granice su iste kao
+// u channel-api servisu (middlewares/rateLimiters.js), po minuti:
+//   prijava 10 po IP-u · javni pozivi bez prijave 30 po IP-u · ukupno 120.
+// Uz odbijenice 429 broji se i vrh zahtjeva u minuti — zahtjevi bez tokena do
+// limita partnera nikad ne dođu, pa se skener koji pretražuje bez prijave
+// inače ne bi vidio.
+const GRANICE = { prijava: 10, anonimno: 30, ukupno: 120 };
+
+const getPartnerApiLimitsController = async (req, res) => {
+    try {
+        const { PartnerApiLogsModel } = req.app.locals.models;
+        const sequelize = PartnerApiLogsModel.sequelize;
+        const q = req.query || {};
+        const od = q.from ? new Date(q.from) : new Date(Date.now() - 30 * 24 * 3600 * 1000);
+        const doo = q.to ? new Date(q.to) : new Date();
+        doo.setHours(23, 59, 59, 999);
+        const uvjetPreko = `(ukupno > ${GRANICE.ukupno} OR prijave > ${GRANICE.prijava} OR anonimno > ${GRANICE.anonimno} OR odbijeno > 0)`;
+        const [adrese] = await sequelize.query(`
+            WITH m AS (
+                SELECT ip_address,
+                       date_trunc('minute', "createdAt") AS minuta,
+                       count(*) AS ukupno,
+                       count(*) FILTER (WHERE path = '/auth/api_sales_login') AS prijave,
+                       count(*) FILTER (WHERE partner_uuid IS NULL AND tid IS NULL) AS anonimno,
+                       count(*) FILTER (WHERE status_code = 429) AS odbijeno
+                FROM partner_api_logs
+                WHERE "createdAt" BETWEEN :od AND :doo AND ip_address IS NOT NULL
+                GROUP BY 1, 2
+            )
+            SELECT ip_address,
+                   sum(ukupno)::int AS zahtjeva,
+                   max(ukupno)::int AS vrh_u_minuti,
+                   max(prijave)::int AS vrh_prijava,
+                   max(anonimno)::int AS vrh_anonimno,
+                   sum(odbijeno)::int AS odbijeno_429,
+                   (count(*) FILTER (WHERE ${uvjetPreko}))::int AS minuta_preko,
+                   min(minuta) FILTER (WHERE ${uvjetPreko}) AS prvi_put,
+                   max(minuta) FILTER (WHERE ${uvjetPreko}) AS zadnji_put
+            FROM m
+            GROUP BY ip_address
+            HAVING count(*) FILTER (WHERE ${uvjetPreko}) > 0
+            ORDER BY zadnji_put DESC
+            LIMIT 500`, { replacements: { od, doo } });
+
+        // Tko je s te adrese zvao — partneri (ili SKENER) i klijent.
+        if (adrese.length) {
+            const [tko] = await sequelize.query(`
+                SELECT ip_address,
+                       string_agg(DISTINCT COALESCE(partner_name, partner_acr, tid), ', ') AS partneri,
+                       bool_or(partner_uuid IS NULL AND tid IS NULL) AS ima_anonimnih,
+                       min(user_agent) AS user_agent,
+                       string_agg(DISTINCT path, ', ') AS pozivi
+                FROM partner_api_logs
+                WHERE "createdAt" BETWEEN :od AND :doo AND ip_address IN (:ipovi)
+                GROUP BY ip_address`, { replacements: { od, doo, ipovi: adrese.map((a) => a.ip_address) } });
+            const poIp = new Map(tko.map((t) => [t.ip_address, t]));
+            for (const a of adrese) Object.assign(a, poIp.get(a.ip_address) || {});
+        }
+        return res.status(200).json({ adrese, granice: GRANICE });
+    } catch (error) {
+        console.log("getPartnerApiLimitsController error:", error?.message || error);
+        return res.status(500).json({ message: "Internal error" });
+    }
+};
+
+module.exports = { createPartnerApiLogController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController };

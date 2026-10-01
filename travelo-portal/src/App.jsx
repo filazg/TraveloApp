@@ -51,6 +51,7 @@ import AdminPage from './features/admin/AdminPage';
 import LoginLogsPage from './features/admin/LoginLogsPage';
 import AkdLogsPage from './features/admin/AkdLogsPage';
 import PartnerApiLogsPage from './features/admin/PartnerApiLogsPage';
+import PartnerApiLimitsPage from './features/admin/PartnerApiLimitsPage';
 import DevicesPage from './features/admin/DevicesPage';
 import TicketTemplatesPage from './features/boat/pages/ticket_templates/TicketTemplatesPage';
 import SeopPage from './features/boat/pages/seop/SeopPage';
@@ -125,6 +126,7 @@ function App() {
                 <Route path='admin/login_logs' element={<LoginLogsPage/>}></Route>
                 <Route path='admin/akd_logs' element={<AkdLogsPage/>}></Route>
                 <Route path='admin/api_logs' element={<PartnerApiLogsPage/>}></Route>
+                <Route path='admin/api_limits' element={<PartnerApiLimitsPage/>}></Route>
                 <Route path='admin/devices' element={<DevicesPage/>}></Route>
                 <Route path='provjera_stanja' element={<StanjePage/>}></Route>
                 <Route path='kontrola' element={<KontrolaPage/>}></Route>

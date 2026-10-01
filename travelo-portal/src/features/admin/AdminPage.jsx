@@ -4,6 +4,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import DevicesOtherIcon from "@mui/icons-material/DevicesOther";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import HandshakeIcon from "@mui/icons-material/Handshake";
+import SpeedIcon from "@mui/icons-material/Speed";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { authSliceData } from "../auth/authSlice";
@@ -110,6 +111,12 @@ export default function AdminPage() {
             subtitle: "Log spajanja partnera preko API-ja",
             icon: HandshakeIcon,
             path: "/admin/api_logs",
+        },
+        {
+            title: "Prekoračenja limita",
+            subtitle: "Adrese koje su prešle dopušteno pozivanje API-ja",
+            icon: SpeedIcon,
+            path: "/admin/api_limits",
         },
     ];
 

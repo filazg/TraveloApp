@@ -19,7 +19,7 @@ const {
     getDeviceConnectionsController,
     terminalReportController,
 } = require('../controllers/adminControllers/adminLogsController');
-const { createPartnerApiLogController, getPartnerApiLogsController, getPartnerApiLogController } = require('../controllers/adminControllers/partnerApiLogsController');
+const { createPartnerApiLogController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController } = require('../controllers/adminControllers/partnerApiLogsController');
 const router = express.Router();
 
 // Per-IP brute-force defense for all login endpoints.
@@ -123,6 +123,11 @@ router
     .route('/admin/partner_api_logs')
     .get(getPartnerApiLogsController)
     .post(createPartnerApiLogController)
+
+// Adrese koje su prešle dopuštene okvire pozivanja (rate limit).
+router
+    .route('/admin/partner_api_limits')
+    .get(getPartnerApiLimitsController)
 
 router
     .route('/admin/partner_api_logs/:id')

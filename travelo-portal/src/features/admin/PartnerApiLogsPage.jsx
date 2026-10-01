@@ -24,7 +24,9 @@ const formatDate = (v) => {
     return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("hr-HR");
 };
 
-const oznakaPartnera = (r) => r?.partner_name || r?.partner_acr || (r?.tid ? `TID ${r.tid}` : "nepoznat");
+// Zahtjev bez ikakvog identiteta (bez tokena, TID-a i partnera) nije partner
+// nego netko tko pretražuje adresu — internetski skener i slično.
+const oznakaPartnera = (r) => r?.partner_name || r?.partner_acr || (r?.tid ? `TID ${r.tid}` : "SKENER");
 
 // JSON se pokazuje uvučen; odrezan ili neispravan ostaje kakav jest.
 const lijepo = (t) => {
@@ -143,7 +145,13 @@ export default function PartnerApiLogsPage() {
         },
         { field: "method", headerName: "Metoda", width: 80 },
         { field: "path", headerName: "Poziv", width: 170 },
-        { field: "partner", headerName: "Partner", width: 190, valueGetter: (_v, r) => oznakaPartnera(r) },
+        {
+            field: "partner", headerName: "Partner", width: 190,
+            valueGetter: (_v, r) => oznakaPartnera(r),
+            renderCell: (p) => (p.value === "SKENER"
+                ? <Chip size="small" color="warning" label="SKENER" />
+                : p.value),
+        },
         { field: "tid", headerName: "TID", width: 110, valueGetter: (v) => v || "—" },
         { field: "order_number", headerName: "Narudžba", width: 150, valueGetter: (v) => v || "—" },
         { field: "error_msg", headerName: "Poruka", flex: 1, minWidth: 220, valueGetter: (v) => v || "" },
@@ -239,7 +247,7 @@ export default function PartnerApiLogsPage() {
                     {detalj?.error_msg && <Alert severity="error" sx={{ mb: 2 }}>{detalj.error_msg}</Alert>}
                     <Stack spacing={0.75}>
                         {[
-                            ["Partner", detalj?.partner_name || "—"],
+                            ["Partner", oznakaPartnera(detalj)],
                             ["Oznaka partnera", detalj?.partner_acr || "—"],
                             ["TID", detalj?.tid || "—"],
                             ["API korisnik", detalj?.api_user_uuid || "—"],

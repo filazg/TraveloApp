@@ -53,4 +53,13 @@ const getPartnerApiLogController = async (id) => {
     return resp.data || {}; // { log }
 };
 
-module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController };
+const getPartnerApiLimitsController = async (params = {}) => {
+    const main = getMainServiceConfigData();
+    const resp = await axios.get(main.services.auth.url + '/admin/partner_api_limits', {
+        params,
+        timeout: AUTH_TIMEOUT_MS,
+    });
+    return resp.data || {}; // { adrese, granice }
+};
+
+module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController };
