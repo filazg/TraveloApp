@@ -12,6 +12,11 @@ const app = express();
 // Trust nginx (single hop) so req.ip / X-Forwarded-For is the real client.
 app.set('trust proxy', 1);
 
+// Log svakog zahtjeva partnera (Sistem → API partneri) — prije parsiranja
+// tijela, da se zabilježi i zahtjev s neispravnim JSON-om.
+const { apiLog } = require('./middlewares/apiLog');
+app.use(apiLog);
+
 app.use(express.json({ limit: "10mb" }));
 app.use(bodyParser.json({ limit: "10mb" }));
 

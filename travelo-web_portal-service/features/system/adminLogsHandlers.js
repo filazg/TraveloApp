@@ -1,6 +1,6 @@
 // Admin uvidi za portal (modul Administracija): log prijava + uređaji/verzije.
 // Pristup ograničen na jednog korisnika (isto kao desk_updater).
-const { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController } = require('../../controllers/coreServiceControllers/authServiceControllers/adminLogsServiceControllers');
+const { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController } = require('../../controllers/coreServiceControllers/authServiceControllers/adminLogsServiceControllers');
 
 const ALLOWED_USERS = (process.env.DESK_UPDATER_USERS || 'nfilipec')
     .split(',').map((s) => s.trim()).filter(Boolean);
@@ -55,4 +55,26 @@ const handleGetAkdLogsFeature = async (req, res) => {
     }
 };
 
-module.exports = { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature };
+// Log spajanja partnera preko API-ja. Filtri u tijelu, kao kod AKD loga.
+const handleGetPartnerApiLogsFeature = async (req, res) => {
+    try {
+        if (!jeAdmin(req)) return res.status(403).send({ status: 403, data: { message: 'Pristup ograničen.' } });
+        const f = req.body?.body || {};
+        const data = await getPartnerApiLogsController({
+            from: f.from || undefined,
+            to: f.to || undefined,
+            partner_uuid: f.partner_uuid || undefined,
+            tid: f.tid || undefined,
+            samo: f.samo || undefined,
+            status: f.status || undefined,
+            path: f.path || undefined,
+            limit: f.limit || undefined,
+        });
+        return res.send({ status: 200, data: { logs: data?.logs || [], total: data?.total || 0 } });
+    } catch (error) {
+        console.log('handleGetPartnerApiLogsFeature error:', error?.message || error);
+        return res.status(500).send({ status: 500, data: { message: 'Greška pri dohvatu API loga.' } });
+    }
+};
+
+module.exports = { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature };

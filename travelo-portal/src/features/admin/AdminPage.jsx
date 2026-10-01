@@ -3,6 +3,7 @@ import DevicesIcon from "@mui/icons-material/Devices";
 import LoginIcon from "@mui/icons-material/Login";
 import DevicesOtherIcon from "@mui/icons-material/DevicesOther";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
+import HandshakeIcon from "@mui/icons-material/Handshake";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { authSliceData } from "../auth/authSlice";
@@ -103,6 +104,12 @@ export default function AdminPage() {
             subtitle: "Pozivi prema SEOP-u i MOSI-ju s odgovorima",
             icon: CreditCardIcon,
             path: "/admin/akd_logs",
+        },
+        {
+            title: "API partneri",
+            subtitle: "Log spajanja partnera preko API-ja",
+            icon: HandshakeIcon,
+            path: "/admin/api_logs",
         },
     ];
 

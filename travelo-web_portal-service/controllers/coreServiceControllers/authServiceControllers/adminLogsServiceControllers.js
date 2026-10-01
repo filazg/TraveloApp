@@ -35,4 +35,14 @@ const getAkdLogsController = async (params = {}) => {
     return resp.data?.data || {};
 };
 
-module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController };
+// Log spajanja partnera preko API-ja (auth servis, tablica partner_api_logs).
+const getPartnerApiLogsController = async (params = {}) => {
+    const main = getMainServiceConfigData();
+    const resp = await axios.get(main.services.auth.url + '/admin/partner_api_logs', {
+        params,
+        timeout: AUTH_TIMEOUT_MS,
+    });
+    return resp.data || {}; // { logs: [...], total }
+};
+
+module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController };

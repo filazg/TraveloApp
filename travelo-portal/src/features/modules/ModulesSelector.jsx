@@ -45,6 +45,7 @@ const ADMIN_MODULE = {
                 { label: "Desktop verzije", subtitle: "Objava verzija desktop aplikacije", icon: "Download", path: "/desk_updater" },
                 { label: "Prijave na sustav", subtitle: "Log prijava portal korisnika", icon: "RecentActors", path: "/admin/login_logs" },
                 { label: "Uređaji i verzije", subtitle: "Zadnje stanje po uređaju", icon: "Devices", path: "/admin/devices" },
+                { label: "API partneri", subtitle: "Log spajanja partnera preko API-ja", icon: "Handshake", path: "/admin/api_logs" },
             ],
         },
     ],

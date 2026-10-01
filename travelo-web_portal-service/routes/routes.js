@@ -62,7 +62,7 @@ const {
 const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
 const { handleGetDownloadsFeature, handleDownloadFileFeature } = require('../features/system/downloadsHandler');
 const { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete, handleDeskUpdaterActivate } = require('../features/system/deskUpdaterHandlers');
-const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature } = require('../features/system/adminLogsHandlers');
+const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature } = require('../features/system/adminLogsHandlers');
 const router = express.Router();
 
 //BACKOFFICE ROUTES
@@ -544,5 +544,10 @@ router
 router
     .route('/admin/akd_logs')
     .post(handleGetAkdLogsFeature)
+
+// Log spajanja partnera preko API-ja (samo admin).
+router
+    .route('/admin/partner_api_logs')
+    .post(handleGetPartnerApiLogsFeature)
 
 module.exports = router
