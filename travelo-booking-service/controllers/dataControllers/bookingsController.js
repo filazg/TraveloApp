@@ -4,6 +4,14 @@ const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { getSequelize } = require("../../config/database");
 
+// Kategorija čije vrste karata ne troše kapacitet (dojenče kao dodatna karta).
+// Za nju se ne stvaraju booking redci, a rezervacija/oslobađanje/validacija je
+// preskaču — tako vrijedi jednako za blagajnu, mobilnu, web i storno.
+const BEZ_KAPACITETA = "BEZ_KAPACITETA";
+
+const uuidBezKapaciteta = async (CapacityCategoryModel) =>
+    (await CapacityCategoryModel.findOne({ where: { code: BEZ_KAPACITETA } }))?.uuid || null;
+
 // Map the legacy boat/voyage base_* capacity field to a category code (lowercase).
 const BOAT_CAPACITY_FIELD_BY_CATEGORY = {
     PASSANGER: "base_capacity",
@@ -76,7 +84,8 @@ async function initBookingsForVoyage(models, anyLegUuid) {
     const voyage = await fetchVoyage(canonicalUuid);
     if (!voyage) throw new Error(`voyage ${canonicalUuid} not found`);
 
-    const categories = await CapacityCategoryModel.findAll({ where: { is_active: true } });
+    const categories = (await CapacityCategoryModel.findAll({ where: { is_active: true } }))
+        .filter((c) => c.code !== BEZ_KAPACITETA);
     if (!categories.length) throw new Error("no active capacity categories seeded");
 
     const rows = [];
@@ -204,7 +213,8 @@ async function ensureVoyageInitForRoute(models, route_uuid) {
 }
 
 async function performReserve({ models, items, sign }) {
-    const { BookingModel, TicketTypeMappingModel } = models;
+    const { BookingModel, TicketTypeMappingModel, CapacityCategoryModel } = models;
+    const bezKapaciteta = await uuidBezKapaciteta(CapacityCategoryModel);
     const sequelize = getSequelize();
 
     // Resolve route metadata once (also triggers voyage init if needed)
@@ -227,6 +237,10 @@ async function performReserve({ models, items, sign }) {
             if (!qty) continue;
             const mapping = mapByTt.get(it.ticket_type_uuid);
             if (!mapping) throw new Error(`no category mapping for ticket_type ${it.ticket_type_uuid}`);
+            if (bezKapaciteta && mapping.category_uuid === bezKapaciteta) {
+                affected.push({ route_uuid: it.route_uuid, category: BEZ_KAPACITETA, qty: 0, legs_updated: 0, skipped: true });
+                continue;
+            }
             const meta = routeMetaByUuid.get(it.route_uuid);
             if (!meta) throw new Error(`no route metadata for ${it.route_uuid}`);
 
@@ -351,7 +365,7 @@ const setAdditionalCapacityController = async (req, res) => {
 // i dalje prima zbog starijih pozivatelja.
 const validateTicketsController = async (req, res) => {
     const models = req.app.locals.models;
-    const { BookingModel, TicketTypeMappingModel } = models;
+    const { BookingModel, TicketTypeMappingModel, CapacityCategoryModel } = models;
     try {
         const data = req.body?.body || req.body || {};
         const { route_uuid, ticket_type_uuid, other_voyage } = data;
@@ -373,6 +387,10 @@ const validateTicketsController = async (req, res) => {
                 });
             }
             category_uuid = mapping.category_uuid;
+        }
+        // Karta bez kapaciteta nema booking redaka — nema se što brojati.
+        if (category_uuid === await uuidBezKapaciteta(CapacityCategoryModel)) {
+            return res.send({ status: 200, data: { skipped: true, reason: BEZ_KAPACITETA } });
         }
 
         const meta = await fetchRouteMeta(route_uuid);

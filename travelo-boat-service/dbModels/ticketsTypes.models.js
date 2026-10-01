@@ -48,6 +48,14 @@ module.exports =  (sequelize) =>{
             type: DataTypes.BOOLEAN,
             allowNull: false
         },
+        // Dodatne karte uz ovu vrstu (npr. Redovna → dojenče): [{ ticket_type_uuid,
+        // max_qty }]. Pri prodaji se uz kartu ove vrste mogu dodati, bez naplate,
+        // do max_qty po karti. Dodatak je zasebna karta svoje vrste (SEOP namjena,
+        // kapacitet po njezinoj kategoriji). Stupac: migrate_ticket_type_extras.js.
+        extra_tickets:{
+            type: DataTypes.JSONB,
+            allowNull: true
+        },
         updated_by_uuid:{
             type: DataTypes.STRING,
             allowNull: true

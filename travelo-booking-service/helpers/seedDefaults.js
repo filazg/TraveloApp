@@ -5,6 +5,10 @@ const DEFAULT_CATEGORIES = [
     { code: "VIP", name_hr: "VIP putnici", name_en: "VIP passengers" },
     { code: "PETS", name_hr: "Ljubimci", name_en: "Pets" },
     { code: "BICYCLE", name_hr: "Bicikli", name_en: "Bicycles" },
+    // Vrsta karte iz ove kategorije ne troši kapacitet (npr. dojenče u naručju
+    // kao dodatna karta) — performReserve je preskače, pa se ne rezervira ni
+    // ne oslobađa. Vidi BEZ_KAPACITETA u bookingsController.
+    { code: "BEZ_KAPACITETA", name_hr: "Ne zauzima kapacitet", name_en: "No capacity" },
 ];
 
 module.exports = async function seedDefaults(models) {

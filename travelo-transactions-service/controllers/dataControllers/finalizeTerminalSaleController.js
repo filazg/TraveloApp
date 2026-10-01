@@ -367,6 +367,9 @@ const finalizeTerminalSaleController = async (req, res) => {
                     // Otočna/povlaštena karta — sve što dojava prodaje traži, u
                     // obliku u kojem je blagajna dobila od akd servisa.
                     ...poljaPovlastice(it),
+                    // Dodatna karta (dojenče uz kartu roditelja) i karta uz koju ide.
+                    is_extra: it.is_extra === true,
+                    extra_of_ticket_uuid: it.is_extra === true ? (ct?.extra_of_ticket_uuid || null) : null,
                 };
                 ticketsToAdd.push(noviTicket);
                 // Izdano bez provjere (greška s karticom) — u Kontrolu, uz karticu.

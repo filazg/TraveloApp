@@ -175,6 +175,11 @@ const addTerminalSaleController = async(req,res)=>{
                     const povlasticaBloka = ticket.povlastica || null;
                     if (ticket.povlastica) {
                         Object.assign(ticket, poljaPovlastice({ povlastica: ticket.povlastica }));
+                    } else if (ticket.is_extra === true) {
+                        // Dodatna karta (dojenče uz kartu roditelja): obična karta
+                        // svoje namjene, bez naplate — ide u SEOP dojavu.
+                        ticket.seop_dojava = true;
+                        ticket.seop_namjena = ticket.seop_namjena || null;
                     }
                     delete ticket.povlastica;
 

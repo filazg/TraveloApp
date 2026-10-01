@@ -288,6 +288,18 @@ module.exports =  (sequelize) =>{
                 allowNull: true,
                 defaultValue: false
             },
+            // Dodatna karta uz kartu roditelja (npr. dojenče uz Redovnu) — bez
+            // naplate, bez zasebnog ispisa i QR-a, dojavljuje se SEOP-u kao
+            // obična karta svoje namjene. Stupci: migrate_ticket_extras.js.
+            is_extra:{
+                type: DataTypes.BOOLEAN,
+                allowNull: true,
+                defaultValue: false
+            },
+            extra_of_ticket_uuid:{
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             // Ide li prodaja u SEOP. Linija moze koristiti SEOP samo za provjeru
             // iskaznice, bez dojave — tada karta postoji kod nas, a u SEOP
             // obracun ne ulazi. Red cekanja to cita odavde.

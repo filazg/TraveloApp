@@ -14,6 +14,7 @@ import {
     saveTicketTypeMappingThunk,
 } from "../../../booking/bookingSlice";
 import { SEOP_TYPES, SEOP_TYPE_LABEL } from "./seopTypes";
+import ExtraTicketsEditor from "./ExtraTicketsEditor";
 
 // Dropdown za SEOP namjena — grupirano po kategoriji. MUI Select renderira
 // ListSubheader kao neinteraktivan header red.
@@ -90,7 +91,7 @@ export default function TicketsTypesPage() {
         e.preventDefault();
         dispatch(setAuthData({ path: "loading", value: true }));
         dispatch(setAuthData({ path: "loadingMessage", value: "Dodavanje nove vrste karata" }));
-        await dispatch(postBoatThunk({ path: "tickets_types", data: newData }));
+        await dispatch(postBoatThunk({ path: "tickets_types", data: { ...newData, extra_tickets: (newData.extra_tickets || []).filter((d) => d.ticket_type_uuid) } }));
         if (newCategoryUuid) {
             const res = await dispatch(getBoatThunk({ path: "tickets_types" }));
             const list = res.payload?.data || res.payload?.data?.data || [];
@@ -115,7 +116,7 @@ export default function TicketsTypesPage() {
         e.preventDefault();
         dispatch(setAuthData({ path: "loading", value: true }));
         dispatch(setAuthData({ path: "loadingMessage", value: "Ažuriranje podataka o vrsti karte" }));
-        await dispatch(patchBoatThunk({ path: "tickets_types", data: editedData }));
+        await dispatch(patchBoatThunk({ path: "tickets_types", data: { ...editedData, extra_tickets: (editedData.extra_tickets || []).filter((d) => d.ticket_type_uuid) } }));
         // category intentionally not re-saved on edit — locked at creation
         await syncData();
         setEditedData({});
@@ -162,6 +163,20 @@ export default function TicketsTypesPage() {
                 const c = categoryByUuid.get(m.category_uuid);
                 return c ? `${c.name_hr} (${c.code})` : m.category_code || "—";
             },
+        },
+        {
+            field: "extra_tickets",
+            headerName: "Dodatne karte",
+            flex: 2,
+            valueGetter: (_v, row) => (Array.isArray(row.extra_tickets) && row.extra_tickets.length
+                ? row.extra_tickets
+                    .map((d) => {
+                        const tt = (boatData.boatData.tickets_types || []).find((x) => x.uuid === d.ticket_type_uuid);
+                        return tt ? `${tt.name} (max ${d.max_qty})` : null;
+                    })
+                    .filter(Boolean)
+                    .join(", ")
+                : "—"),
         },
         { field: "is_active", type: "boolean", headerName: t("boat.tickets_types.is_active"), flex: 1 },
     ];
@@ -232,6 +247,12 @@ export default function TicketsTypesPage() {
                             <MenuItem key={c.uuid} value={c.uuid}>{c.name_hr} ({c.code})</MenuItem>
                         ))}
                     </TextField>
+                    <ExtraTicketsEditor
+                        value={newData.extra_tickets}
+                        onChange={(v) => setNewData({ ...newData, extra_tickets: v })}
+                        ticketTypes={boatData.boatData.tickets_types}
+                        selfUuid={null}
+                    />
                     <Button
                         type="submit"
                         onClick={handleSubmit}
@@ -295,6 +316,12 @@ export default function TicketsTypesPage() {
                             <MenuItem key={c.uuid} value={c.uuid}>{c.name_hr} ({c.code})</MenuItem>
                         ))}
                     </TextField>
+                    <ExtraTicketsEditor
+                        value={editedData?.extra_tickets}
+                        onChange={(v) => setEditedData({ ...editedData, extra_tickets: v })}
+                        ticketTypes={boatData.boatData.tickets_types}
+                        selfUuid={editedData?.uuid}
+                    />
                     <Button
                         type="submit"
                         onClick={handleSubmitEdit}

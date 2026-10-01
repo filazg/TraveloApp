@@ -33,7 +33,9 @@ const poljaPovlastice = (stavka = {}) => {
             seop_offline: false,
             seop_popust_izvor: null,
             seop_pratnja: false,
-            seop_dojava: stavka.is_island === true,
+            // Dodatna karta (dojenče uz kartu roditelja) ide u SEOP kao obična
+            // karta svoje namjene, bez naplate.
+            seop_dojava: stavka.is_island === true || stavka.is_extra === true,
         };
     }
 

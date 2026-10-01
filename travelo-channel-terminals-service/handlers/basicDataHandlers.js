@@ -1,5 +1,6 @@
 const { getCompanyController, getBusinessPremisesController, getBillingDevicesController, getUsersController, getPaymentMethodsController, getStornoPercentagesController } = require("../controllers/coreServiceControllers/backofficeServiceControllers")
 const { getSeopRightDiscountsController } = require("../controllers/coreServiceControllers/akdServiceControllers")
+const { getTicketTypeExtrasController } = require("../controllers/coreServiceControllers/boatServiceControllers")
 const { getIntegrationsConfigData } = require("../controllers/configServices/configSyncController")
 
 // Kratka memorija sifarnika. Osnovni podaci se slazu iz sest odvojenih poziva
@@ -13,7 +14,7 @@ const dohvatiSifarnik = async () => {
     if (sifarnik && (Date.now() - sifarnik.kad) < MEMORIJA_MS) return sifarnik.podaci;
     // Pozivi idu usporedno: dosad su isli jedan za drugim, pa se cekanje
     // zbrajalo — sest odlazaka na bazu u Amsterdamu umjesto najduzeg od njih.
-    const [companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts] =
+    const [companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts, ticketTypeExtras] =
         await Promise.all([
             getCompanyController(),
             getBusinessPremisesController(),
@@ -25,8 +26,10 @@ const dohvatiSifarnik = async () => {
             // nema tko pitati. Vlastiti try/catch je u kontroleru, pa neuspjeh
             // ovdje ne rusi cijeli sifarnik.
             getSeopRightDiscountsController(),
+            // Dodatne karte po vrsti karte (boat servis); prazno je valjan odgovor.
+            getTicketTypeExtrasController(),
         ]);
-    const podaci = { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts };
+    const podaci = { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts, ticketTypeExtras };
     // Nepotpun sifarnik se NE pamti. Kontroleri backofficea greske gutaju i
     // vracaju undefined, pa je dosad jedan ispad backofficea zavrsio u memoriji
     // kao valjan podatak — svaki zahtjev sljedecu minutu padao je na istom
@@ -52,7 +55,7 @@ const dohvatiSifarnik = async () => {
 
 const getTerminalBasicDataHandler = async(data)=>{
     try {
-        const { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts } =
+        const { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts, ticketTypeExtras } =
             await dohvatiSifarnik()
         const terminaData = billingDevicesData.data.billing_devices.find((terminal)=> terminal.uuid === data.header.data.t && terminal.is_active)
         if(terminaData){
@@ -164,7 +167,10 @@ const getTerminalBasicDataHandler = async(data)=>{
                 // vrati i postotak, pa se ovo tada ne koristi; bez mreze cip daje
                 // samo sifru prava i postotak se uzima odavde. Uz postotak ide i
                 // oznaka je li pravo rezidentsko, za linije u modu prebivaliste.
-                seop_right_discounts: seopRightDiscounts || []
+                seop_right_discounts: seopRightDiscounts || [],
+                // Dodatne karte uz vrstu karte (npr. Redovna → dojenče): uz kartu
+                // roditelja dodaju se bez naplate, do max_qty po karti.
+                ticket_type_extras: ticketTypeExtras || []
             }
             return(dataToSend)
             }
