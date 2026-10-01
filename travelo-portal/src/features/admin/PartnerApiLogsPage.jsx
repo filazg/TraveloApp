@@ -26,6 +26,12 @@ const formatDate = (v) => {
 
 const oznakaPartnera = (r) => r?.partner_name || r?.partner_acr || (r?.tid ? `TID ${r.tid}` : "nepoznat");
 
+// JSON se pokazuje uvučen; odrezan ili neispravan ostaje kakav jest.
+const lijepo = (t) => {
+    if (!t) return "—";
+    try { return JSON.stringify(JSON.parse(t), null, 2); } catch { return t; }
+};
+
 const bojaStatusa = (s) => (s >= 500 ? "error" : s === 429 ? "warning" : s >= 400 ? "error" : "success");
 
 const danaUnazad = (n) => {
@@ -48,6 +54,9 @@ export default function PartnerApiLogsPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [detalj, setDetalj] = useState(null);
+    // Sadržaj zahtjeva i odgovora dolazi tek uz otvoreni detalj.
+    const [sadrzaj, setSadrzaj] = useState(null);
+    const [sadrzajUcitava, setSadrzajUcitava] = useState(false);
 
     const [from, setFrom] = useState(danaUnazad(7));
     const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
@@ -76,6 +85,20 @@ export default function PartnerApiLogsPage() {
             setUkupno(0);
         }
         setLoading(false);
+    }, [api]);
+
+    const otvori = useCallback(async (red) => {
+        setDetalj(red);
+        setSadrzaj(null);
+        setSadrzajUcitava(true);
+        try {
+            const r = await api.post("/portal/admin/partner_api_log", { id: red.id });
+            const d = r?.data?.data ?? r?.data ?? {};
+            setSadrzaj(d.log || null);
+        } catch {
+            setSadrzaj(null);
+        }
+        setSadrzajUcitava(false);
     }, [api]);
 
     const trazi = useCallback(() => {
@@ -196,7 +219,7 @@ export default function PartnerApiLogsPage() {
                         getRowId={(r) => r.id}
                         loading={loading}
                         disableRowSelectionOnClick
-                        onRowClick={(p) => setDetalj(p.row)}
+                        onRowClick={(p) => otvori(p.row)}
                         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                         initialState={{ pagination: { paginationModel: { pageSize: 50, page: 0 } } }}
                         pageSizeOptions={[25, 50, 100, 250]}
@@ -230,6 +253,16 @@ export default function PartnerApiLogsPage() {
                             </Stack>
                         ))}
                     </Stack>
+                    {/* Sadržaj stoji kakav jest (tajna polja maskirana na
+                        poslužitelju) — pri dijagnozi se gleda točan oblik. */}
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ mt: 2 }}>Zahtjev</Typography>
+                    <Box component="pre" sx={{ p: 1.5, bgcolor: "action.hover", borderRadius: 1, fontSize: 12, overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 300 }}>
+                        {sadrzajUcitava ? "Učitavanje…" : lijepo(sadrzaj?.request_body)}
+                    </Box>
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ mt: 2 }}>Odgovor</Typography>
+                    <Box component="pre" sx={{ p: 1.5, bgcolor: "action.hover", borderRadius: 1, fontSize: 12, overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", maxHeight: 400 }}>
+                        {sadrzajUcitava ? "Učitavanje…" : lijepo(sadrzaj?.response_body)}
+                    </Box>
                 </DialogContent>
             </Dialog>
         </Box>

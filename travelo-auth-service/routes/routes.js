@@ -19,7 +19,7 @@ const {
     getDeviceConnectionsController,
     terminalReportController,
 } = require('../controllers/adminControllers/adminLogsController');
-const { createPartnerApiLogController, getPartnerApiLogsController } = require('../controllers/adminControllers/partnerApiLogsController');
+const { createPartnerApiLogController, getPartnerApiLogsController, getPartnerApiLogController } = require('../controllers/adminControllers/partnerApiLogsController');
 const router = express.Router();
 
 // Per-IP brute-force defense for all login endpoints.
@@ -123,5 +123,9 @@ router
     .route('/admin/partner_api_logs')
     .get(getPartnerApiLogsController)
     .post(createPartnerApiLogController)
+
+router
+    .route('/admin/partner_api_logs/:id')
+    .get(getPartnerApiLogController)
 
 module.exports = router

@@ -56,6 +56,8 @@ const createPartnerApiLogController = async (req, res) => {
             tid: rez(z.tid || partner?.tid, 255),
             error_msg: rez(z.error_msg, 1000),
             order_number: rez(z.order_number, 255),
+            request_body: rez(z.request_body, 20000),
+            response_body: rez(z.response_body, 20000),
         });
         ocisti(PartnerApiLogsModel).catch(() => {});
         return res.status(200).json({ ok: true });
@@ -84,8 +86,11 @@ const getPartnerApiLogsController = async (req, res) => {
         if (q.path) where.path = { [Op.iLike]: `%${q.path}%` };
 
         const limit = Math.min(Number(q.limit) || 1000, 2000);
+        // Sadržaj zahtjeva i odgovora ne ide u popis (do 2000 redaka × 40 KB) —
+        // dohvaća se po zapisu, kad se otvori detalj.
         const { rows, count } = await PartnerApiLogsModel.findAndCountAll({
             where,
+            attributes: { exclude: ["request_body", "response_body"] },
             order: [["createdAt", "DESC"]],
             limit,
         });
@@ -96,4 +101,17 @@ const getPartnerApiLogsController = async (req, res) => {
     }
 };
 
-module.exports = { createPartnerApiLogController, getPartnerApiLogsController };
+// GET /:id — jedan zapis sa sadržajem zahtjeva i odgovora.
+const getPartnerApiLogController = async (req, res) => {
+    try {
+        const { PartnerApiLogsModel } = req.app.locals.models;
+        const zapis = await PartnerApiLogsModel.findByPk(Number(req.params.id));
+        if (!zapis) return res.status(404).json({ message: "Zapis ne postoji." });
+        return res.status(200).json({ log: zapis.toJSON() });
+    } catch (error) {
+        console.log("getPartnerApiLogController error:", error?.message || error);
+        return res.status(500).json({ message: "Internal error" });
+    }
+};
+
+module.exports = { createPartnerApiLogController, getPartnerApiLogsController, getPartnerApiLogController };

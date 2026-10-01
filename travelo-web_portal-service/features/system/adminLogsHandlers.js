@@ -1,6 +1,6 @@
 // Admin uvidi za portal (modul Administracija): log prijava + uređaji/verzije.
 // Pristup ograničen na jednog korisnika (isto kao desk_updater).
-const { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController } = require('../../controllers/coreServiceControllers/authServiceControllers/adminLogsServiceControllers');
+const { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController } = require('../../controllers/coreServiceControllers/authServiceControllers/adminLogsServiceControllers');
 
 const ALLOWED_USERS = (process.env.DESK_UPDATER_USERS || 'nfilipec')
     .split(',').map((s) => s.trim()).filter(Boolean);
@@ -77,4 +77,18 @@ const handleGetPartnerApiLogsFeature = async (req, res) => {
     }
 };
 
-module.exports = { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature };
+// Jedan zapis sa sadržajem zahtjeva i odgovora (detalj).
+const handleGetPartnerApiLogFeature = async (req, res) => {
+    try {
+        if (!jeAdmin(req)) return res.status(403).send({ status: 403, data: { message: 'Pristup ograničen.' } });
+        const id = req.body?.body?.id;
+        if (!id) return res.status(400).send({ status: 400, data: { message: 'Nedostaje id zapisa.' } });
+        const data = await getPartnerApiLogController(id);
+        return res.send({ status: 200, data: { log: data?.log || null } });
+    } catch (error) {
+        console.log('handleGetPartnerApiLogFeature error:', error?.message || error);
+        return res.status(500).send({ status: 500, data: { message: 'Greška pri dohvatu zapisa.' } });
+    }
+};
+
+module.exports = { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature, handleGetPartnerApiLogFeature };

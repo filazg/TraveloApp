@@ -45,4 +45,12 @@ const getPartnerApiLogsController = async (params = {}) => {
     return resp.data || {}; // { logs: [...], total }
 };
 
-module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController };
+const getPartnerApiLogController = async (id) => {
+    const main = getMainServiceConfigData();
+    const resp = await axios.get(main.services.auth.url + '/admin/partner_api_logs/' + encodeURIComponent(id), {
+        timeout: AUTH_TIMEOUT_MS,
+    });
+    return resp.data || {}; // { log }
+};
+
+module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController };

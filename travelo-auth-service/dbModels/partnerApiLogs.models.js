@@ -31,6 +31,12 @@ module.exports = (sequelize) => {
             error_msg: { type: DataTypes.STRING(1000), allowNull: true },
             // Narudžba na koju se zahtjev odnosi (order / confirm / cancel / details).
             order_number: { type: DataTypes.STRING, allowNull: true },
+
+            // Sadržaj zahtjeva i odgovora (JSON kao tekst), s maskiranim tajnama
+            // i odrezan na 20 000 znakova. Stupci su dodani naknadno —
+            // migrate_partner_api_logs_bodies.js.
+            request_body: { type: DataTypes.TEXT, allowNull: true },
+            response_body: { type: DataTypes.TEXT, allowNull: true },
         },
         {
             freezeTableName: true,

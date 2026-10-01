@@ -62,7 +62,7 @@ const {
 const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
 const { handleGetDownloadsFeature, handleDownloadFileFeature } = require('../features/system/downloadsHandler');
 const { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete, handleDeskUpdaterActivate } = require('../features/system/deskUpdaterHandlers');
-const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature } = require('../features/system/adminLogsHandlers');
+const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature, handleGetPartnerApiLogFeature } = require('../features/system/adminLogsHandlers');
 const router = express.Router();
 
 //BACKOFFICE ROUTES
@@ -549,5 +549,9 @@ router
 router
     .route('/admin/partner_api_logs')
     .post(handleGetPartnerApiLogsFeature)
+
+router
+    .route('/admin/partner_api_log')
+    .post(handleGetPartnerApiLogFeature)
 
 module.exports = router

@@ -14,6 +14,39 @@ const { getMainServiceConfigData } = require('../controllers/configServices/conf
 
 const PRESKOCI = ['/documentation'];
 
+// Sadržaj zahtjeva i odgovora ide u log, ali bez tajni: polja s ovim imenima se
+// maskiraju bilo gdje u strukturi. Odgovor prijave nosi token, zahtjev otp i
+// control_code.
+const TAJNA_POLJA = new Set(['otp', 'control_code', 'token', 'access_token', 'refresh_token', 'k', 'key', 'password', 'authorization']);
+const MAX_ZNAKOVA = 20000;
+
+const maskiraj = (v, dubina = 0) => {
+    if (dubina > 8 || v == null || typeof v !== 'object') return v;
+    if (Array.isArray(v)) return v.map((x) => maskiraj(x, dubina + 1));
+    const out = {};
+    for (const [k, x] of Object.entries(v)) {
+        // Interna polja koja dodaju naši middlewarei (__order_number) nisu
+        // ono što je partner poslao.
+        if (k.startsWith('__')) continue;
+        out[k] = TAJNA_POLJA.has(k.toLowerCase()) ? '***' : maskiraj(x, dubina + 1);
+    }
+    return out;
+};
+
+const uTekst = (v) => {
+    if (v == null) return null;
+    let s;
+    if (typeof v === 'string') {
+        // Tekstualni odgovor može biti JSON — tada se i on maskira.
+        try { s = JSON.stringify(maskiraj(JSON.parse(v))); } catch { s = v; }
+    } else if (Buffer.isBuffer(v)) {
+        s = `[binarni sadržaj, ${v.length} B]`;
+    } else {
+        try { s = JSON.stringify(maskiraj(v)); } catch { s = String(v); }
+    }
+    return s.length > MAX_ZNAKOVA ? `${s.slice(0, MAX_ZNAKOVA)}… [odrezano, ukupno ${s.length} znakova]` : s;
+};
+
 const posalji = (zapis) => {
     try {
         const authUrl = getMainServiceConfigData()?.services?.auth?.url;
@@ -44,9 +77,13 @@ const apiLog = (req, res, next) => {
 
     const t0 = Date.now();
     let porukaGreske = null;
+    let odgovor;
+    let odgovorZabiljezen = false;
     const izvorniJson = res.json.bind(res);
     res.json = (tijelo) => {
         if (res.statusCode >= 400) porukaGreske = tijelo?.msg || tijelo?.message || null;
+        // res.json zove send sa stringom — zapisuje se prvi, izvorni oblik.
+        if (!odgovorZabiljezen) { odgovor = tijelo; odgovorZabiljezen = true; }
         return izvorniJson(tijelo);
     };
     const izvorniSend = res.send.bind(res);
@@ -55,6 +92,7 @@ const apiLog = (req, res, next) => {
         if (res.statusCode >= 400 && !porukaGreske) {
             porukaGreske = typeof tijelo === 'string' ? tijelo.slice(0, 500) : (tijelo?.msg || tijelo?.message || null);
         }
+        if (!odgovorZabiljezen) { odgovor = tijelo; odgovorZabiljezen = true; }
         return izvorniSend(tijelo);
     };
 
@@ -75,6 +113,9 @@ const apiLog = (req, res, next) => {
             tid: tko.tid || tijelo.tid || null,
             error_msg: porukaGreske,
             order_number: tijelo.order_number || tijelo.__order_number || null,
+            // GET nema tijela; tada se bilježi upit (?...), ako ga ima.
+            request_body: uTekst(Object.keys(tijelo).length ? tijelo : (Object.keys(req.query || {}).length ? req.query : null)),
+            response_body: uTekst(odgovor),
         });
     });
     next();
