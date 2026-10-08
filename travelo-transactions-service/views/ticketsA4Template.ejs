@@ -203,6 +203,21 @@
       .counter { float: right; font-weight: 700; color: #383E42; }
 
       /* --- sazetak --- */
+      /* Sazetak nema fiksnu visinu kao karta: s mnogo karata tablica ide
+         na vise stranica, a fiksna visina bi je prelila preko prve karte.
+         Rubove zato daje imenovana stranica (na prijelomu padding elementa
+         ne vrijedi), a zaglavlje tablice se ponavlja na svakoj stranici. */
+      @page sazetak { size: A4; margin: 14mm 14mm 12mm; }
+      .page.sum-page {
+        page: sazetak;
+        width: auto;
+        height: auto;
+        padding: 0;
+        display: block;
+      }
+      table.sum thead { display: table-header-group; }
+      table.sum tr { page-break-inside: avoid; break-inside: avoid; }
+      .sum-page .notes { margin-top: 8mm; }
       .sum-title { margin-top: 10mm; font-size: 20pt; font-weight: 800; }
       .sum-sub { margin-top: 1mm; font-size: 11pt; color: #6b7280; }
       table.sum { width: 100%; border-collapse: collapse; margin-top: 8mm; font-size: 10.5pt; }
@@ -249,7 +264,7 @@
     <% if (summary) { %>
       <%# Sazetak je prva stranica, ne zaseban dokument: karte se svugdje
           otvaraju kao jedan PDF — u kartici preglednika i kao privitak. %>
-      <div class="page">
+      <div class="page sum-page">
         <div class="brand">
           <div class="name"><%= companyName %></div>
           <div class="doc">Sažetak</div>
@@ -287,7 +302,6 @@
           </tbody>
         </table>
 
-        <div class="spacer"></div>
         <div class="notes">
           Sažetak služi za pregled i predaju na ukrcaju. Za ukrcaj vrijedi pojedinačna
           karta s QR kodom, na stranicama koje slijede.
