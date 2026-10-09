@@ -24,9 +24,19 @@ const getCfg = () => {
     return all.seyfor || null;
 };
 
-const buildHeaders = (cfg) => ({
+// Organizacija u iCenteru zadaje se u postavkama tvrtke (`saop_organization_id`).
+// Config je samo rezerva dok tamo nista ne pise. Isti broj ide u zaglavlje i u
+// `OrganizationId_DK` temeljnice — inace bi se knjizilo u jednu organizaciju,
+// a sifarnici citali iz druge.
+const organizacija = (izTvrtke) => {
+    const s = String(izTvrtke ?? "").trim();
+    if (s) return s;
+    return String(getCfg()?.organisation_id || "2");
+};
+
+const buildHeaders = (cfg, organisationId) => ({
     Authorization: "Basic " + Buffer.from(`${cfg.username}:${cfg.password}`).toString("base64"),
-    OrganisationId: String(cfg.organisation_id || "2"),
+    OrganisationId: organizacija(organisationId),
     Accept: "application/xml",
     "Content-Type": "application/xml",
 });
@@ -56,7 +66,7 @@ const poruka = (resp) => {
 // Salje jednu temeljnicu. `nalog` je vec slozen objekt oblika
 // { Accounting: { AccountingHeader, JournalEntries } } — gradi ga
 // seyforJournalBuilder, da klijent ostane bez znanja o kontima.
-const addJournal = async (nalog) => {
+const addJournal = async (nalog, { organisationId } = {}) => {
     const cfg = getCfg();
     if (!cfg?.base_url) throw new Error("seyfor: base_url nije konfiguriran");
     if (!cfg?.username || !cfg?.password) throw new Error("seyfor: username/password nisu konfigurirani");
@@ -66,7 +76,7 @@ const addJournal = async (nalog) => {
     const resp = await axios({
         method: "POST",
         url,
-        headers: buildHeaders(cfg),
+        headers: buildHeaders(cfg, organisationId),
         data: xml,
         httpsAgent,
         timeout: 30000,
@@ -90,4 +100,4 @@ const addJournal = async (nalog) => {
     };
 };
 
-module.exports = { addJournal };
+module.exports = { addJournal, organizacija };

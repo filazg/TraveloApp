@@ -5,6 +5,7 @@ const axios = require("axios");
 const https = require("https");
 const xml2js = require("xml2js");
 const { getIntegrationsConfigData } = require("../configSyncController");
+const { initModels } = require("../../dbModels");
 
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 const xmlBuilder = new xml2js.Builder({ headless: false });
@@ -14,12 +15,27 @@ const getCfg = () => {
     return all.seyfor || null;
 };
 
-const buildHeaders = (cfg, extra = {}) => {
+// Organizacija u iCenteru zadaje se u postavkama tvrtke (`saop_organization_id`).
+// Config je samo rezerva dok tamo nista ne pise. Cita se pri svakom pozivu —
+// jedan upit na tablicu s jednim retkom — da izmjena u portalu vrijedi odmah.
+const organizacija = async (cfg) => {
+    try {
+        const { CompanyModel } = initModels();
+        const tvrtka = await CompanyModel.findOne({ attributes: ["saop_organization_id"] });
+        const s = String(tvrtka?.saop_organization_id ?? "").trim();
+        if (s) return s;
+    } catch (err) {
+        console.error("seyfor: organizacija iz tvrtke nije procitana:", err?.message || err);
+    }
+    return String(cfg?.organisation_id || "2");
+};
+
+const buildHeaders = (cfg, organisationId, extra = {}) => {
     const auth =
         "Basic " + Buffer.from(`${cfg.username}:${cfg.password}`).toString("base64");
     return {
         Authorization: auth,
-        OrganisationId: String(cfg.organisation_id || "2"),
+        OrganisationId: organisationId,
         Accept: "application/xml",
         "Content-Type": "application/xml",
         ...extra,
@@ -35,7 +51,7 @@ const callApi = async (method, path, body = null) => {
     const resp = await axios({
         method,
         url,
-        headers: buildHeaders(cfg),
+        headers: buildHeaders(cfg, await organizacija(cfg)),
         data: body || undefined,
         httpsAgent,
         timeout: 30000,
@@ -163,7 +179,10 @@ const dohvatiSifarnik = async (vrsta, { svjeze = false } = {}) => {
     const def = SIFARNICI[vrsta];
     if (!def) throw new Error(`nepoznat sifarnik: ${vrsta}`);
 
-    const zapamceno = spremnik.get(vrsta);
+    // Popis se pamti po organizaciji: kad se u postavkama tvrtke promijeni
+    // broj, zapamceni popis stare organizacije ne smije se vratiti kao novi.
+    const kljuc = `${await organizacija(getCfg())}:${vrsta}`;
+    const zapamceno = spremnik.get(kljuc);
     if (!svjeze && zapamceno && Date.now() - zapamceno.kad < MEMORIJA_MS) {
         return { ...zapamceno.podaci, iz_memorije: true };
     }
@@ -178,7 +197,7 @@ const dohvatiSifarnik = async (vrsta, { svjeze = false } = {}) => {
     })).filter((r) => r.code);
 
     const podaci = { kind: vrsta, items: stavke, fetched_at: new Date().toISOString() };
-    spremnik.set(vrsta, { kad: Date.now(), podaci });
+    spremnik.set(kljuc, { kad: Date.now(), podaci });
     return { ...podaci, iz_memorije: false };
 };
 

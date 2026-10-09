@@ -19,7 +19,7 @@
 const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
-const { addJournal } = require("../integrations/seyforClient");
+const { addJournal, organizacija } = require("../integrations/seyforClient");
 const { izgradiNalog, provjeriRavnotezu, oznakaDokumenta } = require("../integrations/seyforJournalBuilder");
 
 // Sifarnici se dohvacaju iz drugih servisa. `/billing_devices` nosi i logotipe
@@ -754,11 +754,18 @@ const sendDailyRealizationToErpController = async (req, res) => {
             });
         }
 
-        const nalog = izgradiNalog({ datum: date, cc, company: izvjestaj.company_saop });
+        // Organizacija iz postavki tvrtke vrijedi i za zaglavlje i za
+        // OrganizationId_DK, pa se odreduje jednom.
+        const org = organizacija(izvjestaj.company_saop?.organization_id);
+        const nalog = izgradiNalog({
+            datum: date,
+            cc,
+            company: { ...izvjestaj.company_saop, organization_id: org },
+        });
         const dokument = oznakaDokumenta(date, cc.cost_center);
-        console.log(`[daily-realization] SAOP AddJournal ${dokument} (stavki: ${cc.journalEntries.length})`);
+        console.log(`[daily-realization] SAOP AddJournal ${dokument} (org ${org}, stavki: ${cc.journalEntries.length})`);
 
-        const odgovor = await addJournal(nalog);
+        const odgovor = await addJournal(nalog, { organisationId: org });
         return res.send({
             status: 200,
             message: `Poslano: ${dokument} — ${odgovor.message}`,
