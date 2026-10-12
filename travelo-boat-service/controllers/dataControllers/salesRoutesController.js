@@ -58,21 +58,34 @@ const getSalesRoutesController = async(req,res)=>{
 
 const getAllSalesRoutesController = async(req,res)=>{
     const sequelize = getSequelize();
-    const { RoutesModel, TimetablePricesModel } = req.app.locals.models;
+    const { TimetablesModel, RoutesModel, TimetablePricesModel } = req.app.locals.models;
     try {
         console.log(req.body)
         let routesData = []
         let pricesData = []
+            // Samo AKTIVNI plovidbeni redovi — isto pravilo kao kod povlacenja
+            // jednog reda gore. Ovo zovu sales i web-sales pri pokretanju; bez
+            // filtra su nakon restarta u prodaju ulazili i deaktivirani (i nikad
+            // aktivirani) redovi. `is_active` na polascima i cijenama znaci samo
+            // da je redak vazeca verzija, ne da je red u prodaji.
+            const aktivniRedovi = await TimetablesModel.findAll({
+                where: { is_active: true },
+                attributes: ["uuid"],
+                raw: true,
+            })
+            const aktivni = aktivniRedovi.map((t) => t.uuid)
             routesData = await RoutesModel.findAll({
                 where:{
-                    is_active:true
+                    is_active:true,
+                    timetable_uuid: aktivni,
                 },
                 attributes: { exclude: ['createdAt','updatedAt'] },
                     order: [["id", "ASC"]],
             })
             pricesData = await TimetablePricesModel.findAll({
                 where:{
-                    is_active:true
+                    is_active:true,
+                    timetable_uuid: aktivni,
                 },
                 attributes: { exclude: ['createdAt','updatedAt'] },
                     order: [["ticket_type_order", "ASC NULLS LAST"], ["id", "ASC"]],
