@@ -57,7 +57,14 @@ const getTerminalBasicDataHandler = async(data)=>{
     try {
         const { companyData, businessPremisesData, billingDevicesData, usersData, paymentsData, stornoPercentagesData, seopRightDiscounts, ticketTypeExtras } =
             await dohvatiSifarnik()
-        const terminaData = billingDevicesData.data.billing_devices.find((terminal)=> terminal.uuid === data.header.data.t && terminal.is_active)
+        const terminalUuid = data?.header?.data?.t
+        if (!terminalUuid) {
+            throw new Error('zahtjev ne nosi naplatni uređaj (token nije valjan)')
+        }
+        const terminaData = billingDevicesData.data.billing_devices.find((terminal)=> terminal.uuid === terminalUuid && terminal.is_active)
+        if (!terminaData) {
+            throw new Error(`naplatni uređaj ${terminalUuid} nije nađen ili nije aktivan`)
+        }
         if(terminaData){
             let usersForTerminal = []
             let paymentsForTerminal = []
@@ -175,8 +182,11 @@ const getTerminalBasicDataHandler = async(data)=>{
             return(dataToSend)
             }
     } catch (error) {
-        console.log(error)
-        return
+        // Greska ide dalje. Dosad se vracalo `undefined`, pa je uredaj dobio
+        // 200 bez podataka i javljao samo "nisu stigli u cijelosti" — bez
+        // razloga, a ni u logu komunikacije uredaja se nije vidjelo zasto.
+        console.log('[basic_data] neuspjeh:', error?.message || error)
+        throw error
     }
 }
 

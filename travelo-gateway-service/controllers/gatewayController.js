@@ -41,6 +41,16 @@ const gatewayController = async (req, res) => {
                 validateStatus: () => true,           
                 }).then(async (response) => {
                     console.log(response)
+                    // Provjera tokena uredaja odbijenicu vraca s HTTP 200, a pravi
+                    // status ({status: 406}) stoji u tijelu. Dosad je gateway gledao
+                    // samo HTTP status i pustao uredaj s nevaljanim tokenom dalje —
+                    // bez uuid-a uredaja: osnovni podaci su pucali, a plovidbeni red
+                    // isao nefiltriran. Uredaj dobiva 401, na koji desk i mobilna
+                    // obnove token, a kad obnova ne uspije, traze ponovno uparivanje.
+                    if (req.params.servis === 'terminals' && response.status === 200
+                        && response.data?.status != null && Number(response.data.status) !== 200) {
+                        return res.status(401).json({ msg: response?.data?.data?.msg || 'Token uređaja nije valjan' })
+                    }
                     if(response.status === 200){
                         if(req.params.path === 'api_sales_login'){
                             axios({
