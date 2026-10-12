@@ -58,6 +58,30 @@ export const pairTerminalThunk = createAsyncThunk(
     }
 );
 
+// Kredencijali uređaja istekli — novi OTP za ISTI TID. TID se uzima iz
+// spremljenih podataka, ne upisuje se: tako uređaj ne može dobiti token nekog
+// drugog uređaja. Mijenjaju se samo tokeni; TID, prodaje i smjene ostaju.
+export const reauthWithOtpThunk = createAsyncThunk(
+    'auth/reauthWithOtp',
+    async ({ otp }, { rejectWithValue }) => {
+        const otpClean = String(otp || '').trim();
+        if (!otpClean) return rejectWithValue({ message: 'Upiši OTP.' });
+        const tid = await storage.getTid();
+        if (!tid) return rejectWithValue({ message: 'Uređaj nije uparen — potrebno je puno uparivanje.' });
+        try {
+            const resp = await api.post(ENDPOINTS.terminalLogin, { tid, otp: otpClean }, { headers: { skipAuth: true } });
+            const body = resp.data?.data || resp.data || {};
+            if (!body.token) return rejectWithValue({ message: body.msg || 'OTP nije prihvaćen.' });
+            await storage.setToken(body.token);
+            if (body.refresh_token) await storage.setRefreshToken(body.refresh_token);
+            return { token: body.token, tid };
+        } catch (err) {
+            const msg = err.response?.data?.msg || err.response?.data?.message;
+            return rejectWithValue({ message: msg || (err.response ? 'Prijava nije uspjela.' : 'Poslužitelj nije dostupan — provjeri mrežu.') });
+        }
+    }
+);
+
 export const unpairTerminalThunk = createAsyncThunk(
     'auth/unpairTerminal',
     async () => {
@@ -96,6 +120,10 @@ const authSlice = createSlice({
         autoPairSuppressed: false,
         // Operator-level login (set in-memory after basic_data sync; not persisted).
         operator: null,
+        // Kredencijali uređaja istekli — otvoren prozor za novi OTP.
+        sessionExpired: false,
+        reauthing: false,
+        reauthError: null,
     },
     reducers: {
         setOperator(state, action) {
@@ -109,6 +137,10 @@ const authSlice = createSlice({
         },
         allowAutoPair(state) {
             state.autoPairSuppressed = false;
+        },
+        setSessionExpired(state, action) {
+            state.sessionExpired = !!action.payload;
+            if (!action.payload) state.reauthError = null;
         },
     },
     extraReducers: (builder) => {
@@ -147,6 +179,16 @@ const authSlice = createSlice({
                 s.pairing = false;
                 s.error = a.payload?.message || 'Greška';
             })
+            .addCase(reauthWithOtpThunk.pending, (s) => { s.reauthing = true; s.reauthError = null; })
+            .addCase(reauthWithOtpThunk.fulfilled, (s, a) => {
+                s.reauthing = false;
+                s.sessionExpired = false;
+                s.token = a.payload.token;
+            })
+            .addCase(reauthWithOtpThunk.rejected, (s, a) => {
+                s.reauthing = false;
+                s.reauthError = a.payload?.message || 'Prijava nije uspjela.';
+            })
             .addCase(unpairTerminalThunk.fulfilled, (s) => {
                 s.token = null;
                 s.operator = null;
@@ -159,6 +201,6 @@ const authSlice = createSlice({
     },
 });
 
-export const { setOperator, logoutOperator, clearError, allowAutoPair } = authSlice.actions;
+export const { setOperator, logoutOperator, clearError, allowAutoPair, setSessionExpired } = authSlice.actions;
 export const authData = (state) => state.auth;
 export default authSlice.reducer;

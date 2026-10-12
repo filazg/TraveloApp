@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { DEFAULT_GATEWAY_URL, ENDPOINTS } from './config';
+import { javiIstekSesije } from './sessionEvents';
 import {
     loadGateway, loadToken, saveGateway, saveToken, clearToken, saveTid, loadTid,
     loadRefreshToken, saveRefreshToken, clearRefreshToken,
@@ -72,9 +73,12 @@ api.interceptors.response.use(
             refreshing = null;
 
             if (!newToken) {
-                // Nema/nevaljan refresh — očisti SAMO tokene (ne TID, ne podatke).
-                await clearToken();
+                // Nema/nevaljan refresh — kredencijali su istekli. Access token
+                // ostaje spremljen: bez njega bi aplikacija pri sljedećem
+                // pokretanju pala na uparivanje i tražila TID (a s krivim TID-om
+                // dobila tuđi uređaj). Umjesto toga traži se novi OTP za isti TID.
                 await clearRefreshToken();
+                javiIstekSesije();
                 return Promise.reject(error);
             }
 
@@ -85,9 +89,14 @@ api.interceptors.response.use(
             return api(cfg);
         } catch (refreshErr) {
             refreshing = null;
-            // Refresh pao (npr. 401 na refresh) — očisti samo tokene, propagiraj izvornu grešku.
-            await clearToken();
-            await clearRefreshToken();
+            // Refresh pao. Na 401/400 refresh token više ne vrijedi — kredencijali
+            // su istekli (isto kao gore). Bez mreže ili kod greške poslužitelja
+            // ništa se ne dira: pokušat će se ponovno kod sljedećeg 401.
+            const s = refreshErr?.response?.status;
+            if (s === 401 || s === 400 || s === 406) {
+                await clearRefreshToken();
+                javiIstekSesije();
+            }
             return Promise.reject(error);
         }
     },

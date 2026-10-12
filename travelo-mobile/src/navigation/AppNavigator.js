@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, AppState, StatusBar, StyleSheet, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
-import { authData, autoPairThunk, logoutOperator, restoreTokenThunk } from '../store/slices/authSlice';
+import { authData, autoPairThunk, logoutOperator, restoreTokenThunk, setSessionExpired } from '../store/slices/authSlice';
+import { naIstekSesije } from '../api/sessionEvents';
+import SessionExpiredModal from '../components/SessionExpiredModal';
 import { syncBasicDataThunk, syncTransportDataThunk, syncAllThunk, syncData, hydrateFromDbThunk } from '../store/slices/syncSlice';
 import { startSyncStream, stopSyncStream } from '../api/syncStream';
 import { autoCloseStaleShiftThunk, loadCurrentOpenThunk, loadRecentShiftsThunk, shiftsData, syncPendingShiftsThunk } from '../store/slices/shiftsSlice';
@@ -42,6 +44,18 @@ export default function AppNavigator() {
             dispatch(restoreTokenThunk());
         })();
     }, [dispatch]);
+
+    // Kredencijali uređaja istekli (interceptor nije uspio obnoviti token) —
+    // otvara se prozor za novi OTP za isti TID; rad lokalno ide dalje.
+    useEffect(() => naIstekSesije(() => dispatch(setSessionExpired(true))), [dispatch]);
+
+    // Nakon novog OTP-a odmah se povuče sve i pošalje ono što je čekalo.
+    const nakonPonovnePrijave = () => {
+        dispatch(syncBasicDataThunk());
+        dispatch(syncTransportDataThunk());
+        dispatch(syncPendingSalesThunk());
+        dispatch(syncPendingShiftsThunk());
+    };
 
     // Zero-touch: uređaj bez tokena prvo pokuša uparivanje po serijskom broju.
     // Tek ako to ne prođe, prikazuje se ekran za ručno uparivanje.
@@ -208,7 +222,13 @@ export default function AppNavigator() {
         );
     }
 
-    const wrap = (child) => <><StatusBar barStyle="light-content" />{child}</>;
+    const wrap = (child) => (
+        <>
+            <StatusBar barStyle="light-content" />
+            {child}
+            {!!auth.token && <SessionExpiredModal onRestored={nakonPonovnePrijave} />}
+        </>
+    );
 
     if (!auth.token) return wrap(<PairingScreen />);
     if (!auth.operator) return wrap(<OperatorLoginScreen />);
