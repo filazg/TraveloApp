@@ -86,6 +86,9 @@ export default function EditTimetablePricesDrawer(){
         },
     ];
 
+    // Spremljene cijene se samo prikazuju — mijenjaju se preko "Uredi".
+    const columnsPrikaz = columns.map((c) => ({ ...c, editable: false }));
+
     const otvoriNovu = () => {
         setUredi(false);
         setNewData({ ticket_type: "", prices: pairs.map(calcRow) });
@@ -309,7 +312,7 @@ export default function EditTimetablePricesDrawer(){
                 <Box sx={{ height:"19vh", minWidth: 900 }}>
                     <DataGrid
                         rows={obaSmjera ? collapseHarborPairs(price.prices) : price.prices}
-                        columns={columns}
+                        columns={columnsPrikaz}
                     />
                 </Box>
             </Box>
