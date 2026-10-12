@@ -116,6 +116,7 @@
                 "close":"zatvori"
             },
          "payment_methods": {
+              "edit_title":"Uređivanje sredstva plaćanja",
               "title": "SREDSTVA PLAĆANJA" ,
               "subtitle": "Popis sredstava plaćanja",
               "name": "Naziv sredstva plaćanja",
@@ -178,6 +179,7 @@
               "close":"zatvori"
             },
             "addressbook": {
+              "edit_title":"Uređivanje kupca",
               "title":"KUPCI",
               "subtitle":"Popis partnera",
               "buyer_name":"Ime kupca",
@@ -237,6 +239,7 @@
             "close":"zatvori"
         },
         "lines":{
+            "edit_title":"Uređivanje linije",
             "title": "LINIJE",
             "subtitle": "Popis linija" ,
             "name": "Naziv Linije" ,
@@ -261,6 +264,7 @@
             "close":"zatvori"
         },
         "harbors": {
+            "edit_title":"Uređivanje luke",
             "title":"LUKE",
             "subtitle":"Popis luka",
             "addnewharbor":"Dodaj novu luku",
@@ -289,6 +293,7 @@
             "save":"Spremi"
         },
         "boats": {
+            "edit_title":"Uređivanje broda",
             "title":"BRODOVI",
             "subtitle":"Popis brodova",
             "addnewboat":"Dodaj novi brod",

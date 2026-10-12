@@ -236,7 +236,7 @@ export default function PaymentMethodsPage (){
                         variant="h5"
                         fontWeight="bold"
                         >
-                        {t('backoffice.business_premises.edit_title')}
+                        {t('backoffice.payment_methods.edit_title')}
                     </Typography>
                     <Button  onClick={()=>setSelectedRow(null)}>{t('backoffice.business_premises.close')}</Button>
                 </Stack>

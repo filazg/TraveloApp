@@ -407,7 +407,7 @@ export default function AddressbookPage (){
                         variant="h5"
                         fontWeight="bold"
                         >
-                        {t('backoffice.business_premises.edit_title')}
+                        {t('backoffice.addressbook.edit_title')}
                     </Typography>
                     <Button  onClick={()=>setSelectedRow(null)}>{t('backoffice.business_premises.close')}</Button>
                 </Stack>
