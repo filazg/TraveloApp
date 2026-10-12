@@ -321,6 +321,7 @@
             "add_new_title": "Dodavanje nove Vrste karata",
             "add_new_subtitle":"Unesite podatke o vrsti karte",
             "add_button":"Dodaj vrstu karte",
+            "edit_title":"Uređivanje vrste karte",
             "edit_button":"Ažuriraj podatke",
             "close":"zatvori"
             }

@@ -274,7 +274,7 @@ export default function TicketsTypesPage() {
                 <Box sx={{ mx: 5 }}>
                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 3 }}>
                         <Typography variant="h5" fontWeight="bold">
-                            {t("backoffice.business_premises.edit_title")}
+                            {t("boat.tickets_types.edit_title")}
                         </Typography>
                         <Button onClick={() => setSelectedRow(null)}>{t("backoffice.business_premises.close")}</Button>
                     </Stack>
