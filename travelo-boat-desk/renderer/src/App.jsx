@@ -10,6 +10,7 @@ import LoadingScreen from "./components/common/LoadingScreen";
 import InformationComponent from "./components/common/InvormationComponent";
 import SyncNotifications from "./components/common/SyncNotifications";
 import UpdateNotice from "./components/common/UpdateNotice";
+import SessionExpiredDialog from "./components/common/SessionExpiredDialog";
 
 
 
@@ -40,16 +41,9 @@ export default function App() {
 
   // Tiha obnova access tokena zivi u glavnom procesu. Kad ni ona ne uspije
   // (nema/istekao refresh token), glavni proces javi 'app:sessionExpired'.
-  // Ovdje odjavimo operatera (stage -> "login") i ocistimo pairing token
-  // (ako je i refresh mrtav, stage padne na "pairing" pa ide TID/OTP).
-  // NAMJERNO ne diramo transportData/basicData/transakcije — to su radni podaci.
-  useEffect(() => {
-    const off = window?.api?.app?.onSessionExpired?.(() => {
-      dispatch(setStateData({ path: "logedUser", value: {} }));
-      dispatch(setStateData({ path: "pairingData/token", value: null }));
-    });
-    return () => { if (typeof off === "function") off(); };
-  }, [dispatch]);
+  // Operater se vise NE odjavljuje i token se ne brise — inace bi blagajna pala
+  // na uparivanje i trazila TID. Prozor SessionExpiredDialog trazi samo novi OTP
+  // za isti TID, a rad lokalno ide dalje.
 
   // Glavni proces treba znati na kojem smo ekranu — automatski update se
   // instalira/ponovno pokreće samo dok NISMO u prodaji (login/pairing), da se
@@ -63,6 +57,7 @@ export default function App() {
     <InformationComponent />
     <SyncNotifications />
     <UpdateNotice />
+    <SessionExpiredDialog />
     {(() => {
       switch (stage) {
         case "pairing":

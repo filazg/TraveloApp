@@ -1,7 +1,7 @@
-const { ipcMain } = require("electron");
+const { ipcMain, BrowserWindow } = require("electron");
 const { getInitialDataService } = require("../services/initialDataService.cjs");
 const { getPairingDataService } = require("../services/pairingDataService.cjs");
-const { pairingWithBackendService, syncBasicDataService, syncTransportDataService } = require("../services/backendDataService.cjs");
+const { pairingWithBackendService, reauthWithOtpService, syncBasicDataService, syncTransportDataService } = require("../services/backendDataService.cjs");
 const { getLocalBasicDataService, getLocalTransportDataService } = require("../services/localDataService.cjs");
 const { getBookingDataService } = require("../services/bookingDataService.cjs");
 const { checkIslandCardService } = require("../services/islandCardService.cjs");
@@ -30,6 +30,26 @@ function registerAppIpc() {
     return fail("Pairing failed", e?.stack || String(e));
   }
 });
+  // Kredencijali uređaja istekli: novi OTP za isti TID (vidi reauthWithOtpService).
+  // Nakon uspjeha odmah se povuku osnovni podaci i plovidbeni red te pošalje sve
+  // što je čekalo, a ekran prodaje dobije javljanje da učita svježe podatke.
+  ipcMain.handle("app:reauthWithOtp", async (_event, otp) => {
+    try {
+      const data = await reauthWithOtpService(otp);
+      (async () => {
+        await syncBasicDataService().catch((e) => console.log("reauth: osnovni podaci", e?.message || e));
+        await syncTransportDataService().catch((e) => console.log("reauth: plovidbeni red", e?.message || e));
+        await syncPendingInvoicesService().catch(() => {});
+        await syncPendingShiftsService().catch(() => {});
+        for (const w of BrowserWindow.getAllWindows()) {
+          try { w.webContents.send("app:dataRefreshed", { razlog: "reauth" }); } catch { /* prozor se zatvara */ }
+        }
+      })();
+      return ok(data);
+    } catch (e) {
+      return fail(e?.message || "Prijava nije uspjela", e?.stack || String(e));
+    }
+  });
   ipcMain.handle("app:getPairingDataIpc", async () => {
     try {
       const data = await getPairingDataService();

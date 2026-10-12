@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("api", {
   app: {
     pairingWithBackend: (data) => ipcRenderer.invoke("app:pairingWithBackend", data),
+    // Novi OTP za isti TID kad su kredencijali uređaja istekli.
+    reauthWithOtp: (otp) => ipcRenderer.invoke("app:reauthWithOtp", otp),
     getPairingData: () => ipcRenderer.invoke("app:getPairingDataIpc"),
     getSystemSetingsDataService: () => ipcRenderer.invoke("app:getSystemSetingsDataService"),
     setSystemSettingsDataIpc: (data) => ipcRenderer.invoke("app:setSystemSettingsDataIpc", data),
@@ -61,6 +63,12 @@ contextBridge.exposeInMainWorld("api", {
     // Glavni proces javlja kad tiha obnova access tokena ne uspije (nema/istekao
     // refresh token) — renderer tada odjavi operatera; ako je i pairing token
     // mrtav, ekran padne na uparivanje (TID/OTP).
+    // Uređaj se ponovno upario sam (spremljeni OTP je još vrijedio).
+    onSessionRestored: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on("app:sessionRestored", handler);
+      return () => ipcRenderer.removeListener("app:sessionRestored", handler);
+    },
     onSessionExpired: (callback) => {
       const handler = (_event, payload) => callback(payload);
       ipcRenderer.on("app:sessionExpired", handler);

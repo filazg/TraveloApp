@@ -54,6 +54,41 @@ async function pairingWithBackendService(data) {
 }
 
 
+// Ponovna prijava uređaja kad su mu kredencijali istekli: novi OTP za ISTI TID.
+// TID se uzima iz baze, ne iz unosa — tako blagajna ne može dobiti token
+// nekog drugog uređaja i pomiješati njegove podatke sa svojima. Mijenjaju se
+// samo token, refresh token i OTP na postojećem redu; ništa se ne briše.
+async function reauthWithOtpService(otp) {
+  const otpClean = String(otp || "").trim();
+  if (!otpClean) throw new Error("Upiši OTP.");
+  const pairing = await pairingDataModel.findOne();
+  if (!pairing?.tid) throw new Error("Uređaj nije uparen — potrebno je puno uparivanje s TID-om.");
+  const settingsData = await systemSettingsDataModel.findOne();
+  const backendUrl = settingsData?.backend_url;
+  if (!backendUrl) throw new Error("backend_url nije postavljen u postavkama.");
+
+  let response;
+  try {
+    response = await axios.post(
+      backendUrl + "/terminal_auth/login/terminalLogin",
+      { tid: pairing.tid, otp: otpClean, client_acr: "t4b" },
+      { httpsAgent: new https.Agent({ rejectUnauthorized: false }), timeout: 20000 }
+    );
+  } catch (error) {
+    const backendMsg = error?.response?.data?.msg || error?.response?.data?.message;
+    if (backendMsg) throw new Error(backendMsg);
+    if (error?.response?.status) throw new Error("Prijava nije uspjela (HTTP " + error.response.status + ")");
+    throw new Error("Poslužitelj nije dostupan — provjeri mrežu i pokušaj ponovno.");
+  }
+  const payload = response?.data?.data ?? response?.data ?? {};
+  if (!payload.token) throw new Error(payload.msg || "OTP nije prihvaćen.");
+  await pairingDataModel.update(
+    { token: payload.token, refresh_token: payload.refresh_token ?? null, otp: otpClean, isPaired: true },
+    { where: { id: pairing.id } }
+  );
+  return { tid: pairing.tid, token: payload.token };
+}
+
 async function syncBasicDataService() {
   try {
     const pairingDAta = await pairingDataModel.findOne();
@@ -117,6 +152,14 @@ async function syncBasicDataService() {
       const getPair = await pairingWithBackendService(dataToPairing);
       console.log("pairing status: ");
       console.log(getPair);
+      // Spremljeni OTP je jos vrijedio i uredaj je ponovno uparen sam — prozor
+      // "kredencijali su istekli" (ako je otvoren) treba se zatvoriti.
+      if (getPair?.token) {
+        const { BrowserWindow } = require("electron");
+        for (const w of BrowserWindow.getAllWindows()) {
+          try { w.webContents.send("app:sessionRestored", { token: getPair.token }); } catch { /* prozor se zatvara */ }
+        }
+      }
     }
     // Greska ide dalje. Dosad se gutala, pa je pozivatelj dobio "proslo je"
     // i prodajni modul je javljao uspjesnu sinkronizaciju iako podaci nisu
@@ -174,6 +217,7 @@ async function syncTransportDataService() {
 
 module.exports = { 
     pairingWithBackendService,
+    reauthWithOtpService,
     syncBasicDataService,
     syncTransportDataService
 };
