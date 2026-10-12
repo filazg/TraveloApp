@@ -5,6 +5,7 @@ import DevicesOtherIcon from "@mui/icons-material/DevicesOther";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import HandshakeIcon from "@mui/icons-material/Handshake";
 import SpeedIcon from "@mui/icons-material/Speed";
+import SyncIcon from "@mui/icons-material/Sync";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { authSliceData } from "../auth/authSlice";
@@ -117,6 +118,12 @@ export default function AdminPage() {
             subtitle: "Adrese koje su prešle dopušteno pozivanje API-ja",
             icon: SpeedIcon,
             path: "/admin/api_limits",
+        },
+        {
+            title: "Komunikacija uređaja",
+            subtitle: "Log poziva deska i mobilne prema poslužitelju",
+            icon: SyncIcon,
+            path: "/admin/terminal_logs",
         },
     ];
 

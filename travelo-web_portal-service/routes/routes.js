@@ -62,7 +62,7 @@ const {
 const { handleGetModulesConfigFeature } = require('../features/system/modulesHandler');
 const { handleGetDownloadsFeature, handleDownloadFileFeature } = require('../features/system/downloadsHandler');
 const { handleDeskUpdaterUpload, handleDeskUpdaterList, handleDeskUpdaterDelete, handleDeskUpdaterActivate } = require('../features/system/deskUpdaterHandlers');
-const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature, handleGetPartnerApiLogFeature, handleGetPartnerApiLimitsFeature } = require('../features/system/adminLogsHandlers');
+const { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature, handleGetPartnerApiLogFeature, handleGetPartnerApiLimitsFeature, handleGetTerminalLogsFeature, handleGetTerminalLogFeature } = require('../features/system/adminLogsHandlers');
 const router = express.Router();
 
 //BACKOFFICE ROUTES
@@ -558,5 +558,14 @@ router
 router
     .route('/admin/partner_api_limits')
     .post(handleGetPartnerApiLimitsFeature)
+
+// Log komunikacije uređaja — desk i mobilna (samo admin).
+router
+    .route('/admin/terminal_logs')
+    .post(handleGetTerminalLogsFeature)
+
+router
+    .route('/admin/terminal_log')
+    .post(handleGetTerminalLogFeature)
 
 module.exports = router

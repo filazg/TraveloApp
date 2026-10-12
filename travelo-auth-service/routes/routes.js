@@ -20,6 +20,7 @@ const {
     terminalReportController,
 } = require('../controllers/adminControllers/adminLogsController');
 const { createPartnerApiLogController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController } = require('../controllers/adminControllers/partnerApiLogsController');
+const { createTerminalLogController, getTerminalLogsController, getTerminalLogController } = require('../controllers/adminControllers/terminalLogsController');
 const router = express.Router();
 
 // Per-IP brute-force defense for all login endpoints.
@@ -132,5 +133,16 @@ router
 router
     .route('/admin/partner_api_logs/:id')
     .get(getPartnerApiLogController)
+
+// Log komunikacije uređaja (desk, mobilna): upis šalje gateway
+// (server-to-server), čita BFF (samo admin).
+router
+    .route('/admin/terminal_logs')
+    .get(getTerminalLogsController)
+    .post(createTerminalLogController)
+
+router
+    .route('/admin/terminal_logs/:id')
+    .get(getTerminalLogController)
 
 module.exports = router

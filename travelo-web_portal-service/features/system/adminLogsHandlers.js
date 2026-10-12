@@ -1,6 +1,6 @@
 // Admin uvidi za portal (modul Administracija): log prijava + uređaji/verzije.
 // Pristup ograničen na jednog korisnika (isto kao desk_updater).
-const { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController } = require('../../controllers/coreServiceControllers/authServiceControllers/adminLogsServiceControllers');
+const { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController, getTerminalLogsController, getTerminalLogController } = require('../../controllers/coreServiceControllers/authServiceControllers/adminLogsServiceControllers');
 
 const ALLOWED_USERS = (process.env.DESK_UPDATER_USERS || 'nfilipec')
     .split(',').map((s) => s.trim()).filter(Boolean);
@@ -104,4 +104,38 @@ const handleGetPartnerApiLimitsFeature = async (req, res) => {
     }
 };
 
-module.exports = { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature, handleGetPartnerApiLogFeature, handleGetPartnerApiLimitsFeature };
+// Log komunikacije uređaja (desk, mobilna). Filtri u tijelu, kao kod API loga.
+const handleGetTerminalLogsFeature = async (req, res) => {
+    try {
+        if (!jeAdmin(req)) return res.status(403).send({ status: 403, data: { message: 'Pristup ograničen.' } });
+        const f = req.body?.body || {};
+        const data = await getTerminalLogsController({
+            from: f.from || undefined,
+            to: f.to || undefined,
+            tid: f.tid || undefined,
+            client: f.client || undefined,
+            samo: f.samo || undefined,
+            path: f.path || undefined,
+            limit: f.limit || undefined,
+        });
+        return res.send({ status: 200, data: { logs: data?.logs || [], total: data?.total || 0 } });
+    } catch (error) {
+        console.log('handleGetTerminalLogsFeature error:', error?.message || error);
+        return res.status(500).send({ status: 500, data: { message: 'Greška pri dohvatu loga uređaja.' } });
+    }
+};
+
+const handleGetTerminalLogFeature = async (req, res) => {
+    try {
+        if (!jeAdmin(req)) return res.status(403).send({ status: 403, data: { message: 'Pristup ograničen.' } });
+        const id = req.body?.body?.id;
+        if (!id) return res.status(400).send({ status: 400, data: { message: 'Nedostaje id zapisa.' } });
+        const data = await getTerminalLogController(id);
+        return res.send({ status: 200, data: { log: data?.log || null } });
+    } catch (error) {
+        console.log('handleGetTerminalLogFeature error:', error?.message || error);
+        return res.status(500).send({ status: 500, data: { message: 'Greška pri dohvatu zapisa.' } });
+    }
+};
+
+module.exports = { handleGetLoginLogsFeature, handleGetDeviceConnectionsFeature, handleGetAkdLogsFeature, handleGetPartnerApiLogsFeature, handleGetPartnerApiLogFeature, handleGetPartnerApiLimitsFeature, handleGetTerminalLogsFeature, handleGetTerminalLogFeature };

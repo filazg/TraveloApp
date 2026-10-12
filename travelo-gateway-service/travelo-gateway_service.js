@@ -9,6 +9,8 @@ const { syncChannalServiceConfigData, syncMainServiceConfigData, syncCoreService
 app.use(express.json({ limit: "10mb" }))
 app.use(bodyParser.json({ limit: "10mb" }))
 app.use(cookieParser());
+// Log komunikacije deska i mobilne (samo /terminals i /terminal_auth).
+app.use(require('./middlewares/terminalLog').terminalLog);
 
 // Origin je samo shema+host+port — putanje ("…/portal") preglednik nikad ne
 // šalje, pa takvi unosi ništa ne znače. Dodatni origini se dodaju kroz

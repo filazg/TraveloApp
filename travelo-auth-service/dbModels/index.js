@@ -8,6 +8,7 @@ const loginLogsModelsFactory = require("./loginLogs.models");
 const deviceConnectionsModelsFactory = require("./deviceConnections.models");
 const deviceLoginLogsModelsFactory = require("./deviceLoginLogs.models");
 const partnerApiLogsModelsFactory = require("./partnerApiLogs.models");
+const terminalLogsModelsFactory = require("./terminalLogs.models");
 
 let models = null;
 
@@ -25,6 +26,7 @@ function initModels() {
       ...deviceConnectionsModelsFactory(sequelize),
       ...deviceLoginLogsModelsFactory(sequelize),
       ...partnerApiLogsModelsFactory(sequelize),
+      ...terminalLogsModelsFactory(sequelize),
     };
   }
 

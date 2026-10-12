@@ -62,4 +62,22 @@ const getPartnerApiLimitsController = async (params = {}) => {
     return resp.data || {}; // { adrese, granice }
 };
 
-module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController };
+// Log komunikacije uređaja — desk i mobilna (auth servis, tablica terminal_logs).
+const getTerminalLogsController = async (params = {}) => {
+    const main = getMainServiceConfigData();
+    const resp = await axios.get(main.services.auth.url + '/admin/terminal_logs', {
+        params,
+        timeout: AUTH_TIMEOUT_MS,
+    });
+    return resp.data || {}; // { logs: [...], total }
+};
+
+const getTerminalLogController = async (id) => {
+    const main = getMainServiceConfigData();
+    const resp = await axios.get(main.services.auth.url + '/admin/terminal_logs/' + encodeURIComponent(id), {
+        timeout: AUTH_TIMEOUT_MS,
+    });
+    return resp.data || {}; // { log }
+};
+
+module.exports = { getLoginLogsController, getDeviceConnectionsController, getAkdLogsController, getPartnerApiLogsController, getPartnerApiLogController, getPartnerApiLimitsController, getTerminalLogsController, getTerminalLogController };

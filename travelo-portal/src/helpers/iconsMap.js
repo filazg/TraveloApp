@@ -1,5 +1,6 @@
 import DisplaySettingsIcon from "@mui/icons-material/DisplaySettings";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import SyncIcon from "@mui/icons-material/Sync";
 import SettingsIcon from "@mui/icons-material/Settings";
 import DirectionsBoatIcon from "@mui/icons-material/DirectionsBoat";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
@@ -102,4 +103,5 @@ export const iconsMap = {
   AccountTree: AccountTreeIcon,
   Anchor: AnchorIcon,
   Download: DownloadIcon,
+  Sync: SyncIcon,
 };

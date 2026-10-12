@@ -47,6 +47,7 @@ const ADMIN_MODULE = {
                 { label: "Uređaji i verzije", subtitle: "Zadnje stanje po uređaju", icon: "Devices", path: "/admin/devices" },
                 { label: "API partneri", subtitle: "Log spajanja partnera preko API-ja", icon: "Handshake", path: "/admin/api_logs" },
                 { label: "Prekoračenja limita", subtitle: "Adrese preko dopuštenog pozivanja API-ja", icon: "AccessTime", path: "/admin/api_limits" },
+                { label: "Komunikacija uređaja", subtitle: "Log poziva deska i mobilne prema poslužitelju", icon: "Sync", path: "/admin/terminal_logs" },
             ],
         },
     ],
