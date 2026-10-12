@@ -29,6 +29,9 @@ export default function AddTimetablesPricesDrawer(){
     const { t } = useT();
     const [openAdd, setOpenAdd] = useState(false);
     const [newData, setNewData] = useState({})
+    // Uredivanje vec unesene vrste karte: vrsta je zakljucana, a tablica dolazi
+    // popunjena njezinim cijenama. Spremanje zamijeni stare cijene novima.
+    const [uredi, setUredi] = useState(false)
 
     const svisParovi = boatData?.newData?.pairsForTimetable ?? [];
     // Zastavica stoji uz cijene jer se samo njih i tice: kad je ukljucena,
@@ -83,6 +86,19 @@ export default function AddTimetablesPricesDrawer(){
         },
     ];
 
+    const otvoriNovu = () => {
+        setUredi(false);
+        setNewData({ ticket_type: "", prices: pairs.map(calcRow) });
+        setOpenAdd(true);
+    };
+
+    const otvoriUredi = (kategorija) => {
+        const { redovi } = preuzmiCijene(pairs.map(calcRow), kategorija.prices, 0, calcRow);
+        setUredi(true);
+        setNewData({ ticket_type: kategorija.ticket_type, prices: redovi });
+        setOpenAdd(true);
+    };
+
     // zatvori=false: "Spremi i dodaj novu" — cijene se spreme, a prozor ostaje
     // otvoren s praznom formom za sljedecu vrstu karte.
     const handleAddPrice = async (zatvori = true) => {
@@ -98,6 +114,7 @@ export default function AddTimetablesPricesDrawer(){
             ticket_type:"",
             prices: pairs.map(calcRow)
         })
+        setUredi(false)
         if (zatvori) await setOpenAdd(false)
     }
 
@@ -108,7 +125,7 @@ export default function AddTimetablesPricesDrawer(){
     return(
     <>
         <Stack direction={{ xs: "column", md: "row" }} alignItems={{ md: "center" }} spacing={2}>
-            <Button sx={{width:300}} onClick={()=>setOpenAdd(true)} variant="contained" >
+            <Button sx={{width:300}} onClick={otvoriNovu} variant="contained" >
                 Dodaj cijene
             </Button>
             {/* Zastavica se tice samo cijena, pa stoji uz njih: kad je
@@ -163,12 +180,20 @@ export default function AddTimetablesPricesDrawer(){
                 <Box sx={{ px: 3, pt: 2, pb: 2, borderBottom: "1px solid", borderColor: "divider" }}>
                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 3 }}>
                         <Typography variant="h5" fontWeight="bold">
-                            {t("boat.timetables.add_new_title")}
+                            {uredi ? `Uređivanje cijena — ${newData.ticket_type?.name || ""}` : t("boat.timetables.add_new_title")}
                         </Typography>
                         <Button onClick={() => setOpenAdd(false)}>{t("boat.timetables.close")}</Button>
                     </Stack>
                     <Box sx={{ flex: 1, overflow: "auto", px: 3, py: 3 }}>
                         <Box sx={{ minWidth: 900, mb:2 }}>
+                            {uredi ? (
+                            <TextField
+                                label="Vrsta karte"
+                                value={newData.ticket_type?.name || ""}
+                                disabled
+                                sx={{ width: 350, ml: 1 }}
+                            />
+                            ) : (
                             <TextField
                                 type="text"
                                 variant="outlined"
@@ -194,6 +219,7 @@ export default function AddTimetablesPricesDrawer(){
                                         </MenuItem>
                                     ))}
                             </TextField>
+                            )}
                         </Box>
                         <CopyPricesFromCategory
                             key={newData.ticket_type?.uuid || "nova"}
@@ -258,10 +284,15 @@ export default function AddTimetablesPricesDrawer(){
         </Drawer>
         {boatData.newData?.timetablePrices?.map((price) => (
             <Box sx={{ mt: 2, width: "100%", overflowX: "auto" }}>
-                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-                    {price.ticket_type?.name} 
-                </Typography>
-                <Box sx={{ height:"23vh", minWidth: 900 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                    <Typography variant="h6" fontWeight="bold">
+                        {price.ticket_type?.name}
+                    </Typography>
+                    <Button variant="outlined" onClick={() => otvoriUredi(price)}>
+                        Uredi
+                    </Button>
+                </Stack>
+                <Box sx={{ height:"14vh", minWidth: 900 }}>
                     <DataGrid
                         rows={obaSmjera ? collapseHarborPairs(price.prices) : price.prices}
                         columns={columns}
