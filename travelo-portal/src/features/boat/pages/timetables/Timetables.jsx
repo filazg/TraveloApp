@@ -35,7 +35,7 @@ import { v4 as uuid } from "uuid";
 import EditTimetableDrawer from "./EditTimetableDrawer";
 import GridHint from "../../../../helpers/GridHint";
 import { inactiveRowClass } from "../../../../helpers/gridRowActions";
-import { buildHarborPairs } from "./harborPairs";
+import { buildHarborPairs, cijeneJednakeUObaSmjera } from "./harborPairs";
 
 export default function TimetablesPage() {
   const dispatch = useDispatch();
@@ -228,6 +228,9 @@ export default function TimetablesPage() {
       line_name: newData.line.name,
       note: newData.note || null,
       is_active: false,
+      // Kod novog plovidbenog reda cijena se u pravilu jednako naplacuje u oba
+      // smjera, pa je to pocetna vrijednost; moze se iskljuciti kod cijena.
+      same_price_both_ways: true,
     };
 
     let order = 10;
@@ -346,6 +349,9 @@ export default function TimetablesPage() {
       line_name: newData.line.name,
       note: newData.note || null,
       is_active: false,
+      // Kod novog plovidbenog reda cijena se u pravilu jednako naplacuje u oba
+      // smjera, pa je to pocetna vrijednost; moze se iskljuciti kod cijena.
+      same_price_both_ways: true,
     };
     let departuresDataForAdd = [];
     let sequence = 0;
@@ -501,12 +507,18 @@ export default function TimetablesPage() {
         value: "Dohvaćanje detalja plovidbenog reda",
       }),
     );
-    await dispatch(
+    const detalji = await dispatch(
       postBoatThunk({ path: "timetable_details", data: updatedRow }),
     );
+    // "Cijena jednaka za oba smjera" se pri uredivanju ukljucuje i kad nije
+    // spremljena — ali samo ako su postojece cijene ionako jednake u oba smjera
+    // (ili ih jos nema). Ako se povratni smjer naplacuje drukcije, ostaje
+    // iskljucena, da skraceni prikaz ne sakrije razliku.
+    const obaSmjera = updatedRow?.same_price_both_ways === true
+      || cijeneJednakeUObaSmjera(detalji?.payload?.data?.prices);
     setSelectedRow(updatedRow);
     await dispatch(
-        setBoatData({ path: "editData/timetableData", value:updatedRow }),
+        setBoatData({ path: "editData/timetableData", value: { ...updatedRow, same_price_both_ways: obaSmjera } }),
       )
     await dispatch(setAuthData({ path: "loading", value: false }));
   };

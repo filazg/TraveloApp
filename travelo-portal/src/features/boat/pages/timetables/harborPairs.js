@@ -53,3 +53,21 @@ export const collapseHarborPairs = (pairs) => {
     const mjesto = (kod) => redoslijed.indexOf(kod);
     return (pairs || []).filter((p) => mjesto(p.harbor_from_code) < mjesto(p.harbor_to_code));
 };
+
+// Jesu li cijene vec unesene jednako u oba smjera? Kod uredivanja postojeceg
+// plovidbenog reda "Cijena jednaka za oba smjera" se ukljucuje sama samo kad
+// jesu (ili cijena jos nema) — inace bi skraceni prikaz sakrio da se povratni
+// smjer naplacuje drukcije.
+//
+// `kategorije`: [{ ticket_type, prices: [{ harbor_from_code, harbor_to_code, price }] }]
+export const cijeneJednakeUObaSmjera = (kategorije) => {
+    for (const k of kategorije || []) {
+        const poRelaciji = new Map();
+        for (const p of k?.prices || []) poRelaciji.set(`${p.harbor_from_code}|${p.harbor_to_code}`, Number(p.price || 0));
+        for (const p of k?.prices || []) {
+            const obrnuta = poRelaciji.get(`${p.harbor_to_code}|${p.harbor_from_code}`);
+            if (obrnuta !== undefined && Math.abs(obrnuta - Number(p.price || 0)) > 0.005) return false;
+        }
+    }
+    return true;
+};
