@@ -18,9 +18,14 @@ import ExtraTicketsEditor from "./ExtraTicketsEditor";
 
 // Dropdown za SEOP namjena — grupirano po kategoriji. MUI Select renderira
 // ListSubheader kao neinteraktivan header red.
-const renderSeopTypeOptions = () => {
+//
+// Grupe vozila se ne nude — brodar ne prevozi vozila. Šifra vozila koju vrsta
+// karte vec ima (npr. Bicikl = VBA) ostaje ponudena, da se pri uredivanju ne
+// izgubi i da se vidi sto je upisano.
+const jeVozilo = (t) => String(t.group || "").startsWith("Vozilo");
+const renderSeopTypeOptions = (trenutna) => {
     const groups = {};
-    for (const t of SEOP_TYPES) {
+    for (const t of SEOP_TYPES.filter((x) => !jeVozilo(x) || x.code === trenutna)) {
         if (!groups[t.group]) groups[t.group] = [];
         groups[t.group].push(t);
     }
@@ -220,7 +225,7 @@ export default function TicketsTypesPage() {
                         name="seop_type"
                         sx={{ mt: 1 }}
                     >
-                        {renderSeopTypeOptions()}
+                        {renderSeopTypeOptions(newData.seop_type)}
                     </TextField>
                     <FormControlLabel
                         sx={{ mt: 1 }}
@@ -290,7 +295,7 @@ export default function TicketsTypesPage() {
                         name="seop_type"
                         sx={{ mt: 1 }}
                     >
-                        {renderSeopTypeOptions()}
+                        {renderSeopTypeOptions(editedData?.seop_type)}
                     </TextField>
                     <FormControlLabel
                         sx={{ mt: 1 }}
