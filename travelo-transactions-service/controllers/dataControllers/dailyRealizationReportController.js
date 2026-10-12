@@ -92,6 +92,24 @@ const sifraAnalitike = (v) => {
     return /^[0-9]+$/.test(s) ? s.padStart(7, "0") : s;
 };
 
+// iCenter prima opis stavke do 36 znakova. Opis se zato slaže tako da je bitno
+// naprijed (vrsta, razdoblje), a naziv linije na kraju — ako se reže, reže se on.
+const MAX_OPIS = 36;
+const kratko = (s) => {
+    const t = String(s || "").replace(/\s+/g, " ").trim();
+    return t.length > MAX_OPIS ? t.slice(0, MAX_OPIS - 1).trimEnd() + "…" : t;
+};
+
+// Razdoblje prometa stavke (TransactionDate–TransactionDateTo). Predujam i
+// reklasifikacija nose razdoblje polaska ("YYYY-MM" → prvi i zadnji dan tog
+// mjeseca); sve ostalo je promet samog dana temeljnice.
+const razdobljeStavke = (day, period) => {
+    const m = /^(\d{4})-(\d{2})$/.exec(String(period || ""));
+    if (!m) return { TransactionDate: day, TransactionDateTo: day };
+    const zadnji = new Date(Date.UTC(+m[1], +m[2], 0)).getUTCDate();
+    return { TransactionDate: `${m[1]}-${m[2]}-01`, TransactionDateTo: `${m[1]}-${m[2]}-${String(zadnji).padStart(2, "0")}` };
+};
+
 const resolveAccount = (mappingKey, mappings, accounts) => {
     const m = mappings.get(mappingKey);
     if (!m) return null;
@@ -221,7 +239,8 @@ const buildJournalEntries = (day, bucket, refs) => {
         if (accVAT && Math.abs(lineBucket.vat) > 0.005) {
             entries.push({
                 JournalEntryDate: day,
-                JournalEntryDescription: `PDV ${day} — ${lineBucket.line_name}`,
+                JournalEntryDescription: kratko(`PDV ${lineBucket.line_name}`),
+                ...razdobljeStavke(day),
                 Account: accVAT.code,
                 DebitAmountInDomesticCurrency: 0,
                 CreditAmountInDomesticCurrency: Number(lineBucket.vat.toFixed(2)),
@@ -239,7 +258,8 @@ const buildJournalEntries = (day, bucket, refs) => {
         if (accHARBOR && Math.abs(harborCurrent) > 0.005) {
             entries.push({
                 JournalEntryDate: day,
-                JournalEntryDescription: `Lučka pristojba ${day} — ${lineBucket.line_name}`,
+                JournalEntryDescription: kratko(`Lučka pristojba ${lineBucket.line_name}`),
+                ...razdobljeStavke(day),
                 Account: accHARBOR.code,
                 DebitAmountInDomesticCurrency: 0,
                 CreditAmountInDomesticCurrency: Number(harborCurrent.toFixed(2)),
@@ -254,7 +274,8 @@ const buildJournalEntries = (day, bucket, refs) => {
                 if (Math.abs(amt) < 0.005) continue;
                 entries.push({
                     JournalEntryDate: day,
-                    JournalEntryDescription: `Predujam za lučke naknade ${day} — ${lineBucket.line_name} (razd. ${period})`,
+                    JournalEntryDescription: kratko(`Predujam LN ${period} ${lineBucket.line_name}`),
+                    ...razdobljeStavke(day, period),
                     Account: accPredHarbor().code,
                     DebitAmountInDomesticCurrency: 0,
                     CreditAmountInDomesticCurrency: Number(amt.toFixed(2)),
@@ -268,7 +289,8 @@ const buildJournalEntries = (day, bucket, refs) => {
         if (accNET && Math.abs(lineBucket.vat_base_current) > 0.005) {
             entries.push({
                 JournalEntryDate: day,
-                JournalEntryDescription: `Prihod od karata ${day} — ${lineBucket.line_name}`,
+                JournalEntryDescription: kratko(`Prihod ${lineBucket.line_name}`),
+                ...razdobljeStavke(day),
                 Account: accNET.code,
                 DebitAmountInDomesticCurrency: 0,
                 CreditAmountInDomesticCurrency: Number(lineBucket.vat_base_current.toFixed(2)),
@@ -283,7 +305,8 @@ const buildJournalEntries = (day, bucket, refs) => {
                 if (Math.abs(amt) < 0.005) continue;
                 entries.push({
                     JournalEntryDate: day,
-                    JournalEntryDescription: `Predujam ${day} — ${lineBucket.line_name} (razd. ${period})`,
+                    JournalEntryDescription: kratko(`Predujam ${period} ${lineBucket.line_name}`),
+                    ...razdobljeStavke(day, period),
                     Account: accPRED.code,
                     DebitAmountInDomesticCurrency: 0,
                     CreditAmountInDomesticCurrency: Number(amt.toFixed(2)),
@@ -305,7 +328,8 @@ const buildJournalEntries = (day, bucket, refs) => {
             if (!acc) continue;
             entries.push({
                 JournalEntryDate: day,
-                JournalEntryDescription: `Naplata ${day} — ${pmName}`,
+                JournalEntryDescription: kratko(`Naplata ${pmName}`),
+                ...razdobljeStavke(day),
                 Account: acc.code,
                 DebitAmountInDomesticCurrency: Number(amount.toFixed(2)),
                 CreditAmountInDomesticCurrency: 0,
@@ -327,9 +351,9 @@ const buildJournalEntries = (day, bucket, refs) => {
         const oznaka = v.invoice_code || v.invoice_uuid;
         entries.push({
             JournalEntryDate: day,
-            JournalEntryDescription:
-                `Naplata virmanom ${day} — ${v.doc_type} ${oznaka}` +
-                (v.buyer_name ? ` · ${v.buyer_name}` : ""),
+            // Kupac ide u CustomerName i OIB, pa u opisu ostaje samo račun.
+            JournalEntryDescription: kratko(`Virman ${v.doc_type} ${oznaka}`),
+            ...razdobljeStavke(day),
             Account: acc.code,
             DebitAmountInDomesticCurrency: Number(v.amount.toFixed(2)),
             CreditAmountInDomesticCurrency: 0,
@@ -360,7 +384,8 @@ const buildJournalEntries = (day, bucket, refs) => {
             if (accPRED) {
                 entries.push({
                     JournalEntryDate: day,
-                    JournalEntryDescription: `Reklasifikacija predujam→prihod ${day} — ${r.line_name} (razd. ${r.src_period})`,
+                    JournalEntryDescription: kratko(`Reklas. ${r.src_period} ${r.line_name}`),
+                    ...razdobljeStavke(day, r.src_period),
                     Account: accPRED.code,
                     DebitAmountInDomesticCurrency: Number(r.vat_base.toFixed(2)),
                     CreditAmountInDomesticCurrency: 0,
@@ -372,7 +397,8 @@ const buildJournalEntries = (day, bucket, refs) => {
             if (accNET) {
                 entries.push({
                     JournalEntryDate: day,
-                    JournalEntryDescription: `Reklasifikacija predujam→prihod ${day} — ${r.line_name} (razd. ${r.src_period})`,
+                    JournalEntryDescription: kratko(`Reklas. ${r.src_period} ${r.line_name}`),
+                    ...razdobljeStavke(day, r.src_period),
                     Account: accNET.code,
                     DebitAmountInDomesticCurrency: 0,
                     CreditAmountInDomesticCurrency: Number(r.vat_base.toFixed(2)),
@@ -396,7 +422,8 @@ const buildJournalEntries = (day, bucket, refs) => {
             {
                 entries.push({
                     JournalEntryDate: day,
-                    JournalEntryDescription: `Reklasifikacija predujam→lučka naknada ${day} — ${r.line_name} (razd. ${r.src_period})`,
+                    JournalEntryDescription: kratko(`Reklas. LN ${r.src_period} ${r.line_name}`),
+                    ...razdobljeStavke(day, r.src_period),
                     Account: accPredHarbor().code,
                     DebitAmountInDomesticCurrency: Number(r.harbor_tax.toFixed(2)),
                     CreditAmountInDomesticCurrency: 0,
@@ -408,7 +435,8 @@ const buildJournalEntries = (day, bucket, refs) => {
             if (accHARBOR) {
                 entries.push({
                     JournalEntryDate: day,
-                    JournalEntryDescription: `Reklasifikacija predujam→lučka naknada ${day} — ${r.line_name} (razd. ${r.src_period})`,
+                    JournalEntryDescription: kratko(`Reklas. LN ${r.src_period} ${r.line_name}`),
+                    ...razdobljeStavke(day, r.src_period),
                     Account: accHARBOR.code,
                     DebitAmountInDomesticCurrency: 0,
                     CreditAmountInDomesticCurrency: Number(r.harbor_tax.toFixed(2)),
