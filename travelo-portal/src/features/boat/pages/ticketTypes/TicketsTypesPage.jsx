@@ -19,13 +19,15 @@ import ExtraTicketsEditor from "./ExtraTicketsEditor";
 // Dropdown za SEOP namjena — grupirano po kategoriji. MUI Select renderira
 // ListSubheader kao neinteraktivan header red.
 //
-// Grupe vozila se ne nude — brodar ne prevozi vozila. Šifra vozila koju vrsta
-// karte vec ima (npr. Bicikl = VBA) ostaje ponudena, da se pri uredivanju ne
-// izgubi i da se vidi sto je upisano.
-const jeVozilo = (t) => String(t.group || "").startsWith("Vozilo");
+// Ne nude se vozila (brodar ih ne prevozi, osim bicikla) ni namjene osoba koje
+// se ne prodaju (osoba u autobusu, u vozilu javne sluzbe, vozac). Sifra koju
+// vrsta karte vec ima ostaje ponudena, da se pri uredivanju ne izgubi i da se
+// vidi sto je upisano.
+const SKRIVENE = new Set(["OOB", "OOJ", "OVA"]);
+const nudiSe = (t) => t.code === "VBA" || (!String(t.group || "").startsWith("Vozilo") && !SKRIVENE.has(t.code));
 const renderSeopTypeOptions = (trenutna) => {
     const groups = {};
-    for (const t of SEOP_TYPES.filter((x) => !jeVozilo(x) || x.code === trenutna)) {
+    for (const t of SEOP_TYPES.filter((x) => nudiSe(x) || x.code === trenutna)) {
         if (!groups[t.group]) groups[t.group] = [];
         groups[t.group].push(t);
     }

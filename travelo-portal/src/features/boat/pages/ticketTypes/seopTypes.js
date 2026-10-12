@@ -17,7 +17,6 @@ export const SEOP_TYPES = [
 
     { group: "Vozilo – motori", code: "VLA", label: "Motocikl/moped (do 500 kg)" },
     { group: "Vozilo – motori", code: "VLB", label: "Motor s bočnom prikolicom / četverocikl" },
-    { group: "Vozilo – motori", code: "VBA", label: "Bicikl" },
 
     { group: "Vozilo – autobus", code: "VMC", label: "Autobus 10–17 sjedala" },
     { group: "Vozilo – autobus", code: "VMD", label: "Autobus 18–33 sjedala" },
@@ -32,6 +31,9 @@ export const SEOP_TYPES = [
     { group: "Vozilo – prikolica", code: "VOA", label: "Laka prikolica" },
     { group: "Vozilo – prikolica", code: "VOB", label: "Priključno vozilo" },
 
+    // Bicikl je u SEOP-ovom sifrarniku vozilo (VBA), ali brodar ga prevozi pa
+    // se nudi uz ostalo.
+    { group: "Ostalo", code: "VBA", label: "Bicikl" },
     { group: "Ostalo", code: "TOA", label: "Teret općeniti" },
     { group: "Ostalo", code: "DOA", label: "Drugo (npr. kućni ljubimac)" },
 ];
