@@ -83,7 +83,9 @@ export default function EditTimetablePricesDrawer(){
         },
     ];
 
-    const handleAddPrice = async () => {
+    // zatvori=false: "Spremi i dodaj novu" — cijene se spreme, a prozor ostaje
+    // otvoren s praznom formom za sljedecu vrstu karte.
+    const handleAddPrice = async (zatvori = true) => {
         console.log(newData)
         let updatedData = []
         const filtered = boatData.editData?.timetablePrices?.filter(
@@ -93,10 +95,10 @@ export default function EditTimetablePricesDrawer(){
         updatedData.sort((a, b) => a.ticket_type?.id - b.ticket_type?.id);
         await dispatch(setBoatData({path:"editData/timetablePrices", value: updatedData}))
         await setNewData({
-            ticket_type:{},
+            ticket_type:"",
             prices: pairs.map(calcRow)
         })
-        await setOpenAdd(false)
+        if (zatvori) await setOpenAdd(false)
     }
 
     const handleDeletePrice = async (data) => {
@@ -192,6 +194,7 @@ export default function EditTimetablePricesDrawer(){
                             </TextField>
                         </Box>
                         <CopyPricesFromCategory
+                            key={newData.ticket_type?.uuid || "nova"}
                             kategorije={boatData.editData?.timetablePrices}
                             odabranaUuid={newData.ticket_type?.uuid}
                             onPrimijeni={(izvor, pct) => {
@@ -231,15 +234,22 @@ export default function EditTimetablePricesDrawer(){
                                 onProcessRowUpdateError={(err) => console.error(err)}
                             />
                         </Box>
-                        <Button 
-                            disabled={
-                                !newData.ticket_type?.uuid 
-                                || !newData.prices?.length
-                            }
-                            variant="contained" sx={{mt:2}} onClick={handleAddPrice} 
+                        <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+                            <Button
+                                disabled={!newData.ticket_type?.uuid || !newData.prices?.length}
+                                variant="contained"
+                                onClick={() => handleAddPrice(true)}
                             >
-                            Spremi cijene
-                        </Button>
+                                Spremi cijene
+                            </Button>
+                            <Button
+                                disabled={!newData.ticket_type?.uuid || !newData.prices?.length}
+                                variant="outlined"
+                                onClick={() => handleAddPrice(false)}
+                            >
+                                Spremi i dodaj novu
+                            </Button>
+                        </Stack>
                     </Box>
                 </Box>                   
             </Box>
