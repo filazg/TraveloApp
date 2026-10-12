@@ -184,7 +184,11 @@ export default function AddTimetablesPricesDrawer(){
                                     ml:1
                                 }}
                                 >
-                                    {boatData.boatData?.tickets_types?.map((type) => (
+                                    {/* Nude se samo vrste karata koje na ovom plovidbenom
+                                        redu jos nemaju cijene. */}
+                                    {(boatData.boatData?.tickets_types || [])
+                                        .filter((type) => !(boatData.newData?.timetablePrices || []).some((p) => p.ticket_type?.uuid === type.uuid))
+                                        .map((type) => (
                                         <MenuItem key={type.id} value={type}>
                                         {type.name}
                                         </MenuItem>
