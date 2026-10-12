@@ -3,14 +3,30 @@ const { getSequelize } = require("../../config/database");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { getModels } = require('../../dbModels');
 
+// Zamjena kopije luka ili linija. Brisanje i punjenje su jedan zahvat: dosad je
+// truncate prošao, a ako punjenje pukne, tablica je ostala prazna i terminali
+// su na sinkronizaciji dobivali plovidbeni red bez ijedne luke i linije.
+// Prazan popis iz boat-servisa se ne prepisuje preko postojećeg — brodar bez
+// ijedne luke ili linije nije stvarno stanje nego znak da izvor nije odgovorio
+// kako treba, pa ostaje zadnja dobra kopija.
+const zamijeniKopiju = async (Model, zapisi, naziv) => {
+    if (!Array.isArray(zapisi) || !zapisi.length) {
+        console.log(`[sync ${naziv}] boat-servis vratio prazan popis — zadržavam postojeću kopiju`)
+        return
+    }
+    await getSequelize().transaction(async (t) => {
+        await Model.destroy({ where: {}, transaction: t })
+        await Model.bulkCreate(zapisi, { transaction: t })
+    });
+}
+
 const syncHarborsDataController = async()=>{
     try {
         const { HarborsModel } = getModels();
-        const coreConfigData = await getCoreServiceConfigData() 
+        const coreConfigData = await getCoreServiceConfigData()
         const response = await axios.get(coreConfigData.services.boat.url + '/harbors')
-        await HarborsModel.truncate()
-        await HarborsModel.bulkCreate(response.data.data.harbors)
-        return         
+        await zamijeniKopiju(HarborsModel, response.data?.data?.harbors, 'luke')
+        return
     } catch (error) {
         console.log(error)
     }
@@ -19,12 +35,11 @@ const syncHarborsDataController = async()=>{
 const syncLinesDataController = async()=>{
     try {
         const { LinesModel } = getModels();
-        const coreConfigData = await getCoreServiceConfigData() 
+        const coreConfigData = await getCoreServiceConfigData()
         const response = await axios.get(coreConfigData.services.boat.url + '/lines')
         console.log('LINES DATA ', response.data.data)
-        await LinesModel.truncate()
-        await LinesModel.bulkCreate(response.data.data.lines)
-        return         
+        await zamijeniKopiju(LinesModel, response.data?.data?.lines, 'linije')
+        return
     } catch (error) {
         console.log(error)
     }
