@@ -29,7 +29,10 @@ const izgradiNalog = ({ datum, cc, company }) => {
                 OrganizationId_DDV: 0,
                 Document: oznakaDokumenta(datum, cc?.cost_center),
                 JournalEntryDate: datum,
+                // Razdoblje prometa (od–do). Temeljnica pokriva jedan dan, pa
+                // su oba ista; bez "do" iCenter razdoblje nije prikazivao dobro.
                 TransactionDate: datum,
+                TransactionDateTo: datum,
                 Customer: company?.default_customer || "",
                 JournalEntryDescription: opis,
                 JournalEntriesHeader: {
@@ -37,6 +40,8 @@ const izgradiNalog = ({ datum, cc, company }) => {
                     // 2 = izlazni racuni (6 bi bila ostala knjizenja).
                     TurnoverType: "2",
                     LinkToBook: company?.link_to_book || "",
+                    // Poslovna godina knjige — godina dana temeljnice.
+                    LinkToYear: Number(String(datum).slice(0, 4)),
                     DueDate: datum,
                 },
             },
