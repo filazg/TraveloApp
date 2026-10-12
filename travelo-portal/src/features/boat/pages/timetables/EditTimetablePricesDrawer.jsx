@@ -5,6 +5,7 @@ import { DataGrid } from "@mui/x-data-grid";
 import { use, useEffect, useMemo, useState } from "react";
 import { useT } from "../../../../i18n/useT";
 import { collapseHarborPairs } from "./harborPairs";
+import CopyPricesFromCategory, { preuzmiCijene } from "./CopyPricesFromCategory";
 
 const calcRow = (row) => {
         const price = Number(row.price ?? 0);
@@ -190,6 +191,15 @@ export default function EditTimetablePricesDrawer(){
                                     ))}
                             </TextField>
                         </Box>
+                        <CopyPricesFromCategory
+                            kategorije={boatData.editData?.timetablePrices}
+                            odabranaUuid={newData.ticket_type?.uuid}
+                            onPrimijeni={(izvor, pct) => {
+                                const { redovi, nadeno } = preuzmiCijene(newData.prices, izvor, pct, calcRow);
+                                setNewData((prev) => ({ ...prev, prices: redovi }));
+                                return nadeno;
+                            }}
+                        />
                         {obaSmjera ? (
                             <Typography
                                 variant="body2"
