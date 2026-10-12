@@ -82,9 +82,12 @@ const searchTripsController = async(req,res)=>{
           
           const priceTicketType = await TimetablePricesModel.findAll({
               attributes: [
-                  Sequelize.fn('DISTINCT', Sequelize.col('ticket_type_uuid')), 'ticket_type_uuid', 'ticket_type_name'
+                  Sequelize.fn('DISTINCT', Sequelize.col('ticket_type_uuid')), 'ticket_type_uuid', 'ticket_type_name', 'ticket_type_order'
               ],
-              where: { timetable_uuid:trip.timetable_uuid }
+              where: { timetable_uuid:trip.timetable_uuid },
+              // Vrste karata redom zadanim na plovidbenom redu (portal, strelice).
+              // Bez ORDER BY je poredak bio nasumican.
+              order: [['ticket_type_order', 'ASC NULLS LAST'], ['ticket_type_name', 'ASC']],
           })
           let pricesForTrip = []
           for(const ticketType of priceTicketType){
@@ -246,9 +249,12 @@ const searchWebPageTripsController = async(req,res)=>{
           
           const priceTicketType = await TimetablePricesModel.findAll({
               attributes: [
-                  Sequelize.fn('DISTINCT', Sequelize.col('ticket_type_uuid')), 'ticket_type_uuid', 'ticket_type_name'
+                  Sequelize.fn('DISTINCT', Sequelize.col('ticket_type_uuid')), 'ticket_type_uuid', 'ticket_type_name', 'ticket_type_order'
               ],
-              where: { timetable_uuid:trip.timetable_uuid }
+              where: { timetable_uuid:trip.timetable_uuid },
+              // Vrste karata redom zadanim na plovidbenom redu (portal, strelice).
+              // Bez ORDER BY je poredak bio nasumican.
+              order: [['ticket_type_order', 'ASC NULLS LAST'], ['ticket_type_name', 'ASC']],
           })
           let pricesForTrip = []
           for(const ticketType of priceTicketType){

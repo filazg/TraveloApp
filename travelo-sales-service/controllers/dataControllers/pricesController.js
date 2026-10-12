@@ -8,7 +8,8 @@ const getPricesDataController = async (req, res) => {
         const result = await sequelize.transaction(async (t)=>{
             const pricesData = await TimetablePricesModel.findAll({
                 attributes: { exclude: ['createdAt','updatedAt'] },
-                order: [["id", "ASC"]],
+                // Vrste karata redom zadanim na plovidbenom redu.
+                order: [["timetable_uuid", "ASC"], ["ticket_type_order", "ASC NULLS LAST"], ["id", "ASC"]],
             })
             // Partneru koji prodaje u svoje ime saljemo nasu cijenu prema
             // njemu: bez PDV-a, s luckom pristojbom u sebi. Koliko ce on

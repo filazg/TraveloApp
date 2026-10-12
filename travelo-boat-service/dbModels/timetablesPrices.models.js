@@ -96,6 +96,13 @@ module.exports =  (sequelize) =>{
             allowNull: true,
             defaultValue: false
         },
+        // Redoslijed vrste karte na ovom plovidbenom redu (0, 1, 2…). Zadaje se
+        // u portalu strelicama; prodajna sucelja po njemu slazu vrste karata.
+        // Stupac dodaje migrate_timetable_prices_order.js.
+        ticket_type_order:{
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
         is_active: {
             type: DataTypes.BOOLEAN,
             allowNull: false

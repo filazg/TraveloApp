@@ -34,7 +34,7 @@ const getSalesRoutesController = async(req,res)=>{
                     is_active:true
                 },
                 attributes: { exclude: ['createdAt','updatedAt'] },
-                    order: [["id", "ASC"]],
+                    order: [["ticket_type_order", "ASC NULLS LAST"], ["id", "ASC"]],
             })
         }
         res.send({
@@ -75,7 +75,7 @@ const getAllSalesRoutesController = async(req,res)=>{
                     is_active:true
                 },
                 attributes: { exclude: ['createdAt','updatedAt'] },
-                    order: [["id", "ASC"]],
+                    order: [["ticket_type_order", "ASC NULLS LAST"], ["id", "ASC"]],
             })
         res.send({
                 status:200,

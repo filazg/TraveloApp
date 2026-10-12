@@ -94,6 +94,11 @@ module.exports =  (sequelize) =>{
             type: DataTypes.STRING,
             allowNull: true
         },
+        // Redoslijed vrste karte na plovidbenom redu — kopija iz boat servisa.
+        ticket_type_order:{
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
         is_active: {
             type: DataTypes.BOOLEAN,
             allowNull: false

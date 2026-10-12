@@ -189,6 +189,12 @@ const salesRoutePricesDataModel = sequelize.define('sales_routes_price',{
         allowNull: true,
         defaultValue: false
     },
+    // Redoslijed vrste karte na plovidbenom redu, zadan u portalu. Prodaja
+    // po njemu slaže vrste karata.
+    ticket_type_order:{
+        type: Sequelize.INTEGER,
+        allowNull: true
+    },
 },{
     freezeTableName:true
 })

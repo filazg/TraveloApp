@@ -164,13 +164,14 @@ const getTimetableDetailsController = async (req,res)=>{
                     order: [["id", "ASC"]],
                 })
                 departuresToSend = departuresForTimetable
+                // Vrste karata dolaze u portal redom kojim se prikazuju u prodaji.
                 const pricesForTimetable = await TimetablePricesModel.findAll({
                     where:{
                         timetable_uuid:timetableData.uuid,
                         is_active:true
                     },
                     attributes: { exclude: ['createdAt','updatedAt'] },
-                    order: [["id", "ASC"]],
+                    order: [["ticket_type_order", "ASC NULLS LAST"], ["id", "ASC"]],
                 })
                 const uniqueTicketType = pricesForTimetable.filter(
                     (v, i, a) =>
@@ -334,7 +335,10 @@ const addTimetableDataController = async (req, res) => {
             //TIMETABLE PRICES
             if (data.timetablePrices) {
                 let pricesToAdd = [];
-                for (const prices of data.timetablePrices) {
+                // Poredak u kojem portal salje vrste karata je redoslijed prikaza
+                // u prodaji — upisuje se na svaki redak (i na povratni smjer,
+                // koji ga nasljeduje kopiranjem retka).
+                for (const [poredak, prices] of data.timetablePrices.entries()) {
                     for (const price of prices.prices) {
                     const harborFromData = harbors.find(
                         (harbor) => harbor.code === price.harbor_from_code
@@ -356,6 +360,7 @@ const addTimetableDataController = async (req, res) => {
                         seop_type: prices.ticket_type.seop_type,
                         is_island: prices.ticket_type.is_island === true,
                         ticket_type_name_eng: prices.ticket_type.name_eng,
+                        ticket_type_order: poredak,
                         price: price.price,
                         vat_base: price.vat_base,
                         vat_amount: price.vat_amount,

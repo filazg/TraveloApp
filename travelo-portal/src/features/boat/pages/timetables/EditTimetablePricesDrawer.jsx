@@ -1,4 +1,6 @@
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Drawer, MenuItem, Paper, Stack, Switch, TextField, Typography } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Drawer, IconButton, MenuItem, Paper, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { useDispatch, useSelector } from "react-redux";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk, setBoatData } from "../../boatSlice";
 import { DataGrid } from "@mui/x-data-grid";
@@ -102,16 +104,28 @@ export default function EditTimetablePricesDrawer(){
         setOpenAdd(true);
     };
 
+    // Pomak vrste karte gore (-1) ili dolje (+1) — tim redom se prikazuje u
+    // prodaji (desk, mobilna, web, partneri).
+    const pomakni = async (indeks, smjer) => {
+        const popis = [...(boatData.editData?.timetablePrices || [])];
+        const cilj = indeks + smjer;
+        if (cilj < 0 || cilj >= popis.length) return;
+        [popis[indeks], popis[cilj]] = [popis[cilj], popis[indeks]];
+        await dispatch(setBoatData({ path: "editData/timetablePrices", value: popis }));
+    };
+
     // zatvori=false: "Spremi i dodaj novu" — cijene se spreme, a prozor ostaje
     // otvoren s praznom formom za sljedecu vrstu karte.
     const handleAddPrice = async (zatvori = true) => {
         console.log(newData)
         let updatedData = []
-        const filtered = boatData.editData?.timetablePrices?.filter(
-            item => item.ticket_type?.uuid !== newData.ticket_type?.uuid
-        );
-        updatedData = [...filtered, newData]
-        updatedData.sort((a, b) => a.ticket_type?.id - b.ticket_type?.id);
+        // Redoslijed vrsta karata je redoslijed u prodaji: uredena vrsta ostaje
+        // na svom mjestu, nova ide na kraj (pomice se strelicama).
+        const postojece = boatData.editData?.timetablePrices || [];
+        const mjesto = postojece.findIndex((item) => item.ticket_type?.uuid === newData.ticket_type?.uuid);
+        updatedData = mjesto >= 0
+            ? postojece.map((item, i) => (i === mjesto ? newData : item))
+            : [...postojece, newData];
         await dispatch(setBoatData({path:"editData/timetablePrices", value: updatedData}))
         await setNewData({
             ticket_type:"",
@@ -285,15 +299,34 @@ export default function EditTimetablePricesDrawer(){
                 </Box>                   
             </Box>
         </Drawer>
-        {boatData.editData?.timetablePrices?.map((price) => (
+        {boatData.editData?.timetablePrices?.length > 1 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                Redoslijed vrsta karata ispod je redoslijed u prodaji (blagajna, mobilna, web) — mijenja se strelicama.
+            </Typography>
+        )}
+        {boatData.editData?.timetablePrices?.map((price, indeks, sve) => (
             <Box sx={{ mt: 2, width: "100%", overflowX: "auto" }}>
                 <Stack
                     direction='row'
                     justifyContent='space-between'
+                    alignItems='center'
+                    sx={{ mb: 1 }}
                 >
-                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-                        {price.ticket_type?.name} 
-                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <Tooltip title="Pomakni gore"><span>
+                            <IconButton size="small" disabled={indeks === 0} onClick={() => pomakni(indeks, -1)}>
+                                <ArrowUpwardIcon fontSize="small" />
+                            </IconButton>
+                        </span></Tooltip>
+                        <Tooltip title="Pomakni dolje"><span>
+                            <IconButton size="small" disabled={indeks === sve.length - 1} onClick={() => pomakni(indeks, 1)}>
+                                <ArrowDownwardIcon fontSize="small" />
+                            </IconButton>
+                        </span></Tooltip>
+                        <Typography variant="h6" fontWeight="bold" sx={{ pl: 1 }}>
+                            {indeks + 1}. {price.ticket_type?.name}
+                        </Typography>
+                    </Stack>
                     <Stack direction="row" spacing={1}>
                         <Button variant="outlined" onClick={() => otvoriUredi(price)}>
                             Uredi

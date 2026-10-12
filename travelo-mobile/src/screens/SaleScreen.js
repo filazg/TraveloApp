@@ -500,7 +500,10 @@ export default function SaleScreen() {
         for (const p of matches) {
             if (!seen.has(p.ticket_type_uuid)) seen.set(p.ticket_type_uuid, p);
         }
-        return [...seen.values()];
+        // Vrste karata redom zadanim na plovidbenom redu (portal); bez poretka
+        // idu na kraj, a dalje kao dosad, po id-u.
+        const poredak = (p) => (p.ticket_type_order == null ? Number.MAX_SAFE_INTEGER : Number(p.ticket_type_order));
+        return [...seen.values()].sort((a, b) => poredak(a) - poredak(b) || (a.id || 0) - (b.id || 0));
     }, [v, fromHarbor, toHarbor, sync.tripsPrices]);
 
     const pricesForPair = useMemo(

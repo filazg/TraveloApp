@@ -33,9 +33,14 @@ async function getLocalTransportDataService() {
     linesDataModel.findAll({order: [["id", "ASC"]],attributes: { exclude: ["createdAt", "updatedAt"] }}),
     harborsDataModel.findAll({order: [["id", "ASC"]],attributes: { exclude: ["createdAt", "updatedAt"] }}),
   ]);
+  // Vrste karata redom zadanim na plovidbenom redu (portal); bez poretka na
+  // kraju, a unutar istog poretka kao dosad, po id-u.
+  const poredak = (p) => (p.ticket_type_order == null ? Number.MAX_SAFE_INTEGER : Number(p.ticket_type_order));
+  const cijene = route_prices.map((r) => r.toJSON())
+    .sort((a, b) => poredak(a) - poredak(b) || a.id - b.id);
   return{
     routes: routes.map((b) => b.toJSON()),
-    route_prices: route_prices.map((r) => r.toJSON()),
+    route_prices: cijene,
     lines: lines.map((l) => l.toJSON()),    
     harbors: harbors.map((h) => h.toJSON()),
     meta: { fetchedAt: new Date().toISOString() },
