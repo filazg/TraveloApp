@@ -174,29 +174,25 @@ export default function AddTimetablesPricesDrawer(){
                 sx: {
                 height: "100%",
                 maxWidth: "100vw",
-                overflow: "auto", 
+                overflow: "hidden",
                 },
             }}
         >   
             <Box sx={{ minWidth:900, height: "100%", display: "flex", flexDirection: "column" }}>
                 
-                <Box sx={{ px: 3, pt: 2, pb: 2, borderBottom: "1px solid", borderColor: "divider" }}>
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 3 }}>
+                {/* Prozor se slaze u visinu ekrana: zaglavlje, kontrole i gumbi
+                    zauzmu koliko trebaju, a tablica ostatak — bez klizaca sa strane. */}
+                <Box sx={{ px: 3, pt: 2, pb: 2, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 2, flexShrink: 0 }}>
                         <Typography variant="h5" fontWeight="bold">
                             {uredi ? `Uređivanje cijena — ${newData.ticket_type?.name || ""}` : t("boat.timetables.add_new_title")}
                         </Typography>
                         <Button onClick={() => setOpenAdd(false)}>{t("boat.timetables.close")}</Button>
                     </Stack>
-                    <Box sx={{ flex: 1, overflow: "auto", px: 3, py: 3 }}>
-                        <Box sx={{ minWidth: 900, mb:2 }}>
-                            {uredi ? (
-                            <TextField
-                                label="Vrsta karte"
-                                value={newData.ticket_type?.name || ""}
-                                disabled
-                                sx={{ width: 350, ml: 1 }}
-                            />
-                            ) : (
+                    <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                        {/* Kod uredivanja je vrsta karte vec zadana (stoji u naslovu). */}
+                        {!uredi && (
+                        <Box sx={{ mb: 2, flexShrink: 0 }}>
                             <TextField
                                 type="text"
                                 variant="outlined"
@@ -222,8 +218,8 @@ export default function AddTimetablesPricesDrawer(){
                                         </MenuItem>
                                     ))}
                             </TextField>
-                            )}
                         </Box>
+                        )}
                         <CopyPricesFromCategory
                             key={newData.ticket_type?.uuid || "nova"}
                             kategorije={boatData.newData?.timetablePrices}
@@ -246,7 +242,7 @@ export default function AddTimetablesPricesDrawer(){
                                 Cijena vrijedi u oba smjera — relacija se unosi jednom, povratni smjer dobiva istu cijenu.
                             </Typography>
                         ) : null}
-                        <Box sx={{height:"70vh", minWidth: 900 }}>
+                        <Box sx={{ flex: 1, minHeight: 220, minWidth: 900 }}>
                             <DataGrid
                                 rows={newData.prices || []}
                                 columns={columns}
@@ -265,7 +261,7 @@ export default function AddTimetablesPricesDrawer(){
                                 onProcessRowUpdateError={(err) => console.error(err)}
                             />
                         </Box>
-                        <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+                        <Stack direction="row" spacing={1.5} sx={{ mt: 2, flexShrink: 0 }}>
                             <Button
                                 disabled={!newData.ticket_type?.uuid || !newData.prices?.length}
                                 variant="contained"
@@ -273,6 +269,7 @@ export default function AddTimetablesPricesDrawer(){
                             >
                                 Spremi cijene
                             </Button>
+                            {!uredi && (
                             <Button
                                 disabled={!newData.ticket_type?.uuid || !newData.prices?.length}
                                 variant="outlined"
@@ -280,6 +277,7 @@ export default function AddTimetablesPricesDrawer(){
                             >
                                 Spremi i dodaj novu
                             </Button>
+                            )}
                         </Stack>
                     </Box>
                 </Box>                   
