@@ -195,6 +195,10 @@ const ensureLine = (bucket, item, refs) => {
     return bucket.lines.get(code);
 };
 
+// Stari model: predujam se zatvarao na dan polaska (reklasifikacija). Sada se
+// prenosi vec pri prodaji, pa je ovo iskljuceno.
+const REKLASIFIKACIJA_NA_DAN_POLASKA = false;
+
 const buildJournalEntries = (day, bucket, refs) => {
     const ref = `${day}/${bucket.cost_center || "n/a"}`;
     const entries = [];
@@ -275,7 +279,10 @@ const buildJournalEntries = (day, bucket, refs) => {
                 entries.push({
                     JournalEntryDate: day,
                     JournalEntryDescription: kratko(`Predujam LN ${period} ${lineBucket.line_name}`),
-                    ...razdobljeStavke(day, period),
+                    // Na dan prodaje predujam nosi tekuce razdoblje — temeljnica se
+                    // poravnava po mjesecu. U mjesec polaska ga prebacuje
+                    // "prijenos predujma" nize.
+                    ...razdobljeStavke(day),
                     Account: accPredHarbor().code,
                     DebitAmountInDomesticCurrency: 0,
                     CreditAmountInDomesticCurrency: Number(amt.toFixed(2)),
@@ -306,7 +313,7 @@ const buildJournalEntries = (day, bucket, refs) => {
                 entries.push({
                     JournalEntryDate: day,
                     JournalEntryDescription: kratko(`Predujam ${period} ${lineBucket.line_name}`),
-                    ...razdobljeStavke(day, period),
+                    ...razdobljeStavke(day),
                     Account: accPRED.code,
                     DebitAmountInDomesticCurrency: 0,
                     CreditAmountInDomesticCurrency: Number(amt.toFixed(2)),
@@ -369,6 +376,41 @@ const buildJournalEntries = (day, bucket, refs) => {
         });
         if (!v.buyer_oib) {
             warnings.push(`${v.doc_type} račun ${oznaka} plaćen virmanom nema OIB kupca`);
+        }
+    }
+
+    // Prijenos predujma u prihod mjeseca polaska. Knjizi se odmah, u istoj
+    // temeljnici, ali s razdobljem mjeseca polaska: predujam se tamo zatvara
+    // (duguje 2250) i priznaje prihod odnosno lucka naknada. Svaki mjesec je
+    // tako uravnotezen za sebe — tekuci (naplata = PDV + prihod + predujam) i
+    // mjesec polaska (predujam = prihod + lucka naknada).
+    for (const [, lineBucket] of bucket.lines) {
+        const analyticsBase = {
+            CostCentre: sifraAnalitike(bucket.cost_center),
+            CostUnit: sifraAnalitike(lineBucket.saop_cost_bearer),
+        };
+        const razdoblja = new Set([
+            ...(dijeliLucku ? lineBucket.harbor_tax_future.keys() : []),
+            ...(accPRED && accNET ? lineBucket.vat_base_future.keys() : []),
+        ]);
+        for (const period of [...razdoblja].sort()) {
+            const lucka = dijeliLucku ? Number(lineBucket.harbor_tax_future.get(period) || 0) : 0;
+            const neto = accPRED && accNET ? Number(lineBucket.vat_base_future.get(period) || 0) : 0;
+            const stavka = (konto, opis, duguje, potrazuje) => entries.push({
+                JournalEntryDate: day,
+                JournalEntryDescription: kratko(opis),
+                ...razdobljeStavke(day, period),
+                Account: konto,
+                DebitAmountInDomesticCurrency: Number(duguje.toFixed(2)),
+                CreditAmountInDomesticCurrency: Number(potrazuje.toFixed(2)),
+                JournalType: "IRA",
+                ReferenceDocument: ref,
+                Analytics: { ...analyticsBase, AdvancePeriod: period },
+            });
+            if (Math.abs(lucka) >= 0.005) stavka(accPredHarbor().code, `Predujam LN ${period} ${lineBucket.line_name}`, lucka, 0);
+            if (Math.abs(neto) >= 0.005) stavka(accPRED.code, `Predujam ${period} ${lineBucket.line_name}`, neto, 0);
+            if (Math.abs(lucka) >= 0.005 && accHARBOR) stavka(accHARBOR.code, `Lučka pristojba ${period} ${lineBucket.line_name}`, 0, lucka);
+            if (Math.abs(neto) >= 0.005) stavka(accNET.code, `Prihod ${period} ${lineBucket.line_name}`, 0, neto);
         }
     }
 
@@ -596,8 +638,11 @@ const izracunajIzvjestaj = async (models, from, to) => {
         }
 
         // === Pass 2: reklasifikacije ===
+        // Iskljuceno: predujam se u mjesec polaska prenosi vec u temeljnici dana
+        // prodaje (vidi "prijenos predujma" u buildJournalEntries). Reklasifikacija
+        // na dan polaska knjizila bi isti iznos drugi put.
         // Za svaki item gdje departure_date::date == day i invoice month != day month → debit predujam, credit prihod
-        for (const row of reclassRows) {
+        for (const row of REKLASIFIKACIJA_NA_DAN_POLASKA ? reclassRows : []) {
             const dep = parseDate(row.departure);
             if (!dep) continue;
             const day = toDateKey(dep);
@@ -820,6 +865,7 @@ const sendDailyRealizationToErpController = async (req, res) => {
 };
 
 module.exports = {
+    buildJournalEntries,
     dailyRealizationReportController,
     sendDailyRealizationToErpController,
 };
