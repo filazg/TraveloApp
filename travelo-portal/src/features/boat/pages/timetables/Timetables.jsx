@@ -1,10 +1,12 @@
 import {
+  Alert,
   Box,
   Button,
   Chip,
   Drawer,
   MenuItem,
   Modal,
+  Snackbar,
   Stack,
   Step,
   StepButton,
@@ -484,9 +486,15 @@ export default function TimetablesPage() {
       await dispatch(
         setAuthData({ path: "loadingMessage", value: "Spremanje plovidbenog reda" }),
       );
-      await dispatch(
+      const spremanje = await dispatch(
         postBoatThunk({ path: "timetables", data: boatData.newData }),
       );
+      // Neuspjelo spremanje nista ne mijenja — prozor ostaje otvoren.
+      if (postBoatThunk.rejected.match(spremanje)) {
+        await dispatch(setBoatData({ path: "saveError", value: spremanje.error?.message || "Spremanje nije uspjelo." }));
+        await dispatch(setAuthData({ path: "loading", value: false }));
+        return;
+      }
       await dispatch(getBoatThunk({ path: "timetables" }));
       await dispatch(setAuthData({ path: "loading", value: false }));
       closeAddDrawer();
@@ -552,9 +560,12 @@ export default function TimetablesPage() {
       const dataToSend = {
         timetableData:newTimetableData
       }
-      await dispatch(
+      const spremanje = await dispatch(
         postBoatThunk({ path: "timetables", data: dataToSend }),
       )
+      if (postBoatThunk.rejected.match(spremanje)) {
+        await dispatch(setBoatData({ path: "saveError", value: spremanje.error?.message || "Spremanje nije uspjelo." }));
+      }
       await dispatch(setAuthData({ path: "loading", value: false }));
     }
 
@@ -578,6 +589,17 @@ export default function TimetablesPage() {
 
   return (
     <>
+      {/* Neuspjelo spremanje plovidbenog reda. Na posluzitelju je spremanje
+          jedna transakcija, pa nista nije promijenjeno — to i pise. */}
+      <Snackbar
+        open={!!boatData?.saveError}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        onClose={(_e, razlog) => { if (razlog !== "clickaway") dispatch(setBoatData({ path: "saveError", value: null })); }}
+      >
+        <Alert severity="error" variant="filled" onClose={() => dispatch(setBoatData({ path: "saveError", value: null }))} sx={{ maxWidth: 640 }}>
+          Plovidbeni red nije spremljen — ništa nije promijenjeno. {boatData?.saveError}
+        </Alert>
+      </Snackbar>
       <Box
         sx={{
           mt: 2,

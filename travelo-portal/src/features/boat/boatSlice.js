@@ -101,6 +101,8 @@ export const postBoatThunk = createAsyncThunk('boat/postBoatThunk', async (arg) 
         return (response.data)
     } catch (error) {
         console.log(error)
+        // Neuspjeh mora doci do ekrana (rejected), inace izgleda kao da je spremljeno.
+        throw new Error(error?.response?.data?.error || error?.response?.data?.msg || error?.message || 'Greška poslužitelja')
     }
 })
 
@@ -192,6 +194,7 @@ const boatSlice = createSlice({
         })
         .addCase(postBoatThunk.fulfilled, (state, action) => {
             state.status = "succeeded";
+            if (!action.payload?.path1 || !action.payload?.path2) return;
             state[action.payload.path1][action.payload.path2]  = action.payload.data;
         })
         .addCase(postBoatThunk.rejected, (state, action) => {

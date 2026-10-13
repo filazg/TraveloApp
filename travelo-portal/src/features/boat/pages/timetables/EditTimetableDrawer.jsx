@@ -74,9 +74,16 @@ export default function EditTimetableDrawer({ selectedRow, setSelectedRow }) {
     } else if (activeStep === 1) {
       await dispatch(setAuthData({ path: "loading", value: true }));
       await dispatch(setAuthData({ path: "loadingMessage", value: "Ažuriranje polaska" }),);
-      await dispatch(
+      const spremanje = await dispatch(
         postBoatThunk({ path: "timetables", data: boatData.editData }),
       );
+      // Spremanje je jedna transakcija na posluzitelju: kad ne uspije, nista
+      // nije promijenjeno — prozor ostaje otvoren s unesenim podacima.
+      if (postBoatThunk.rejected.match(spremanje)) {
+        await dispatch(setBoatData({ path: "saveError", value: spremanje.error?.message || "Spremanje nije uspjelo." }));
+        await dispatch(setAuthData({ path: "loading", value: false }));
+        return;
+      }
       await dispatch(
         postBoatThunk({ path: "timetable_details", data: boatData.editData.timetableData }),
       );

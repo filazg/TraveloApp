@@ -225,11 +225,19 @@ const addTimetableDataController = async (req, res) => {
         msg:'Timetable added successfully'
     }
     try {
-        const result = await sequelize.transaction(async (t)=>{
+        // Cijelo spremanje je jedna transakcija: plovidbeni red, polasci, cijene
+        // i rute se mijenjaju tako da se stari zapisi oznace neaktivnima pa se
+        // upisu novi. Dosad upiti nisu dobivali transakciju (nedostajao je
+        // { transaction: t }), pa bi pad upisa novih ostavio red bez polazaka
+        // ili cijena — a sinkronizacija bi ga onda izbacila iz prodaje.
+        // Odgovor portalu i pokretanje bookinga idu tek nakon potvrde.
+        let boatsData = [];
+        let polasciZaBooking = [];
+        await sequelize.transaction(async (t)=>{
             const needsFullProcessing = !!(data.departuresForTimetable || data.timetablePrices);
-            const timetableExists = await TimetablesModel.findOne({ where: { code: data.timetableData.code } });
-            const boatsData = needsFullProcessing ? await BoatsModel.findAll() : [];
-            let harbors = needsFullProcessing ? await HarborsModel.findAll() : [];
+            const timetableExists = await TimetablesModel.findOne({ where: { code: data.timetableData.code }, transaction: t });
+            boatsData = needsFullProcessing ? await BoatsModel.findAll({ transaction: t }) : [];
+            let harbors = needsFullProcessing ? await HarborsModel.findAll({ transaction: t }) : [];
             const tiumetableUUID = crypto.randomUUID(16);
             let timetableData = {}
             let departuresToAdd = [];
@@ -247,7 +255,7 @@ const addTimetableDataController = async (req, res) => {
                     is_active: false,
                     updated_by_uuid:user.uuid,
                     updated_by_username:user.username
-                });
+                }, { transaction: t });
                 timetableData = addTimetable;
             }else{
                 console.log('POSTOJI TIMETABLE')
@@ -267,9 +275,10 @@ const addTimetableDataController = async (req, res) => {
                     },{
                         where:{
                             code:data.timetableData.code
-                        }
+                        },
+                        transaction: t,
                     })
-                timetableData = await TimetablesModel.findOne({ where: { code: data.timetableData.code } });
+                timetableData = await TimetablesModel.findOne({ where: { code: data.timetableData.code }, transaction: t });
                 console.log('timetable DATA ', timetableData)
             }
             //DEPARTURES
@@ -327,9 +336,10 @@ const addTimetableDataController = async (req, res) => {
                     where: {
                         timetable_uuid: timetableData.uuid,
                     },
+                    transaction: t,
                 }
                 );
-            await DeparturesModel.bulkCreate(departuresToAdd);
+            await DeparturesModel.bulkCreate(departuresToAdd, { transaction: t });
             }
             
             //TIMETABLE PRICES
@@ -405,9 +415,10 @@ const addTimetableDataController = async (req, res) => {
                         where: {
                             timetable_uuid: timetableData.uuid,
                         },
+                        transaction: t,
                     }
                 );
-                await TimetablePricesModel.bulkCreate(pricesToAdd);
+                await TimetablePricesModel.bulkCreate(pricesToAdd, { transaction: t });
             }
 
             //ROUTES
@@ -419,6 +430,7 @@ const addTimetableDataController = async (req, res) => {
                     "sequence",
                 ],
                 where: { timetable_uuid: timetableData.uuid },
+                transaction: t,
             });
             for (const sequence of distinctSequence) {
                 const routesForSequence = departuresToAdd.filter(
@@ -480,25 +492,28 @@ const addTimetableDataController = async (req, res) => {
                         where: {
                             timetable_uuid: timetableData.uuid,
                         },
+                        transaction: t,
                     }
                 );
-                await RoutesModel.bulkCreate(routesToAdd);
+                await RoutesModel.bulkCreate(routesToAdd, { transaction: t });
 
-                // Inicijaliziraj bookings za svaki origin departure (fire-and-forget,
-                // izvodi se asinkrono — odgovor klijentu se ne čeka i kvar booking-servisa
-                // ne sprečava spremanje timetable-a).
-                const originDepartureUuids = [...new Set(routesToAdd.map((r) => r.departure_uuid))];
-                initBookingsForDepartures(originDepartureUuids);
+                polasciZaBooking = [...new Set(routesToAdd.map((r) => r.departure_uuid))];
         }
-
-            res.send({
-                status:responseData.status,
-                msg:responseData.msg,
-                data:{
-                    boats:boatsData
-                }
-            })
         });
+
+        // Inicijaliziraj bookings za svaki origin departure (fire-and-forget,
+        // izvodi se asinkrono — odgovor klijentu se ne čeka i kvar booking-servisa
+        // ne sprečava spremanje timetable-a). Tek nakon potvrde transakcije, da
+        // booking servis ne trazi polaske koji jos nisu upisani.
+        if (polasciZaBooking.length) initBookingsForDepartures(polasciZaBooking);
+
+        res.send({
+            status:responseData.status,
+            msg:responseData.msg,
+            data:{
+                boats:boatsData
+            }
+        })
     } catch (error) {
         console.error("Error in addTimetableDataController:", error);
         responseData.status = 500;

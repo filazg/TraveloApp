@@ -32,6 +32,9 @@ const addTimetableController = async(data)=>{
         return (response.data)
     } catch (error) {
         console.log(error)
+        // Greska ide dalje: dosad se gutala, pa je portal dobio "uspjeh" i
+        // pokrenula se sinkronizacija prodaje iako boat nista nije spremio.
+        throw new Error(error?.response?.data?.msg || error?.message || 'Spremanje plovidbenog reda nije uspjelo')
     }
 }
 
