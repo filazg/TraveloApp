@@ -16,8 +16,36 @@
 const oznakaDokumenta = (datum, costCenter) =>
     `${datum}_${String(costCenter || "n-a").replace(/\s+/g, "")}`;
 
+// Polja stavke i analitike koja AddJournal prima (swagger: JournalEntry,
+// JournalAnalytic). Izvjestaj na stavku stavlja i podatke samo za pregled u
+// portalu (naziv i OIB kupca, AdvancePeriod) — u SAOP ide samo ovo.
+const POLJA_STAVKE = [
+    "Analytics", "JournalEntryDate", "JournalEntryDescription", "Account", "Document",
+    "LinkToBook", "LinkToNumber", "LinkToOrigin", "LinkToUser", "LinkToYear",
+    "Credit", "CreditAmountInDomesticCurrency", "JournalEntryNumber", "SifraStranke",
+    "DueDate", "TransactionDate", "TransactionDateTo", "PaymentReference", "Currency",
+    "Debit", "DebitAmountInDomesticCurrency", "JournalType", "TurnoverType",
+    "FiscalizationType", "FiscalizationDocument", "PaymentType", "ReferenceDocument",
+];
+const POLJA_ANALITIKE = ["CostCentre", "CostUnit", "Clerk", "WorkOrder", "Analytic1", "Analytic2", "Analytic3"];
+
+const samoPolja = (obj, polja) => {
+    const out = {};
+    for (const k of polja) {
+        if (obj?.[k] === undefined || obj[k] === null) continue;
+        out[k] = obj[k];
+    }
+    return out;
+};
+
+const stavkaZaSaop = (e) => {
+    const s = samoPolja(e, POLJA_STAVKE);
+    if (e?.Analytics) s.Analytics = samoPolja(e.Analytics, POLJA_ANALITIKE);
+    return s;
+};
+
 const izgradiNalog = ({ datum, cc, company }) => {
-    const stavke = cc?.journalEntries || [];
+    const stavke = (cc?.journalEntries || []).map(stavkaZaSaop);
     const opis = `dnevni izvještaj ${datum} — ${cc?.billing_device_name || cc?.cost_center || ""}`.trim();
 
     return {

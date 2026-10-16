@@ -37,7 +37,7 @@ const fetchReferences = async () => {
     const btUrl = core?.services?.boat?.url;
     if (!boUrl) throw new Error("backoffice URL not configured");
 
-    const [bd, pm, us, ac, am, co, ln] = await Promise.all([
+    const [bd, pm, us, ac, am, co, ln, ab] = await Promise.all([
         httpGet(`${boUrl}/billing_devices`),
         httpGet(`${boUrl}/payment_methods`),
         httpGet(`${boUrl}/users`),
@@ -45,6 +45,7 @@ const fetchReferences = async () => {
         httpGet(`${boUrl}/account_mappings`),
         httpGet(`${boUrl}/company`),
         btUrl ? httpGet(`${btUrl}/lines`) : Promise.resolve({}),
+        httpGet(`${boUrl}/addressbook`),
     ]);
 
     const billingDevices = new Map();
@@ -78,8 +79,24 @@ const fetchReferences = async () => {
         lines.set(r.code, r);
     }
 
-    return { billingDevices, paymentMethods, users, usersByMark, accounts, mappings, company, lines };
+    // Kupci iz centralnog adresara. SAOP stranku na stavci veze samo preko
+    // svoje sifre (SifraStranke), a nju adresar dobiva pri spremanju kupca.
+    // Racun se s kupcem povezuje po uuid-u, a stariji racuni bez njega po OIB-u.
+    const kupci = new Map();
+    const kupciPoOib = new Map();
+    for (const r of ab?.addressbook || ab?.data?.addressbook || []) {
+        if (r.uuid) kupci.set(r.uuid, r);
+        for (const o of [r.buyer_legal_id, r.buyer_vat_id]) {
+            const k = samoOib(o);
+            if (k && !kupciPoOib.has(k)) kupciPoOib.set(k, r);
+        }
+    }
+
+    return { billingDevices, paymentMethods, users, usersByMark, accounts, mappings, company, lines, kupci, kupciPoOib };
 };
+
+// OIB bez prefiksa drzave i razmaka ("HR 123..." → "123...").
+const samoOib = (v) => String(v || "").replace(/[^0-9]/g, "");
 
 // Sifre analitike iCenter drzi kao sedmeroznamenkaste, s vodecim nulama
 // (kupac 0000556, a u prvom prototipu i mjesto troska 0000016). Nasi sifarnici
@@ -347,15 +364,21 @@ const buildJournalEntries = (day, bucket, refs) => {
         }
     }
 
-    // R1 i F2 računi plaćeni virmanom — svaki u vlastitom retku. Uz redak ide
-    // OIB kupca (VATIdentificationNumber je naziv koji SAOP koristi za porezni
-    // broj stranke), da se knjiženje može upariti s kupcem bez traženja po
-    // broju računa.
+    // R1 i F2 računi plaćeni virmanom — svaki u vlastitom retku. Stranka se
+    // veže šifrom kupca iz SAOP-a (SifraStranke, iz centralnog adresara): tako
+    // iCenter otvori stavku kupca koju zatvara izvod. Naziv i OIB ostaju na
+    // stavci samo za pregled u portalu; u SAOP ne idu (builder šalje samo polja
+    // iz specifikacije).
     for (const v of bucket.virmanInvoices) {
         if (Math.abs(v.amount) < 0.005) continue;
         const acc = accFor(`PAYMENT:${v.payment_method_uuid}`);
         if (!acc) continue;
         const oznaka = v.invoice_code || v.invoice_uuid;
+        const kupac =
+            (v.buyer_uuid && refs.kupci?.get(v.buyer_uuid)) ||
+            refs.kupciPoOib?.get(samoOib(v.buyer_oib)) ||
+            null;
+        const sifraStranke = kupac?.saop_customer_code || "";
         entries.push({
             JournalEntryDate: day,
             // Kupac ide u CustomerName i OIB, pa u opisu ostaje samo račun.
@@ -367,6 +390,10 @@ const buildJournalEntries = (day, bucket, refs) => {
             JournalType: "IRA",
             ReferenceDocument: ref,
             Document: oznaka,
+            // Bez sifre se polje ne salje — prazna stranka nije isto sto i nikakva.
+            ...(sifraStranke ? { SifraStranke: sifraStranke } : {}),
+            DueDate: day,
+            FiscalizationDocument: oznaka,
             CustomerName: v.buyer_name || "",
             VATIdentificationNumber: v.buyer_oib || "",
             Analytics: {
@@ -376,6 +403,10 @@ const buildJournalEntries = (day, bucket, refs) => {
         });
         if (!v.buyer_oib) {
             warnings.push(`${v.doc_type} račun ${oznaka} plaćen virmanom nema OIB kupca`);
+        } else if (!kupac) {
+            warnings.push(`${v.doc_type} račun ${oznaka}: kupac OIB ${v.buyer_oib} nije u adresaru — nema SAOP šifre`);
+        } else if (!sifraStranke) {
+            warnings.push(`${v.doc_type} račun ${oznaka}: kupac ${kupac.buyer_company_name || kupac.buyer_name || v.buyer_oib} nema SAOP šifru u adresaru`);
         }
     }
 
@@ -599,6 +630,7 @@ const izracunajIzvjestaj = async (models, from, to) => {
                         saop_clerk_id: clerkId,
                         buyer_name: inv.buyer_company_name || inv.buyer_name || "",
                         buyer_oib: inv.buyer_oib || "",
+                        buyer_uuid: inv.buyer_uuid || "",
                         amount: Number(inv.invoice_amount || 0),
                     });
                 } else {

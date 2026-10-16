@@ -546,7 +546,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }
                                             <TableCell>Nositelj troška</TableCell>
                                             <TableCell>Referent</TableCell>
                                             <TableCell>Razdoblje</TableCell>
-                                            <TableCell>OIB kupca</TableCell>
+                                            <TableCell>Kupac (SAOP šifra / OIB)</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -569,7 +569,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }
                                                 <TableCell>{j.Analytics?.CostUnit || ""}</TableCell>
                                                 <TableCell>{j.Analytics?.Clerk || ""}</TableCell>
                                                 <TableCell>{j.Analytics?.AdvancePeriod || ""}</TableCell>
-                                                <TableCell>{j.VATIdentificationNumber || ""}</TableCell>
+                                                <TableCell>{[j.SifraStranke, j.VATIdentificationNumber].filter(Boolean).join(" / ")}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
