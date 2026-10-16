@@ -1,7 +1,7 @@
 import { Alert, Box, Button, Drawer, Grid, MenuItem, Modal, Snackbar, Stack, TextField, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useDispatch, useSelector } from "react-redux";
-import { backofficeSliceData, fetchSudregByOibThunk, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk } from "../../backofficeSlice";
+import { backofficeSliceData, fetchSudregByOibThunk, getBackofficeThunk, patchBackofficeThunk, postBackofficeThunk, syncAddressbookFromSaopThunk } from "../../backofficeSlice";
 import { useT } from "../../../../i18n/useT";
 import { useEffect, useRef, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
@@ -87,6 +87,21 @@ export default function AddressbookPage (){
         syncData()
     },[])
 
+    // Uvoz kupaca iz SAOP-a. Ide i sam, periodicki, iz backoffice servisa;
+    // gumb je za odmah (npr. kad knjigovodstvo upravo otvori kupca).
+    const handleSaopSync = async () => {
+        await dispatch(setAuthData({path:'loading', value:true}))
+        await dispatch(setAuthData({path:'loadingMessage', value:'Preuzimanje kupaca iz SAOP-a'}))
+        const rez = await dispatch(syncAddressbookFromSaopThunk())
+        await dispatch(setAuthData({path:'loading', value:false}))
+        if (syncAddressbookFromSaopThunk.rejected.match(rez)) {
+            setSnack({ open: true, severity: "error", message: `Uvoz iz SAOP-a nije uspio: ${rez.error?.message || ""}` });
+            return;
+        }
+        const s = rez.payload?.saop_sync || {};
+        setSnack({ open: true, severity: "success", message: `SAOP: ${s.saop ?? 0} kupaca — dodano ${s.dodano ?? 0}, ažurirano ${s.azurirano ?? 0}.` });
+    }
+
     const clickTimerRef = useRef(null);
     const clickDelay = 250;
 
@@ -141,6 +156,7 @@ export default function AddressbookPage (){
         { field: 'buyer_company_name', headerName: t('backoffice.addressbook.buyer_company_name'), flex: 2, editable: true},
         { field: 'buyer_legal_id', headerName:t('backoffice.addressbook.buyer_legal_id'), flex: 2},
         { field: 'buyer_vat_id', headerName: t('backoffice.addressbook.buyer_vat_id'), flex: 2},
+        { field: 'saop_customer_code', headerName: 'SAOP šifra', flex: 1},
         { field: 'buyer_address', headerName:t('backoffice.addressbook.buyer_address'), flex: 2, editable: true},
         { field: 'buyer_postal_code', headerName: t('backoffice.addressbook.buyer_postal_code'), flex: 2, editable: true},
         { field: 'buyer_town', headerName:t('backoffice.addressbook.buyer_town'), flex: 2,  editable: true},
@@ -522,9 +538,12 @@ export default function AddressbookPage (){
                     </Button>
                 </Box>   
             </Drawer>
-            <Stack sx={{width:'96%', ml:1}} alignItems='flex-start'>
+            <Stack sx={{width:'96%', ml:1}} direction='row' spacing={1} alignItems='flex-start'>
                 <Button onClick={()=>setOpenAdd(true)}>
                     {t('backoffice.addressbook.add_new_title')}
+                </Button>
+                <Button onClick={handleSaopSync}>
+                    Preuzmi kupce iz SAOP-a
                 </Button>
             </Stack>
             <Modal

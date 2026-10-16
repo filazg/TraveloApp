@@ -1,4 +1,4 @@
-const { getAddressbookController, addAddressbookController, updateAddressbookController } = require("../../controllers/coreServiceControllers/backofficeServiceControllers.js/addressbookServiceControllers")
+const { getAddressbookController, addAddressbookController, updateAddressbookController, syncAddressbookFromSaopController } = require("../../controllers/coreServiceControllers/backofficeServiceControllers.js/addressbookServiceControllers")
 
 const handleGetAddressbookFeature = async(req,res)=>{
     try {
@@ -60,8 +60,30 @@ const handleUpdateAddressbookFeature = async(req,res)=>{
     }
 }
 
+const handleSyncAddressbookFromSaopFeature = async(req,res)=>{
+    try {
+        const rezultat = await syncAddressbookFromSaopController()
+        const addressbookData = await getAddressbookController()
+        res.send({
+            status:200,
+            data:{
+                path1:'backofficeData',
+                path2:'addressbook',
+                data:addressbookData.data.addressbook,
+                saop_sync:rezultat
+            }
+        })
+    } catch (error) {
+         res.status(500).send({
+            status: 500,
+            error: error.message
+        })
+    }
+}
+
 module.exports = {
     handleGetAddressbookFeature,
     handleAddAddressbookFeature,
-    handleUpdateAddressbookFeature
+    handleUpdateAddressbookFeature,
+    handleSyncAddressbookFromSaopFeature
 }

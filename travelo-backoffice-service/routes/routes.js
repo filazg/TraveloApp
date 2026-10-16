@@ -11,7 +11,7 @@ const { getStornoPercentagesDataController, addStornoPercentageDataController, u
 const { getWebNoticesDataController, getActiveWebNoticesDataController, addWebNoticeDataController, updateWebNoticeDataController } = require('../controllers/dataControllers/webNoticesDataControllers');
 const { getPaymentMethodsDataController, addPaymentMethodDataController, updatePaymentMethodDataController } = require('../controllers/dataControllers/paymentMethodsDataControllers');
 const { getPaymentTypesDataController } = require('../controllers/dataControllers/paymentTypeDataControllers');
-const { getAddressbookDataController, addAddressbookDataController, updateAddressbookDataController, upsertAddressbookDataController } = require('../controllers/dataControllers/addressbookDataControllers');
+const { getAddressbookDataController, addAddressbookDataController, updateAddressbookDataController, upsertAddressbookDataController, syncAddressbookFromSaopController } = require('../controllers/dataControllers/addressbookDataControllers');
 const { getSudregLookupController } = require('../controllers/integrations/sudregController');
 const { getSeyforCodebookController } = require('../controllers/integrations/seyforCodebooksController');
 const { getCountriesDataController, addCountryDataController, updateCountryDataController } = require('../controllers/dataControllers/countriesDataControllers');
@@ -143,6 +143,11 @@ router
 router
     .route('/addressbook/upsert')
     .post(upsertAddressbookDataController)
+
+// Uvoz adresara iz SAOP-a (rucno iz portala; automatski ide iz servisa).
+router
+    .route('/addressbook/saop_sync')
+    .post(syncAddressbookFromSaopController)
 
 // Provjera OIB-a u Sudskom registru (auto-popuna kupca). Dijeli je cijeli
 // sustav preko gatewaya svakog kanala; portal je zove direktno.

@@ -113,6 +113,17 @@ export const postBackofficeThunk = createAsyncThunk('backoffice/postBackofficeTh
     }
 })
 
+// Uvoz adresara iz SAOP-a. Greska se prosljeduje, da stranica javi da uvoz
+// nije uspio; payload nosi i sazetak (dodano / azurirano).
+export const syncAddressbookFromSaopThunk = createAsyncThunk('backoffice/syncAddressbookFromSaopThunk', async () => {
+    try {
+        const response = await api.post('/portal/backoffice/addressbook/saop_sync', {})
+        return (response.data)
+    } catch (error) {
+        throw new Error(error?.response?.data?.error || error.message)
+    }
+})
+
 // Dohvat podataka o tvrtki iz sudskog registra po OIB-u. BFF vraca
 // { status, data:{ result:{ found, ... } } }, pa je result === resp.data.data.result.
 export const fetchSudregByOibThunk = createAsyncThunk('backoffice/fetchSudregByOibThunk', async (oib) => {
@@ -213,6 +224,9 @@ const backofficeSlice =createSlice({
         .addCase(postBackofficeThunk.fulfilled, (state, action) => {
             state.status = "succeeded";
             state[action.payload.path1][action.payload.path2]  = action.payload.data;
+        })
+        .addCase(syncAddressbookFromSaopThunk.fulfilled, (state, action) => {
+            if (Array.isArray(action.payload?.data)) state.backofficeData.addressbook = action.payload.data;
         })
         .addCase(postBackofficeThunk.rejected, (state, action) => {
             state.status = "failed";

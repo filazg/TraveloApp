@@ -34,7 +34,17 @@ const updateAddressbookController = async(data)=>{
     }
 }
 
+// Uvoz adresara iz SAOP-a. Za razliku od ostalih, greska se ne guta — portal
+// mora javiti da uvoz nije uspio.
+const syncAddressbookFromSaopController = async()=>{
+    const coreConfigData = await getCoreServiceConfigData()
+    const response = await axios.post(coreConfigData.services.backoffice.url + '/addressbook/saop_sync', {}, { timeout: 300000 })
+    if (response.data?.status !== 200) throw new Error(response.data?.data?.error || 'Uvoz iz SAOP-a nije uspio')
+    return response.data.data
+}
+
 module.exports = {
+    syncAddressbookFromSaopController,
     getAddressbookController,
     addAddressbookController,
     updateAddressbookController

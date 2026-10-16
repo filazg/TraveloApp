@@ -72,12 +72,32 @@ const callApi = async (method, path, body = null) => {
     return resp.data;
 };
 
+// OIB kupca: portal ga drzi u buyer_legal_id ("OIB kupca"), kanali u
+// buyer_vat_id. Za HR subjekte je to isti broj.
+const oibKupca = (addr) => String(addr?.buyer_legal_id || addr?.buyer_vat_id || "").trim();
+
+// Drzava: SAOP drzi ISO kod ("HR"), adresar naziv ("Hrvatska").
+const DRZAVE = require("../../dbModels/countries.seed");
+const drzavaIso = (v) => {
+    const s = String(v || "").trim();
+    if (!s) return "";
+    if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
+    const n = s.toLowerCase();
+    const r = DRZAVE.find(([, hr, en]) => hr.toLowerCase() === n || en.toLowerCase() === n);
+    return r ? r[0] : "";
+};
+const drzavaNaziv = (iso) => {
+    const s = String(iso || "").trim().toUpperCase();
+    const r = DRZAVE.find(([k]) => k === s);
+    return r ? r[1] : s;
+};
+
 // addressbook → SAOP Customer mapping. Code se ne šalje pri create-u —
 // SuggestFirstFreeCode=1 daje SAOP-u naredbu da dodijeli prvi slobodan.
 const buildCustomerXml = (addr, { withCode = false } = {}) => {
     const isCompany = !!(addr.buyer_company_name && addr.buyer_company_name.trim());
     const name = isCompany ? addr.buyer_company_name : addr.buyer_name || "";
-    const subjectToVat = addr.buyer_vat_id ? "1" : "0";
+    const subjectToVat = oibKupca(addr) ? "1" : "0";
     const root = {
         Customer: {
             ...(withCode && addr.saop_customer_code
@@ -85,12 +105,13 @@ const buildCustomerXml = (addr, { withCode = false } = {}) => {
                 : {}),
             Name: name,
             ...(addr.buyer_address ? { Address: addr.buyer_address } : {}),
-            ...(addr.buyer_country ? { Country: addr.buyer_country } : {}),
+            ...(drzavaIso(addr.buyer_country) ? { Country: drzavaIso(addr.buyer_country) } : {}),
             ...(addr.buyer_postal_code ? { PostalCode: addr.buyer_postal_code } : {}),
             ...(addr.buyer_town ? { City: addr.buyer_town } : {}),
-            ...(addr.buyer_legal_id ? { RegistrationNumber: addr.buyer_legal_id } : {}),
+            // OIB ide u TaxNumber. RegistrationNumber je u SAOP-u maticni broj
+            // (MBS), a ne OIB — prije se tamo upisivao OIB.
             SubjectToVAT: subjectToVat,
-            ...(addr.buyer_vat_id ? { TaxNumber: addr.buyer_vat_id } : {}),
+            ...(oibKupca(addr) ? { TaxNumber: oibKupca(addr) } : {}),
             Currency: "978",
             CustomerType: "O",
             EntityType: isCompany ? "P" : "F",
@@ -135,6 +156,23 @@ const findCustomerByOib = async (oib) => {
     const arr = parsed?.ArrayOfCustomer?.Customer;
     const list = Array.isArray(arr) ? arr : arr ? [arr] : [];
     return list[0] || null;
+};
+
+// Svi kupci iz SAOP-a (GetCustomers po stranicama). Za sync adresara.
+const VELICINA_STRANICE = 500;
+const dohvatiSveKupce = async () => {
+    const svi = [];
+    for (let stranica = 1; stranica <= 200; stranica++) {
+        const parsed = await callApi(
+            "get",
+            `/api/Customers/GetCustomers?searchQuery.page=${stranica}&searchQuery.pageSize=${VELICINA_STRANICE}`,
+        );
+        const arr = parsed?.ArrayOfCustomer?.Customer;
+        const list = Array.isArray(arr) ? arr : arr ? [arr] : [];
+        svi.push(...list);
+        if (list.length < VELICINA_STRANICE) break;
+    }
+    return svi;
 };
 
 // --- Sifarnici analitike (citanje) ---------------------------------------
@@ -207,5 +245,8 @@ module.exports = {
     addCustomer,
     updateCustomer,
     findCustomerByOib,
+    dohvatiSveKupce,
+    oibKupca,
+    drzavaNaziv,
     callApi,
 };

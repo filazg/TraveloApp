@@ -23,6 +23,18 @@ const startService = async ()=>{
         const router = require('./routes/routes');
         app.use('/', router);
         app.listen(config.services.backoffice.port, console.log('BACKOFFICE SERVICE started on port ' + config.services.backoffice.port));
+
+        // Adresar iz SAOP-a: kupce otvara i knjigovodstvo, pa se povlace
+        // periodicki (env SAOP_ADRESAR_SYNC_MIN, default 60; 0 = iskljuceno).
+        // Prvi uvoz minutu nakon starta, da ne usporava podizanje servisa.
+        const sinkMin = Number(process.env.SAOP_ADRESAR_SYNC_MIN ?? 60);
+        if (sinkMin > 0) {
+            const { uveziIzSaopa } = require('./controllers/dataControllers/addressbookDataControllers');
+            const uvezi = () => uveziIzSaopa(models.AddressbookModel)
+                .catch((e) => console.log('adresar iz SAOP-a nije uvezen:', e?.message || e));
+            setTimeout(uvezi, 60 * 1000);
+            setInterval(uvezi, sinkMin * 60 * 1000);
+        }
     } catch (error) {
         console.log(error)
         // Start nije uspio (najčešće baza) — izađi da ga pm2 restarta.

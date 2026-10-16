@@ -14,7 +14,7 @@ const { handleGetTicketTemplatesFeature, handleUpsertTicketTemplateFeature, hand
 const { handleGetSeopSettingsFeature, handleUpdateSeopSettingsFeature, handleUploadSeopCertFeature, handleSeopTestFeature, handleGetSeopRightDiscountsFeature, handleUpdateSeopRightDiscountsFeature, handleGetMosiSettingsFeature, handleUpdateMosiSettingsFeature, handleUploadMosiCertFeature, handleMosiTestFeature } = require('../features/boat/seopSettingsHandlers');
 const { handleGetTicketTypesFeature, handleAddTicketTypesFeature, handleUpdateTicketTypesFeature } = require('../features/boat/ticketTypesHandlers');
 const { handleGetPartnersFeature, handleAddPartnerFeature, handleUpdatePartnerrFeature } = require('../features/backoffice/partnersHandlers');
-const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature } = require('../features/backoffice/addressbookHandlers');
+const { handleGetAddressbookFeature, handleAddAddressbookFeature, handleUpdateAddressbookFeature, handleSyncAddressbookFromSaopFeature } = require('../features/backoffice/addressbookHandlers');
 const { handleGetSudregFeature } = require('../features/backoffice/sudregHandlers');
 const { handleGetSeyforCodebookFeature } = require('../features/backoffice/seyforCodebookHandlers');
 const { handleGetHolidaysFeature, handleAddHolidaysFeature, handleUpdateHolidaysFeature } = require('../features/backoffice/holidaysHandlers');
@@ -135,6 +135,10 @@ router
     .get(handleGetAddressbookFeature)
     .post(handleAddAddressbookFeature)
     .patch(handleUpdateAddressbookFeature)
+
+router
+    .route('/backoffice/addressbook/saop_sync')
+    .post(handleSyncAddressbookFromSaopFeature)
 
 router
     .route('/backoffice/seyfor_codebook')
