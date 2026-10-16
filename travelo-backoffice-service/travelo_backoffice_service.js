@@ -27,8 +27,11 @@ const startService = async ()=>{
         // Adresar iz SAOP-a: kupce otvara i knjigovodstvo, pa se povlace
         // periodicki (env SAOP_ADRESAR_SYNC_MIN, default 60; 0 = iskljuceno).
         // Prvi uvoz minutu nakon starta, da ne usporava podizanje servisa.
+        // Lokalno (TRAVELO_SCHEDULERS=off) ne ide sam: lokalni dev dijeli bazu
+        // s testom, pa bi uvozio u tudu okolinu. Gumb u portalu i dalje radi.
         const sinkMin = Number(process.env.SAOP_ADRESAR_SYNC_MIN ?? 60);
-        if (sinkMin > 0) {
+        const scheduleriUkljuceni = String(process.env.TRAVELO_SCHEDULERS || 'on').toLowerCase() !== 'off';
+        if (sinkMin > 0 && scheduleriUkljuceni) {
             const { uveziIzSaopa } = require('./controllers/dataControllers/addressbookDataControllers');
             const uvezi = () => uveziIzSaopa(models.AddressbookModel)
                 .catch((e) => console.log('adresar iz SAOP-a nije uvezen:', e?.message || e));
