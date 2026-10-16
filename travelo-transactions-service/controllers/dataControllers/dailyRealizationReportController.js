@@ -188,6 +188,10 @@ const emptyBucket = (cost_center, billing_device_name) => ({
     // Reklasifikacije: items čiji je departure dan D ali račun je iz starijeg mjeseca
     // { [line_code|src_period]: { line_code, line_name, saop_cost_bearer, src_period, vat_base, harbor_tax } }
     reclassifications: new Map(),
+    // R1/F2 računi plaćeni virmanom: svaki u svojoj temeljnici, jer iCenter
+    // kupca stavke uzima iz zaglavlja temeljnice (Customer), a ne sa stavke.
+    // { [invoice_uuid]: bucket istog oblika + `racun` }
+    racuni: new Map(),
 });
 
 const ensureLine = (bucket, item, refs) => {
@@ -210,6 +214,28 @@ const ensureLine = (bucket, item, refs) => {
         });
     }
     return bucket.lines.get(code);
+};
+
+// Linije svih dijelova uređaja (temeljnica uređaja + računi) zbrojene za
+// prikaz razrade po liniji — u portalu se uređaj i dalje vidi kao cjelina.
+const spojiLinije = (bucketi) => {
+    const out = new Map();
+    const zbrojiMapu = (cilj, izvor) => {
+        for (const [k, v] of izvor) cilj.set(k, (cilj.get(k) || 0) + v);
+    };
+    for (const b of bucketi) {
+        for (const [code, l] of b.lines) {
+            if (!out.has(code)) {
+                out.set(code, { ...l, vat_base_future: new Map(l.vat_base_future), harbor_tax_future: new Map(l.harbor_tax_future) });
+                continue;
+            }
+            const o = out.get(code);
+            for (const k of ["vat_base_current", "vat", "harbor_tax", "harbor_tax_current", "item_count"]) o[k] += l[k];
+            zbrojiMapu(o.vat_base_future, l.vat_base_future);
+            zbrojiMapu(o.harbor_tax_future, l.harbor_tax_future);
+        }
+    }
+    return [...out.values()];
 };
 
 // Stari model: predujam se zatvarao na dan polaska (reklasifikacija). Sada se
@@ -621,7 +647,16 @@ const izracunajIzvjestaj = async (models, from, to) => {
                 const docType = inv.fiskal_required ? "F2" : (inv.buyer_oib ? "R1" : null);
 
                 if (isVirman && docType) {
-                    bucket.virmanInvoices.push({
+                    const racun = emptyBucket(cost_center, bdName);
+                    racun.racun = {
+                        invoice_uuid: inv.invoice_uuid,
+                        invoice_code: inv.invoice_code || "",
+                        buyer_uuid: inv.buyer_uuid || "",
+                        buyer_oib: inv.buyer_oib || "",
+                        buyer_name: inv.buyer_company_name || inv.buyer_name || "",
+                    };
+                    bucket.racuni.set(inv.invoice_uuid, racun);
+                    racun.virmanInvoices.push({
                         invoice_uuid: inv.invoice_uuid,
                         invoice_code: inv.invoice_code || "",
                         doc_type: docType,
@@ -641,8 +676,8 @@ const izracunajIzvjestaj = async (models, from, to) => {
                 }
             }
 
-            // Per-line accumulate
-            const lineBucket = ensureLine(bucket, item, refs);
+            // Per-line accumulate. Stavke R1/F2 virmana idu u temeljnicu računa.
+            const lineBucket = ensureLine(bucket.racuni.get(inv.invoice_uuid) || bucket, item, refs);
             lineBucket.item_count += 1;
             lineBucket.vat += Number(item.item_vat || 0);
 
@@ -711,8 +746,38 @@ const izracunajIzvjestaj = async (models, from, to) => {
         for (const [day, byCC] of [...byDay.entries()].sort()) {
             const costCenters = [];
             for (const [, bucket] of byCC.entries()) {
-                const { entries, warnings } = buildJournalEntries(day, bucket, refs);
-                const lineBreakdown = [...bucket.lines.values()].map((l) => ({
+                // Temeljnica uređaja (bez R1/F2 virmana) + po jedna za svaki
+                // takav račun, s kupcem u zaglavlju.
+                const temeljnice = [];
+                const warnings = [];
+                const glavna = buildJournalEntries(day, bucket, refs);
+                warnings.push(...glavna.warnings);
+                if (glavna.entries.length) {
+                    temeljnice.push({
+                        document: oznakaDokumenta(day, bucket.cost_center),
+                        customer: null,
+                        description: null,
+                        entries: glavna.entries,
+                    });
+                }
+                for (const [, racun] of bucket.racuni) {
+                    const r = buildJournalEntries(day, racun, refs);
+                    warnings.push(...r.warnings);
+                    const kupac =
+                        (racun.racun.buyer_uuid && refs.kupci?.get(racun.racun.buyer_uuid)) ||
+                        refs.kupciPoOib?.get(samoOib(racun.racun.buyer_oib)) ||
+                        null;
+                    temeljnice.push({
+                        document: `${oznakaDokumenta(day, bucket.cost_center)}_${racun.racun.invoice_code || racun.racun.invoice_uuid}`,
+                        customer: kupac?.saop_customer_code || null,
+                        description: kratko(`Račun ${racun.racun.invoice_code} ${racun.racun.buyer_name}`),
+                        invoice_code: racun.racun.invoice_code,
+                        entries: r.entries,
+                    });
+                }
+                const entries = temeljnice.flatMap((t) => t.entries);
+                const sviDijelovi = [bucket, ...bucket.racuni.values()];
+                const lineBreakdown = spojiLinije(sviDijelovi).map((l) => ({
                     line_code: l.line_code,
                     line_name: l.line_name,
                     saop_cost_bearer: l.saop_cost_bearer,
@@ -765,14 +830,15 @@ const izracunajIzvjestaj = async (models, from, to) => {
                     ),
                     lineBreakdown,
                     reclassifications,
-                    virmanInvoices: bucket.virmanInvoices.map((v) => ({
+                    virmanInvoices: sviDijelovi.flatMap((b) => b.virmanInvoices).map((v) => ({
                         ...v,
                         amount: Number(v.amount.toFixed(2)),
                         account_code:
                             resolveAccount(`PAYMENT:${v.payment_method_uuid}`, refs.mappings, refs.accounts)?.code || null,
                     })),
                     journalEntries: entries,
-                    warnings,
+                    temeljnice,
+                    warnings: [...new Set(warnings)],
                 });
             }
             days.push({ date: day, costCenters });
@@ -851,36 +917,55 @@ const sendDailyRealizationToErpController = async (req, res) => {
             return res.status(400).send({ status: 400, message: "Temeljnica je prazna — nema stavki za knjiženje." });
         }
 
-        const ravnoteza = provjeriRavnotezu(cc.journalEntries);
-        if (!ravnoteza.uravnotezena) {
-            return res.status(409).send({
-                status: 409,
-                message: `Temeljnica nije uravnotežena (duguje ${ravnoteza.duguje} / potražuje ${ravnoteza.potrazuje}).`,
-            });
+        // Uređaj ima temeljnicu prometa i po jednu za svaki R1/F2 virman.
+        // Svaka mora biti uravnotežena sama za sebe; provjera ide prije
+        // slanja ičega, da se ne pošalje pola dana.
+        const temeljnice = cc.temeljnice || [];
+        for (const t of temeljnice) {
+            const r = provjeriRavnotezu(t.entries);
+            if (!r.uravnotezena) {
+                return res.status(409).send({
+                    status: 409,
+                    message: `Temeljnica ${t.document} nije uravnotežena (duguje ${r.duguje} / potražuje ${r.potrazuje}).`,
+                });
+            }
         }
 
         // Organizacija iz postavki tvrtke vrijedi i za zaglavlje i za
         // OrganizationId_DK, pa se odreduje jednom.
         const org = organizacija(izvjestaj.company_saop?.organization_id);
-        const nalog = izgradiNalog({
-            datum: date,
-            cc,
-            company: { ...izvjestaj.company_saop, organization_id: org },
-        });
-        const dokument = oznakaDokumenta(date, cc.cost_center);
-        console.log(`[daily-realization] SAOP AddJournal ${dokument} (org ${org}, stavki: ${cc.journalEntries.length})`);
-
-        const odgovor = await addJournal(nalog, { organisationId: org });
+        const company = { ...izvjestaj.company_saop, organization_id: org };
+        const poslano = [];
+        for (const t of temeljnice) {
+            const nalog = izgradiNalog({ datum: date, cc, company, temeljnica: t });
+            console.log(`[daily-realization] SAOP AddJournal ${t.document} (org ${org}, kupac ${t.customer || company.default_customer || "-"}, stavki: ${t.entries.length})`);
+            try {
+                const odgovor = await addJournal(nalog, { organisationId: org });
+                poslano.push({ document: t.document, customer: t.customer, entries: t.entries.length, totals: provjeriRavnotezu(t.entries), message: odgovor.message, response: odgovor.raw });
+            } catch (err) {
+                // Ono što je već prošlo ostaje u iCenteru; javlja se točno što
+                // je poslano, a što nije, da se ponovno slanje može ograničiti.
+                return res.status(502).send({
+                    status: 502,
+                    date,
+                    cost_center: cc.cost_center,
+                    message: `${t.document}: ${err?.message || "slanje nije uspjelo"}${poslano.length ? ` (prije toga poslano: ${poslano.map((p) => p.document).join(", ")})` : ""}`,
+                    sent: poslano,
+                    response: err?.raw || null,
+                });
+            }
+        }
         return res.send({
             status: 200,
-            message: `Poslano: ${dokument} — ${odgovor.message}`,
+            message: `Poslano: ${poslano.map((p) => `${p.document} — ${p.message}`).join("; ")}`,
             date,
             cost_center: cc.cost_center,
             billing_device_name: cc.billing_device_name,
-            document: dokument,
+            document: poslano.map((p) => p.document).join(", "),
             entries: cc.journalEntries.length,
-            totals: ravnoteza,
-            response: odgovor.raw,
+            totals: provjeriRavnotezu(cc.journalEntries),
+            sent: poslano,
+            response: poslano.length === 1 ? poslano[0].response : poslano.map((p) => p.response),
         });
     } catch (error) {
         console.error("sendDailyRealizationToErpController error:", error?.message || error);

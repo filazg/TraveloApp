@@ -44,9 +44,15 @@ const stavkaZaSaop = (e) => {
     return s;
 };
 
-const izgradiNalog = ({ datum, cc, company }) => {
-    const stavke = (cc?.journalEntries || []).map(stavkaZaSaop);
-    const opis = `dnevni izvještaj ${datum} — ${cc?.billing_device_name || cc?.cost_center || ""}`.trim();
+// `temeljnica` (iz izvještaja: document, customer, description, entries) je
+// jedna od temeljnica uređaja. R1/F2 virman ide u vlastitu, s kupcem u
+// zaglavlju — iCenter stranku stavke uzima odatle (SifraStranke ignorira).
+// Bez nje se gradi kao prije, iz svih stavki uređaja.
+const izgradiNalog = ({ datum, cc, company, temeljnica = null }) => {
+    const stavke = (temeljnica?.entries || cc?.journalEntries || []).map(stavkaZaSaop);
+    const opis =
+        temeljnica?.description ||
+        `dnevni izvještaj ${datum} — ${cc?.billing_device_name || cc?.cost_center || ""}`.trim();
 
     return {
         Accounting: {
@@ -55,13 +61,13 @@ const izgradiNalog = ({ datum, cc, company }) => {
                 // Organizacija za PDV evidenciju. Prototip je slao 0 (ne vodi se
                 // zasebno), pa dok se ne kaze drukcije ostaje tako.
                 OrganizationId_DDV: 0,
-                Document: oznakaDokumenta(datum, cc?.cost_center),
+                Document: temeljnica?.document || oznakaDokumenta(datum, cc?.cost_center),
                 JournalEntryDate: datum,
                 // Razdoblje prometa (od–do). Temeljnica pokriva jedan dan, pa
                 // su oba ista; bez "do" iCenter razdoblje nije prikazivao dobro.
                 TransactionDate: datum,
                 TransactionDateTo: datum,
-                Customer: company?.default_customer || "",
+                Customer: temeljnica?.customer || company?.default_customer || "",
                 JournalEntryDescription: opis,
                 JournalEntriesHeader: {
                     JournalType: "IRA",
