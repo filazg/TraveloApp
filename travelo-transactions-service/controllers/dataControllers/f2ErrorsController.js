@@ -113,9 +113,13 @@ const posaljiRacunPonovno = async (invoice_uuid) => {
         email: tvrtka.email || "",
     };
     const items = await InvoiceItemsModel.findAll({ where: { invoice_uuid }, raw: true });
+    const web = inv.invoice_operator_name === "WEB PRODAJA";
     const oznaka = inv.invoice_payment_method_fiscal_mark;
-    const paymentMeans = oznaka === "K" ? "48" : oznaka === "T" ? "30"
-        : inv.invoice_operator_name === "WEB PRODAJA" ? "48" : "10";
+    const paymentMeans = oznaka === "K" ? "48" : oznaka === "T" ? "30" : web ? "48" : "10";
+    // Oznaka operatera je obavezna (HR-BR-37). Web racun je ne sprema — web
+    // prodaja salje "WEB" — pa se tu ne smije poslati prazna.
+    const operatorMark = inv.operator_mark || (web ? "WEB" : null)
+        || inv.invoice_operator_name || inv.operater_name || inv.operator_id || null;
 
     try {
         const result = await sendInvoiceToYescor({
@@ -123,7 +127,7 @@ const posaljiRacunPonovno = async (invoice_uuid) => {
             invoice: inv,
             items,
             company,
-            operator: { mark: inv.operator_mark || null, oib: company.legal_id },
+            operator: { mark: operatorMark, oib: company.legal_id },
             buyer: inv,
             paymentMeans,
         });
