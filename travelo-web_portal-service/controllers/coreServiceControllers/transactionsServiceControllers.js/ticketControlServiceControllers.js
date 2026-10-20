@@ -83,6 +83,18 @@ const getF2ErrorsController = async (params = {}) => {
     }
 };
 
+// Ponovno slanje racuna u YesCor. Status i poruka transactions servisa idu
+// dalje nepromijenjeni — portal mora znati je li slanje proslo i zasto nije.
+const resendF2Controller = async (body = {}) => {
+    const coreConfigData = await getCoreServiceConfigData();
+    const response = await axios.post(
+        coreConfigData.services.transactions.url + '/f2_resend',
+        body,
+        { validateStatus: () => true, timeout: 60000 }
+    );
+    return { http: response.status, data: response.data?.data || {} };
+};
+
 // Povlastene karte prodane bez provjere u SEOP-u — offline prodaja. Zapis je
 // sama karta (`seop_offline`), pa se cita iz karata, ne iz zasebne tablice.
 const getSeopOfflineSalesController = async (params = {}) => {
@@ -135,6 +147,7 @@ module.exports = {
     getTicketCopyPrintsController,
     getSeopCardErrorsController,
     getF2ErrorsController,
+    resendF2Controller,
     getSeopOfflineSalesController,
     getTicketStornosController,
 };

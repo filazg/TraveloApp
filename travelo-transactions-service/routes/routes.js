@@ -14,7 +14,7 @@ const { generatePartnerInvoicesController, listPartnerInvoicesController, getPar
 const { logTicketCopyPrintController, listTicketCopyPrintsController } = require('../controllers/dataControllers/ticketCopyPrintController');
 const { listTicketValidationsController, listCopyConflictsController, listConflictTypesController } = require('../controllers/dataControllers/ticketValidationsController');
 const { listSeopCardErrorsController } = require('../controllers/dataControllers/seopCardErrorsController');
-const { listF2ErrorsController } = require('../controllers/dataControllers/f2ErrorsController');
+const { listF2ErrorsController, resendF2Controller } = require('../controllers/dataControllers/f2ErrorsController');
 const { listSeopOfflineSalesController } = require('../controllers/dataControllers/seopOfflineSalesController');
 const { partnerCommissionController, partnerCommissionDetailsController } = require('../controllers/dataControllers/partnerCommissionController');
 const {
@@ -193,6 +193,11 @@ router
 router
     .route('/f2_errors')
     .get(listF2ErrorsController)
+
+// Ponovno slanje racuna u YesCor iz Kontrole.
+router
+    .route('/f2_resend')
+    .post(resendF2Controller)
 
 // Povlastene karte prodane bez provjere u SEOP-u (offline prodaja). Zapis je
 // sama karta — `seop_offline` na njoj — pa zasebne tablice nema.

@@ -5,6 +5,7 @@ const {
     getTicketCopyPrintsController,
     getSeopCardErrorsController,
     getF2ErrorsController,
+    resendF2Controller,
     getSeopOfflineSalesController,
     getTicketStornosController,
 } = require('../../controllers/coreServiceControllers/transactionsServiceControllers.js/ticketControlServiceControllers');
@@ -94,6 +95,20 @@ const handleGetF2ErrorsFeature = async (req, res) => {
     }
 };
 
+const handleResendF2Feature = async (req, res) => {
+    try {
+        const payload = req.body?.body || req.body || {};
+        const r = await resendF2Controller({ vrsta: payload.vrsta, invoice_uuid: payload.invoice_uuid });
+        res.status(r.http).send({
+            status: r.http,
+            data: { path1: 'kontrolaData', path2: 'f2Resend', data: r.data },
+        });
+    } catch (error) {
+        console.log('handleResendF2Feature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 const handleGetSeopOfflineSalesFeature = async (req, res) => {
     try {
         const payload = await getSeopOfflineSalesController(req.query || {});
@@ -129,4 +144,5 @@ module.exports = {
     handleGetSeopCardErrorsFeature,
     handleGetSeopOfflineSalesFeature,
     handleGetF2ErrorsFeature,
+    handleResendF2Feature,
 };

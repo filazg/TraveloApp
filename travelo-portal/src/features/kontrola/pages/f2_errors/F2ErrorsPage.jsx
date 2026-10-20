@@ -2,12 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
     Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider,
-    Paper, Stack, Tab, Tabs, TextField, Typography,
+    Paper, Snackbar, Stack, Tab, Tabs, TextField, Typography,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
+import SendIcon from "@mui/icons-material/Send";
 
-import { kontrolaSliceData, fetchF2ErrorsThunk } from "../../kontrolaSlice";
+import { kontrolaSliceData, fetchF2ErrorsThunk, resendF2Thunk } from "../../kontrolaSlice";
 import { setAuthData } from "../../../auth/authSlice";
 
 // Gdje je F2 pao. Nepoznata vrijednost se prikaže sirova, da nova faza s
@@ -25,6 +26,21 @@ const IZVORI = {
     web: "web prodaja",
     partnerski: "partnerski račun",
     status: "provjera statusa",
+    ponovno: "ponovno slanje",
+};
+
+// Je li račun u međuvremenu prošao — tada se ne šalje ponovno, jer bi isti
+// broj računa otišao dvaput. Fiskaliziran račun je prošao i kad dostava kupcu
+// nije uspjela. Isto pravilo provjerava i poslužitelj.
+const prosao = (r) => r.stanje_fiskalizacija === "successful"
+    || (!!r.stanje_document_id
+        && !["failed", "error"].includes(r.stanje_status)
+        && r.stanje_fiskalizacija !== "error");
+
+const stanjeInfo = (r) => {
+    if (r.stanje_fiskalizacija === "successful") return { label: "Fiskaliziran", color: "success" };
+    if (prosao(r)) return { label: "Poslan", color: "info" };
+    return { label: "Nije prošao", color: "error" };
 };
 
 const fmtEur = (v) => (v === null || v === undefined || v === "" ? "—" : `${Number(v).toFixed(2)} €`);
@@ -51,6 +67,9 @@ export default function F2ErrorsPage() {
     // Prazna faza je kartica "Sve".
     const [faza, setFaza] = useState("");
     const [odabran, setOdabran] = useState(null);
+    // uuid računa koji se upravo šalje — gumb se gasi dok traje.
+    const [salje, setSalje] = useState(null);
+    const [obavijest, setObavijest] = useState(null);
 
     const ucitaj = (zaFazu = faza) => {
         dispatch(fetchF2ErrorsThunk({ from, to, ...(zaFazu ? { faza: zaFazu } : {}) }));
@@ -61,6 +80,20 @@ export default function F2ErrorsPage() {
         ucitaj("");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dispatch]);
+
+    const posaljiPonovno = async (r) => {
+        setSalje(r.invoice_uuid);
+        const rez = await dispatch(resendF2Thunk({ vrsta: r.vrsta, invoice_uuid: r.invoice_uuid }));
+        setSalje(null);
+        if (resendF2Thunk.fulfilled.match(rez)) {
+            setObavijest({ severity: "success", text: `Račun ${r.invoice_code || r.invoice_no || ""} poslan u YesCor.` });
+            setOdabran(null);
+        } else {
+            setObavijest({ severity: "error", text: `Slanje nije uspjelo: ${rez.payload?.message || "nepoznata greška"}` });
+        }
+        // Osvježi popis: neuspjeh je novi zapis, uspjeh mijenja stanje računa.
+        ucitaj();
+    };
 
     const promijeniKarticu = (_e, nova) => {
         setFaza(nova);
@@ -134,6 +167,32 @@ export default function F2ErrorsPage() {
             ),
         },
         { field: "iznos", headerName: "Iznos", width: 110, valueFormatter: (v) => fmtEur(v) },
+        {
+            field: "stanje",
+            headerName: "Stanje sada",
+            width: 130,
+            valueGetter: (_v, r) => stanjeInfo(r).label,
+            renderCell: (p) => {
+                const i = stanjeInfo(p.row);
+                return <Chip size="small" variant="outlined" color={i.color} label={i.label} />;
+            },
+        },
+        {
+            field: "akcija",
+            headerName: "",
+            width: 170,
+            sortable: false,
+            renderCell: (p) => (prosao(p.row) || !p.row.invoice_uuid ? null : (
+                <Button
+                    size="small"
+                    startIcon={<SendIcon />}
+                    disabled={!!salje}
+                    onClick={(e) => { e.stopPropagation(); posaljiPonovno(p.row); }}
+                >
+                    {salje === p.row.invoice_uuid ? "Šaljem…" : "Pošalji ponovno"}
+                </Button>
+            )),
+        },
         {
             // Prvi redak poruke je dovoljan za pregled; cijela je u detalju.
             field: "poruka",
@@ -267,9 +326,32 @@ export default function F2ErrorsPage() {
                     </Typography>
                 </DialogContent>
                 <DialogActions>
+                    {odabran && !prosao(odabran) && odabran.invoice_uuid ? (
+                        <Button
+                            variant="contained"
+                            startIcon={<SendIcon />}
+                            disabled={!!salje}
+                            onClick={() => posaljiPonovno(odabran)}
+                        >
+                            {salje ? "Šaljem…" : "Pošalji ponovno"}
+                        </Button>
+                    ) : null}
                     <Button onClick={() => setOdabran(null)}>Zatvori</Button>
                 </DialogActions>
             </Dialog>
+
+            <Snackbar
+                open={!!obavijest}
+                autoHideDuration={6000}
+                onClose={() => setObavijest(null)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            >
+                {obavijest ? (
+                    <Alert severity={obavijest.severity} onClose={() => setObavijest(null)} variant="filled">
+                        {obavijest.text}
+                    </Alert>
+                ) : undefined}
+            </Snackbar>
         </Box>
     );
 }

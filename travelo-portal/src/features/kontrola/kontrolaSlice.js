@@ -128,6 +128,21 @@ export const fetchF2ErrorsThunk = createAsyncThunk(
     }
 );
 
+// Ponovno slanje računa u YesCor. Vraća poruku poslužitelja i kad slanje ne
+// uspije — korisnik mora vidjeti zašto.
+export const resendF2Thunk = createAsyncThunk(
+    "kontrola/resendF2",
+    async ({ vrsta, invoice_uuid }, { rejectWithValue }) => {
+        try {
+            const resp = await api.post("/portal/transactions/f2_resend", { vrsta, invoice_uuid });
+            return unwrapBff(resp) || {};
+        } catch (err) {
+            const d = err.response?.data;
+            return rejectWithValue({ message: d?.data?.data?.message || d?.data?.message || err.message });
+        }
+    }
+);
+
 const kontrolaSlice = createSlice({
     name: "kontrola",
     initialState: {
