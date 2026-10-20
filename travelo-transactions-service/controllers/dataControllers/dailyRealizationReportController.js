@@ -658,6 +658,9 @@ const izracunajIzvjestaj = async (models, from, to) => {
                         buyer_uuid: inv.buyer_uuid || "",
                         buyer_oib: inv.buyer_oib || "",
                         buyer_name: inv.buyer_company_name || inv.buyer_name || "",
+                        doc_type: docType,
+                        payment_method_name: pm?.name || "",
+                        amount: Number(inv.invoice_amount || 0),
                     };
                     bucket.racuni.set(inv.invoice_uuid, racun);
                 }
@@ -791,6 +794,12 @@ const izracunajIzvjestaj = async (models, from, to) => {
                         customer: kupac?.saop_customer_code || null,
                         description: kratko(`Račun ${racun.racun.invoice_code} ${racun.racun.buyer_name}`),
                         invoice_code: racun.racun.invoice_code,
+                        // Za prikaz u portalu — tko je kupac i kako je platio.
+                        doc_type: racun.racun.doc_type,
+                        buyer_name: racun.racun.buyer_name,
+                        buyer_oib: racun.racun.buyer_oib,
+                        payment_method_name: racun.racun.payment_method_name,
+                        amount: Number(racun.racun.amount.toFixed(2)),
                         entries: r.entries,
                     });
                 }

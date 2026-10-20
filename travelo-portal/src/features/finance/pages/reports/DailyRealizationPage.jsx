@@ -302,6 +302,7 @@ export default function DailyRealizationPage({ demo = false }) {
                                                     toggleJournal={toggleJournal}
                                                     sendByDay={sendByDay}
                                                     onSend={handleSendCostCenter}
+                                                    defaultCustomer={companySaop.default_customer}
                                                 />
                                             </TableCell>
                                         </TableRow>
@@ -316,7 +317,7 @@ export default function DailyRealizationPage({ demo = false }) {
     );
 }
 
-function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }) {
+function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend, defaultCustomer }) {
     return (
         <Stack spacing={2}>
             {(day.costCenters || []).map((cc, idx) => {
@@ -325,6 +326,20 @@ function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }
                 const lineBreakdown = cc.lineBreakdown || [];
                 const reclassifications = cc.reclassifications || [];
                 const virmanInvoices = cc.virmanInvoices || [];
+                // Svaki R1/F2 račun je zasebna temeljnica s kupcem u zaglavlju;
+                // zbirna temeljnica uređaja (bez invoice_code) ide na zadanog kupca.
+                const temeljnice = cc.temeljnice || [];
+                const racuniKupaca = temeljnice.filter((t) => t.doc_type);
+                // Pregled stavki po temeljnicama — kupac je na zaglavlju, ne na
+                // stavci. Stari odgovor bez temeljnica pokazuje stavke kao prije.
+                const stavkeSKupcem = temeljnice.length
+                    ? temeljnice.flatMap((t) => t.entries.map((j) => ({ j, t })))
+                    : (cc.journalEntries || []).map((j) => ({ j, t: null }));
+                const kupacStavke = ({ j, t }) => {
+                    if (!t) return [j.SifraStranke, j.VATIdentificationNumber].filter(Boolean).join(" / ");
+                    if (!t.doc_type) return defaultCustomer ? `${defaultCustomer} (krajnji kupac)` : "krajnji kupac";
+                    return [t.customer || "nema SAOP šifre", t.buyer_name, t.buyer_oib].filter(Boolean).join(" / ");
+                };
                 return (
                     <Paper key={journalKey} variant="outlined" sx={{ p: 2 }}>
                         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
@@ -427,6 +442,46 @@ function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }
                                                     </TableRow>
                                                 ))}
                                             </Fragment>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </>
+                        )}
+
+                        {racuniKupaca.length > 0 && (
+                            <>
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                    R1 i F2 računi — svaki u svojoj temeljnici, s kupcem
+                                </Typography>
+                                <Table size="small" sx={{ mb: 2 }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Vrsta</TableCell>
+                                            <TableCell>Račun</TableCell>
+                                            <TableCell>Kupac</TableCell>
+                                            <TableCell>OIB</TableCell>
+                                            <TableCell>SAOP šifra kupca</TableCell>
+                                            <TableCell>Plaćanje</TableCell>
+                                            <TableCell align="right">Iznos</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {racuniKupaca.map((t) => (
+                                            <TableRow key={t.document}>
+                                                <TableCell>{t.doc_type}</TableCell>
+                                                <TableCell>{t.invoice_code || "—"}</TableCell>
+                                                <TableCell>{t.buyer_name || "—"}</TableCell>
+                                                <TableCell>{t.buyer_oib || "—"}</TableCell>
+                                                <TableCell>
+                                                    {t.customer || (
+                                                        <span style={{ color: "#b91c1c" }}>
+                                                            nema — ide na {defaultCustomer || "zadanog kupca"}
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>{t.payment_method_name || "—"}</TableCell>
+                                                <TableCell align="right">{t.amount != null ? fmtEUR(t.amount) : "—"}</TableCell>
+                                            </TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
@@ -550,7 +605,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {(cc.journalEntries || []).map((j, i) => (
+                                        {stavkeSKupcem.map(({ j, t }, i) => (
                                             <TableRow key={i}>
                                                 <TableCell>{j.JournalEntryDate}</TableCell>
                                                 <TableCell>{j.Account}</TableCell>
@@ -569,7 +624,7 @@ function CostCenterDetail({ day, showJournal, toggleJournal, sendByDay, onSend }
                                                 <TableCell>{j.Analytics?.CostUnit || ""}</TableCell>
                                                 <TableCell>{j.Analytics?.Clerk || ""}</TableCell>
                                                 <TableCell>{j.Analytics?.AdvancePeriod || ""}</TableCell>
-                                                <TableCell>{[j.SifraStranke, j.VATIdentificationNumber].filter(Boolean).join(" / ")}</TableCell>
+                                                <TableCell>{kupacStavke({ j, t })}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
