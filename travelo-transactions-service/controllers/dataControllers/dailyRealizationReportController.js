@@ -15,7 +15,8 @@
 //     samo prodana.
 // VAT se priznaje na datum računa (ne deferira se).
 // Plaćanje se rasporedi po (cc, payment_method, clerk) — osim R1 i F2 računa
-// plaćenih virmanom, koji idu svaki u svoj redak i nose OIB kupca.
+// plaćenih virmanom, koji idu svaki u svoj redak i nose OIB kupca. Svaki R1/F2
+// račun (i gotovinski i kartični) knjiži se u vlastitoj temeljnici s kupcem.
 const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
@@ -188,7 +189,7 @@ const emptyBucket = (cost_center, billing_device_name) => ({
     // Reklasifikacije: items čiji je departure dan D ali račun je iz starijeg mjeseca
     // { [line_code|src_period]: { line_code, line_name, saop_cost_bearer, src_period, vat_base, harbor_tax } }
     reclassifications: new Map(),
-    // R1/F2 računi plaćeni virmanom: svaki u svojoj temeljnici, jer iCenter
+    // R1/F2 računi (svi načini plaćanja): svaki u svojoj temeljnici, jer iCenter
     // kupca stavke uzima iz zaglavlja temeljnice (Customer), a ne sa stavke.
     // { [invoice_uuid]: bucket istog oblika + `racun` }
     racuni: new Map(),
@@ -646,8 +647,11 @@ const izracunajIzvjestaj = async (models, from, to) => {
                 // kad uz njega stoji OIB kupca.
                 const docType = inv.fiskal_required ? "F2" : (inv.buyer_oib ? "R1" : null);
 
-                if (isVirman && docType) {
-                    const racun = emptyBucket(cost_center, bdName);
+                // Svaki R1/F2 račun ide u svoju temeljnicu s kupcem u zaglavlju,
+                // kako god je plaćen — na „krajnjem kupcu" u zbirnoj temeljnici
+                // uređaja knjigovodstvo ga ne bi moglo vezati uz kupca.
+                const racun = docType ? emptyBucket(cost_center, bdName) : null;
+                if (racun) {
                     racun.racun = {
                         invoice_uuid: inv.invoice_uuid,
                         invoice_code: inv.invoice_code || "",
@@ -656,6 +660,9 @@ const izracunajIzvjestaj = async (models, from, to) => {
                         buyer_name: inv.buyer_company_name || inv.buyer_name || "",
                     };
                     bucket.racuni.set(inv.invoice_uuid, racun);
+                }
+
+                if (isVirman && racun) {
                     racun.virmanInvoices.push({
                         invoice_uuid: inv.invoice_uuid,
                         invoice_code: inv.invoice_code || "",
@@ -669,14 +676,17 @@ const izracunajIzvjestaj = async (models, from, to) => {
                         amount: Number(inv.invoice_amount || 0),
                     });
                 } else {
-                    if (!bucket.byPaymentClerk.has(pmUuid))
-                        bucket.byPaymentClerk.set(pmUuid, new Map());
-                    const m = bucket.byPaymentClerk.get(pmUuid);
+                    // Gotovina/kartica: R1/F2 račun nosi naplatu u svojoj
+                    // temeljnici, ostali promet u zbirnoj temeljnici uređaja.
+                    const cilj = racun || bucket;
+                    if (!cilj.byPaymentClerk.has(pmUuid))
+                        cilj.byPaymentClerk.set(pmUuid, new Map());
+                    const m = cilj.byPaymentClerk.get(pmUuid);
                     m.set(clerkId, (m.get(clerkId) || 0) + Number(inv.invoice_amount || 0));
                 }
             }
 
-            // Per-line accumulate. Stavke R1/F2 virmana idu u temeljnicu računa.
+            // Per-line accumulate. Stavke R1/F2 računa idu u temeljnicu računa.
             const lineBucket = ensureLine(bucket.racuni.get(inv.invoice_uuid) || bucket, item, refs);
             lineBucket.item_count += 1;
             lineBucket.vat += Number(item.item_vat || 0);
@@ -746,7 +756,7 @@ const izracunajIzvjestaj = async (models, from, to) => {
         for (const [day, byCC] of [...byDay.entries()].sort()) {
             const costCenters = [];
             for (const [, bucket] of byCC.entries()) {
-                // Temeljnica uređaja (bez R1/F2 virmana) + po jedna za svaki
+                // Temeljnica uređaja (bez R1/F2 računa) + po jedna za svaki
                 // takav račun, s kupcem u zaglavlju.
                 const temeljnice = [];
                 const warnings = [];
@@ -767,6 +777,15 @@ const izracunajIzvjestaj = async (models, from, to) => {
                         (racun.racun.buyer_uuid && refs.kupci?.get(racun.racun.buyer_uuid)) ||
                         refs.kupciPoOib?.get(samoOib(racun.racun.buyer_oib)) ||
                         null;
+                    // Virman ovo već javlja sa svoje stavke; za gotovinu i
+                    // karticu je ovo jedino upozorenje da će račun otići na
+                    // zadanog kupca umjesto na pravog.
+                    if (!kupac?.saop_customer_code && !racun.virmanInvoices.length) {
+                        const oznaka = racun.racun.invoice_code || racun.racun.invoice_uuid;
+                        warnings.push(kupac
+                            ? `R1/F2 račun ${oznaka}: kupac ${racun.racun.buyer_name || racun.racun.buyer_oib} nema SAOP šifru u adresaru`
+                            : `R1/F2 račun ${oznaka}: kupac OIB ${racun.racun.buyer_oib || "—"} nije u adresaru — nema SAOP šifre`);
+                    }
                     temeljnice.push({
                         document: `${oznakaDokumenta(day, bucket.cost_center)}_${racun.racun.invoice_code || racun.racun.invoice_uuid}`,
                         customer: kupac?.saop_customer_code || null,
@@ -917,7 +936,7 @@ const sendDailyRealizationToErpController = async (req, res) => {
             return res.status(400).send({ status: 400, message: "Temeljnica je prazna — nema stavki za knjiženje." });
         }
 
-        // Uređaj ima temeljnicu prometa i po jednu za svaki R1/F2 virman.
+        // Uređaj ima temeljnicu prometa i po jednu za svaki R1/F2 račun.
         // Svaka mora biti uravnotežena sama za sebe; provjera ide prije
         // slanja ičega, da se ne pošalje pola dana.
         const temeljnice = cc.temeljnice || [];

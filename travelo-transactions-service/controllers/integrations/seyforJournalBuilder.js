@@ -45,7 +45,7 @@ const stavkaZaSaop = (e) => {
 };
 
 // `temeljnica` (iz izvještaja: document, customer, description, entries) je
-// jedna od temeljnica uređaja. R1/F2 virman ide u vlastitu, s kupcem u
+// jedna od temeljnica uređaja. Svaki R1/F2 račun ide u vlastitu, s kupcem u
 // zaglavlju — iCenter stranku stavke uzima odatle (SifraStranke ignorira).
 // Bez nje se gradi kao prije, iz svih stavki uređaja.
 const izgradiNalog = ({ datum, cc, company, temeljnica = null }) => {
