@@ -178,22 +178,6 @@ export default function F2ErrorsPage() {
             },
         },
         {
-            field: "akcija",
-            headerName: "",
-            width: 170,
-            sortable: false,
-            renderCell: (p) => (prosao(p.row) || !p.row.invoice_uuid ? null : (
-                <Button
-                    size="small"
-                    startIcon={<SendIcon />}
-                    disabled={!!salje}
-                    onClick={(e) => { e.stopPropagation(); posaljiPonovno(p.row); }}
-                >
-                    {salje === p.row.invoice_uuid ? "Šaljem…" : "Pošalji ponovno"}
-                </Button>
-            )),
-        },
-        {
             // Prvi redak poruke je dovoljan za pregled; cijela je u detalju.
             field: "poruka",
             headerName: "Greška",
