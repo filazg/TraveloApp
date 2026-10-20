@@ -7,6 +7,7 @@ const { buildTicketsPdfBuffer } = require("./ticketPdfController");
 const { sendWebSaleEmail } = require("../../helpers/webSaleEmail");
 const { reserveBookings } = require("../../helpers/bookingClient");
 const { podigniSignal } = require("./syncSignalsController");
+const { zabiljeziF2Gresku } = require("../../helpers/f2Greske");
 
 const { jedinstvenBroj } = require("../../helpers/ticketCode");
 const { poljaPovlastice } = require("../../helpers/povlastica");
@@ -377,11 +378,14 @@ const finalizeWebSaleController = async (req, res) => {
                 });
                 const data = result.response?.data;
                 const yescorDocId = typeof data === "string" ? data : data?.data;
+                const ok = result.response?.status >= 200 && result.response?.status < 300;
+                if (!ok) {
+                    zabiljeziF2Gresku({ izvor: "web", invoice_uuid, http_status: result.response?.status, odgovor: data });
+                }
                 await InvoiceModel.update(
                     {
                         yescor_document_id: yescorDocId || null,
-                        yescor_status: result.response?.status >= 200 && result.response?.status < 300
-                            ? "submitted" : "failed",
+                        yescor_status: ok ? "submitted" : "failed",
                         yescor_last_sync_at: new Date(),
                         yescor_raw_response: data || null,
                     },
@@ -390,6 +394,7 @@ const finalizeWebSaleController = async (req, res) => {
                 console.log("web-sale YesCor submit:", result.response?.status, yescorDocId || data?.error?.message);
             } catch (yescorErr) {
                 console.log("web-sale YesCor submit failed:", yescorErr?.message || yescorErr);
+                zabiljeziF2Gresku({ izvor: "web", invoice_uuid, greska: yescorErr });
                 try {
                     await InvoiceModel.update(
                         { yescor_status: "failed", yescor_error_message: yescorErr?.message, yescor_last_sync_at: new Date() },

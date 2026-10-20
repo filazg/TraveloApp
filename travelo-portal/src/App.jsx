@@ -60,6 +60,7 @@ import KontrolaPage from './features/kontrola/KontrolaPage';
 import StanjePage from './features/stanje/StanjePage';
 import TicketCopyControlPage from './features/kontrola/pages/copy_control/TicketCopyControlPage';
 import SeopCardErrorsPage from './features/kontrola/pages/seop_card_errors/SeopCardErrorsPage';
+import F2ErrorsPage from './features/kontrola/pages/f2_errors/F2ErrorsPage';
 import SeopOfflineSalesPage from './features/kontrola/pages/seop_offline_sales/SeopOfflineSalesPage';
 import TicketStornosPage from './features/kontrola/pages/ticket_stornos/TicketStornosPage';
 
@@ -134,6 +135,7 @@ function App() {
                 <Route path='kontrola' element={<KontrolaPage/>}></Route>
                 <Route path='kontrola/kopije_karata' element={<TicketCopyControlPage/>}></Route>
                 <Route path='kontrola/greske_povlastenih' element={<SeopCardErrorsPage/>}></Route>
+                <Route path='kontrola/f2_greske' element={<F2ErrorsPage/>}></Route>
                 <Route path='kontrola/offline_prodaja' element={<SeopOfflineSalesPage/>}></Route>
                 <Route path='kontrola/storniranje' element={<TicketStornosPage/>}></Route>
               </Route>

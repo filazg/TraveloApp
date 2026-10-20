@@ -9,6 +9,7 @@ const { jedinstvenBroj } = require("../../helpers/ticketCode");
 const { poljaPovlastice } = require("../../helpers/povlastica");
 const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatch");
 const { zabiljeziGreskuKartice } = require("../../helpers/seopGreske");
+const { zabiljeziF2Gresku } = require("../../helpers/f2Greske");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 const { upsertKupcaUAdresar } = require("../../helpers/addressbookWriteThrough");
 
@@ -585,10 +586,14 @@ const finalizeTerminalSaleController = async (req, res) => {
                 });
                 const data = result.response?.data;
                 const yescorDocId = typeof data === "string" ? data : data?.data;
+                const ok = result.response?.status >= 200 && result.response?.status < 300;
+                if (!ok) {
+                    zabiljeziF2Gresku({ izvor: "blagajna", invoice_uuid, http_status: result.response?.status, odgovor: data });
+                }
                 await InvoiceModel.update(
                     {
                         yescor_document_id: yescorDocId || null,
-                        yescor_status: result.response?.status >= 200 && result.response?.status < 300
+                        yescor_status: ok
                             ? "submitted"
                             : "failed",
                         yescor_last_sync_at: new Date(),
@@ -603,6 +608,7 @@ const finalizeTerminalSaleController = async (req, res) => {
                 };
             } catch (yescorErr) {
                 console.log("YesCor submit failed for invoice", invoice_uuid, yescorErr?.message || yescorErr);
+                zabiljeziF2Gresku({ izvor: "blagajna", invoice_uuid, greska: yescorErr });
                 try {
                     await InvoiceModel.update(
                         {

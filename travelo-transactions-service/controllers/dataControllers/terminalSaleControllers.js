@@ -6,6 +6,7 @@ const { reserveBookings, releaseBookings } = require("../../helpers/bookingClien
 const { poljaPovlastice } = require("../../helpers/povlastica");
 const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatch");
 const { zabiljeziGreskuKartice } = require("../../helpers/seopGreske");
+const { zabiljeziF2Gresku } = require("../../helpers/f2Greske");
 const { upsertKupcaUAdresar } = require("../../helpers/addressbookWriteThrough");
 const { poljaUredaja } = require("../../helpers/naplatniUredaj");
 const { zabiljeziStorna } = require("../../helpers/stornoEvidencija");
@@ -380,8 +381,12 @@ const addTerminalSaleController = async(req,res)=>{
                         yescor_raw_response: respData || null,
                     }, { where: { invoice_uuid: data.invoice.invoice_uuid } });
                     console.log(`[yescor] invoice ${data.invoice.invoice_uuid} → ${ok ? 'submitted' : 'failed'} (HTTP ${result.response?.status}, doc=${yescorDocId || '—'})`);
+                    if (!ok) {
+                        await zabiljeziF2Gresku({ izvor: 'sinkronizacija', invoice_uuid: data.invoice.invoice_uuid, http_status: result.response?.status, odgovor: respData });
+                    }
                 } catch (yescorErr) {
                     console.log('[yescor] submit failed:', yescorErr?.message || yescorErr);
+                    await zabiljeziF2Gresku({ izvor: 'sinkronizacija', invoice_uuid: data.invoice.invoice_uuid, greska: yescorErr });
                     try {
                         await InvoiceModel.update({
                             yescor_status: 'failed',

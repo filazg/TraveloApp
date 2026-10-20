@@ -4,6 +4,7 @@ const { Op } = require("sequelize");
 
 const { getSequelize } = require("../../config/database");
 const { getModels } = require("../../dbModels");
+const { zabiljeziF2Gresku } = require("../../helpers/f2Greske");
 const { getCoreServiceConfigData } = require("../configSyncController");
 // Osnovica i provizija po istom pravilu kao u obračunu provizije: izvještaj koji
 // partner dobije i račun koji mu izdamo moraju pokazivati isti iznos.
@@ -102,9 +103,13 @@ async function fiskalizirajRacun(red, company) {
             yescor_last_sync_at: new Date(),
         });
         console.log(`[partner-invoice-yescor] ${oznaka} ${ok ? "submitted" : "FAILED"} status=${rezultat.response?.status} doc=${docId || "-"}`);
+        if (!ok) {
+            await zabiljeziF2Gresku({ vrsta: "partnerski", izvor: "partnerski", red: red.dataValues || red, http_status: rezultat.response?.status, odgovor: data });
+        }
         return { ok, document_id: docId || null, status: rezultat.response?.status, data };
     } catch (err) {
         console.log(`[partner-invoice-yescor] ${oznaka} FAILED:`, err?.message || err);
+        await zabiljeziF2Gresku({ vrsta: "partnerski", izvor: "partnerski", red: red.dataValues || red, greska: err });
         try {
             await red.update({
                 yescor_status: "failed",

@@ -68,6 +68,21 @@ const getSeopCardErrorsController = async (params = {}) => {
     }
 };
 
+// Neuspjela F2 (YesCor) slanja — Kontrola → F2 greske.
+const getF2ErrorsController = async (params = {}) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.get(
+            coreConfigData.services.transactions.url + '/f2_errors',
+            { params }
+        );
+        return response.data?.data || { errors: [], counts: {} };
+    } catch (error) {
+        console.log('getF2ErrorsController error:', error?.message || error);
+        return { errors: [], counts: {} };
+    }
+};
+
 // Povlastene karte prodane bez provjere u SEOP-u — offline prodaja. Zapis je
 // sama karta (`seop_offline`), pa se cita iz karata, ne iz zasebne tablice.
 const getSeopOfflineSalesController = async (params = {}) => {
@@ -119,6 +134,7 @@ module.exports = {
     getTicketValidationsController,
     getTicketCopyPrintsController,
     getSeopCardErrorsController,
+    getF2ErrorsController,
     getSeopOfflineSalesController,
     getTicketStornosController,
 };

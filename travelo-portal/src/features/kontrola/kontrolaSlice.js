@@ -113,6 +113,21 @@ export const fetchTicketStornosThunk = createAsyncThunk(
     }
 );
 
+// Neuspjela F2 (YesCor) slanja — Kontrola → F2 greške. Svaki pokušaj je
+// zaseban zapis; stanje na računu pokazuje samo zadnji.
+export const fetchF2ErrorsThunk = createAsyncThunk(
+    "kontrola/fetchF2Errors",
+    async (params = {}, { rejectWithValue }) => {
+        try {
+            const resp = await api.get("/portal/transactions/f2_errors", { params });
+            const payload = unwrapBff(resp) || {};
+            return { errors: payload.errors || [], counts: payload.counts || {} };
+        } catch (err) {
+            return rejectWithValue(err.response?.data || { message: err.message });
+        }
+    }
+);
+
 const kontrolaSlice = createSlice({
     name: "kontrola",
     initialState: {
@@ -129,6 +144,10 @@ const kontrolaSlice = createSlice({
         ticketStornosCounts: {},
         ticketStornosLoading: false,
         ticketStornosError: null,
+        f2Errors: [],
+        f2ErrorsCounts: {},
+        f2ErrorsLoading: false,
+        f2ErrorsError: null,
         // Brojači po vrsti — kartice pokazuju koliko ih je gdje. Pune se samo
         // kad se dohvaća bez filtra; s odabranom vrstom brojači drugih kartica
         // ne bi bili točni pa se namjerno ne diraju.
@@ -228,6 +247,19 @@ const kontrolaSlice = createSlice({
             .addCase(fetchTicketStornosThunk.rejected, (s, a) => {
                 s.ticketStornosLoading = false;
                 s.ticketStornosError = a.payload?.message || "Greška pri dohvatu";
+            })
+            .addCase(fetchF2ErrorsThunk.pending, (s) => {
+                s.f2ErrorsLoading = true;
+                s.f2ErrorsError = null;
+            })
+            .addCase(fetchF2ErrorsThunk.fulfilled, (s, a) => {
+                s.f2ErrorsLoading = false;
+                s.f2Errors = a.payload.errors;
+                if (Object.keys(a.payload.counts || {}).length) s.f2ErrorsCounts = a.payload.counts;
+            })
+            .addCase(fetchF2ErrorsThunk.rejected, (s, a) => {
+                s.f2ErrorsLoading = false;
+                s.f2ErrorsError = a.payload?.message || "Greška pri dohvatu";
             });
     },
 });

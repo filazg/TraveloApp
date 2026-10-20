@@ -3,6 +3,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CreditCardOffIcon from "@mui/icons-material/CreditCardOff";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import RemoveShoppingCartIcon from "@mui/icons-material/RemoveShoppingCart";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -102,6 +103,13 @@ const CARDS = [
         subtitle: "Storna karata po vremenu od polaska i validirane",
         icon: RemoveShoppingCartIcon,
         path: "/kontrola/storniranje",
+        enabled: true,
+    },
+    {
+        label: "F2 greške",
+        subtitle: "Računi koje YesCor nije primio ili fiskalizirao",
+        icon: ReceiptLongIcon,
+        path: "/kontrola/f2_greske",
         enabled: true,
     },
 ];

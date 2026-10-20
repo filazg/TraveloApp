@@ -2,6 +2,7 @@
 // fiskalizacija nije završena. Pokreće se periodički (cron 30s).
 const { Op } = require('sequelize');
 const { getDocumentStatus } = require('./yescorClient');
+const { zabiljeziF2Gresku } = require('../../helpers/f2Greske');
 
 const STATUS_MAP = {
     1: 'new',
@@ -33,7 +34,7 @@ const UVJET = {
     ],
 };
 
-const pollModel = async (model, oznakaReda) => {
+const pollModel = async (model, oznakaReda, vrsta) => {
     if (!model) return { checked: 0, updated: 0 };
     const pending = await model.findAll({
         where: UVJET,
@@ -55,6 +56,21 @@ const pollModel = async (model, oznakaReda) => {
             const status = STATUS_MAP[dto.status] || String(dto.status || '');
             const fiscStatus = FISC_STATUS_MAP[dto.fiscalizationStatus] || String(dto.fiscalizationStatus || '');
             const errorMsg = dto.errorMessage || dto.fiscalizationErrorMessage || null;
+            // U Kontrolu ide samo prijelaz u gresku — poller isti dokument
+            // provjerava svakih 30 s, a jedna greska je jedan zapis.
+            const novaGreska = (status === 'error' && inv.yescor_status !== 'error')
+                || (fiscStatus === 'error' && inv.yescor_fiscalization_status !== 'error');
+            if (novaGreska) {
+                await zabiljeziF2Gresku({
+                    vrsta,
+                    izvor: 'status',
+                    faza: fiscStatus === 'error' ? 'fiskalizacija' : 'slanje',
+                    ...(vrsta === 'partnerski' ? { red: inv.get({ plain: true }) } : { invoice_uuid: inv.invoice_uuid }),
+                    yescor_document_id: inv.yescor_document_id,
+                    http_status: r.status,
+                    odgovor: dto,
+                });
+            }
             await inv.update({
                 yescor_status: status,
                 yescor_fiscalization_status: fiscStatus,
@@ -77,8 +93,8 @@ const pollModel = async (model, oznakaReda) => {
 // ovoga ostao zauvijek na "submitted" i nikad ne bi pokazao je li fiskaliziran.
 const pollPendingInvoices = async (models) => {
     const { InvoiceModel, PartnerInvoiceModel } = models;
-    const a = await pollModel(InvoiceModel, (inv) => `invoice ${inv.invoice_no}`);
-    const b = await pollModel(PartnerInvoiceModel, (inv) => `partner invoice ${inv.partner_invoice_code || inv.partner_invoice_no}`);
+    const a = await pollModel(InvoiceModel, (inv) => `invoice ${inv.invoice_no}`, 'racun');
+    const b = await pollModel(PartnerInvoiceModel, (inv) => `partner invoice ${inv.partner_invoice_code || inv.partner_invoice_no}`, 'partnerski');
     return { checked: a.checked + b.checked, updated: a.updated + b.updated };
 };
 
