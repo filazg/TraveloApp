@@ -155,8 +155,11 @@
     var timeStr = (zagreb.hour === '24' ? '00' : zagreb.hour) + ':' + zagreb.minute;
     var fmtEur = function (n) { return (Number(n) || 0).toFixed(2) + ' EUR'; };
     var hasCompanyBuyer = d.buyer_company_name || d.buyer_oib;
-    var invoiceNoFull = d.invoice_fiskal_no
-        ? d.invoice_fiskal_no + '/' + (d.invoice_business_premise_fiscal_mark || '—') + '/' + (d.invoice_billing_device_fiscal_mark || '—')
+    // F2 je u YesCor otisao pod svojim kodom — PDF mora nositi isti broj.
+    var invoiceNoFull = d.fiskal_required && d.invoice_code
+        ? d.invoice_code
+        : d.invoice_fiskal_no
+        ?d.invoice_fiskal_no + '/' + (d.invoice_business_premise_fiscal_mark || '—') + '/' + (d.invoice_billing_device_fiscal_mark || '—')
         : d.invoice_no + '/' + d.invoice_year;
     var isStorno = d.invoice_canceled === true;
 %>

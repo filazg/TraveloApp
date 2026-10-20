@@ -14,6 +14,7 @@ const { poljaPovlastice } = require("../../helpers/povlastica");
 const { dispatchProdaja } = require("../../helpers/seopDispatch");
 const { suffixOriginala, qrSaSuffixom } = require("../../helpers/ticketCopyMark");
 const { upsertKupcaUAdresar } = require("../../helpers/addressbookWriteThrough");
+const { randomInvoiceCodeF2 } = require("./partnerInvoiceGeneratorController");
 
 // Fiscal split — matches the legacy template:
 //   port tax = 6% of amount
@@ -274,9 +275,13 @@ const finalizeWebSaleController = async (req, res) => {
         const invoice_fiskal_no = fiskalRequired
             ? null
             : await nextInvoiceFiskalNo(InvoiceModel, invoice_year, bd.uuid);
-        const invoice_code = invoice_fiskal_no && bp.fiskal_mark && bd.fiscal_mark
-            ? `${invoice_fiskal_no}/${bp.fiskal_mark}/${bd.fiscal_mark}`
-            : null;
+        // F2 nema NO/PP/NU nego vlastiti 8-znakovni kod, kao na blagajni,
+        // mobilnoj i partnerskim racunima — izvan F1 numeracije.
+        const invoice_code = fiskalRequired
+            ? randomInvoiceCodeF2()
+            : (invoice_fiskal_no && bp.fiskal_mark && bd.fiscal_mark
+                ? `${invoice_fiskal_no}/${bp.fiskal_mark}/${bd.fiscal_mark}`
+                : null);
 
         await InvoiceModel.create({
             invoice_uuid,

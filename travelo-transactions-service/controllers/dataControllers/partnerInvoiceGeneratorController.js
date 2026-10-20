@@ -529,6 +529,7 @@ module.exports = {
     generatePartnerInvoices,
     fiskalizirajRacun,
     fetchCompanyFromBackoffice,
+    randomInvoiceCodeF2,
     fiscalizePartnerInvoiceController,
     generatePartnerInvoicesController,
     listPartnerInvoicesController,
