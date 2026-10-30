@@ -73,9 +73,13 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
         }
     }, [open]);
 
-    const officeBpUuids = new Set(
-        businessPremisesList.filter((bp) => String(bp.type || "").toUpperCase() === "URED").map((bp) => bp.uuid)
-    );
+    // Storno se izdaje na uredu ili na web prodajnom mjestu (povrat web kupnje
+    // ide kroz web blagajnu, npr. Monri). Naziv prostora stoji uz uređaj, da se
+    // razlikuje kojem pripada.
+    const STORNO_TIPOVI = new Set(["URED", "WEB_OFFICE"]);
+    const stornoPremises = businessPremisesList.filter((bp) => STORNO_TIPOVI.has(String(bp.type || "").toUpperCase()));
+    const officeBpUuids = new Set(stornoPremises.map((bp) => bp.uuid));
+    const nazivProstora = (uuid) => stornoPremises.find((bp) => bp.uuid === uuid)?.name || "";
     const officeDevices = billingDevicesFull.filter(
         (bd) => bd.is_active && officeBpUuids.has(bd.business_premise_uuid)
     );
@@ -114,7 +118,7 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
         }
     }, [providerPovrata, refund]);
 
-    // auto-select single URED device once lists are loaded
+    // auto-select single URED/web device once lists are loaded
     useEffect(() => {
         if (open && !terminal && officeDevices.length === 1) {
             setTerminal(officeDevices[0].uuid);
@@ -226,16 +230,16 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                         </Stack>
                         <TextField
                             select
-                            label="Naplatni uređaj (URED)"
+                            label="Naplatni uređaj (Ured / Web)"
                             value={terminal}
                             onChange={(e) => setTerminal(e.target.value)}
                             required
                             fullWidth
-                            helperText={!officeDevices.length ? "Nema uređaja u poslovnom prostoru tipa URED" : ""}
+                            helperText={!officeDevices.length ? "Nema uređaja u poslovnom prostoru tipa Ured ili Web prodaja" : ""}
                         >
                             {officeDevices.map((bd) => (
                                 <MenuItem key={bd.uuid} value={bd.uuid}>
-                                    {bd.name} {bd.fiscal_mark ? `· ${bd.fiscal_mark}` : ""}
+                                    {nazivProstora(bd.business_premise_uuid)} — {bd.name} {bd.fiscal_mark ? `· ${bd.fiscal_mark}` : ""}
                                 </MenuItem>
                             ))}
                         </TextField>
@@ -251,7 +255,7 @@ export default function CancelTicketsModal({ open, tickets, onClose, onCanceled 
                                 !terminal
                                     ? "Odaberi prvo naplatni uređaj"
                                     : !paymentMethods.length
-                                    ? "Odabrani uređaj nema aktivnih sredstava plaćanja"
+                                    ? "Odabrani uređaj nema aktivnih sredstava plaćanja — dodijeli ih u Administracija → Naplatni uređaji"
                                     : ""
                             }
                         >
