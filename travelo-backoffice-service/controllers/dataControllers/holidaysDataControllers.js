@@ -5,10 +5,10 @@ const sequelize = getSequelize();
 const getHolidaysDataController = async(req,res)=>{
     const {HolidaysModel} = req.app.locals.models;
     try {
+        // Uz ?all=1 i neaktivni — administracija ih mora vidjeti da bi ih
+        // mogla vratiti u upotrebu. Bez toga samo aktivni, kao dosad.
         const holidaysData = await HolidaysModel.findAll({
-            where:{
-                is_active:true
-            },
+            where: String(req.query.all) === "1" ? {} : { is_active:true },
             attributes: { exclude: ['createdAt','updatedAt']},
             order:['id']
         })

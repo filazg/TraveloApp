@@ -4,7 +4,8 @@ const { getCoreServiceConfigData } = require('../../configServices/configSyncCon
 const getHolidaysController = async()=>{
     try {
         const coreConfigData = await getCoreServiceConfigData() 
-        const response = await axios.get(coreConfigData.services.backoffice.url + '/holidays')
+        // Administracija prikazuje i deaktivirane praznike.
+        const response = await axios.get(coreConfigData.services.backoffice.url + '/holidays', { params: { all: 1 } })
             return (response.data)
     } catch (error) {
         console.log(error)

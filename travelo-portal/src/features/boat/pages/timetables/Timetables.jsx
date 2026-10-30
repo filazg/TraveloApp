@@ -194,7 +194,8 @@ export default function TimetablesPage() {
         "/" +
         newDate.getFullYear();
       const isHoliday = backofficeData?.holidays?.find(
-        (day) => day.holiday_date === dateForHoliday,
+        // Popis sadrzi i deaktivirane praznike (administracija ih prikazuje).
+        (day) => day.is_active !== false && day.holiday_date === dateForHoliday,
       );
       if (newData.days.pra && isHoliday) {
         datesForDepartures = [...datesForDepartures, newDate];

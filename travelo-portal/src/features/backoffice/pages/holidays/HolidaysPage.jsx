@@ -74,7 +74,13 @@ export default function HolidaysPage (){
 
      const columns = [
         {field: 'date_from', headerName:t('backoffice.holidays.date'), flex: 2 },
-        {field: 'name', headerName:t('backoffice.holidays.name'), flex: 2}
+        {field: 'name', headerName:t('backoffice.holidays.name'), flex: 2},
+        {
+            field: 'is_active',
+            headerName: 'Aktivan',
+            width: 120,
+            valueGetter: (_v, row) => (row.is_active ? 'DA' : 'NE'),
+        },
     ];
 
     return(
@@ -86,7 +92,7 @@ export default function HolidaysPage (){
             overflowX: "auto"
         }}>            
             <>
-                <GridHint text="Dupli klik na redak — aktiviraj/deaktiviraj praznik" />
+                <GridHint text="Dupli klik na redak — aktiviraj/deaktiviraj praznik. Neaktivni se ne primjenjuju u voznom redu." />
                 <Box
                     sx={{
                         height:"80vh",
