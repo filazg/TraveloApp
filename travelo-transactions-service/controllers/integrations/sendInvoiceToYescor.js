@@ -1,6 +1,9 @@
 const { buildUblInvoice } = require('./yescorUblBuilder');
 const { sendInvoice } = require('./yescorClient');
+const axios = require('axios');
 const { buildInvoicePdfBuffer } = require('../dataControllers/invoicePdfController');
+const { getCoreServiceConfigData } = require('../configSyncController');
+const { normalizirajIban } = require('../../helpers/iban');
 
 // Gornja granica za ugradeni PDF. Base64 napuhne sadrzaj za trecinu, a cijeli
 // dokument ide u jednom zahtjevu — predimenzionirani privitak bi srusio slanje
@@ -29,6 +32,23 @@ const pripremiPdfPrivitak = async ({ models, invoice_uuid, broj }) => {
     } catch (e) {
         console.log('[yescor] PDF privitak nije napravljen:', e?.message || e);
         return null;
+    }
+};
+
+// IBAN izdavatelja za virman. Uz PaymentMeansCode 30 je obavezan (BR-61), a
+// pozivatelji tvrtku slazu iz razlicitih izvora (basic_data uredaja, snapshot
+// na racunu) koji ga ne nose — tada se uzima iz backoffice-a.
+const ibanIzdavatelja = async (company) => {
+    if (company?.iban) return normalizirajIban(company.iban);
+    try {
+        const boUrl = getCoreServiceConfigData()?.services?.backoffice?.url;
+        if (!boUrl) return '';
+        const r = await axios.get(`${boUrl}/company`, { timeout: 10000, validateStatus: () => true });
+        const c = r.data?.data?.company || r.data?.data || {};
+        return normalizirajIban((Array.isArray(c) ? c[0] : c)?.iban);
+    } catch (e) {
+        console.log('[yescor] IBAN tvrtke nije dohvacen:', e?.message || e);
+        return '';
     }
 };
 
@@ -126,7 +146,10 @@ const sendInvoiceToYescor = async ({
             mark: operator?.mark || operator?.operator_mark || '',
             oib: operator?.oib || operator?.operator_oib || company.legal_id || company.vat_id || '',
         },
-        payment: { means_code: paymentMeans || '10' },
+        payment: {
+            means_code: paymentMeans || '10',
+            ...(paymentMeans === '30' ? { iban: await ibanIzdavatelja(company) } : {}),
+        },
         items: ublItems,
         totals: {
             line_total_net: netTotal,

@@ -583,8 +583,9 @@ const finalizeTerminalSaleController = async (req, res) => {
                         oib: operator.oib || null,
                     },
                     buyer,
-                    paymentMeans: (pm.payment_type_acr === "CARD" ? "48"
-                        : pm.payment_type_acr === "TRANSFER" ? "30" : "10"),
+                    // Oznake tipa placanja su G/K/T (backoffice payment_types).
+                    paymentMeans: (pm.payment_type_acr === "K" ? "48"
+                        : pm.payment_type_acr === "T" ? "30" : "10"),
                 });
                 const data = result.response?.data;
                 const yescorDocId = typeof data === "string" ? data : data?.data;
