@@ -32,7 +32,7 @@ import AddTimetablesRoutesDrawer from "./AddTimetableRoutesDrawer";
 import AddTimetablesPricesDrawer from "./AddTimetablePricesDrawer";
 import AddTimetableRoutesSummaryDrawer from "./AddTimetableRoutesSummaryDrawer";
 import ImportTimetableExcelDrawer from "./ImportTimetableExcelDrawer";
-import { backofficeSliceData } from "../../../backoffice/backofficeSlice";
+import { backofficeSliceData, getBackofficeThunk } from "../../../backoffice/backofficeSlice";
 import { v4 as uuid } from "uuid";
 import EditTimetableDrawer from "./EditTimetableDrawer";
 import GridHint from "../../../../helpers/GridHint";
@@ -106,6 +106,8 @@ export default function TimetablesPage() {
     await dispatch(getBoatThunk({ path: "lines" }));
     await dispatch(getBoatThunk({ path: "tickets_types" }));
     await dispatch(getBoatThunk({ path: "boats" }));
+    // Praznici trebaju za "pra" pri generiranju polazaka.
+    await dispatch(getBackofficeThunk({ path: "holidays" }));
     await dispatch(setAuthData({ path: "loading", value: false }));
   };
 
@@ -186,17 +188,21 @@ export default function TimetablesPage() {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
+    // Praznik se upisuje kao "DD/MM/YYYY" (date_from–date_to); usporedba ide
+    // po kljucu YYYY-MM-DD, da raspon radi i kao tekst. Popis sadrzi i
+    // deaktivirane praznike (administracija ih prikazuje) — oni se preskacu.
+    const kljucPraznika = (v) => {
+      const [d, m, y] = String(v || "").split("/");
+      return y && m && d ? `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}` : "";
+    };
+    const praznici = (backofficeData?.backofficeData?.holidays || [])
+      .filter((h) => h.is_active !== false)
+      .map((h) => ({ od: kljucPraznika(h.date_from), do: kljucPraznika(h.date_to || h.date_from) }))
+      .filter((h) => h.od);
+
     for (const newDate of dates) {
-      const dateForHoliday =
-        newDate.getDate() +
-        "/" +
-        (newDate.getMonth() + 1) +
-        "/" +
-        newDate.getFullYear();
-      const isHoliday = backofficeData?.holidays?.find(
-        // Popis sadrzi i deaktivirane praznike (administracija ih prikazuje).
-        (day) => day.is_active !== false && day.holiday_date === dateForHoliday,
-      );
+      const kljucDana = `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, "0")}-${String(newDate.getDate()).padStart(2, "0")}`;
+      const isHoliday = praznici.some((h) => kljucDana >= h.od && kljucDana <= (h.do || h.od));
       if (newData.days.pra && isHoliday) {
         datesForDepartures = [...datesForDepartures, newDate];
       } else if (!newData.days.pra && isHoliday) {
