@@ -20,6 +20,15 @@ export default function HolidaysPage (){
     const [selectedRow, setSelectedRow] = useState(null)
     const [openAdd, setOpenAdd] = useState(false)
     const [newData, setNewData] = useState({})
+    // Praznik koji se uređuje; isti drawer služi za dodavanje i uređivanje.
+    const [editRow, setEditRow] = useState(null)
+
+    // Datum je spremljen kao "DD/MM/YYYY"; dayjs bi takav tekst procitao kao
+    // mjesec/dan, pa se rastavlja rucno.
+    const pickerValue = (v) => {
+        const [d, m, y] = String(v || "").split("/")
+        return y && m && d ? dayjs(new Date(Number(y), Number(m) - 1, Number(d))) : null
+    }
 
     const syncData = async () =>{
         await dispatch(setAuthData({path:'loading', value:true}))
@@ -45,18 +54,32 @@ export default function HolidaysPage (){
 
     },[newData])
 
+    const openEdit = (row) => {
+        setEditRow(row)
+        setNewData({ name: row.name, date: row.date_from })
+        setOpenAdd(true)
+    }
+
+    const closeDrawer = () => {
+        setOpenAdd(false)
+        setEditRow(null)
+        setNewData({})
+    }
+
     const handleSubmit = async(e)=>{
         e.preventDefault();
         await dispatch(setAuthData({path:'loading', value:true}))
-        await dispatch(setAuthData({path:'loadingMessage', value:'Dodavanje novog praznika'}))
-        await dispatch(postBackofficeThunk({path:'holidays', data:newData}))
-        setNewData({})
-        setOpenAdd(false)
+        await dispatch(setAuthData({path:'loadingMessage', value: editRow ? 'Ažuriranje praznika' : 'Dodavanje novog praznika'}))
+        if (editRow) {
+            await dispatch(patchBackofficeThunk({path:'holidays', data:{ uuid: editRow.uuid, name: newData.name, date: newData.date }}))
+        } else {
+            await dispatch(postBackofficeThunk({path:'holidays', data:newData}))
+        }
+        closeDrawer()
         await dispatch(setAuthData({path:'loading', value:false}))
     }
 
-    // Praznici nemaju formu za uređivanje — dupli klik samo aktivira/deaktivira
-    // redak (prije je to radio jednostruki klik, i to samo u jednom smjeru).
+    // Klik uređuje naziv i datum, dupli klik aktivira/deaktivira redak.
      const handleToggleRow = async (data) =>{
         const dataToSend = {
             uuid:data.uuid,
@@ -70,7 +93,7 @@ export default function HolidaysPage (){
         await dispatch(setAuthData({path:'loading', value:false}))
     }
 
-    const rowActions = useRowClickActions({ onToggle: handleToggleRow })
+    const rowActions = useRowClickActions({ onEdit: openEdit, onToggle: handleToggleRow })
 
      const columns = [
         {field: 'date_from', headerName:t('backoffice.holidays.date'), flex: 2 },
@@ -92,7 +115,7 @@ export default function HolidaysPage (){
             overflowX: "auto"
         }}>            
             <>
-                <GridHint text="Dupli klik na redak — aktiviraj/deaktiviraj praznik. Neaktivni se ne primjenjuju u voznom redu." />
+                <GridHint text="Klik na redak — uredi praznik. Dupli klik — aktiviraj/deaktiviraj. Neaktivni se ne primjenjuju u voznom redu." />
                 <Box
                     sx={{
                         height:"80vh",
@@ -111,7 +134,7 @@ export default function HolidaysPage (){
             <Drawer
                 anchor="right"
                 open={openAdd}
-                onClose={() => setOpenAdd(false)}
+                onClose={closeDrawer}
                 PaperProps={{
                 sx: { width: { xs: "100vw", sm: 520, md: 680 }, maxWidth: "100vw" },
                 }}
@@ -128,9 +151,9 @@ export default function HolidaysPage (){
                         variant="h5"
                         fontWeight="bold"
                         >
-                        {t('backoffice.holidays.add_new_title')}
+                        {editRow ? 'Uređivanje praznika' : t('backoffice.holidays.add_new_title')}
                     </Typography>
-                    <Button onClick={()=>setOpenAdd(false)}>{t('backoffice.holidays.close')}</Button>
+                    <Button onClick={closeDrawer}>{t('backoffice.holidays.close')}</Button>
                 </Stack>
                 <TextField
                     type="text"
@@ -147,12 +170,12 @@ export default function HolidaysPage (){
                     <DatePicker
                       label={t('backoffice.holidays.date')}
                       format="DD.MM.YYYY"
-                      disablePast
+                      disablePast={!editRow}
                       sx={{
                         width: '100%',
                         mt:1
                       }}
-                      value={dayjs(newData.date)}
+                      value={pickerValue(newData.date)}
                       onChange={(event, newValue) => {
                         console.log("date");
                         handleSetDate(event.$d);
@@ -170,12 +193,12 @@ export default function HolidaysPage (){
                         sx={{ height: 60, mt: 2, width: "100%" }}
                         variant="contained"
                         >
-                            {t('backoffice.holidays.add_new_title')}
+                            {editRow ? 'Spremi izmjene' : t('backoffice.holidays.add_new_title')}
                     </Button>
                 </Box>
             </Drawer>
             <Stack sx={{width:'96%', ml:1}} alignItems='flex-start'>
-                <Button onClick={()=>setOpenAdd(true)}>
+                <Button onClick={()=>{ closeDrawer(); setOpenAdd(true) }}>
                     {t('backoffice.holidays.add_new_title')}
                 </Button>
             </Stack>

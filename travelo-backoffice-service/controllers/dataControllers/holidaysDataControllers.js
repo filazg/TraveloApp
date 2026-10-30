@@ -62,9 +62,16 @@ const updateHolidayDataController = async(req,res)=>{
             }
         })
         if(holidayExist){
-            await HolidaysModel.update({
-                is_active:data.is_active
-            },{
+            // Dupli klik salje samo is_active, uredivanje naziv i datum —
+            // sprema se ono sto je poslano.
+            const patch = {}
+            if (data.is_active !== undefined) patch.is_active = data.is_active
+            if (data.name !== undefined) patch.name = data.name
+            if (data.date) {
+                patch.date_from = data.date
+                patch.date_to = data.date
+            }
+            await HolidaysModel.update(patch,{
                 where:{
                     uuid:data.uuid
                 }
