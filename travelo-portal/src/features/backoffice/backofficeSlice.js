@@ -110,6 +110,9 @@ export const postBackofficeThunk = createAsyncThunk('backoffice/postBackofficeTh
         return (response.data)
     } catch (error) {
         console.log(error)
+        // Gateway odbijen zahtjev (4xx) vraca s porukom u tijelu — stranica je
+        // cita iz payload.error.
+        return error.response?.data || { error: error.message }
     }
 })
 
@@ -143,6 +146,9 @@ export const patchBackofficeThunk = createAsyncThunk('backoffice/patchBackoffice
         return (response.data)
     } catch (error) {
         console.log(error)
+        // Gateway odbijen zahtjev (4xx) vraca s porukom u tijelu — stranica je
+        // cita iz payload.error.
+        return error.response?.data || { error: error.message }
     }
 }) 
 
@@ -223,7 +229,11 @@ const backofficeSlice =createSlice({
         })
         .addCase(postBackofficeThunk.fulfilled, (state, action) => {
             state.status = "succeeded";
-            state[action.payload.path1][action.payload.path2]  = action.payload.data;
+            // Odbijen zahtjev (duplikat, nevaljana vrijednost) vraca samo {error} —
+            // stranica sama prikaze poruku, stanje ostaje isto.
+            const d = action.payload;
+            if (!d?.path1 || !d?.path2) return;
+            state[d.path1][d.path2] = d.data;
         })
         .addCase(syncAddressbookFromSaopThunk.fulfilled, (state, action) => {
             if (Array.isArray(action.payload?.data)) state.backofficeData.addressbook = action.payload.data;
@@ -237,7 +247,9 @@ const backofficeSlice =createSlice({
         })
         .addCase(patchBackofficeThunk.fulfilled, (state, action) => {
             state.status = "succeeded";
-            state[action.payload.path1][action.payload.path2]= action.payload.data;
+            const d = action.payload;
+            if (!d?.path1 || !d?.path2) return;
+            state[d.path1][d.path2] = d.data;
         })
         .addCase(patchBackofficeThunk.rejected, (state, action) => {
             state.status = "failed";

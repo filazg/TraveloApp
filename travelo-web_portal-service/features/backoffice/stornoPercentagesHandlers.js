@@ -30,9 +30,10 @@ const handleAddStornoPercentageFeature = async (req, res) => {
     try {
         const result = await addStornoPercentageController(req.body)
         // Backoffice odbija duplikat i nevaljan postotak — poruku treba proslijediti
-        // korisniku, inače bi grid samo tiho ostao isti.
+        // korisniku, inače bi grid samo tiho ostao isti. Gateway dalje šalje samo
+        // `data`, pa poruka mora biti unutra.
         if (result && result.status && result.status >= 400) {
-            return res.send({ status: result.status, error: result?.data?.message || 'Spremanje nije uspjelo' })
+            return res.send({ status: result.status, data: { error: result?.data?.message || 'Spremanje nije uspjelo' } })
         }
         await respondWithList(res)
     } catch (error) {
@@ -44,7 +45,7 @@ const handleUpdateStornoPercentageFeature = async (req, res) => {
     try {
         const result = await updateStornoPercentageController(req.body)
         if (result && result.status && result.status >= 400) {
-            return res.send({ status: result.status, error: result?.data?.message || 'Ažuriranje nije uspjelo' })
+            return res.send({ status: result.status, data: { error: result?.data?.message || 'Ažuriranje nije uspjelo' } })
         }
         await respondWithList(res)
     } catch (error) {
