@@ -22,6 +22,7 @@ import {
 } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
 import PartnerInvoicePreviewDrawer from "./PartnerInvoicePreviewDrawer";
+import { naplataInfo } from "../NaplataPanel";
 import TabIzvjestajiZaProvizije from "./CommissionReportsTab";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
@@ -164,6 +165,23 @@ function TabRacuniZaProvizije() {
                 align: "right",
                 headerAlign: "right",
                 valueFormatter: (v) => fmtEUR(v),
+            },
+            {
+                field: "invoice_paid",
+                headerName: "Naplata",
+                width: 130,
+                renderCell: (params) => {
+                    const r = params.row || {};
+                    const n = naplataInfo({ ...r, fiskal_required: r.is_f2 != null ? !!r.is_f2 : !!r.fiskal_required });
+                    return (
+                        <Box
+                            title={n.tooltip}
+                            sx={{ width: "100%", textAlign: "center", fontWeight: 700, fontSize: 12, py: 0.5, color: n.fg, backgroundColor: n.bg, borderRadius: 0.5 }}
+                        >
+                            {n.label}
+                        </Box>
+                    );
+                },
             },
             {
                 field: "status",

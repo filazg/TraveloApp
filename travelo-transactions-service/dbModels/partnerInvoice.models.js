@@ -235,6 +235,46 @@ module.exports = (sequelize) => {
                 type: DataTypes.DATE,
                 allowNull: true,
             },
+            // Naplata. Zbirni partnerski racun placa se virmanom nakon
+            // izdavanja — neplacen je dok se naplata ne potvrdi u portalu.
+            // Isti nazivi polja kao na racunima, da portal i prijava dijele kod.
+            invoice_paid: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
+            invoice_paid_date: {
+                type: DataTypes.DATEONLY,
+                allowNull: true,
+            },
+            invoice_paid_type: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+            },
+            invoice_paid_confirmed_by: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            invoice_paid_confirmed_at: {
+                type: DataTypes.DATE,
+                allowNull: true,
+            },
+            yescor_payment_id: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            yescor_payment_status: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            yescor_payment_error: {
+                type: DataTypes.TEXT,
+                allowNull: true,
+            },
+            yescor_payment_last_sync_at: {
+                type: DataTypes.DATE,
+                allowNull: true,
+            },
         },
         { freezeTableName: true, tableName: "partner_invoices", timestamps: true }
     );

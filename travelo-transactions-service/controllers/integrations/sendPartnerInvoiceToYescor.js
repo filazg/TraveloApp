@@ -23,6 +23,21 @@ const dan = (v) => {
         : `${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}.${dt.getFullYear()}.`;
 };
 
+// Broj i datum pod kojima partnerski racun ide u YesCor — isti par nosi i
+// prijava naplate.
+const f2OznakaPartnerskog = (invoice) => {
+    const iso = new Date(invoice.invoice_date || Date.now()).toISOString();
+    const broj = invoice.partner_invoice_code
+        || (invoice.partner_invoice_fiskal_no != null
+            ? `${invoice.partner_invoice_fiskal_no}/${invoice.invoice_year || iso.slice(0, 4)}`
+            : String(invoice.partner_invoice_no || invoice.partner_invoice_uuid).slice(0, 20));
+    return { iso, broj, datum: iso.slice(0, 10) };
+};
+
+// Iznos za placanje — isti zbroj kao PayableAmount na e-racunu.
+const iznosPartnerskog = (invoice) =>
+    d2(d2(invoice.vat_base) + d2(invoice.vat_amount) + d2(invoice.harbor_tax_amount));
+
 // Ne baca — pozivac hvata i upisuje yescor_status 'failed', racun ostaje.
 const sendPartnerInvoiceToYescor = async ({ invoice, company = {} }) => {
     const vatBase = d2(invoice.vat_base);
@@ -102,12 +117,7 @@ const sendPartnerInvoiceToYescor = async ({ invoice, company = {} }) => {
         hrSubtotals.push(subtotals[0], prolazna);
     }
 
-    const issueDate = new Date(invoice.invoice_date || Date.now());
-    const iso = issueDate.toISOString();
-    const oznaka = invoice.partner_invoice_code
-        || (invoice.partner_invoice_fiskal_no != null
-            ? `${invoice.partner_invoice_fiskal_no}/${invoice.invoice_year || iso.slice(0, 4)}`
-            : String(invoice.partner_invoice_no || invoice.partner_invoice_uuid).slice(0, 20));
+    const { iso, broj: oznaka } = f2OznakaPartnerskog(invoice);
 
     const ublXml = buildUblInvoice({
         invoice: {
@@ -167,4 +177,4 @@ const sendPartnerInvoiceToYescor = async ({ invoice, company = {} }) => {
     return { ublXml, fileName, response: resp, payable };
 };
 
-module.exports = { sendPartnerInvoiceToYescor };
+module.exports = { sendPartnerInvoiceToYescor, f2OznakaPartnerskog, iznosPartnerskog };

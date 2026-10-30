@@ -75,6 +75,7 @@ const handleConfirmInvoicePaymentFeature = async (req, res) => {
     try {
         const payload = req.body?.body || req.body || {};
         const { status, body } = await confirmInvoicePaymentController({
+            vrsta: payload.vrsta,
             invoice_uuid: payload.invoice_uuid,
             paid_date: payload.paid_date,
             paid_type: payload.paid_type,

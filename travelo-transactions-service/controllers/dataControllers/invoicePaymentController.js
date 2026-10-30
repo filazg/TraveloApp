@@ -4,21 +4,27 @@ const { prijaviNaplatu } = require("../integrations/yescorNaplata");
 
 const greska = (res, http, message) => res.status(http).send({ status: http, data: { message } });
 
-// POST /invoice_payment_confirm { invoice_uuid, paid_date, paid_type, confirmed_by }
+// POST /invoice_payment_confirm { vrsta?, invoice_uuid, paid_date, paid_type, confirmed_by }
 //
-// Naknadna potvrda naplate racuna koji nije placen pri izdavanju (virman).
-// Potvrda je jednokratna: za F2 racun naplata odlazi Poreznoj i ne moze se
-// povuci, pa se ni ovdje ne nudi ponistavanje.
+// Naknadna potvrda naplate racuna koji nije placen pri izdavanju (virman) ili
+// zbirnog partnerskog racuna (vrsta 'partnerski'). Potvrda je jednokratna: za
+// F2 racun naplata odlazi Poreznoj i ne moze se povuci, pa se ni ovdje ne
+// nudi ponistavanje.
 const confirmInvoicePaymentController = async (req, res) => {
     try {
-        const { InvoiceModel } = getModels();
-        const { invoice_uuid, paid_date, paid_type, confirmed_by } = req.body?.body || req.body || {};
+        const { InvoiceModel, PartnerInvoiceModel } = getModels();
+        const { vrsta = "racun", invoice_uuid, paid_date, paid_type, confirmed_by } = req.body?.body || req.body || {};
         if (!invoice_uuid) return greska(res, 400, "nedostaje invoice_uuid");
+        const partnerski = vrsta === "partnerski";
 
-        const inv = await InvoiceModel.findOne({ where: { invoice_uuid } });
+        const inv = partnerski
+            ? await PartnerInvoiceModel.findOne({ where: { partner_invoice_uuid: invoice_uuid } })
+            : await InvoiceModel.findOne({ where: { invoice_uuid } });
         if (!inv) return greska(res, 404, "racun ne postoji");
-        if (Number(inv.invoice_amount) < 0) return greska(res, 409, "storno racun nema naplatu");
-        if (inv.invoice_canceled) return greska(res, 409, "racun je storniran");
+        if (!partnerski) {
+            if (Number(inv.invoice_amount) < 0) return greska(res, 409, "storno racun nema naplatu");
+            if (inv.invoice_canceled) return greska(res, 409, "racun je storniran");
+        }
         if (inv.invoice_paid !== false) return greska(res, 409, "racun je vec placen");
 
         const danas = danUZagrebu();
@@ -30,26 +36,29 @@ const confirmInvoicePaymentController = async (req, res) => {
         if (datum < danUZagrebu(inv.invoice_date)) {
             return greska(res, 400, "datum naplate ne moze biti prije datuma racuna");
         }
-        const vrsta = paid_type == null || paid_type === "" ? VRSTE_NAPLATE.TRANSAKCIJSKI : Number(paid_type);
-        if (!Object.values(VRSTE_NAPLATE).includes(vrsta)) return greska(res, 400, "neispravna vrsta naplate");
+        const vrstaNaplate = paid_type == null || paid_type === "" ? VRSTE_NAPLATE.TRANSAKCIJSKI : Number(paid_type);
+        if (!Object.values(VRSTE_NAPLATE).includes(vrstaNaplate)) return greska(res, 400, "neispravna vrsta naplate");
 
         await inv.update({
             invoice_paid: true,
             invoice_paid_date: datum,
-            invoice_paid_type: vrsta,
+            invoice_paid_type: vrstaNaplate,
             invoice_paid_confirmed_by: confirmed_by || null,
             invoice_paid_confirmed_at: new Date(),
             yescor_payment_status: null,
             yescor_payment_error: null,
+            // Partnerski racun vec ima status (issued → paid) koji portal prikazuje.
+            ...(partnerski ? { status: "paid" } : {}),
         });
 
         // Fiskaliziran F2 racun prijavljuje se odmah, da portal vidi ishod.
         // Ostale (jos u fiskalizaciji) pokupi scheduler cim prodju.
         if (inv.yescor_document_id && inv.yescor_fiscalization_status === "successful") {
-            await prijaviNaplatu(inv);
+            await prijaviNaplatu(inv, vrsta);
         }
 
-        console.log(`[naplata] racun ${inv.invoice_code || inv.invoice_no} potvrden ${datum} (vrsta ${vrsta}) — ${confirmed_by || "?"}`);
+        const oznaka = partnerski ? (inv.partner_invoice_code || inv.partner_invoice_no) : (inv.invoice_code || inv.invoice_no);
+        console.log(`[naplata] ${vrsta} ${oznaka} potvrden ${datum} (vrsta ${vrstaNaplate}) — ${confirmed_by || "?"}`);
         res.send({ status: 200, data: { invoice: inv.get({ plain: true }) } });
     } catch (error) {
         console.log("confirmInvoicePaymentController error:", error?.message || error);

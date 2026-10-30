@@ -7,6 +7,7 @@
 const { Op } = require("sequelize");
 const { sendDocumentPayment, getDocumentPaymentStatus } = require("./yescorClient");
 const { f2OznakaRacuna } = require("./sendInvoiceToYescor");
+const { f2OznakaPartnerskog, iznosPartnerskog } = require("./sendPartnerInvoiceToYescor");
 const { VRSTE_NAPLATE, danUZagrebu } = require("../../helpers/naplata");
 const { zabiljeziF2Gresku } = require("../../helpers/f2Greske");
 
@@ -23,16 +24,42 @@ const porukaGreske = (data) => {
     return dijelovi.length ? [...new Set(dijelovi)].join("\n") : JSON.stringify(data || {}).slice(0, 2000);
 };
 
-const prijaviNaplatu = async (inv) => {
+// Sto se o racunu prijavljuje — obicni i zbirni partnerski racun drze iste
+// podatke pod razlicitim imenima.
+const podaciNaplate = (inv, vrsta) => {
+    if (vrsta === "partnerski") {
+        const { broj, datum } = f2OznakaPartnerskog(inv);
+        return {
+            broj, datum,
+            naziv: inv.partner_name || null,
+            oib: inv.partner_legal_id || inv.partner_vat_id || null,
+            iznos: iznosPartnerskog(inv),
+        };
+    }
     const { broj, datum } = f2OznakaRacuna(inv);
+    return {
+        broj, datum,
+        naziv: inv.buyer_company_name || inv.buyer_name || null,
+        oib: inv.buyer_oib || null,
+        iznos: Math.round(Number(inv.invoice_amount || 0) * 100) / 100,
+    };
+};
+
+// Zapis u Kontrolu F2 — partnerski racun se predaje cijelim redom.
+const zapisGreske = (inv, vrsta) => (vrsta === "partnerski"
+    ? { vrsta, red: inv.get({ plain: true }) }
+    : { vrsta, invoice_uuid: inv.invoice_uuid });
+
+const prijaviNaplatu = async (inv, vrsta = "racun") => {
+    const { broj, datum, naziv, oib, iznos } = podaciNaplate(inv, vrsta);
     const payload = {
         documentId: inv.yescor_document_id,
         documentNumber: broj,
         documentDate: datum,
-        documentPartyName: inv.buyer_company_name || inv.buyer_name || null,
-        documentPartyTaxNumber: inv.buyer_oib || null,
+        documentPartyName: naziv,
+        documentPartyTaxNumber: oib,
         paymentDate: inv.invoice_paid_date || danUZagrebu(inv.invoice_date),
-        amount: Math.round(Number(inv.invoice_amount || 0) * 100) / 100,
+        amount: iznos,
         paymentType: inv.invoice_paid_type || VRSTE_NAPLATE.OSTALO,
     };
     const prije = inv.yescor_payment_status;
@@ -42,7 +69,7 @@ const prijaviNaplatu = async (inv) => {
         const ok = r.status >= 200 && r.status < 300 && !!id;
         if (!ok && prije !== "failed") {
             await zabiljeziF2Gresku({
-                izvor: "naplata", faza: "naplata", invoice_uuid: inv.invoice_uuid,
+                izvor: "naplata", faza: "naplata", ...zapisGreske(inv, vrsta),
                 yescor_document_id: inv.yescor_document_id, http_status: r.status, odgovor: r.data,
             });
         }
@@ -58,7 +85,7 @@ const prijaviNaplatu = async (inv) => {
         console.log(`[yescor-naplata] racun ${broj} prijava nije uspjela:`, e?.message || e);
         if (prije !== "failed") {
             await zabiljeziF2Gresku({
-                izvor: "naplata", faza: "naplata", invoice_uuid: inv.invoice_uuid,
+                izvor: "naplata", faza: "naplata", ...zapisGreske(inv, vrsta),
                 yescor_document_id: inv.yescor_document_id, greska: e,
             });
         }
@@ -71,74 +98,86 @@ const prijaviNaplatu = async (inv) => {
     }
 };
 
-// Racuni kojima naplata ceka prijavu: fiskalizirani, placeni, s pozitivnim
-// iznosom (storno nema naplate), jos neprijavljeni ili neuspjeli prije
-// PONOVI_NAKON_MS.
-const prijaviNaplate = async (models) => {
-    const { InvoiceModel } = models;
-    if (!InvoiceModel) return { prijavljeno: 0 };
-    const kandidati = await InvoiceModel.findAll({
-        where: {
-            yescor_document_id: { [Op.ne]: null },
-            yescor_fiscalization_status: "successful",
-            invoice_paid: true,
-            invoice_amount: { [Op.gt]: 0 },
-            [Op.or]: [
-                { yescor_payment_status: null },
-                {
-                    yescor_payment_status: "failed",
-                    yescor_payment_last_sync_at: { [Op.lt]: new Date(Date.now() - PONOVI_NAKON_MS) },
-                },
-            ],
+// Racuni kojima naplata ceka prijavu: fiskalizirani, placeni, jos
+// neprijavljeni ili neuspjeli prije PONOVI_NAKON_MS. Storno racun (negativan
+// iznos) nema naplate.
+const cekaPrijavu = () => ({
+    yescor_document_id: { [Op.ne]: null },
+    yescor_fiscalization_status: "successful",
+    invoice_paid: true,
+    [Op.or]: [
+        { yescor_payment_status: null },
+        {
+            yescor_payment_status: "failed",
+            yescor_payment_last_sync_at: { [Op.lt]: new Date(Date.now() - PONOVI_NAKON_MS) },
         },
-        limit: 20,
-        order: [["invoice_date", "ASC"]],
-    });
-    let prijavljeno = 0;
-    for (const inv of kandidati) {
-        if (await prijaviNaplatu(inv)) prijavljeno += 1;
+    ],
+});
+
+const prijaviNaplate = async (models) => {
+    const { InvoiceModel, PartnerInvoiceModel } = models;
+    const skupovi = [
+        [InvoiceModel, "racun", { invoice_amount: { [Op.gt]: 0 } }],
+        [PartnerInvoiceModel, "partnerski", {}],
+    ];
+    let prijavljeno = 0, kandidata = 0;
+    for (const [model, vrsta, dodatno] of skupovi) {
+        if (!model) continue;
+        const kandidati = await model.findAll({
+            where: { ...cekaPrijavu(), ...dodatno },
+            limit: 20,
+            order: [["invoice_date", "ASC"]],
+        });
+        kandidata += kandidati.length;
+        for (const inv of kandidati) {
+            if (await prijaviNaplatu(inv, vrsta)) prijavljeno += 1;
+        }
     }
-    return { prijavljeno, kandidata: kandidati.length };
+    return { prijavljeno, kandidata };
 };
 
 // Stanje vec poslanih prijava, dok YesCor ne javi sent ili error.
 const osvjeziNaplate = async (models) => {
-    const { InvoiceModel } = models;
-    if (!InvoiceModel) return { provjereno: 0 };
-    const uTijeku = await InvoiceModel.findAll({
-        where: {
-            yescor_payment_id: { [Op.ne]: null },
-            yescor_payment_status: { [Op.in]: U_TIJEKU },
-        },
-        limit: 50,
-        order: [["yescor_payment_last_sync_at", "ASC"]],
-    });
-    for (const inv of uTijeku) {
-        try {
-            const r = await getDocumentPaymentStatus(inv.yescor_payment_id);
-            if (r.status !== 200) {
-                await inv.update({ yescor_payment_last_sync_at: new Date() });
-                continue;
-            }
-            const dto = r.data?.data || {};
-            const status = STATUS_MAP[dto.status] || String(dto.status || "");
-            if (status === "error" && inv.yescor_payment_status !== "error") {
-                await zabiljeziF2Gresku({
-                    izvor: "status", faza: "naplata", invoice_uuid: inv.invoice_uuid,
-                    yescor_document_id: inv.yescor_document_id, http_status: r.status, odgovor: dto,
+    const { InvoiceModel, PartnerInvoiceModel } = models;
+    let provjereno = 0;
+    for (const [model, vrsta] of [[InvoiceModel, "racun"], [PartnerInvoiceModel, "partnerski"]]) {
+        if (!model) continue;
+        const uTijeku = await model.findAll({
+            where: {
+                yescor_payment_id: { [Op.ne]: null },
+                yescor_payment_status: { [Op.in]: U_TIJEKU },
+            },
+            limit: 50,
+            order: [["yescor_payment_last_sync_at", "ASC"]],
+        });
+        provjereno += uTijeku.length;
+        for (const inv of uTijeku) {
+            try {
+                const r = await getDocumentPaymentStatus(inv.yescor_payment_id);
+                if (r.status !== 200) {
+                    await inv.update({ yescor_payment_last_sync_at: new Date() });
+                    continue;
+                }
+                const dto = r.data?.data || {};
+                const status = STATUS_MAP[dto.status] || String(dto.status || "");
+                if (status === "error" && inv.yescor_payment_status !== "error") {
+                    await zabiljeziF2Gresku({
+                        izvor: "status", faza: "naplata", ...zapisGreske(inv, vrsta),
+                        yescor_document_id: inv.yescor_document_id, http_status: r.status, odgovor: dto,
+                    });
+                }
+                await inv.update({
+                    yescor_payment_status: status,
+                    yescor_payment_error: dto.errorMessage || null,
+                    yescor_payment_last_sync_at: new Date(),
                 });
+            } catch (e) {
+                console.log(`[yescor-naplata] status ${vrsta} ${inv.yescor_payment_id}:`, e?.message || e);
+                try { await inv.update({ yescor_payment_last_sync_at: new Date() }); } catch (_) {}
             }
-            await inv.update({
-                yescor_payment_status: status,
-                yescor_payment_error: dto.errorMessage || null,
-                yescor_payment_last_sync_at: new Date(),
-            });
-        } catch (e) {
-            console.log(`[yescor-naplata] status ${inv.invoice_no}:`, e?.message || e);
-            try { await inv.update({ yescor_payment_last_sync_at: new Date() }); } catch (_) {}
         }
     }
-    return { provjereno: uTijeku.length };
+    return { provjereno };
 };
 
 module.exports = { prijaviNaplatu, prijaviNaplate, osvjeziNaplate };

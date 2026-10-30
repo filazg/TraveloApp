@@ -20,7 +20,8 @@ import {
     setFilter,
 } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
-import InvoicePreviewDrawer, { naplataInfo } from "./InvoicePreviewDrawer";
+import InvoicePreviewDrawer from "./InvoicePreviewDrawer";
+import { naplataInfo } from "../NaplataPanel";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 const fmtDateTime = (s) => {

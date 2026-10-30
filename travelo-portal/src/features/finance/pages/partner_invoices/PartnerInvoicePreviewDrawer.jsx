@@ -22,6 +22,7 @@ import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { fetchPartnerInvoiceDetailsThunk, financeSliceData, preuzmiPartnerRacunPdf } from "../../financeSlice";
 import PartnerInvoiceDetailsDrawer from "./PartnerInvoiceDetailsDrawer";
+import NaplataPanel from "../NaplataPanel";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} EUR`;
 const fmtDate = (s) => {
@@ -124,6 +125,13 @@ export default function PartnerInvoicePreviewDrawer({ invoice: invoiceFromList, 
                     </Button>
                 </Stack>
             </Box>
+
+            <NaplataPanel
+                key={head.partner_invoice_uuid}
+                vrsta="partnerski"
+                uuid={head.partner_invoice_uuid}
+                invoice={{ ...head, fiskal_required: jeF2 }}
+            />
 
             <Box sx={{ flex: 1, overflow: "auto", bgcolor: "#f2f2f2", py: 3 }}>
                 <Paper elevation={2} sx={{ mx: "auto", maxWidth: 720, p: 5, bgcolor: "#ffffff", ...DocStyles }}>

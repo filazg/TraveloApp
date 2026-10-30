@@ -51,10 +51,11 @@ export const fetchInvoiceDetailsThunk = createAsyncThunk(
 // Naknadna potvrda naplate (virman). Tko je potvrdio postavlja BFF iz prijave.
 export const confirmInvoicePaymentThunk = createAsyncThunk(
     "finance/confirmInvoicePayment",
-    async ({ invoice_uuid, paid_date, paid_type }, { rejectWithValue }) => {
+    async ({ vrsta = "racun", invoice_uuid, paid_date, paid_type }, { rejectWithValue }) => {
         try {
-            const resp = await api.post("/portal/transactions/invoice_payment_confirm", { invoice_uuid, paid_date, paid_type });
-            return unwrapPost(resp)?.invoice || null;
+            const resp = await api.post("/portal/transactions/invoice_payment_confirm", { vrsta, invoice_uuid, paid_date, paid_type });
+            const invoice = unwrapPost(resp)?.invoice || null;
+            return invoice ? { vrsta, invoice } : null;
         } catch (err) {
             const d = unwrapPostError(err);
             return rejectWithValue({ message: d?.message || err.message });
@@ -800,8 +801,16 @@ const financeSlice = createSlice({
                 s.invoiceDetailsLoading = false;
             })
             .addCase(confirmInvoicePaymentThunk.fulfilled, (s, a) => {
-                const inv = a.payload;
-                if (!inv) return;
+                if (!a.payload) return;
+                const { vrsta, invoice: inv } = a.payload;
+                if (vrsta === "partnerski") {
+                    const id = inv.partner_invoice_uuid;
+                    s.partnerInvoices = s.partnerInvoices.map((r) => (r.partner_invoice_uuid === id ? { ...r, ...inv } : r));
+                    if (s.partnerInvoiceDetails?.invoice?.partner_invoice_uuid === id) {
+                        s.partnerInvoiceDetails.invoice = { ...s.partnerInvoiceDetails.invoice, ...inv };
+                    }
+                    return;
+                }
                 s.invoices = s.invoices.map((r) => (r.invoice_uuid === inv.invoice_uuid ? { ...r, ...inv } : r));
                 if (s.invoiceDetails?.invoice?.invoice_uuid === inv.invoice_uuid) {
                     s.invoiceDetails.invoice = { ...s.invoiceDetails.invoice, ...inv };
