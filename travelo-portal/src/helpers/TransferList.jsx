@@ -107,6 +107,7 @@ export default function TransferList({
     mogucnosti,      // { sveDesno, oznaceneDesno, oznaceneLijevo, sveLijevo } — booleani
     visina = 280,
     preslagivanjeLijevo, // (stavka, smjer:-1|1) => void — kad je zadano, lijevi okvir dobije ▲▼
+    preslagivanjeDesno,  // isto za desni okvir
 }) {
     return (
         <Stack direction='row' alignItems="stretch" sx={{ mt: 1, mb: 1, width: '100%' }} justifyContent='center'>
@@ -132,6 +133,7 @@ export default function TransferList({
                 jeOznacen={jeOznacen}
                 onToggle={onToggle}
                 visina={visina}
+                preslagivanje={preslagivanjeDesno}
             />
         </Stack>
     );

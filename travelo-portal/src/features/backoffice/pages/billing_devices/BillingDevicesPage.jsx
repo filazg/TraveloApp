@@ -371,7 +371,7 @@ export default function BillingDevicesPage (){
     // Linije se u editedData spremaju samo s poljima koja backoffice zapisuje,
     // da se cijeli objekt linije ne vuče kroz PATCH.
     const linesForSave = (items) => items.map((l) => ({ uuid:l.uuid, name:l.name, code:l.code }))
-    // Poredak dostupnih (lijevo) = niz šifri; to je i poredak izbornika na desku.
+    // Poredak omogućenih (leftLN) = niz šifri; to je i poredak izbornika na desku.
     const orderForSave = (items) => items.map((l) => l.code)
 
     const handleAllRightLN = () => {
@@ -406,7 +406,7 @@ export default function BillingDevicesPage (){
         setEditedData(prev => ({ ...prev, excluded_lines: [], lines_order: orderForSave(noviLijevo) }));
     };
 
-    // Presložavanje dostupnih linija (lijevo) — ▲▼ po retku. Taj redoslijed je
+    // Presložavanje omogućenih linija (desni okvir) — ▲▼ po retku. Taj redoslijed je
     // ujedno poredak izbornika linija na desku za ovaj terminal.
     const pomakniLN = (value, smjer) => {
         const i = leftLN.findIndex((l) => l.uuid === value.uuid)
@@ -440,15 +440,16 @@ export default function BillingDevicesPage (){
             .filter(d => !selectedRow?.permissions.some(s => s.uuid === d.uuid))
             .filter(pripadaProstoru))
         const forRightOP = (backofficeData.backofficeData.users.filter(d => selectedRow?.permissions.some(s => s.uuid === d.uuid)))
-        // Linije: desno stoje ZABRANJENE. Obrnuto od druge dvije liste, jer su
-        // linije po pravilu sve dozvoljene pa se pamti samo iznimka.
+        // Linije: pamte se ZABRANJENE (excluded_lines), jer su linije po pravilu
+        // sve dozvoljene pa se pamti samo iznimka. U stanju leftLN = omogućene,
+        // rightLN = zabranjene; na ekranu su omogućene desno.
         const excluded = selectedRow?.excluded_lines || []
         const lines = boatData.boatData.lines || []
         setLeft(forLeft)
         setRight(forRight)
         setLeftOP(forLeftOP)
         setRightOP(forRightOP)
-        // Dostupne (lijevo) se slažu po spremljenom poretku (lines_order = niz
+        // Omogućene se slažu po spremljenom poretku (lines_order = niz
         // šifri); linije bez upisa idu na kraj zadanim redom. Taj poredak je i
         // poredak izbornika linija na desku.
         const redoslijed = Array.isArray(selectedRow?.lines_order) ? selectedRow.lines_order : []
@@ -1269,20 +1270,23 @@ export default function BillingDevicesPage (){
                     <Typography textAlign='center' variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
                         Redoslijed omogućenih linija (▲▼) ujedno je poredak izbornika linija na desku ovog terminala.
                     </Typography>
+                    {/* Omogućene stoje desno, kao dodijeljeno u druge dvije liste. Stanje
+                        ostaje leftLN = omogućene, rightLN = nisu — zamijenjen je samo prikaz,
+                        pa se i strelice mapiraju obrnuto. */}
                     <TransferList
-                        lijevo={{ naslov: 'Omogućene', items: leftLN }}
-                        desno={{ naslov: 'Nisu omogućene', items: rightLN }}
+                        lijevo={{ naslov: 'Nisu omogućene', items: rightLN }}
+                        desno={{ naslov: 'Omogućene', items: leftLN }}
                         oznaka={(v) => (v.code ? `${v.code} · ${v.name}` : v.name)}
                         jeOznacen={(v) => checkedLN.indexOf(v) !== -1}
                         onToggle={handleToggleLN}
-                        preslagivanjeLijevo={pomakniLN}
+                        preslagivanjeDesno={pomakniLN}
                         akcije={{
-                            sveDesno: handleAllRightLN, oznaceneDesno: handleCheckedRightLN,
-                            oznaceneLijevo: handleCheckedLeftLN, sveLijevo: handleAllLeftLN,
+                            sveDesno: handleAllLeftLN, oznaceneDesno: handleCheckedLeftLN,
+                            oznaceneLijevo: handleCheckedRightLN, sveLijevo: handleAllRightLN,
                         }}
                         mogucnosti={{
-                            sveDesno: leftLN.length > 0, oznaceneDesno: leftCheckedLN.length > 0,
-                            oznaceneLijevo: rightCheckedLN.length > 0, sveLijevo: rightLN.length > 0,
+                            sveDesno: rightLN.length > 0, oznaceneDesno: rightCheckedLN.length > 0,
+                            oznaceneLijevo: leftCheckedLN.length > 0, sveLijevo: leftLN.length > 0,
                         }}
                     />
                     <Button
