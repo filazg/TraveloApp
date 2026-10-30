@@ -23,6 +23,9 @@ const listInvoicesController = async (req, res) => {
         if (req.query.operator_uuid) {
             where.operater_uuid = req.query.operator_uuid;
         }
+        // Naplata: "false" = racuni koji cekaju potvrdu naplate (virman).
+        if (req.query.paid === "false") where.invoice_paid = false;
+        if (req.query.paid === "true") where.invoice_paid = { [Op.not]: false };
 
         // Year (+ optional month) shortcut. Without month → whole year.
         if (req.query.year) {

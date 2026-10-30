@@ -24,7 +24,7 @@ const { handleGetCountriesFeature, handleAddCountryFeature, handleUpdateCountryF
 const { handleGetChannelSettingsFeature, handleGetChannelSettingFeature, handleUpsertChannelSettingFeature } = require('../features/backoffice/channelSettingsHandlers');
 const { handleGetAccountsFeature, handleAddAccountFeature, handleUpdateAccountFeature, handleGetAccountMappingsFeature, handleUpsertAccountMappingFeature } = require('../features/backoffice/accountsHandlers');
 const { handleGetDailyRealizationFeature, handleSendDailyRealizationToErpFeature, handleGetDailyRealizationDemoFeature, handleSendDailyRealizationDemoToErpFeature } = require('../features/transactions/dailyRealizationHandlers');
-const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature } = require('../features/transactions/invoicesHandlers');
+const { handleGetInvoicesFeature, handleGetInvoicePdfFeature, handleGetInvoiceDetailsFeature, handleEmailInvoiceTicketsFeature, handleConfirmInvoicePaymentFeature } = require('../features/transactions/invoicesHandlers');
 const { handleGetManagementReportFeature } = require('../features/transactions/managementReportHandlers');
 const { handleGetCommissionReportPdfFeature, handleGetPartnerInvoicePdfFeature, handleGetPartnerInvoicesFeature, handleGetPartnerInvoiceDetailsFeature, handleGetPartnerCommissionFeature, handleGetPartnerCommissionDetailsFeature, handleGetPartnerCommissionReportsFeature, handleGetPartnerCommissionReportDetailsFeature } = require('../features/transactions/partnerInvoicesHandlers');
 const { handleGetConflictTypesFeature, handleGetTicketCopyConflictsFeature, handleGetTicketValidationsFeature, handleGetTicketCopyPrintsFeature, handleGetSeopCardErrorsFeature, handleGetSeopOfflineSalesFeature, handleGetTicketStornosFeature, handleGetF2ErrorsFeature, handleResendF2Feature } = require('../features/transactions/ticketControlHandlers');
@@ -240,6 +240,10 @@ router
 router
     .route('/transactions/email_invoice_tickets')
     .post(handleEmailInvoiceTicketsFeature)
+
+router
+    .route('/transactions/invoice_payment_confirm')
+    .post(handleConfirmInvoicePaymentFeature)
 
 router
     .route('/transactions/management_report')

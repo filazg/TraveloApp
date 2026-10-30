@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { getSequelize } = require("../../config/database");
 const ticketsModels = require("../../dbModels/tickets.models");
 const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
+const { poljaNaplate } = require("../../helpers/naplata");
 const { reserveBookings, releaseBookings } = require("../../helpers/bookingClient");
 const { poljaPovlastice } = require("../../helpers/povlastica");
 const { dispatchProdaja, dispatchCvikanje } = require("../../helpers/seopDispatch");
@@ -54,6 +55,14 @@ const addTerminalSaleController = async(req,res)=>{
         let greskeKartica = [];
         // Za write-through kupca u centralni adresar nakon commita (fire-and-forget).
         let invoiceZaAdresar = null;
+        // Izvan transakcije: dohvat sredstva placanja ide preko backoffice-a.
+        // Storno racun (negativan iznos) nema naplate.
+        const naplata = await poljaNaplate({
+            payment_method_uuid: data.invoice?.invoice_payment_method_uuid,
+            fiscal_mark: data.invoice?.invoice_payment_method_fiscal_mark,
+            invoice_date: data.invoice?.invoice_date,
+            storno: Number(data.invoice?.invoice_amount) < 0,
+        });
         await sequelize.transaction(async (t)=>{
             const invoiceExist = await InvoiceModel.findOne({
                 where:{
@@ -87,6 +96,7 @@ const addTerminalSaleController = async(req,res)=>{
                     invoice_billing_device_uuid:data.invoice.invoice_billing_device_uuid,
                     invoice_billing_device_fiscal_mark:data.invoice.invoice_billing_device_fiscal_mark,
                     invoice_is_pay:data.invoice.invoice_is_pay,
+                    ...naplata,
                     invoice_payment_data:data.invoice.payment_data,
                     invoice_ZKI:data.invoice.invoice_ZKI,
                     invoice_JIR:data.invoice.invoice_JIR || '',

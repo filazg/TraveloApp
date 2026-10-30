@@ -16,6 +16,7 @@ import { setAuthData } from "../../../auth/authSlice";
 const FAZE = {
     slanje: { label: "Slanje", color: "error" },
     fiskalizacija: { label: "Fiskalizacija", color: "warning" },
+    naplata: { label: "Naplata", color: "info" },
 };
 const fazaInfo = (f) => FAZE[f] || { label: f || "—", color: "default" };
 
@@ -36,6 +37,11 @@ const prosao = (r) => r.stanje_fiskalizacija === "successful"
     || (!!r.stanje_document_id
         && !["failed", "error"].includes(r.stanje_status)
         && r.stanje_fiskalizacija !== "error");
+
+// Greska naplate: racun je fiskaliziran, ponavlja se samo prijava naplate —
+// dok YesCor naplatu nije preuzeo.
+const naplataProsla = (r) => ["submitted", "new", "sending", "sent"].includes(r.stanje_naplata);
+const mozePonovno = (r) => (r.faza === "naplata" ? !naplataProsla(r) : !prosao(r));
 
 const stanjeInfo = (r) => {
     if (r.stanje_fiskalizacija === "successful") return { label: "Fiskaliziran", color: "success" };
@@ -83,10 +89,10 @@ export default function F2ErrorsPage() {
 
     const posaljiPonovno = async (r) => {
         setSalje(r.invoice_uuid);
-        const rez = await dispatch(resendF2Thunk({ vrsta: r.vrsta, invoice_uuid: r.invoice_uuid }));
+        const rez = await dispatch(resendF2Thunk({ vrsta: r.vrsta, invoice_uuid: r.invoice_uuid, faza: r.faza }));
         setSalje(null);
         if (resendF2Thunk.fulfilled.match(rez)) {
-            setObavijest({ severity: "success", text: `Račun ${r.invoice_code || r.invoice_no || ""} poslan u YesCor.` });
+            setObavijest({ severity: "success", text: r.faza === "naplata" ? `Naplata računa ${r.invoice_code || r.invoice_no || ""} prijavljena.` : `Račun ${r.invoice_code || r.invoice_no || ""} poslan u YesCor.` });
             setOdabran(null);
         } else {
             setObavijest({ severity: "error", text: `Slanje nije uspjelo: ${rez.payload?.message || "nepoznata greška"}` });
@@ -310,7 +316,7 @@ export default function F2ErrorsPage() {
                     </Typography>
                 </DialogContent>
                 <DialogActions>
-                    {odabran && !prosao(odabran) && odabran.invoice_uuid ? (
+                    {odabran && mozePonovno(odabran) && odabran.invoice_uuid ? (
                         <Button
                             variant="contained"
                             startIcon={<SendIcon />}

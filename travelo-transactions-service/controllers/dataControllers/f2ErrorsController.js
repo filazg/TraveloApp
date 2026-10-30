@@ -3,6 +3,7 @@ const { Op } = require("sequelize");
 const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
 const { zabiljeziF2Gresku } = require("../../helpers/f2Greske");
 const { fiskalizirajRacun, fetchCompanyFromBackoffice } = require("./partnerInvoiceGeneratorController");
+const { prijaviNaplatu } = require("../integrations/yescorNaplata");
 
 // Stanje racuna sada — zapis greske je povijest, a Kontrola treba znati je li
 // racun u meduvremenu ipak prosao (ponovno slanje, ili je YesCor proradio).
@@ -11,7 +12,7 @@ const dopuniStanjem = async (zapisi) => {
     const uuidi = (vrsta) => [...new Set(zapisi.filter((z) => z.vrsta === vrsta && z.invoice_uuid).map((z) => z.invoice_uuid))];
     const polja = ["yescor_status", "yescor_fiscalization_status", "yescor_document_id"];
     const racuni = uuidi("racun").length
-        ? await InvoiceModel.findAll({ where: { invoice_uuid: { [Op.in]: uuidi("racun") } }, attributes: ["invoice_uuid", ...polja], raw: true })
+        ? await InvoiceModel.findAll({ where: { invoice_uuid: { [Op.in]: uuidi("racun") } }, attributes: ["invoice_uuid", ...polja, "yescor_payment_status"], raw: true })
         : [];
     const partnerski = uuidi("partnerski").length
         ? await PartnerInvoiceModel.findAll({ where: { partner_invoice_uuid: { [Op.in]: uuidi("partnerski") } }, attributes: ["partner_invoice_uuid", ...polja], raw: true })
@@ -27,6 +28,7 @@ const dopuniStanjem = async (zapisi) => {
             stanje_status: r?.yescor_status ?? null,
             stanje_fiskalizacija: r?.yescor_fiscalization_status ?? null,
             stanje_document_id: r?.yescor_document_id ?? null,
+            stanje_naplata: r?.yescor_payment_status ?? null,
         };
     });
 };
@@ -174,14 +176,32 @@ const posaljiPartnerskiPonovno = async (partner_invoice_uuid) => {
         : { http: 502, message: r.error || "YesCor je odbio racun" };
 };
 
-// POST /f2_resend { vrsta: 'racun' | 'partnerski', invoice_uuid }
+// Ponovna prijava naplate — racun je vec fiskaliziran, salje se samo naplata.
+const prijaviNaplatuPonovno = async (invoice_uuid) => {
+    const { InvoiceModel } = getModels();
+    const inv = await InvoiceModel.findOne({ where: { invoice_uuid } });
+    if (!inv) return { http: 404, message: "racun ne postoji" };
+    if (inv.yescor_fiscalization_status !== "successful") return { http: 409, message: "racun jos nije fiskaliziran" };
+    if (!inv.invoice_paid) return { http: 409, message: "naplata racuna nije potvrdena" };
+    if (["submitted", "new", "sending", "sent"].includes(inv.yescor_payment_status)) {
+        return { http: 409, message: "naplata je vec prijavljena" };
+    }
+    const ok = await prijaviNaplatu(inv);
+    return ok
+        ? { http: 200, message: "naplata je prijavljena" }
+        : { http: 502, message: inv.yescor_payment_error || "YesCor je odbio prijavu naplate" };
+};
+
+// POST /f2_resend { vrsta: 'racun' | 'partnerski', invoice_uuid, faza? }
 const resendF2Controller = async (req, res) => {
     try {
-        const { vrsta = "racun", invoice_uuid } = req.body || {};
+        const { vrsta = "racun", invoice_uuid, faza } = req.body || {};
         if (!invoice_uuid) {
             return res.status(400).send({ status: 400, data: { message: "nedostaje invoice_uuid" } });
         }
-        const r = vrsta === "partnerski"
+        const r = faza === "naplata" && vrsta === "racun"
+            ? await prijaviNaplatuPonovno(invoice_uuid)
+            : vrsta === "partnerski"
             ? await posaljiPartnerskiPonovno(invoice_uuid)
             : await posaljiRacunPonovno(invoice_uuid);
         res.status(r.http).send({ status: r.http, data: r });

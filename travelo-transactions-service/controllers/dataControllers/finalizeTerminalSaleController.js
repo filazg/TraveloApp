@@ -3,6 +3,7 @@ const axios = require("axios");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { reserveBookings } = require("../../helpers/bookingClient");
 const { sendInvoiceToYescor } = require("../integrations/sendInvoiceToYescor");
+const { poljaNaplate } = require("../../helpers/naplata");
 const { podigniSignal } = require("./syncSignalsController");
 
 const { jedinstvenBroj } = require("../../helpers/ticketCode");
@@ -447,6 +448,7 @@ const finalizeTerminalSaleController = async (req, res) => {
             invoice_year,
             invoice_date: invoiceDate,
             invoice_is_pay: true,
+            ...(await poljaNaplate({ payment_method_uuid: pm.uuid, fiscal_mark: pm.payment_type_acr, invoice_date: invoiceDate })),
             invoice_payment_method_uuid: pm.uuid,
             invoice_payment_method_name: pm.name,
             invoice_payment_method_fiscal_mark: pm.payment_type_acr || null,

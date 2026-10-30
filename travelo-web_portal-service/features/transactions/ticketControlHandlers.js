@@ -98,7 +98,7 @@ const handleGetF2ErrorsFeature = async (req, res) => {
 const handleResendF2Feature = async (req, res) => {
     try {
         const payload = req.body?.body || req.body || {};
-        const r = await resendF2Controller({ vrsta: payload.vrsta, invoice_uuid: payload.invoice_uuid });
+        const r = await resendF2Controller({ vrsta: payload.vrsta, invoice_uuid: payload.invoice_uuid, faza: payload.faza });
         res.status(r.http).send({
             status: r.http,
             data: { path1: 'kontrolaData', path2: 'f2Resend', data: r.data },

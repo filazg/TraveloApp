@@ -6,6 +6,7 @@ const { buildInvoicePdfBuffer } = require("./invoicePdfController");
 const { buildTicketsPdfBuffer } = require("./ticketPdfController");
 const { sendWebSaleEmail } = require("../../helpers/webSaleEmail");
 const { reserveBookings } = require("../../helpers/bookingClient");
+const { poljaNaplate } = require("../../helpers/naplata");
 const { podigniSignal } = require("./syncSignalsController");
 const { zabiljeziF2Gresku } = require("../../helpers/f2Greske");
 
@@ -291,6 +292,8 @@ const finalizeWebSaleController = async (req, res) => {
             invoice_year,
             invoice_date: invoiceDate,
             invoice_is_pay: true,
+            // Web se placa karticom (Monri) prije izdavanja racuna.
+            ...(await poljaNaplate({ payment_method_uuid: cs.payment_method_uuid, fiscal_mark: "K", invoice_date: invoiceDate })),
             invoice_payment_data: monri_meta,
             invoice_payment_method_uuid: cs.payment_method_uuid || null,
             invoice_payment_method_name: cs.payment_method_name || "Monri",

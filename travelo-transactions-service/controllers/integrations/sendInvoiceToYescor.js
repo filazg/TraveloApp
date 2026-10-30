@@ -32,6 +32,17 @@ const pripremiPdfPrivitak = async ({ models, invoice_uuid, broj }) => {
     }
 };
 
+// Broj i datum pod kojima racun ide u YesCor. Isti par mora pratiti i prijavu
+// naplate, inace je Porezna ne moze povezati s racunom.
+const f2OznakaRacuna = (invoice) => {
+    const iso = new Date(invoice.invoice_date || Date.now()).toISOString();
+    const broj = invoice.invoice_code
+        || (invoice.invoice_fiskal_no != null
+            ? `${invoice.invoice_fiskal_no}/${invoice.invoice_year || iso.slice(0,4)}`
+            : String(invoice.invoice_no || invoice.invoice_uuid).slice(0, 20));
+    return { iso, broj, datum: iso.slice(0, 10) };
+};
+
 // Map internal invoice + items + company + buyer → UBL data struct.
 // Zove se nakon uspješnog InvoiceModel.create u finalize flow.
 //
@@ -73,12 +84,7 @@ const sendInvoiceToYescor = async ({
     });
 
     // 3) Build UBL XML.
-    const issueDate = new Date(invoice.invoice_date || Date.now());
-    const iso = issueDate.toISOString();
-    const invoiceNoFormatted = invoice.invoice_code
-        || (invoice.invoice_fiskal_no != null
-            ? `${invoice.invoice_fiskal_no}/${invoice.invoice_year || iso.slice(0,4)}`
-            : String(invoice.invoice_no || invoice.invoice_uuid).slice(0, 20));
+    const { iso, broj: invoiceNoFormatted } = f2OznakaRacuna(invoice);
 
     // Kupac uz e-racun dobiva i PDF: UBL nosi podatke, PDF ono sto covjek cita.
     const pdfPrivitak = await pripremiPdfPrivitak({
@@ -137,4 +143,4 @@ const sendInvoiceToYescor = async ({
     return { ublXml, fileName, response: resp };
 };
 
-module.exports = { sendInvoiceToYescor };
+module.exports = { sendInvoiceToYescor, f2OznakaRacuna };

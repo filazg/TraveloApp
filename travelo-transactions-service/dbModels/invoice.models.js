@@ -242,6 +242,53 @@ module.exports =  (sequelize) =>{
             type: DataTypes.JSONB,
             allowNull: true
         },
+        // Naplata. invoice_is_pay je "racun izdan" (izvjestaj realizacije
+        // filtrira po njemu), a ovo je stvarna placenost: sredstvo plaćanja
+        // oznaceno "naplaceno pri izdavanju" daje placen racun odmah, ostalo
+        // (virman) ceka potvrdu u portalu.
+        invoice_paid_at_issue:{
+            type: DataTypes.BOOLEAN,
+            allowNull: true
+        },
+        invoice_paid:{
+            type: DataTypes.BOOLEAN,
+            allowNull: true
+        },
+        invoice_paid_date:{
+            type: DataTypes.DATEONLY,
+            allowNull: true
+        },
+        // YesCor DocumentPaymentType: 1 transakcijski racun, 2 kompenzacija, 3 ostalo.
+        invoice_paid_type:{
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
+        invoice_paid_confirmed_by:{
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        invoice_paid_confirmed_at:{
+            type: DataTypes.DATE,
+            allowNull: true
+        },
+        // Prijava naplate F2 racuna Poreznoj (YesCor document-payment).
+        // null = jos nije prijavljena; 'not_applicable' = ne prijavljuje se.
+        yescor_payment_id:{
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        yescor_payment_status:{
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        yescor_payment_error:{
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
+        yescor_payment_last_sync_at:{
+            type: DataTypes.DATE,
+            allowNull: true
+        },
     },{
         freezeTableName:true, tableName: "invoices", timestamps: true
     },

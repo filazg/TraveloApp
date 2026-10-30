@@ -20,7 +20,7 @@ import {
     setFilter,
 } from "../../financeSlice";
 import { setAuthData } from "../../../auth/authSlice";
-import InvoicePreviewDrawer from "./InvoicePreviewDrawer";
+import InvoicePreviewDrawer, { naplataInfo } from "./InvoicePreviewDrawer";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 const fmtDateTime = (s) => {
@@ -83,6 +83,7 @@ export default function InvoicesPage() {
         if (filters.buyer_company_name) params.buyer_company_name = filters.buyer_company_name;
         if (filters.invoice_code) params.invoice_code = filters.invoice_code;
         if (filters.invoice_status) params.invoice_status = filters.invoice_status;
+        if (filters.paid) params.paid = filters.paid;
         dispatch(setAuthData({ path: "loadingMessage", value: "Dohvat računa…" }));
         dispatch(setAuthData({ path: "loading", value: true }));
         await dispatch(fetchInvoicesThunk(params));
@@ -158,6 +159,22 @@ export default function InvoicesPage() {
                         {params.value || "—"}
                     </Box>
                 ),
+            },
+            {
+                field: "invoice_paid",
+                headerName: "Naplata",
+                width: 130,
+                renderCell: (params) => {
+                    const n = naplataInfo(params.row || {});
+                    return (
+                        <Box
+                            title={n.tooltip}
+                            sx={{ width: "100%", textAlign: "center", fontWeight: 700, fontSize: 12, py: 0.5, color: n.fg, backgroundColor: n.bg, borderRadius: 0.5 }}
+                        >
+                            {n.label}
+                        </Box>
+                    );
+                },
             },
             {
                 field: "fiskal_required",
@@ -254,6 +271,17 @@ export default function InvoicesPage() {
                     <MenuItem value="paid">Plaćeno</MenuItem>
                     <MenuItem value="pending">U obradi</MenuItem>
                     <MenuItem value="declined">Odbijeno</MenuItem>
+                </TextField>
+                <TextField
+                    select
+                    label="Naplata"
+                    value={filters.paid || ""}
+                    onChange={(e) => dispatch(setFilter({ path: "paid", value: e.target.value }))}
+                    sx={{ width: 160 }}
+                >
+                    <MenuItem value="">— sve —</MenuItem>
+                    <MenuItem value="false">Čeka naplatu</MenuItem>
+                    <MenuItem value="true">Naplaćeno</MenuItem>
                 </TextField>
                 <TextField
                     label="Email kupca"

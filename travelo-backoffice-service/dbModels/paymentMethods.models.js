@@ -42,6 +42,15 @@ module.exports = (sequelize)=>{
                 type:DataTypes.BOOLEAN,
                 allowNull:true
             },
+            // Naplaceno pri izdavanju: kupac je platio u trenutku izdavanja
+            // racuna (gotovina, kartica). Takav racun je odmah placen i naplata
+            // se za F2 sama prijavljuje Poreznoj. Za false (virman) racun ceka
+            // da se naplata naknadno potvrdi u portalu.
+            paid_at_issue:{
+                type:DataTypes.BOOLEAN,
+                allowNull:false,
+                defaultValue:true
+            },
         },
          { freezeTableName:true, tableName: "payment_methods", timestamps: true }
     )

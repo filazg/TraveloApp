@@ -52,7 +52,25 @@ const emailInvoiceTicketsController = async (data) => {
     }
 };
 
+// Naknadna potvrda naplate. Status i poruka transactions servisa idu dalje
+// nepromijenjeni — portal mora znati zasto potvrda nije prosla.
+const confirmInvoicePaymentController = async (data) => {
+    try {
+        const coreConfigData = await getCoreServiceConfigData();
+        const response = await axios.post(
+            coreConfigData.services.transactions.url + '/invoice_payment_confirm',
+            data,
+            { validateStatus: () => true, timeout: 60000 }
+        );
+        return { status: response.status, body: response.data };
+    } catch (error) {
+        console.log('confirmInvoicePaymentController error:', error?.message || error);
+        return { status: 500, body: { data: { message: error.message } } };
+    }
+};
+
 module.exports = {
+    confirmInvoicePaymentController,
     getInvoicesController,
     getInvoicePdfController,
     getInvoiceDetailsController,

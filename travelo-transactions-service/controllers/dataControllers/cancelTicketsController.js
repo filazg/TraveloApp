@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { poljaNaplate } = require("../../helpers/naplata");
 const axios = require("axios");
 const { Op } = require("sequelize");
 const { getCoreServiceConfigData } = require("../configSyncController");
@@ -335,6 +336,7 @@ const cancelTicketsController = async (req, res) => {
             invoice_year,
             invoice_date: invoiceDate,
             invoice_is_pay: true,
+            ...(await poljaNaplate({ invoice_date: invoiceDate, storno: true })),
             invoice_payment_method_uuid: pm.uuid,
             invoice_payment_method_name: pm.name,
             invoice_payment_method_fiscal_mark: pm.payment_type_acr || null,

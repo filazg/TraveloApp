@@ -10,6 +10,7 @@ const { bumpSyncSignalController, getSyncSignalsController } = require('../contr
 const { listInvoicesController } = require('../controllers/dataControllers/invoicesListController');
 const { backfillInvoicesFiscalController } = require('../controllers/dataControllers/invoicesBackfillController');
 const { getInvoiceDetailsController } = require('../controllers/dataControllers/invoiceDetailsController');
+const { confirmInvoicePaymentController } = require('../controllers/dataControllers/invoicePaymentController');
 const { generatePartnerInvoicesController, listPartnerInvoicesController, getPartnerInvoiceDetailsController, fiscalizePartnerInvoiceController } = require('../controllers/dataControllers/partnerInvoiceGeneratorController');
 const { logTicketCopyPrintController, listTicketCopyPrintsController } = require('../controllers/dataControllers/ticketCopyPrintController');
 const { listTicketValidationsController, listCopyConflictsController, listConflictTypesController } = require('../controllers/dataControllers/ticketValidationsController');
@@ -97,6 +98,10 @@ router
 router
     .route('/invoice/:invoice_uuid')
     .get(getInvoiceDetailsController)
+
+router
+    .route('/invoice_payment_confirm')
+    .post(confirmInvoicePaymentController)
 
 router
     .route('/partner_invoices/generate')

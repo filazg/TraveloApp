@@ -48,6 +48,20 @@ export const fetchInvoiceDetailsThunk = createAsyncThunk(
     }
 );
 
+// Naknadna potvrda naplate (virman). Tko je potvrdio postavlja BFF iz prijave.
+export const confirmInvoicePaymentThunk = createAsyncThunk(
+    "finance/confirmInvoicePayment",
+    async ({ invoice_uuid, paid_date, paid_type }, { rejectWithValue }) => {
+        try {
+            const resp = await api.post("/portal/transactions/invoice_payment_confirm", { invoice_uuid, paid_date, paid_type });
+            return unwrapPost(resp)?.invoice || null;
+        } catch (err) {
+            const d = unwrapPostError(err);
+            return rejectWithValue({ message: d?.message || err.message });
+        }
+    }
+);
+
 export const fetchBillingDevicesThunk = createAsyncThunk(
     "finance/fetchBillingDevices",
     async (_, { rejectWithValue }) => {
@@ -690,6 +704,7 @@ const financeSlice = createSlice({
             buyer_company_name: "",
             invoice_code: "",
             invoice_status: "",
+            paid: "",
         },
     },
     reducers: {
@@ -783,6 +798,14 @@ const financeSlice = createSlice({
             })
             .addCase(fetchInvoiceDetailsThunk.rejected, (s) => {
                 s.invoiceDetailsLoading = false;
+            })
+            .addCase(confirmInvoicePaymentThunk.fulfilled, (s, a) => {
+                const inv = a.payload;
+                if (!inv) return;
+                s.invoices = s.invoices.map((r) => (r.invoice_uuid === inv.invoice_uuid ? { ...r, ...inv } : r));
+                if (s.invoiceDetails?.invoice?.invoice_uuid === inv.invoice_uuid) {
+                    s.invoiceDetails.invoice = { ...s.invoiceDetails.invoice, ...inv };
+                }
             })
             .addCase(fetchPartnerInvoicesThunk.pending, (s) => {
                 s.partnerInvoicesLoading = true;

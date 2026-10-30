@@ -104,6 +104,17 @@ const getDocumentStatus = async (documentId) => {
     return callYescorApi('GET', `/document/${encodeURIComponent(documentId)}/status`);
 };
 
+// Evidentiranje naplate F2 racuna — YesCor je prosljeduje Poreznoj. Racun sam
+// ne nosi oznaku placenosti, naplata je zaseban dokument vezan uz documentId.
+// paymentType: 1 = transakcijski racun, 2 = kompenzacija, 3 = ostalo.
+const sendDocumentPayment = async (payment) => {
+    return callYescorApi('POST', '/document-payment/submit', payment);
+};
+
+const getDocumentPaymentStatus = async (paymentId) => {
+    return callYescorApi('GET', `/document-payment/${encodeURIComponent(paymentId)}/status`);
+};
+
 // Dohvat tenant info — koristi se za ping / sanity check da API key radi.
 const getTenant = async () => {
     return callYescorApi('GET', '/tenant');
@@ -117,5 +128,7 @@ module.exports = {
     sendInvoice,
     validateInvoice,
     getDocumentStatus,
+    sendDocumentPayment,
+    getDocumentPaymentStatus,
     getTenant,
 };

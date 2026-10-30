@@ -1,5 +1,6 @@
 const cron = require("node-cron");
 const { pollPendingInvoices } = require("./integrations/yescorStatusPoller");
+const { prijaviNaplate, osvjeziNaplate } = require("./integrations/yescorNaplata");
 const { getModels } = require("../dbModels");
 
 const CRON_EXPR = "*/30 * * * * *"; // svakih 30s
@@ -19,6 +20,14 @@ function startYescorStatusScheduler() {
                 if (result.checked > 0) {
                     console.log(`[yescor-status-cron] checked=${result.checked} updated=${result.updated}`);
                 }
+                // Naplata ide nakon statusa — tek fiskaliziran racun smije
+                // dobiti prijavu naplate, pa racun fiskaliziran u ovom krugu
+                // odmah ide dalje.
+                const naplata = await prijaviNaplate(models);
+                if (naplata.kandidata > 0) {
+                    console.log(`[yescor-status-cron] naplata prijavljeno=${naplata.prijavljeno}/${naplata.kandidata}`);
+                }
+                await osvjeziNaplate(models);
             } catch (err) {
                 console.error("[yescor-status-cron] FAILED:", err.message);
             } finally {

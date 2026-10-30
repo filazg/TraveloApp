@@ -132,9 +132,9 @@ export const fetchF2ErrorsThunk = createAsyncThunk(
 // uspije — korisnik mora vidjeti zašto.
 export const resendF2Thunk = createAsyncThunk(
     "kontrola/resendF2",
-    async ({ vrsta, invoice_uuid }, { rejectWithValue }) => {
+    async ({ vrsta, invoice_uuid, faza }, { rejectWithValue }) => {
         try {
-            const resp = await api.post("/portal/transactions/f2_resend", { vrsta, invoice_uuid });
+            const resp = await api.post("/portal/transactions/f2_resend", { vrsta, invoice_uuid, faza });
             return unwrapBff(resp) || {};
         } catch (err) {
             const d = err.response?.data;

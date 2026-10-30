@@ -123,6 +123,8 @@
               "is_card_payment": "Kartično plaćanje",
               "card_provider": "Card provider",
               "card_provider_hint": "Available for card payment methods only",
+              "paid_at_issue": "Paid at issue",
+              "paid_at_issue_hint": "Yes = buyer pays when the invoice is issued (cash, card). No = invoice waits for a later payment confirmation (bank transfer).",
               "type": "Vrsta sredstva plaćanja",
               "acr":"Oznaka tipa plaćanja",
               "type_fiscalization": "Fiskalizacija",

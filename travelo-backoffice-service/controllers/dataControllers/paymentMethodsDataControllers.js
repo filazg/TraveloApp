@@ -48,7 +48,8 @@ const addPaymentMethodDataController = async(req,res)=>{
                     card_provider:asBool(data.is_card_payment) ? (data.card_provider || null) : null,
                     payment_type_uuid:data.type.uuid,
                     payment_type_acr:data.type.acr,
-                    fiscalization:data.fiscalization
+                    fiscalization:data.fiscalization,
+                    paid_at_issue:data.paid_at_issue === undefined ? true : asBool(data.paid_at_issue)
                 })
                 res.send({
                     status:201,
@@ -93,6 +94,7 @@ const updatePaymentMethodDataController = async(req,res)=>{
                     name:data.name,
                     is_card_payment:asBool(data.is_card_payment),
                     card_provider:asBool(data.is_card_payment) ? (data.card_provider || null) : null,
+                    ...(data.paid_at_issue === undefined ? {} : { paid_at_issue:asBool(data.paid_at_issue) }),
                 },{
                     where:{
                         uuid:data.uuid

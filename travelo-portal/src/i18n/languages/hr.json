@@ -123,6 +123,8 @@
               "is_card_payment": "Kartično plaćanje",
               "card_provider": "Kartični provider",
               "card_provider_hint": "Dostupno samo za kartična sredstva plaćanja",
+              "paid_at_issue": "Naplaćeno pri izdavanju",
+              "paid_at_issue_hint": "Da = kupac plaća pri izdavanju računa (gotovina, kartica). Ne = račun čeka naknadnu potvrdu naplate (virman).",
               "type": "Vrsta sredstva plaćanja",
               "acr":"Oznaka tipa plaćanja",
               "type_fiscalization": "Fiskalizacija",

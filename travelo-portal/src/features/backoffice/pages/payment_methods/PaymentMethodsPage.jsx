@@ -81,6 +81,7 @@ export default function PaymentMethodsPage (){
         { field: 'is_card_payment', type: 'boolean', headerName: t('backoffice.payment_methods.is_card_payment'), flex: 2},
         { field: 'card_provider', headerName: t('backoffice.payment_methods.card_provider'), flex: 2,
           valueGetter: (value) => CARD_PROVIDERS.find((p) => p.value === value)?.label || ''},
+        { field: 'paid_at_issue', type: 'boolean', headerName: t('backoffice.payment_methods.paid_at_issue'), flex: 2},
         { field: 'payment_type_acr', headerName: t('backoffice.payment_methods.acr'),align:'right', flex: 2},     
     ];
 
@@ -180,6 +181,22 @@ export default function PaymentMethodsPage (){
                         {CARD_PROVIDERS.map((cp) => (
                             <MenuItem key={cp.value || 'none'} value={cp.value}>{cp.label}</MenuItem>
                         ))}
+                    </TextField>
+                    <TextField
+                        variant="outlined"
+                        fullWidth
+                        select
+                        helperText={t('backoffice.payment_methods.paid_at_issue_hint')}
+                        label={t('backoffice.payment_methods.paid_at_issue')}
+                        value={newData.paid_at_issue ?? "true"}
+                        onChange={handleChange}
+                        name="paid_at_issue"
+                        sx={{
+                            mt:1
+                        }}
+                        >
+                        <MenuItem value='true'>{t('backoffice.payment_methods.is_card_payment_yes')}</MenuItem>
+                        <MenuItem value='false'>{t('backoffice.payment_methods.is_card_payment_no')}</MenuItem>
                     </TextField>
                     <TextField
                         type="boolean"
@@ -283,6 +300,22 @@ export default function PaymentMethodsPage (){
                         {CARD_PROVIDERS.map((cp) => (
                             <MenuItem key={cp.value || 'none'} value={cp.value}>{cp.label}</MenuItem>
                         ))}
+                    </TextField>
+                    <TextField
+                        variant="outlined"
+                        fullWidth
+                        select
+                        helperText={t('backoffice.payment_methods.paid_at_issue_hint')}
+                        label={t('backoffice.payment_methods.paid_at_issue')}
+                        value={editedData?.paid_at_issue === undefined || editedData?.paid_at_issue === null ? "true" : String(editedData.paid_at_issue)}
+                        onChange={handleChangeEdit}
+                        name="paid_at_issue"
+                        sx={{
+                            mt:1
+                        }}
+                        >
+                        <MenuItem value='true'>{t('backoffice.payment_methods.is_card_payment_yes')}</MenuItem>
+                        <MenuItem value='false'>{t('backoffice.payment_methods.is_card_payment_no')}</MenuItem>
                     </TextField>
                     <TextField
                         type="boolean"

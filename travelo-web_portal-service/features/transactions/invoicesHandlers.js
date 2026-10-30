@@ -3,6 +3,7 @@ const {
     getInvoicePdfController,
     getInvoiceDetailsController,
     emailInvoiceTicketsController,
+    confirmInvoicePaymentController,
 } = require('../../controllers/coreServiceControllers/transactionsServiceControllers.js/invoicesServiceControllers');
 
 const handleGetInvoicesFeature = async (req, res) => {
@@ -68,7 +69,26 @@ const handleEmailInvoiceTicketsFeature = async (req, res) => {
     }
 };
 
+// Tko je potvrdio naplatu dolazi iz gatewaya (prijavljeni korisnik), ne iz
+// tijela zahtjeva koje salje preglednik.
+const handleConfirmInvoicePaymentFeature = async (req, res) => {
+    try {
+        const payload = req.body?.body || req.body || {};
+        const { status, body } = await confirmInvoicePaymentController({
+            invoice_uuid: payload.invoice_uuid,
+            paid_date: payload.paid_date,
+            paid_type: payload.paid_type,
+            confirmed_by: req.body?.header?.username || null,
+        });
+        res.status(status).send(body);
+    } catch (error) {
+        console.log('handleConfirmInvoicePaymentFeature error:', error?.message || error);
+        res.status(500).send({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
+    handleConfirmInvoicePaymentFeature,
     handleGetInvoicesFeature,
     handleGetInvoicePdfFeature,
     handleGetInvoiceDetailsFeature,
