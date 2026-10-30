@@ -73,6 +73,12 @@ const updateStornoPercentageDataController = async (req, res) => {
                 if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
                     return res.send({ status: 400, data: { message: "Postotak mora biti broj između 0 i 100." } });
                 }
+                // Kao i pri dodavanju: isti postotak dvaput dao bi blagajniku
+                // dva jednaka gumba.
+                const isti = await StornoPercentagesModel.findOne({ where: { percentage } });
+                if (isti && isti.uuid !== row.uuid) {
+                    return res.send({ status: 409, data: { message: "Taj postotak već postoji." } });
+                }
                 patch.percentage = percentage;
             }
             await StornoPercentagesModel.update(patch, { where: { uuid: data.uuid } });

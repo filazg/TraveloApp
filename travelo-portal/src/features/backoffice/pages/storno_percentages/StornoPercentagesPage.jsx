@@ -16,6 +16,8 @@ export default function StornoPercentagesPage() {
     const [openAdd, setOpenAdd] = useState(false);
     const [newData, setNewData] = useState({});
     const [error, setError] = useState("");
+    // Redak koji se uređuje; isti drawer služi za dodavanje i uređivanje.
+    const [editRow, setEditRow] = useState(null);
 
     const syncData = async () => {
         await dispatch(setAuthData({ path: 'loading', value: true }));
@@ -33,12 +35,31 @@ export default function StornoPercentagesPage() {
         setNewData({ ...newData, [e.target.name]: e.target.value });
     };
 
+    const openEdit = (row) => {
+        setError("");
+        setEditRow(row);
+        setNewData({ percentage: Number(row.percentage), name: row.name || "" });
+        setOpenAdd(true);
+    };
+
+    const closeDrawer = () => {
+        setOpenAdd(false);
+        setEditRow(null);
+        setNewData({});
+        setError("");
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
         await dispatch(setAuthData({ path: 'loading', value: true }));
-        await dispatch(setAuthData({ path: 'loadingMessage', value: 'Dodavanje postotka' }));
-        const res = await dispatch(postBackofficeThunk({ path: 'storno_percentages', data: newData }));
+        await dispatch(setAuthData({ path: 'loadingMessage', value: editRow ? 'Ažuriranje postotka' : 'Dodavanje postotka' }));
+        const res = editRow
+            ? await dispatch(patchBackofficeThunk({
+                path: 'storno_percentages',
+                data: { uuid: editRow.uuid, percentage: newData.percentage, name: newData.name ?? "" },
+            }))
+            : await dispatch(postBackofficeThunk({ path: 'storno_percentages', data: newData }));
         await dispatch(setAuthData({ path: 'loading', value: false }));
         // Backoffice odbija duplikat i vrijednost izvan 0–100; bez ove poruke bi
         // izgledalo kao da se ništa nije dogodilo.
@@ -47,8 +68,7 @@ export default function StornoPercentagesPage() {
             setError(err);
             return;
         }
-        setNewData({});
-        setOpenAdd(false);
+        closeDrawer();
     };
 
     const handleToggleRow = async (row) => {
@@ -61,7 +81,7 @@ export default function StornoPercentagesPage() {
         await dispatch(setAuthData({ path: 'loading', value: false }));
     };
 
-    const rowActions = useRowClickActions({ onToggle: handleToggleRow });
+    const rowActions = useRowClickActions({ onEdit: openEdit, onToggle: handleToggleRow });
 
     const columns = [
         {
@@ -84,7 +104,7 @@ export default function StornoPercentagesPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
-                <GridHint text="Dupli klik na redak — aktiviraj/deaktiviraj postotak. Neaktivni se ne nude blagajniku." />
+                <GridHint text="Klik na redak — uredi postotak. Dupli klik — aktiviraj/deaktiviraj. Neaktivni se ne nude blagajniku." />
                 <Box sx={{ height: "80vh", minWidth: 800 }}>
                     <DataGrid
                         rows={rows}
@@ -100,13 +120,13 @@ export default function StornoPercentagesPage() {
             <Drawer
                 anchor="right"
                 open={openAdd}
-                onClose={() => { setOpenAdd(false); setError(""); }}
+                onClose={closeDrawer}
                 PaperProps={{ sx: { width: { xs: "100vw", sm: 520 }, maxWidth: "100vw" } }}
             >
                 <Box sx={{ mx: 5 }}>
                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 3, mt: 3 }}>
-                        <Typography variant="h5" fontWeight="bold">Novi postotak storniranja</Typography>
-                        <Button onClick={() => { setOpenAdd(false); setError(""); }}>Zatvori</Button>
+                        <Typography variant="h5" fontWeight="bold">{editRow ? 'Uređivanje postotka storniranja' : 'Novi postotak storniranja'}</Typography>
+                        <Button onClick={closeDrawer}>Zatvori</Button>
                     </Stack>
 
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -144,13 +164,13 @@ export default function StornoPercentagesPage() {
                         sx={{ height: 60, mt: 2, width: "100%" }}
                         variant="contained"
                     >
-                        Dodaj postotak
+                        {editRow ? 'Spremi izmjene' : 'Dodaj postotak'}
                     </Button>
                 </Box>
             </Drawer>
 
             <Stack sx={{ width: '96%', ml: 1 }} alignItems="flex-start">
-                <Button onClick={() => setOpenAdd(true)}>Dodaj postotak</Button>
+                <Button onClick={() => { closeDrawer(); setOpenAdd(true); }}>Dodaj postotak</Button>
             </Stack>
         </>
     );
