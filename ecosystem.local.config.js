@@ -76,6 +76,7 @@ module.exports = {
     // Frontends (Vite dev servers)
     vite('travelo-portal', 5180),
     vite('travelo-web-sales', 5181),
+    vite('travelo-web-sales-v2', 5182),
     vite('travelo-partner-sales', 5183),
   ],
 };
