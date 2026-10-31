@@ -10,6 +10,18 @@ import {
 } from './cart.js';
 import { getHarbors, searchTrips, confirmOrder, sudregLookup } from './api.js';
 import { translate } from './translations.js';
+import mastercardLogo from './assets/cards/mastercard.png';
+import maestroLogo from './assets/cards/maestro.png';
+import visaLogo from './assets/cards/visa.gif';
+import amexLogo from './assets/cards/amex.jpg';
+
+// Znakovi kartica ispod podataka kupca, kao na staroj web prodaji.
+const CARD_BRANDS = [
+  { src: mastercardLogo, href: 'https://www.mastercard.hr/hr-hr.html', alt: 'Mastercard' },
+  { src: maestroLogo, href: 'https://www.mastercard.com/brandcenter/en/home', alt: 'Maestro' },
+  { src: visaLogo, href: 'https://www.visa.co.uk/about-visa/visa-in-europe.html', alt: 'Visa' },
+  { src: amexLogo, href: 'https://www.americanexpress.com', alt: 'American Express' },
+];
 
 const EMPTY_BUYER = {
   name: '', email: '', company: false,
@@ -474,7 +486,11 @@ export default function App() {
                   </button>
                 </form>
                 <p className="demo-note">{T('Plaćanje se obavlja na sigurnoj stranici Monri.')}</p>
-                <div className="paymarks"><span>Mastercard</span><span>Maestro</span><span>VISA</span><span>American Express</span></div>
+                <div className="paymarks">
+                  {CARD_BRANDS.map((c) => (
+                    <a key={c.alt} href={c.href} target="_blank" rel="noopener noreferrer"><img src={c.src} alt={c.alt} height="40" /></a>
+                  ))}
+                </div>
                 <div className="action">
                   <button className="back" onClick={() => { setQuestionId([...cart].reverse().find((t) => !t.parentId)?.id); setStage('return-choice'); }}>← {T('Natrag')}</button>
                 </div>
