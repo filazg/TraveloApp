@@ -78,8 +78,16 @@ export default function App() {
     try { localStorage.setItem('kriloLanguage', language); } catch { /* bez pohrane */ }
   }, [language]);
 
+  // Bez luka se ne može ništa odabrati, pa se nakon greške (npr. 429) pokušava
+  // ponovno dok ne uspije; poruka nestaje čim luke stignu.
   useEffect(() => {
-    getHarbors().then(setHarbors).catch((e) => setError(e.message));
+    let timer;
+    let cancelled = false;
+    const load = () => getHarbors()
+      .then((list) => { if (!cancelled) { setHarbors(list); setError(''); } })
+      .catch((e) => { if (!cancelled) { setError(e.message); timer = setTimeout(load, 20000); } });
+    load();
+    return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
   useEffect(() => {

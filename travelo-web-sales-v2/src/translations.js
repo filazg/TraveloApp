@@ -1,4 +1,5 @@
 export const translations = {
+  "Previše upita u kratkom vremenu. Pričekajte minutu pa pokušajte ponovno.": "Too many requests in a short time. Please wait a minute and try again.",
   "Vaša rezervacija": "Your booking",
   "Status plaćanja i preuzimanje karata": "Payment status and ticket download",
   "Linija": "Line",

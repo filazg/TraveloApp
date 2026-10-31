@@ -35,6 +35,11 @@ const request = async (path, { method = 'GET', body } = {}) => {
   } catch {
     throw new ApiError('Veza s poslužiteljem nije uspjela. Pokušajte ponovno.', 0);
   }
+  // Ograničenje broja zahtjeva po IP-u (rate limiter servisa) — tekst
+  // limitera je tehnički, kupcu treba reći da pričeka.
+  if (resp.status === 429) {
+    throw new ApiError('Previše upita u kratkom vremenu. Pričekajte minutu pa pokušajte ponovno.', 429);
+  }
   const json = await resp.json().catch(() => ({}));
   if (!resp.ok || (json?.status && json.status >= 400)) {
     throw new ApiError(json?.data?.message || json?.message || `Greška ${resp.status}`, resp.status);
