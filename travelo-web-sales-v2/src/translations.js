@@ -204,6 +204,8 @@ export const translations = {
   "Putna karta - Bicikl": "Ticket - Bicycle",
   "Putna karta - Ljubimci": "Ticket - Pet",
   "Putna karta - Djeca 1-3": "Passenger ticket - Children aged 1–3",
+  "Putna karta - Djeca 3-12": "Passenger ticket - Children aged 3–12",
+  "Djelatna karta": "Staff ticket",
   "Redovna karta za jednog putnika.": "Standard ticket for one passenger.",
   "Prijevoz bicikla uz putnu kartu putnika.": "Bicycle transport in addition to a passenger ticket.",
   "Prijevoz kućnog ljubimca uz putnu kartu putnika.": "Pet transport in addition to a passenger ticket.",
