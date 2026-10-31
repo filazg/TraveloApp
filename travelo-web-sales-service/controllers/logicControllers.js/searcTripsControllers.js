@@ -1,6 +1,7 @@
 const { Sequelize } = require('sequelize');
 const { Op } = require("sequelize");
 const { isSaleOpen } = require('../../helpers/departureCutoff');
+const { desktopOnlyTicketTypes } = require('../../helpers/webTicketTypes');
 
 // Polasci se u bazi vode kao tekst ("DD.MM.YYYY. HH:mm"), pa ih ne može poredati
 // ni baza ni obična usporedba stringova — 9:00 bi došlo iza 17:00 jer se
@@ -20,6 +21,8 @@ const sortByDeparture = (trips) =>
     [...trips].sort((a, b) => departureSortKey(a.actual_departure) - departureSortKey(b.actual_departure));
 
 const searchTripsController = async(req,res)=>{
+    // Vrste samo za desk (web_sale = false) ne izlaze u web pretrazi.
+    const samoDesk = await desktopOnlyTicketTypes();
     const { RoutesModel, TimetablePricesModel } = req.app.locals.models;  
     console.log('SEARCH', req.body)
     try {
@@ -163,7 +166,7 @@ const searchTripsController = async(req,res)=>{
             line_code: trip.line_code,
             line_name: trip.line_name,
             //capacity:capacityForTrip,
-            prices:pricesForTrip
+            prices:pricesForTrip.filter((p) => !samoDesk.has(p.ticket_type_uuid))
           };
           tripsResult = [...tripsResult, newTrip];
         }
@@ -187,6 +190,8 @@ const searchTripsController = async(req,res)=>{
     }
 }
 const searchWebPageTripsController = async(req,res)=>{
+    // Vrste samo za desk (web_sale = false) ne izlaze u web pretrazi.
+    const samoDesk = await desktopOnlyTicketTypes();
     const { RoutesModel, TimetablePricesModel } = req.app.locals.models;  
     console.log('SEARCH', req.body)
     try {
@@ -330,7 +335,7 @@ const searchWebPageTripsController = async(req,res)=>{
             line_code: trip.line_code,
             line_name: trip.line_name,
             //capacity:capacityForTrip,
-            prices:pricesForTrip
+            prices:pricesForTrip.filter((p) => !samoDesk.has(p.ticket_type_uuid))
           };
           tripsResult = [...tripsResult, newTrip];
         }

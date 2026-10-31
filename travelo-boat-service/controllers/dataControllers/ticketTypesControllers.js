@@ -72,6 +72,7 @@ const addTicketTypeDataController = async (req, res) =>{
                 booking_type_acr:bt.acr || null,
                 seop_type:data.seop_type,
                 is_island: data.is_island === true,
+                web_sale: data.web_sale !== false,
                 extra_tickets: await ocistiDodatne(TicketsTypesModel, data.extra_tickets, novaUuid),
                 is_active:true,
                 updated_by_uuid:user?.uuid || null,
@@ -127,6 +128,7 @@ const updateTicketTypeDataController = async (req, res) =>{
                 seop_type: data.seop_type,
                 // is_island se postavlja SAMO pri dodavanju, ne mijenja se editom
                 is_active: data.is_active,
+                ...(typeof data.web_sale === 'boolean' ? { web_sale: data.web_sale } : {}),
                 ...(Array.isArray(data.extra_tickets)
                     ? { extra_tickets: await ocistiDodatne(TicketsTypesModel, data.extra_tickets, data.uuid) }
                     : {}),

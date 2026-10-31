@@ -48,6 +48,13 @@ module.exports =  (sequelize) =>{
             type: DataTypes.BOOLEAN,
             allowNull: false
         },
+        // false = vrsta se ne nudi u web prodaji (npr. Djelatna karta — samo desk).
+        // Stupac: migrate_ticket_type_web_sale.js.
+        web_sale:{
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true
+        },
         // Dodatne karte uz ovu vrstu (npr. Redovna → dojenče): [{ ticket_type_uuid,
         // max_qty }]. Pri prodaji se uz kartu ove vrste mogu dodati, bez naplate,
         // do max_qty po karti. Dodatak je zasebna karta svoje vrste (SEOP namjena,

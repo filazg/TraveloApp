@@ -2,6 +2,7 @@ const axios = require('axios');
 const { getCoreServiceConfigData } = require('../configSyncController');
 const { isSaleOpen, saleClosedMessage, isSailingCanceled, sailingCanceledMessage } = require('../../helpers/departureCutoff');
 const { initMonriPayment } = require('../../helpers/monriPayment');
+const { desktopOnlyTicketTypes } = require('../../helpers/webTicketTypes');
 
 // Povratna adresa nakon Monrija za novu web prodaju (v2). Monri traži https,
 // pa se lokalni razvoj (http) vraća na testni poslužitelj — ista baza, pa se
@@ -74,6 +75,18 @@ const createOrderConfirmationController = async (req, res) => {
                     },
                 });
             }
+        }
+
+        // Pretraga ih ne nudi, ali narudžba stiže iz preglednika pa se provjerava i ovdje.
+        const samoDesk = await desktopOnlyTicketTypes();
+        const nedopustena = routes.flatMap((r) => r.ticketsData || []).find((tt) => samoDesk.has(tt.ticket_type_uuid) && tt.quantity > 0);
+        if (nedopustena) {
+            return res.status(409).json({
+                status: 409,
+                data: { message: language === 'hr'
+                    ? `Karta „${nedopustena.ticket_type_name || ''}" ne prodaje se na webu.`
+                    : `Ticket "${nedopustena.ticket_type_name || ''}" is not sold online.` },
+            });
         }
 
         const coreConfig = await getCoreServiceConfigData();

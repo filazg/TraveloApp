@@ -161,6 +161,13 @@ export default function TicketsTypesPage() {
             flex: 1,
         },
         {
+            field: "web_sale",
+            type: "boolean",
+            headerName: "Web prodaja",
+            flex: 1,
+            valueGetter: (_v, row) => row.web_sale !== false,
+        },
+        {
             field: "capacity_category",
             headerName: "Kategorija kapaciteta",
             flex: 2,
@@ -239,6 +246,16 @@ export default function TicketsTypesPage() {
                         }
                         label="Otočna karta — pri prodaji se traži otočna iskaznica i SEOP popust"
                     />
+                    <FormControlLabel
+                        sx={{ mt: 1, display: "flex" }}
+                        control={
+                            <Switch
+                                checked={newData.web_sale !== false}
+                                onChange={(e) => setNewData({ ...newData, web_sale: e.target.checked })}
+                            />
+                        }
+                        label="Prodaja na webu — isključeno: vrsta se nudi samo na desku i mobilnoj"
+                    />
                     <TextField
                         select
                         fullWidth
@@ -308,6 +325,16 @@ export default function TicketsTypesPage() {
                             />
                         }
                         label="Otočna karta — postavlja se samo prilikom dodavanja vrste karte"
+                    />
+                    <FormControlLabel
+                        sx={{ mt: 1, display: "flex" }}
+                        control={
+                            <Switch
+                                checked={editedData?.web_sale !== false}
+                                onChange={(e) => setEditedData({ ...editedData, web_sale: e.target.checked })}
+                            />
+                        }
+                        label="Prodaja na webu — isključeno: vrsta se nudi samo na desku i mobilnoj"
                     />
                     <TextField
                         select
