@@ -224,7 +224,6 @@ export default function BusinessPremisesPage (){
                         >
                         <MenuItem value='POSL'>{t('backoffice.business_premises.type_physically')}</MenuItem>
                         <MenuItem value='MOBIL'>{t('backoffice.business_premises.type_movable')}</MenuItem>
-                        <MenuItem value='WEB'>{t('backoffice.business_premises.type_web')}</MenuItem>
                         <MenuItem value='WEB_OFFICE'>{t('backoffice.business_premises.type_web_office')}</MenuItem>
                         <MenuItem value='URED'>{t('backoffice.business_premises.type_office')}</MenuItem>
                     </TextField>

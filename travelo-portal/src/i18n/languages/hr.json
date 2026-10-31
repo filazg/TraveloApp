@@ -23,7 +23,6 @@
             "type":"Tip",
             "type_physically":"Poslonica",
             "type_movable":"Pokretna",
-            "type_web":"Web poslovnica",
             "type_web_office":"Web prodaja",
             "type_office":"Ured",
             "bp_own":"Vlasništvo",

@@ -22,7 +22,7 @@ const backfillInvoicesFiscalController = async (req, res) => {
 
         const bpsWithDevice = bps.filter((bp) => bds.some((bd) => bd.business_premise_uuid === bp.uuid));
         const bp =
-            bpsWithDevice.find((b) => b.type === "WEB") ||
+            bpsWithDevice.find((b) => b.type === "WEB_OFFICE") ||
             bpsWithDevice[0] ||
             (bds.length ? bps.find((b) => b.uuid === bds[0].business_premise_uuid) : null) ||
             bps[0];
