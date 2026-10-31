@@ -11,7 +11,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-for spa in travelo-portal travelo-partner-sales travelo-web-sales; do
+for spa in travelo-portal travelo-partner-sales travelo-web-sales travelo-web-sales-v2; do
   if [ ! -d "$spa" ]; then
     echo "SKIP  $spa (nema direktorija)"
     continue

@@ -1,2 +1,12 @@
-import {defineConfig} from 'vite';
-export default defineConfig({base:'./'});
+import { defineConfig } from 'vite';
+
+// Domene s kojih nginx prosljeđuje na Vite; bez popisa Vite 6 odbija zahtjev
+// ("Blocked request. This host is not allowed"). Isti popis vrijedi i za
+// posluženi build (`vite preview`, SPA_MODE=preview na VM-u).
+const allowedHosts = ['bookingtest.krilo.hr', 'webbookingtest.krilo.hr'];
+
+export default defineConfig({
+  base: './',
+  preview: { allowedHosts },
+  server: { allowedHosts },
+});
