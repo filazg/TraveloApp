@@ -42,3 +42,5 @@ header nav{gap:20px}.header-menu{position:relative}.menu-toggle{display:grid;pla
 .steps .step,.summary h2.journey-summary-title,.eyebrow.brand-label{font-family:Arial,Helvetica,sans-serif;font-size:13.2px;font-weight:700;font-style:normal;letter-spacing:.6px;line-height:1.4}@media(max-width:800px){.steps .step,.summary h2.journey-summary-title,.eyebrow.brand-label{font-size:12px;letter-spacing:.6px}}.summary h2.journey-summary-title{text-transform:none}.steps .step,.summary h2.journey-summary-title{letter-spacing:normal;line-height:normal}
 
 .paymarks{align-items:center;flex-wrap:wrap}.paymarks img{display:block;height:40px;width:auto}
+.payment-download-card>a,.payment-download-card>span.payment-secondary{display:flex;justify-content:center;align-items:center;gap:9px;white-space:nowrap;font-size:11px;padding:13px 14px;margin:0;width:auto;text-decoration:none;box-sizing:border-box}
+@media(max-width:800px){.payment-download-card>a,.payment-download-card>span.payment-secondary{grid-column:1/-1;width:100%}}
