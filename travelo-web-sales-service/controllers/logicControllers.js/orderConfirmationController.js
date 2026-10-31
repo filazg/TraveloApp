@@ -1,6 +1,18 @@
 const axios = require('axios');
 const { getCoreServiceConfigData } = require('../configSyncController');
 const { isSaleOpen, saleClosedMessage, isSailingCanceled, sailingCanceledMessage } = require('../../helpers/departureCutoff');
+const { initMonriPayment } = require('../../helpers/monriPayment');
+
+// Povratna adresa nakon Monrija za novu web prodaju (v2). Monri traži https,
+// pa se lokalni razvoj (http) vraća na testni poslužitelj — ista baza, pa se
+// narudžba ondje jednako dovrši.
+const WEB_SALE_PUBLIC_PATH = process.env.WEB_SALE_PUBLIC_PATH || '/web_sale';
+const V2_FALLBACK_SUCCESS_URL = process.env.WEB_V2_FALLBACK_SUCCESS_URL
+    || 'https://webbookingtest.krilo.hr/web_sale/monricallback/v2';
+const v2SuccessUrl = (req) => {
+    if (req.protocol !== 'https') return V2_FALLBACK_SUCCESS_URL;
+    return `https://${req.get('host')}${WEB_SALE_PUBLIC_PATH}/monricallback/v2`;
+};
 
 const createOrderConfirmationController = async (req, res) => {
     try {
@@ -128,6 +140,34 @@ const createOrderConfirmationController = async (req, res) => {
             0
         );
 
+        // Nova web prodaja (v2) ne zna merchant key — plaćanje pokreće server,
+        // s iznosom narudžbi koje je upravo izradio sales servis. Stara web
+        // prodaja ne šalje init_payment i radi kao prije.
+        let payment_url = null;
+        if (body.init_payment === true) {
+            const amount_cents = Math.round(totalAmount * 100);
+            if (amount_cents <= 0) {
+                return res.status(409).json({
+                    status: 409,
+                    data: { message: language === 'hr' ? 'Iznos narudžbe je 0 — nema što platiti.' : 'Order amount is 0 — nothing to pay.' },
+                });
+            }
+            try {
+                payment_url = await initMonriPayment({
+                    order_number,
+                    amount_cents,
+                    language,
+                    success_url: v2SuccessUrl(req),
+                });
+            } catch (err) {
+                console.log('order_confirmation Monri init failed:', err?.message || err);
+                return res.status(502).json({
+                    status: 502,
+                    data: { message: language === 'hr' ? 'Plaćanje trenutno nije dostupno. Pokušajte ponovno.' : 'Payment is currently unavailable. Please try again.' },
+                });
+            }
+        }
+
         return res.status(200).json({
             status: 200,
             path: 'orderConfirmation',
@@ -144,6 +184,7 @@ const createOrderConfirmationController = async (req, res) => {
                 })),
                 tickets: allTickets,
                 total_amount: +totalAmount.toFixed(2),
+                payment_url,
             },
         });
     } catch (error) {

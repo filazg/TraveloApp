@@ -8,7 +8,7 @@ const { getInfoData } = require('../controllers/logicControllers.js/getInfoData'
 const { downloadWebPageApiDocumentation } = require('../controllers/downloadControllers');
 const { createOrderConfirmationController, getOrdersByReferenceController } = require('../controllers/logicControllers.js/orderConfirmationController');
 const { ticketsPdfProxyController } = require('../controllers/logicControllers.js/ticketsPdfProxyController');
-const { monriWebhookController, simulatePaymentController, monriBrowserRedirectController } = require('../controllers/logicControllers.js/monriWebhookController');
+const { monriWebhookController, simulatePaymentController, monriBrowserRedirectController, monriBrowserRedirectV2Controller } = require('../controllers/logicControllers.js/monriWebhookController');
 const { invoicePdfProxyController } = require('../controllers/logicControllers.js/invoicePdfProxyController');
 const { getCountriesController } = require('../controllers/dataControllers/countriesControllers');
 const { cancelRoutesBatchController, rescheduleRoutesBatchController } = require('../controllers/dataControllers/routesController');
@@ -189,6 +189,13 @@ router
 router
     .route('/monricallback')
     .get(monriBrowserRedirectController)
+    .post(monriWebhookController)
+
+// Povratak preglednika iz Monrija za novu web prodaju (v2): isti postupak kao
+// /monricallback, ali vraća na stranicu v2 umjesto /download.
+router
+    .route('/monricallback/v2')
+    .get(monriBrowserRedirectV2Controller)
     .post(monriWebhookController)
 
 router
