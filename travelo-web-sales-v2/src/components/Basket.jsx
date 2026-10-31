@@ -6,12 +6,12 @@ export function HarborNotes({ leg, language }) {
   return harborNotes(leg, language).map((note) => <p className="destination-weather-note" key={note}>{note}</p>);
 }
 
-// Međuluke i napomena da se na njima ne smije iskrcati (samo kad ih ima).
+// Stajanja i napomena da se na njima ne smije iskrcati (samo kad ih ima).
 export function RouteNotes({ trip, T }) {
   if (!trip?.stops?.length) return null;
   return (
     <>
-      <p className="basket-route-stops">{T('Međuluke')}: {stopsText(trip)}</p>
+      <p className="basket-route-stops">{T('Stajanja')}: {stopsText(trip)}</p>
       <p className="route-disembarkation-note">*{T(disembarkationNote)}<br /><br />{T('Hvala na razumijevanju.')}</p>
     </>
   );
@@ -76,7 +76,7 @@ function SideDetails({ ticket, T, money, language }) {
     <div className="side-details-leg">
       <strong>{T(ticket.parentId ? 'Povratak' : 'Odlazak')}</strong>
       <small style={{ display: 'block', marginTop: 6 }}>{tripTimes(ticket.trip)}</small>
-      {ticket.trip?.stops?.length > 0 && <p className="basket-route-stops">{T('Međuluke')}: {stopsText(ticket.trip)}</p>}
+      {ticket.trip?.stops?.length > 0 && <p className="basket-route-stops">{T('Stajanja')}: {stopsText(ticket.trip)}</p>}
       <HarborNotes leg={ticket} language={language} />
       {ticketLines(ticket).map((l) => (
         <div className="summary-ticket-line" key={l.key}>

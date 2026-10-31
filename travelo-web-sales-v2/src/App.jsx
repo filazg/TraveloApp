@@ -341,7 +341,7 @@ export default function App() {
                                 <span>
                                   <strong>{tripTimes(trip).replace(' – ', ' → ')}</strong>
                                   <small>{disabled ? T('Povratak mora biti nakon dolaska.') : [tripDuration(trip), T(trip.stops?.length ? 'Linija sa stajanjima' : 'Izravna linija')].filter(Boolean).join(' · ')}</small>
-                                  {!disabled && trip.stops?.length > 0 && <small>{T('Međuluke')}: {stopsText(trip)}</small>}
+                                  {!disabled && trip.stops?.length > 0 && <small>{T('Stajanja')}: {stopsText(trip)}</small>}
                                 </span>
                               </label>
                             );
