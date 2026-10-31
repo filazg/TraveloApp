@@ -112,7 +112,7 @@ export function Calendar({ date, min, title, onChoose, onClose, T, locale }) {
         ))}
       </div>
       <div className="cal-footer">
-        <span>{picked}</span>
+        <span>{picked ? new Date(picked + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</span>
         <button className="primary" disabled={!picked} onClick={() => { onChoose(picked); onClose(); }}>{T('Odaberi datum')} →</button>
       </div>
     </dialog>
