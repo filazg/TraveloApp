@@ -313,9 +313,9 @@ const simulatePaymentController = async (req, res) => {
 // pa bi inače svaka uplata ostala neobrađena. Za zloupotrebu bi trebalo pogoditi
 // nasumičan UUID reference i točan iznos. Decline put ne kreira ništa novo
 // (samo status na postojećoj narudžbi) pa je oduvijek prolazio bez digesta.
-// Isti povratak služi staroj (/download) i novoj web prodaji (v2, WEB_V2_PATH);
+// Isti povratak služi staroj (/download) i novoj web prodaji (v2, WEB_V2_PATH — korijen domene);
 // razlikuju se samo po stranici na koju se preglednik vraća.
-const WEB_V2_PATH = process.env.WEB_V2_PATH || '/v2/';
+const WEB_V2_PATH = process.env.WEB_V2_PATH || '/';
 const makeBrowserRedirectController = (target) => async (req, res) => {
     try {
         const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';

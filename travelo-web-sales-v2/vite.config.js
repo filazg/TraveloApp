@@ -6,7 +6,8 @@ import { defineConfig } from 'vite';
 const allowedHosts = ['bookingtest.krilo.hr', 'webbookingtest.krilo.hr'];
 
 export default defineConfig({
-  base: './',
+  // Poslužuje se na korijenu domene (umjesto stare web prodaje).
+  base: '/',
   preview: { allowedHosts },
   server: { allowedHosts },
 });

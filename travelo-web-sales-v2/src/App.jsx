@@ -43,6 +43,16 @@ const readReturn = () => {
   return reference ? { reference, status: (q.get('status') || '').toLowerCase() } : null;
 };
 
+// Dolazak s vanjske stranice (web_page_redirect): ?from=HR479&to=HR364&date=2026-11-05.
+// Isti oblik kao na staroj web prodaji, pa poveznice partnera rade dalje.
+const readSearchParams = () => {
+  if (typeof window === 'undefined') return null;
+  const q = new URLSearchParams(window.location.search);
+  const from = q.get('from'), to = q.get('to'), date = q.get('date');
+  if (!from && !to && !date) return null;
+  return { from, to, date: /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : '' };
+};
+
 // Podaci kupca u obliku koji backend već čita (summary_buyer_*).
 const buyerData = (b) => ({
   summary_buyer_name: b.name.trim(),
@@ -95,7 +105,20 @@ export default function App() {
     let timer;
     let cancelled = false;
     const load = () => getHarbors()
-      .then((list) => { if (!cancelled) { setHarbors(list); setError(''); } })
+      .then((list) => {
+        if (cancelled) return;
+        setHarbors(list);
+        setError('');
+        const pre = readSearchParams();
+        if (pre && !readReturn()) {
+          setDraft((d) => ({
+            ...d,
+            from: list.find((h) => h.code === pre.from) || d.from,
+            to: list.find((h) => h.code === pre.to) || d.to,
+            date: pre.date && pre.date >= todayISO() ? pre.date : d.date,
+          }));
+        }
+      })
       .catch((e) => { if (!cancelled) { setError(e.message); timer = setTimeout(load, 20000); } });
     load();
     return () => { cancelled = true; clearTimeout(timer); };
@@ -215,7 +238,7 @@ export default function App() {
 
   function newJourney() {
     clearCheckout();
-    if (typeof window !== 'undefined') window.history.replaceState(null, '', window.location.pathname);
+    if (typeof window !== 'undefined') window.history.replaceState(null, '', import.meta.env.BASE_URL);
     setCart([]);
     setExpiry(null);
     setBuyer(EMPTY_BUYER);
@@ -225,7 +248,7 @@ export default function App() {
   // Neuspjelo plaćanje: vrati košaricu i podatke kupca koji su bili poslani.
   function retryCheckout() {
     const saved = loadCheckout();
-    if (typeof window !== 'undefined') window.history.replaceState(null, '', window.location.pathname);
+    if (typeof window !== 'undefined') window.history.replaceState(null, '', import.meta.env.BASE_URL);
     if (!saved?.cart?.length) return newJourney();
     setCart(saved.cart);
     setBuyer({ ...EMPTY_BUYER, ...saved.buyer, accepted: false });

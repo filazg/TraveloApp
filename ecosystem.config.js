@@ -61,12 +61,10 @@ const spaEnv = (vars) => Object.fromEntries(Object.entries(vars).filter(([, v]) 
 // njega nitko ne sluša — a to se već dogodilo kad je repozitorij dizao 5180/5182.
 //   /portal/       -> 5174
 //   /partner-sale/ -> 5175
-//   /              -> 5176   (web prodaja)
-//   /v2/           -> 5177   (nova web prodaja)
+//   /              -> 5176   (web prodaja — travelo-web-sales-v2 od 31.10.2026.)
 const PORTAL_PORT = Number(process.env.PORTAL_PORT) || 5174;
 const PARTNER_SALES_PORT = Number(process.env.PARTNER_SALES_PORT) || 5175;
 const WEB_SALES_PORT = Number(process.env.WEB_SALES_PORT) || 5176;
-const WEB_SALES_V2_PORT = Number(process.env.WEB_SALES_V2_PORT) || 5177;
 
 // SPA_MODE=preview poslužuje gotov build (`npm run build`), dev server ostaje
 // zadano. Razlika je velika na poslužitelju: u dev modu preglednik povuče
@@ -115,8 +113,9 @@ module.exports = {
 
     // SPA-ovi (Vite dev) — portovi i base se poklapaju s nginx config-om
     vite('travelo-portal',         PORTAL_PORT, '/portal/',       spaEnv({ VITE_BACKEND_URL: process.env.PUBLIC_APP_URL })),
-    vite('travelo-web-sales',      WEB_SALES_PORT, '/',             spaEnv({ VITE_WEB_SALES_URL: process.env.PUBLIC_WEB_SALES_URL, VITE_DOWNLOAD_URL: process.env.PUBLIC_DOWNLOAD_URL })),
+    // Nova web prodaja zamijenila je staru (travelo-web-sales) na istoj adresi i portu;
+    // stara ostaje u repou, ali se ne pokreće.
+    vite('travelo-web-sales-v2',   WEB_SALES_PORT, '/',             spaEnv({ VITE_WEB_SALES_URL: process.env.PUBLIC_WEB_SALES_URL })),
     vite('travelo-partner-sales',  PARTNER_SALES_PORT, '/partner-sale/', spaEnv({ VITE_BACKEND_URL: process.env.PUBLIC_APP_URL })),
-    vite('travelo-web-sales-v2',   WEB_SALES_V2_PORT, '/v2/',        spaEnv({ VITE_WEB_SALES_URL: process.env.PUBLIC_WEB_SALES_URL })),
   ],
 };
