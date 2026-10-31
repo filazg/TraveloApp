@@ -1,5 +1,16 @@
 import React from 'react';
-import { groups, total, ticketLines, tripTimes, cartTotal } from '../cart.js';
+import { groups, total, ticketLines, tripTimes, cartTotal, stopsText, disembarkationNote } from '../cart.js';
+
+// Međuluke i napomena da se na njima ne smije iskrcati (samo kad ih ima).
+export function RouteNotes({ trip, T }) {
+  if (!trip?.stops?.length) return null;
+  return (
+    <>
+      <p className="basket-route-stops">{T('Međuluke')}: {stopsText(trip)}</p>
+      <p className="route-disembarkation-note">*{T(disembarkationNote)}<br /><br />{T('Hvala na razumijevanju.')}</p>
+    </>
+  );
+}
 
 export function TicketLeg({ ticket, T, fmt, money, onRemove }) {
   return (
@@ -10,7 +21,7 @@ export function TicketLeg({ ticket, T, fmt, money, onRemove }) {
       </div>
       <h3>{ticket.from?.name} → {ticket.to?.name}</h3>
       <p>{fmt(ticket.date)} · {tripTimes(ticket.trip)}</p>
-      {ticket.trip?.line_name && <p className="basket-route-stops">{T('Linija')}: {ticket.trip.line_name}</p>}
+      <RouteNotes trip={ticket.trip} T={T} />
       <div className="table-scroll">
         <table>
           <thead><tr>{['Tip karte', 'Količina', 'Cijena', 'Iznos'].map((x) => <th key={x}>{T(x)}</th>)}</tr></thead>
@@ -59,6 +70,7 @@ function SideDetails({ ticket, T, money }) {
     <div className="side-details-leg">
       <strong>{T(ticket.parentId ? 'Povratak' : 'Odlazak')}</strong>
       <small style={{ display: 'block', marginTop: 6 }}>{tripTimes(ticket.trip)}</small>
+      {ticket.trip?.stops?.length > 0 && <p className="basket-route-stops">{T('Međuluke')}: {stopsText(ticket.trip)}</p>}
       {ticketLines(ticket).map((l) => (
         <div className="summary-ticket-line" key={l.key}>
           <span>{l.qty} × {T(String(l.name).replace('Putna karta - ', ''))}</span>

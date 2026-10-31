@@ -35,6 +35,13 @@ export function tripTimes(trip) {
   return [dep?.time, arr?.time].filter(Boolean).join(' – ');
 }
 
+// Međuluke iz pretrage (trip.stops) kao "Hvar 15:50 → Milna 16:10".
+export function stopsText(trip) {
+  return (trip?.stops || [])
+    .map((st) => [st.harbor_name, parseDeparture(st.arrival)?.time].filter(Boolean).join(' '))
+    .join(' → ');
+}
+
 export function tripDuration(trip) {
   const dep = departureKey(trip?.actual_departure || trip?.departure);
   const arr = departureKey(trip?.actual_arrival || trip?.arrival);

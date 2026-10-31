@@ -5,7 +5,7 @@ import { Calendar, PortPicker, Check, Chevron } from './components/Controls.jsx'
 import IslandTicket from './components/IslandTicket.jsx';
 import PaymentResult from './components/PaymentResult.jsx';
 import {
-  newDraft, returnDraft, canReturn, total, cartTotal, removeTicket, todayISO, tripTimes, tripDuration,
+  newDraft, returnDraft, canReturn, total, cartTotal, removeTicket, todayISO, tripTimes, tripDuration, stopsText, disembarkationNote,
   regularPrices, islandPrice, hasPayingTicket, countsForTrip, orderData, validOib, MAX_PER_TYPE, HOLD_SECONDS,
 } from './cart.js';
 import { getHarbors, searchTrips, confirmOrder, sudregLookup } from './api.js';
@@ -339,12 +339,16 @@ export default function App() {
                                 <input type="radio" name="sailing" checked={draft.trip?.uuid === trip.uuid} disabled={disabled} onChange={() => chooseTrip(trip)} />
                                 <span>
                                   <strong>{tripTimes(trip).replace(' – ', ' → ')}</strong>
-                                  <small>{disabled ? T('Povratak mora biti nakon dolaska.') : [tripDuration(trip), trip.line_name].filter(Boolean).join(' · ')}</small>
+                                  <small>{disabled ? T('Povratak mora biti nakon dolaska.') : [tripDuration(trip), T(trip.stops?.length ? 'Linija sa stajanjima' : 'Izravna linija')].filter(Boolean).join(' · ')}</small>
+                                  {!disabled && trip.stops?.length > 0 && <small>{T('Međuluke')}: {stopsText(trip)}</small>}
                                 </span>
                               </label>
                             );
                           })}
                         </div>
+                        {draft.trip?.stops?.length > 0 && (
+                          <p className="route-disembarkation-note">*{T(disembarkationNote)}<br /><br />{T('Hvala na razumijevanju.')}</p>
+                        )}
                       </fieldset>
                     )}
                   </div>

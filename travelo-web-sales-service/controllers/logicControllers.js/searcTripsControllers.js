@@ -20,6 +20,24 @@ const departureSortKey = (value) => {
 const sortByDeparture = (trips) =>
     [...trips].sort((a, b) => departureSortKey(a.actual_departure) - departureSortKey(b.actual_departure));
 
+// Međuluke polaska: segmenti istog polaska (departure_uuid) iz iste luke koji
+// završavaju prije odredišta — njihove dolazne luke su stajanja na putu.
+// Prodaju se samo parovi luka koji postoje kao segmenti, pa luka za koju
+// segment ne postoji neće biti na popisu.
+const intermediateStops = async (RoutesModel, trip) => {
+  if (!trip.departure_uuid) return [];
+  const doOdredista = Number(trip.arrival_harbor_order);
+  const segmenti = await RoutesModel.findAll({
+    attributes: ['arrival_harbor_order', 'arrival_harbor_id', 'arrival_harbor_name', 'actual_arrival'],
+    where: { departure_uuid: trip.departure_uuid, departure_harbor_order: trip.departure_harbor_order },
+    raw: true,
+  });
+  return segmenti
+    .filter((r) => Number(r.arrival_harbor_order) < doOdredista)
+    .sort((a, b) => Number(a.arrival_harbor_order) - Number(b.arrival_harbor_order))
+    .map((r) => ({ harbor_code: r.arrival_harbor_id, harbor_name: r.arrival_harbor_name, arrival: r.actual_arrival }));
+};
+
 const searchTripsController = async(req,res)=>{
     // Vrste samo za desk (web_sale = false) ne izlaze u web pretrazi.
     const samoDesk = await desktopOnlyTicketTypes();
@@ -166,7 +184,8 @@ const searchTripsController = async(req,res)=>{
             line_code: trip.line_code,
             line_name: trip.line_name,
             //capacity:capacityForTrip,
-            prices:pricesForTrip.filter((p) => !samoDesk.has(p.ticket_type_uuid))
+            prices:pricesForTrip.filter((p) => !samoDesk.has(p.ticket_type_uuid)),
+            stops: await intermediateStops(RoutesModel, trip)
           };
           tripsResult = [...tripsResult, newTrip];
         }

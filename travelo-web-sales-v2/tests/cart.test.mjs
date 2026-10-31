@@ -94,3 +94,10 @@ test('OIB check digit', () => {
 test('English translation', () => {
   assert.equal(translate('Odaberite polazište', 'en'), 'Choose departure port');
 });
+
+test('Intermediate stops are listed with arrival time', async () => {
+  const { stopsText } = await import('../src/cart.js');
+  assert.equal(stopsText({ stops: [{ harbor_name: 'Hvar', arrival: '03.11.2026. 15:50' }, { harbor_name: 'Milna', arrival: '03.11.2026. 16:10' }] }), 'Hvar 15:50 → Milna 16:10');
+  assert.equal(stopsText({ stops: [] }), '');
+  assert.equal(stopsText(null), '');
+});

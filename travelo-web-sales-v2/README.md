@@ -34,6 +34,7 @@ server iz narudžbi koje izradi sales servis. Prikazane cijene su informativne.
 
 ## Nije preuzeto iz prototipa
 
-Međuluke, napomena o iskrcaju i Sobra za Mljet bile su ručno upisane u prototipu;
-backend ih ne daje, pa se prikazuje naziv linije. Demo kartična forma i HTML
-dokumenti zamijenjeni su Monri formom i stvarnim PDF-ovima.
+Međuluke dolaze iz pretrage (`stops`: segmenti istog polaska koji završavaju prije
+odredišta), uz napomenu o iskrcaju. Napomena o Sobri za Mljet bila je ručno upisana
+u prototipu i nije preuzeta. Demo kartična forma i HTML dokumenti zamijenjeni su
+Monri formom i stvarnim PDF-ovima.
