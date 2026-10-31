@@ -35,7 +35,7 @@ const getWebPageHarborsDataController = async (req, res) => {
     try {
         const result = await sequelize.transaction(async (t)=>{
             const harborsData = await HarborsModel.findAll({
-                attributes: { exclude: ['id','seop_island','region', 'createdAt','updatedAt'] },
+                attributes: { exclude: ['id','seop_island','region', 'departure_note','departure_note_eng','arrival_note','arrival_note_eng', 'createdAt','updatedAt'] },
                 where: { [Op.or]: [{ is_active: true }, { is_active: null }] },
                 order: [["id", "ASC"]],
             })

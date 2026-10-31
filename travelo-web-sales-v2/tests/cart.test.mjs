@@ -101,3 +101,13 @@ test('Intermediate stops are listed with arrival time', async () => {
   assert.equal(stopsText({ stops: [] }), '');
   assert.equal(stopsText(null), '');
 });
+
+test('Harbor notes: departure note of origin, arrival note of destination, EN fallback to HR', async () => {
+  const { harborNotes } = await import('../src/cart.js');
+  const pomena = { name: 'Pomena', departure_note: 'Polazak iz Sobre.', departure_note_eng: 'Departure from Sobra.', arrival_note: 'Pristanak u Sobru.' };
+  const split = { name: 'Split' };
+  assert.deepEqual(harborNotes({ from: pomena, to: split }, 'hr'), ['Polazak iz Sobre.']);
+  assert.deepEqual(harborNotes({ from: pomena, to: split }, 'en'), ['Departure from Sobra.']);
+  assert.deepEqual(harborNotes({ from: split, to: pomena }, 'en'), ['Pristanak u Sobru.']);
+  assert.deepEqual(harborNotes({ from: null, to: null }, 'hr'), []);
+});

@@ -1,5 +1,10 @@
 import React from 'react';
-import { groups, total, ticketLines, tripTimes, cartTotal, stopsText, disembarkationNote } from '../cart.js';
+import { groups, total, ticketLines, tripTimes, cartTotal, stopsText, disembarkationNote, harborNotes } from '../cart.js';
+
+// Napomene luka iz portala (npr. Sobra za Pomenu).
+export function HarborNotes({ leg, language }) {
+  return harborNotes(leg, language).map((note) => <p className="destination-weather-note" key={note}>{note}</p>);
+}
 
 // Međuluke i napomena da se na njima ne smije iskrcati (samo kad ih ima).
 export function RouteNotes({ trip, T }) {
@@ -12,7 +17,7 @@ export function RouteNotes({ trip, T }) {
   );
 }
 
-export function TicketLeg({ ticket, T, fmt, money, onRemove }) {
+export function TicketLeg({ ticket, T, fmt, money, onRemove, language }) {
   return (
     <div className="basket-leg">
       <div className="basket-leg-top">
@@ -22,6 +27,7 @@ export function TicketLeg({ ticket, T, fmt, money, onRemove }) {
       <h3>{ticket.from?.name} → {ticket.to?.name}</h3>
       <p>{fmt(ticket.date)} · {tripTimes(ticket.trip)}</p>
       <RouteNotes trip={ticket.trip} T={T} />
+      <HarborNotes leg={ticket} language={language} />
       <div className="table-scroll">
         <table>
           <thead><tr>{['Tip karte', 'Količina', 'Cijena', 'Iznos'].map((x) => <th key={x}>{T(x)}</th>)}</tr></thead>
@@ -41,16 +47,16 @@ export function TicketLeg({ ticket, T, fmt, money, onRemove }) {
   );
 }
 
-export function SelectedTickets({ cart, onRemove, onReturn, T, fmt, money }) {
+export function SelectedTickets({ cart, onRemove, onReturn, T, fmt, money, language }) {
   return groups(cart).map(({ outbound, back }) => (
     <section className="ticket grouped-ticket" key={outbound.id}>
       <div className="ticket-top">
         <span>{T(back ? 'Povratno putovanje' : 'Odabrane karte')}</span>
         <strong>{money(total(outbound) + (back ? total(back) : 0))}</strong>
       </div>
-      <TicketLeg ticket={outbound} {...{ T, fmt, money, onRemove }} />
+      <TicketLeg ticket={outbound} {...{ T, fmt, money, onRemove, language }} />
       {back
-        ? <TicketLeg ticket={back} {...{ T, fmt, money, onRemove }} />
+        ? <TicketLeg ticket={back} {...{ T, fmt, money, onRemove, language }} />
         : <button className="add-return ticket-return-action" onClick={() => onReturn(outbound)}>+ {T('Dodaj povratnu kartu')}</button>}
     </section>
   ));
@@ -65,12 +71,13 @@ function CompactLeg({ ticket, fmt, money }) {
   );
 }
 
-function SideDetails({ ticket, T, money }) {
+function SideDetails({ ticket, T, money, language }) {
   return (
     <div className="side-details-leg">
       <strong>{T(ticket.parentId ? 'Povratak' : 'Odlazak')}</strong>
       <small style={{ display: 'block', marginTop: 6 }}>{tripTimes(ticket.trip)}</small>
       {ticket.trip?.stops?.length > 0 && <p className="basket-route-stops">{T('Međuluke')}: {stopsText(ticket.trip)}</p>}
+      <HarborNotes leg={ticket} language={language} />
       {ticketLines(ticket).map((l) => (
         <div className="summary-ticket-line" key={l.key}>
           <span>{l.qty} × {T(String(l.name).replace('Putna karta - ', ''))}</span>
@@ -81,7 +88,7 @@ function SideDetails({ ticket, T, money }) {
   );
 }
 
-export default function Basket({ cart, draft, stage, T, fmt, money, onCheckout }) {
+export default function Basket({ cart, draft, stage, T, fmt, money, onCheckout, language }) {
   return (
     <aside className="card summary">
       <h2 className="journey-summary-title">{T('Vaše putovanje')}</h2>
@@ -91,8 +98,8 @@ export default function Basket({ cart, draft, stage, T, fmt, money, onCheckout }
           {back && <CompactLeg ticket={back} {...{ fmt, money }} />}
           <details className="journey-details">
             <summary>{T('Detalji putovanja')} ⌄</summary>
-            <SideDetails ticket={outbound} {...{ T, money }} />
-            {back && <SideDetails ticket={back} {...{ T, money }} />}
+            <SideDetails ticket={outbound} {...{ T, money, language }} />
+            {back && <SideDetails ticket={back} {...{ T, money, language }} />}
           </details>
         </div>
       )) : (
@@ -112,7 +119,7 @@ export default function Basket({ cart, draft, stage, T, fmt, money, onCheckout }
           {stage === 'tickets' && draft.trip && (
             <details className="journey-details" open>
               <summary>{T('Detalji putovanja')} ⌄</summary>
-              <SideDetails ticket={draft} {...{ T, money }} />
+              <SideDetails ticket={draft} {...{ T, money, language }} />
             </details>
           )}
         </>

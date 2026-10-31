@@ -42,6 +42,14 @@ export function stopsText(trip) {
     .join(' → ');
 }
 
+// Napomene luka za putovanje (upisuju se u portalu na luci): napomena
+// polazišta kad je luka polazište, odredišta kad je odredište. EN tekst ako
+// postoji, inače hrvatski.
+export function harborNotes(leg, language) {
+  const pick = (h, key) => (language === 'en' && h?.[`${key}_eng`]) || h?.[key] || '';
+  return [pick(leg?.from, 'departure_note'), pick(leg?.to, 'arrival_note')].filter(Boolean);
+}
+
 export function tripDuration(trip) {
   const dep = departureKey(trip?.actual_departure || trip?.departure);
   const arr = departureKey(trip?.actual_arrival || trip?.arrival);

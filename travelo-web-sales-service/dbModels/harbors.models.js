@@ -49,6 +49,25 @@ module.exports =  (sequelize) =>{
             type: DataTypes.STRING,
             allowNull: true
         },
+        // Napomene uz luku za web prodaju (npr. Pomena: „U slučaju nepovoljnih
+        // vremenskih uvjeta, moguć je polazak iz luke Sobra.") — posebno kad je
+        // luka polazište i kad je odredište, HR i EN.
+        departure_note: {
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
+        departure_note_eng: {
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
+        arrival_note: {
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
+        arrival_note_eng: {
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
         is_active: {
             type: DataTypes.BOOLEAN,
             allowNull: true,

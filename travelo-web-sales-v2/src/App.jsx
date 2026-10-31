@@ -5,7 +5,7 @@ import { Calendar, PortPicker, Check, Chevron } from './components/Controls.jsx'
 import IslandTicket from './components/IslandTicket.jsx';
 import PaymentResult from './components/PaymentResult.jsx';
 import {
-  newDraft, returnDraft, canReturn, total, cartTotal, removeTicket, todayISO, tripTimes, tripDuration, stopsText, disembarkationNote,
+  newDraft, returnDraft, canReturn, total, cartTotal, removeTicket, todayISO, tripTimes, tripDuration, stopsText, disembarkationNote, harborNotes,
   regularPrices, islandPrice, hasPayingTicket, countsForTrip, orderData, validOib, MAX_PER_TYPE, HOLD_SECONDS,
 } from './cart.js';
 import { getHarbors, searchTrips, confirmOrder, sudregLookup } from './api.js';
@@ -319,6 +319,7 @@ export default function App() {
                 <div className="fields">
                   <PortPicker label="Polazište" placeholder="Odaberite polazište" harbors={harbors} value={draft.from} onChange={(from) => update({ from })} locked={!!draft.parentId} otherPort={draft.to} T={T} />
                   <PortPicker label="Odredište" placeholder="Odaberite odredište" harbors={harbors} value={draft.to} onChange={(to) => update({ to })} locked={!!draft.parentId} otherPort={draft.from} T={T} />
+                  {harborNotes(draft, language).map((note) => <p className="destination-weather-note" key={note}>{note}</p>)}
                   <div className="departure-section">
                     <label>{T(draft.parentId ? 'Datum povratka' : 'Datum polaska')}</label>
                     <button className="date-field" onClick={() => setCalendar(true)}><span>▦</span><strong>{fmt(draft.date)}</strong><Chevron /></button>
@@ -441,7 +442,7 @@ export default function App() {
                   <span className="timer">◷ {T('Preostalo')} {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}</span>
                 </div>
                 <p className="sub">{T('Pregled rezervacije i plaćanje')}</p>
-                <SelectedTickets {...{ cart, T, fmt, money }} onRemove={remove} onReturn={startReturn} />
+                <SelectedTickets {...{ cart, T, fmt, money, language }} onRemove={remove} onReturn={startReturn} />
                 <button className="primary buy-more-action" onClick={() => { setDraft(newDraft()); setStage('journey'); }}>+ {T('Kupi još karata')}</button>
                 <h3 style={{ fontSize: 17 }}>{T('Podaci kupca')}</h3>
                 <form onSubmit={pay}>
@@ -492,7 +493,7 @@ export default function App() {
 
             {error && <p className="error" role="alert">{T(error)}</p>}
           </section>
-          {stage !== 'result' && <Basket {...{ cart, draft, stage, T, fmt, money }} onCheckout={() => setStage('checkout')} />}
+          {stage !== 'result' && <Basket {...{ cart, draft, stage, T, fmt, money, language }} onCheckout={() => setStage('checkout')} />}
         </div>
       </main>
       {island && draft.trip && (

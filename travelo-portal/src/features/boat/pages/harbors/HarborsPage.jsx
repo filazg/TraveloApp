@@ -91,6 +91,12 @@ export default function HarborsPage (){
         { field: 'region', headerName:t('boat.harbors.region'), flex: 3 },
         { field: 'city', headerName:t('boat.harbors.city'), flex: 3 },
         { field: 'seop_island', headerName:t('boat.harbors.seop_island'), flex: 3 },
+        {
+            field: 'web_notes',
+            headerName: 'Napomena za web',
+            flex: 2,
+            valueGetter: (_v, row) => [row.departure_note && 'polazak', row.arrival_note && 'dolazak'].filter(Boolean).join(', ') || '—',
+        },
         { field: 'is_active', headerName:'Aktivna', flex: 2, valueGetter: (_v, row) => row.is_active === false ? 'Ne' : 'Da' },
     ];
 
@@ -238,6 +244,48 @@ export default function HarborsPage (){
                             mt:1
                         }}
                     />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="Napomena kad je luka polazište"
+                        helperText="Prikazuje se kupcu u web prodaji, npr. „U slučaju nepovoljnih vremenskih uvjeta, moguć je polazak iz luke Sobra.“"
+                        value={newData.departure_note || ""}
+                        onChange={handleChange}
+                        name="departure_note"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="Napomena kad je luka polazište (EN)"
+                        value={newData.departure_note_eng || ""}
+                        onChange={handleChange}
+                        name="departure_note_eng"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="Napomena kad je luka odredište"
+                        helperText="Npr. „U slučaju nepovoljnih vremenskih uvjeta, moguć je pristanak u luku Sobra.“"
+                        value={newData.arrival_note || ""}
+                        onChange={handleChange}
+                        name="arrival_note"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="Napomena kad je luka odredište (EN)"
+                        value={newData.arrival_note_eng || ""}
+                        onChange={handleChange}
+                        name="arrival_note_eng"
+                        sx={{ mt: 1 }}
+                    />
                     <Button
                         type="submit"
                         
@@ -373,6 +421,48 @@ export default function HarborsPage (){
                         sx={{
                             mt:1
                         }}
+                    />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="Napomena kad je luka polazište"
+                        helperText="Prikazuje se kupcu u web prodaji, npr. „U slučaju nepovoljnih vremenskih uvjeta, moguć je polazak iz luke Sobra.“"
+                        value={editedData?.departure_note || ""}
+                        onChange={handleChangeEdit}
+                        name="departure_note"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="Napomena kad je luka polazište (EN)"
+                        value={editedData?.departure_note_eng || ""}
+                        onChange={handleChangeEdit}
+                        name="departure_note_eng"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="Napomena kad je luka odredište"
+                        helperText="Npr. „U slučaju nepovoljnih vremenskih uvjeta, moguć je pristanak u luku Sobra.“"
+                        value={editedData?.arrival_note || ""}
+                        onChange={handleChangeEdit}
+                        name="arrival_note"
+                        sx={{ mt: 1 }}
+                    />
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="Napomena kad je luka odredište (EN)"
+                        value={editedData?.arrival_note_eng || ""}
+                        onChange={handleChangeEdit}
+                        name="arrival_note_eng"
+                        sx={{ mt: 1 }}
                     />
                     <Button
                         type="submit"

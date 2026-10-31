@@ -27,6 +27,15 @@ const getHarborsDataController = async (req, res) => {
     }
 }
 
+// Napomene za web prodaju; prazan tekst se sprema kao null.
+const napomeneLuke = (data) => {
+    const out = {};
+    for (const k of ['departure_note', 'departure_note_eng', 'arrival_note', 'arrival_note_eng']) {
+        if (k in data) out[k] = String(data[k] ?? '').trim() || null;
+    }
+    return out;
+};
+
 const addHarborDataController = async (req, res) =>{
     console.log(req.body)
     const sequelize = getSequelize();
@@ -56,6 +65,7 @@ const addHarborDataController = async (req, res) =>{
                     region:data.region,
                     country:data.country,
                     seop_island:data.seop_island,
+                    ...napomeneLuke(data),
                     is_active:data.is_active ?? true,
                     updated_by_uuid:user.updated_by_uuid,
                     updated_by_username:user.updated_by_username
@@ -112,6 +122,7 @@ const updateHarborDataController = async (req, res) =>{
                         region_uuid:data.region_uuid,
                         country:data.country,
                         seop_island:data.seop_island,
+                        ...napomeneLuke(data),
                         is_active:data.is_active,
                         updated_by_uuid:user.updated_by_uuid,
                         updated_by_username:user.updated_by_username
