@@ -12,7 +12,7 @@ import { getHarbors, searchTrips, confirmOrder, sudregLookup } from './api.js';
 import { translate } from './translations.js';
 
 const EMPTY_BUYER = {
-  name: '', email: '', phone: '', company: false,
+  name: '', email: '', company: false,
   companyName: '', taxId: '', address: '', postalCode: '', town: '', country: 'Hrvatska', accepted: false,
 };
 
@@ -35,7 +35,6 @@ const readReturn = () => {
 const buyerData = (b) => ({
   summary_buyer_name: b.name.trim(),
   summary_buyer_email: b.email.trim(),
-  summary_buyer_phone: b.phone.trim() || null,
   summary_checkbox_term: b.accepted,
   ...(b.company ? {
     summary_buyer_company_name: b.companyName.trim(),
@@ -460,7 +459,6 @@ export default function App() {
                   <div className="fields">
                     {field('name', 'Ime i prezime kupca', 'text', { autoComplete: 'name' })}
                     {field('email', 'E-mail', 'email', { autoComplete: 'email' })}
-                    {field('phone', 'Telefon (neobavezno)', 'tel', { autoComplete: 'tel', required: false })}
                   </div>
                   <label className="checklabel">
                     <input type="checkbox" required checked={buyer.accepted} onChange={(ev) => setBuyer({ ...buyer, accepted: ev.target.checked })} />
