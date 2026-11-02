@@ -643,7 +643,6 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                 dline(p)
             }
             if (safeBool(r, "fiskal_required")) p.printText(center("FISKALIZACIJA 2.0") + "\n", null)
-            if (safeBool(r, "_local")) p.printText(center("* OFFLINE — sync u tijeku *") + "\n", null)
 
             // ----- RAČUN BR (bold, doubleHeight, double-strike, centrirano) -----
             // ESC G 1 = double-strike (printer fizički printa svaki redak 2x — najtamnije).
