@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { authData, logoutOperator } from '../store/slices/authSlice';
 import { syncData } from '../store/slices/syncSlice';
@@ -31,15 +31,10 @@ export default function MainMenuScreen() {
     const trebaSmjenu = !samoValidator;
 
     const onVoyagePress = () => {
+        // Bez otvorene smjene ide se ravno na Smjene; ondje već piše da je
+        // smjena potrebna za prodaju i validaciju.
         if (trebaSmjenu && !hasOpenShift) {
-            Alert.alert(
-                'Smjena nije otvorena',
-                'Prije prodaje ili validacije karata morate otvoriti smjenu.',
-                [
-                    { text: 'Odustani', style: 'cancel' },
-                    { text: 'Otvori smjenu', onPress: () => dispatch(setSection('shifts')) },
-                ]
-            );
+            dispatch(setSection('shifts'));
             return;
         }
         dispatch(setSection('voyage'));
