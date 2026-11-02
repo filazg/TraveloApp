@@ -1284,7 +1284,7 @@ export default function SaleScreen() {
                 </View>
 
                 {/* FROM HARBOR */}
-                <Text style={styles.sectionLabel}>OD LUKE</Text>
+                <View style={styles.sectionGap} />
                 <View style={styles.selectorRow}>
                     <TouchableOpacity
                         style={[styles.arrow, fromIdx === 0 && styles.arrowDisabled]}
@@ -1307,7 +1307,7 @@ export default function SaleScreen() {
                 </View>
 
                 {/* TO HARBOR */}
-                <Text style={styles.sectionLabel}>DO LUKE</Text>
+                <View style={styles.sectionGap} />
                 <View style={styles.selectorRow}>
                     <TouchableOpacity
                         style={[styles.arrow, toIdx <= fromIdx + 1 && styles.arrowDisabled]}
@@ -1330,7 +1330,7 @@ export default function SaleScreen() {
                 </View>
 
                 {/* CATEGORIES */}
-                <Text style={styles.sectionLabel}>TIPOVI KARATA</Text>
+                <View style={styles.sectionGap} />
                 {pricesForPair.length === 0 ? (
                     <View style={styles.emptyCat}>
                         <Text style={styles.emptyCatText}>Nema cjenika za ovu relaciju.</Text>
@@ -3247,6 +3247,8 @@ const styles = StyleSheet.create({
     voyageLineSlim: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
 
     sectionLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginLeft: 16, marginTop: 14, marginBottom: 6 },
+    // Razmak umjesto naslova odabira relacije i karata (polja su sama po sebi jasna).
+    sectionGap: { height: 12 },
 
     selectorRow: {
         flexDirection: 'row', alignItems: 'center',
