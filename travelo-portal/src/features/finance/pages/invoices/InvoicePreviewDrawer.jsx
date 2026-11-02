@@ -200,8 +200,10 @@ export default function InvoicePreviewDrawer({ invoice: invoiceFromList, onClose
                                     <br />
                                     {invoice.buyer_email}
                                     <br />
-                                    {invoice.buyer_company_name}
-                                    <br />
+                                    {/* Ime i naziv tvrtke su često isti — prikazuje se jednom. */}
+                                    {invoice.buyer_company_name && String(invoice.buyer_company_name).trim() !== String(invoice.buyer_name || "").trim()
+                                        ? <>{invoice.buyer_company_name}<br /></>
+                                        : null}
                                     {invoice.buyer_oib}
                                     <br />
                                     {invoice.buyer_address}

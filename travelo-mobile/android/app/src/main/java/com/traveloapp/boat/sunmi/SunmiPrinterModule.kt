@@ -778,7 +778,8 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                 val bEmail = safeString(r, "buyer_email")
                 if (bEmail.isNotEmpty()) p.printText("$bEmail\n", null)
                 val bCompany = safeString(r, "buyer_company_name")
-                if (bCompany.isNotEmpty()) p.printText("$bCompany\n", null)
+                // Ime i naziv tvrtke su često isti (mobilna ih sprema jednako) — jednom.
+                if (bCompany.isNotEmpty() && bCompany.trim() != bName.trim()) p.printText("$bCompany\n", null)
                 val bAddr = safeString(r, "buyer_address")
                 if (bAddr.isNotEmpty()) p.printText("$bAddr\n", null)
                 p.printText("OIB: $buyerOib\n", null)

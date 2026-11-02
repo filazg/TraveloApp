@@ -302,7 +302,8 @@ const printInvoice = async ({ invoice, items, copy }) => {
             if (invoice.buyer_email) {
                 printer.println(invoice.buyer_email)
             }
-            if (invoice.buyer_company_name) {
+            // Kod većine kupaca ime i naziv tvrtke su isti — ispisuje se jednom.
+            if (invoice.buyer_company_name && String(invoice.buyer_company_name).trim() !== String(invoice.buyer_name || '').trim()) {
                 printer.println(invoice.buyer_company_name)
             }
             if (invoice.buyer_address) {

@@ -198,7 +198,9 @@ export default function InvoicePreviewModal({params}) {
                 <Typography>Kupac:</Typography>
                 <Typography>{appData.workingData.selectedInvoice.buyer_name}</Typography>
                 <Typography>{appData.workingData.selectedInvoice.buyer_email}</Typography>
-                <Typography>{appData.workingData.selectedInvoice.buyer_company_name}</Typography>
+                {/* Ime i naziv tvrtke su često isti — prikazuje se jednom. */}
+                {String(appData.workingData.selectedInvoice.buyer_company_name || '').trim() !== String(appData.workingData.selectedInvoice.buyer_name || '').trim() &&
+                <Typography>{appData.workingData.selectedInvoice.buyer_company_name}</Typography>}
                 <Typography>{appData.workingData.selectedInvoice.buyer_address}</Typography>
                 <Typography>OIB: {appData.workingData.selectedInvoice.buyer_oib}</Typography>
                 </>

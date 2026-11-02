@@ -181,7 +181,7 @@
             <div class="label">Kupac / Buyer</div>
             <% if (hasCompanyBuyer) { %>
                 <div class="party"><%= d.buyer_company_name || d.buyer_name || '' %></div>
-                <% if (d.buyer_name && d.buyer_company_name) { %><%= d.buyer_name %><br/><% } %>
+                <% if (d.buyer_name && d.buyer_company_name && String(d.buyer_name).trim() !== String(d.buyer_company_name).trim()) { %><%= d.buyer_name %><br/><% } %>
                 <% if (d.buyer_oib) { %>OIB: <%= d.buyer_oib %><br/><% } %>
                 <% if (d.buyer_address) { %><%= d.buyer_address %><br/><% } %>
                 <%= (d.buyer_postal_code || '') %> <%= (d.buyer_town || '') %><br/>
