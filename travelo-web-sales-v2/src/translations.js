@@ -270,6 +270,7 @@ export const translations = {
   "Unesite ime i prezime svih putnika.": "Enter the first and last names of all passengers.",
   "Vrijeme za dovršetak je isteklo. Vratite se na odabir polaska.": "Your booking time has expired. Please select a sailing again.",
   "Vrijeme za dovršetak je isteklo. Ponovno odaberite polazak.": "Your booking time has expired. Please select a sailing again.",
+  "Vrijeme za kupnju je isteklo pa je košarica ispražnjena. Ponovno odaberite polazak.": "Your booking time has expired and your basket has been emptied. Please select a sailing again.",
   "Potvrdite demonstracijsku rezervaciju.": "Confirm the demonstration booking.",
   "Jednosmjerna": "One-way",
   "Povratna": "Return",

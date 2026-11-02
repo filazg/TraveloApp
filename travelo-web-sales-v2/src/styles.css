@@ -44,3 +44,4 @@ header nav{gap:20px}.header-menu{position:relative}.menu-toggle{display:grid;pla
 .paymarks{align-items:center;flex-wrap:wrap}.paymarks img{display:block;height:40px;width:auto}
 .payment-download-card>a,.payment-download-card>span.payment-secondary{display:flex;justify-content:center;align-items:center;gap:9px;white-space:nowrap;font-size:11px;padding:13px 14px;margin:0;width:auto;text-decoration:none;box-sizing:border-box}
 @media(max-width:800px){.payment-download-card>a,.payment-download-card>span.payment-secondary{grid-column:1/-1;width:100%}}
+.expired-note{background:#fdf0f0;border:1px solid #f1c9cb;border-radius:10px;padding:13px 15px;margin:0 0 20px;font-size:13px}

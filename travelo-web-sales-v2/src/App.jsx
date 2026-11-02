@@ -81,6 +81,7 @@ export default function App() {
   const [questionId, setQuestionId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
+  const [expiredNote, setExpiredNote] = useState(false);
   const [expiry, setExpiry] = useState(null);
   const [remaining, setRemaining] = useState(HOLD_SECONDS);
   const [buyer, setBuyer] = useState(EMPTY_BUYER);
@@ -131,6 +132,20 @@ export default function App() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [expiry]);
+
+  // Vrijeme za kupnju teče od prve stavke dodane u košaricu; kad istekne,
+  // košarica se prazni i kupac kreće ispočetka. Ne dira preusmjeravanje na plaćanje.
+  useEffect(() => {
+    if (!expiry || remaining > 0 || submitting || stage === 'result') return;
+    clearCheckout();
+    setCart([]);
+    setExpiry(null);
+    setRemaining(HOLD_SECONDS);
+    setQuestionId(null);
+    setBuyer(EMPTY_BUYER);
+    home();
+    setExpiredNote(true);
+  }, [expiry, remaining, submitting, stage]);
 
   // Polasci za odabranu relaciju i datum.
   const searchKey = draft.from && draft.to && draft.date ? `${draft.from.code}|${draft.to.code}|${draft.date}` : '';
@@ -189,6 +204,7 @@ export default function App() {
     const t = { ...draft, id: editingId || crypto.randomUUID(), counts: { ...draft.counts }, island: [...draft.island] };
     setCart((c) => (editingId ? c.map((item) => (item.id === editingId ? t : item)) : [...c, t]));
     setEditingId(null);
+    setExpiredNote(false);
     if (!expiry || !remaining) setExpiry(Date.now() + HOLD_SECONDS * 1000);
     if (!draft.parentId) {
       setQuestionId(t.id);
@@ -346,6 +362,9 @@ export default function App() {
         </div>
         <div className="layout">
           <section className="card">
+            {expiredNote && stage === 'journey' && (
+              <p className="error expired-note" role="alert">{T('Vrijeme za kupnju je isteklo pa je košarica ispražnjena. Ponovno odaberite polazak.')}</p>
+            )}
             {stage === 'journey' && (
               <>
                 {(draft.parentId || cart.length > 0) && (
