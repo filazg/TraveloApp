@@ -220,7 +220,7 @@ export default function OperatorLoginScreen() {
                     >
                         {osvjezavanje ? (
                             <View style={styles.btnLinkRow}>
-                                <ActivityIndicator color={colors.textSecondary} size="small" />
+                                <ActivityIndicator color={colors.primary} size="small" />
                                 <Text style={[styles.btnLinkText, { marginLeft: 8 }]}>Osvježavanje…</Text>
                             </View>
                         ) : (
@@ -311,9 +311,18 @@ const styles = StyleSheet.create({
     },
     btnDisabled: { opacity: 0.5 },
     btnText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 16 },
-    btnLink: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
+    // Sekundarni gumb ispod Prijave: niži i svjetliji, ali jasno gumb.
+    btnLink: {
+        marginTop: 12,
+        backgroundColor: colors.primaryAlpha,
+        borderWidth: 1,
+        borderColor: colors.primary,
+        paddingVertical: 11,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
     btnLinkRow: { flexDirection: 'row', alignItems: 'center' },
-    btnLinkText: { color: colors.textSecondary, fontSize: 14 },
+    btnLinkText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
     danger: { color: colors.error },
     warn: { color: colors.warning, textAlign: 'center', marginTop: 16, fontSize: 13 },
 });
