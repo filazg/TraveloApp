@@ -161,7 +161,10 @@ export default function ReservationDialog({ open, route, onClose }) {
                 variant="contained"
                 size="large"
                 startIcon={<PictureAsPdfIcon />}
-                onClick={() => window.open(`${backendURL}${lastOrder.tickets_pdf_url}`, '_blank')}
+                component="a"
+                href={`${backendURL}${lastOrder.tickets_pdf_url}`}
+                target="_blank"
+                rel="noopener"
                 disabled={!lastOrder.tickets_pdf_url}
                 sx={{ fontWeight: 800 }}
               >

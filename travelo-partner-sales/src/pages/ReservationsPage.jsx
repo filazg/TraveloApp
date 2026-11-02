@@ -244,7 +244,10 @@ export default function ReservationsPage() {
             <Button
               variant="contained"
               startIcon={<PictureAsPdfIcon />}
-              onClick={() => window.open(`${backendURL}/transactions/tickets_pdf/${otvorena.uuid}?channel=PARTNER`, '_blank')}
+              component="a"
+              href={otvorena ? `${backendURL}/transactions/tickets_pdf/${otvorena.uuid}?channel=PARTNER` : undefined}
+              target="_blank"
+              rel="noopener"
               disabled={!otvorena || !orderTickets.length}
               sx={{ fontWeight: 800 }}
             >
