@@ -2158,12 +2158,16 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                             style={issueStyles.addrBtn}
                             onPress={() => setAddrOpen((v) => !v)}
                         >
-                            <Text style={issueStyles.addrBtnText}>📖 Adresar ({recentBuyers.length})</Text>
+                            <Text style={issueStyles.addrBtnText}>
+                                {addrOpen ? '✎ Unos kupca' : `📖 Adresar (${recentBuyers.length})`}
+                            </Text>
                         </TouchableOpacity>
                     ) : null}
                 </View>
 
-                {addrOpen && (
+                {/* Adresar i obrazac kupca se izmjenjuju: dok se traži u adresaru
+                    obrazac je skriven, a odabirom kupca vraća se popunjen. */}
+                {r1Open && addrOpen && (
                     <View style={issueStyles.addrBox}>
                         <TextInput
                             value={addrQuery}
@@ -2194,7 +2198,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                     </View>
                 )}
 
-                {r1Open && (
+                {r1Open && !addrOpen && (
                     <View style={issueStyles.r1Box}>
                         <Text style={issueStyles.fieldLabel}>Naziv / Ime kupca</Text>
                         <TextInput
