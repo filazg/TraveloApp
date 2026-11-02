@@ -761,10 +761,6 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             try { p.sendRAWData(byteArrayOf(0x1B, 0x47, 0x00), null) } catch (_: Exception) {}
             p.setFontSize(24f, null)
             dline(p)
-            if (safeBool(r, "auto_validated")) {
-                p.printText("Karte VALIDIRANE pri prodaji\n", null)
-                dline(p)
-            }
 
             // ----- KUPAC (R1) -----
             if (isR1) {
