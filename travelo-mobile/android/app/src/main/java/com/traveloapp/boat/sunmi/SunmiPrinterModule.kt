@@ -726,14 +726,14 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     val depPlanned = safeString(route, "departure_planned").ifEmpty { safeString(it, "departure_planned") }
 
                     // Zaglavlje stavke: relacija i polazak svaki u svom retku
-                    // (relacija lijevo, polazak desno). Linija se ne ispisuje.
+                    // (oboje lijevo). Linija se ne ispisuje.
                     p.setPrinterStyle(1000, 1)
                     val relacija = listOf(depHarbor, arrHarbor).filter { it.isNotEmpty() }.joinToString(" -- ")
                     if (relacija.isNotEmpty()) {
                         for (line in wrapLines(relacija, W)) p.printText("$line\n", null)
                     }
                     if (depPlanned.isNotEmpty()) {
-                        p.printText(padL(trunc(depPlanned, W), W) + "\n", null)
+                        p.printText(trunc(depPlanned, W) + "\n", null)
                     }
                     // Heading je već bold (globalno) — ostavi ON.
 
@@ -1131,6 +1131,14 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     dline(p)
                     val lineLabel = safeString(t, "line_name").ifEmpty { safeString(t, "line_code") }
                     printMeta(p, "Linija / Line", lineLabel, desnoUNastavku = false)
+                    // Dodatne karte (dojenče) nemaju svoju kartu — redak po
+                    // dodatnoj na karti roditelja, kao na desku.
+                    val dodatne = if (t.hasKey("dodatne")) t.getArray("dodatne") else null
+                    if (dodatne != null) {
+                        for (k in 0 until dodatne.size()) {
+                            printMeta(p, "+ Dodatno / Extra", dodatne.getString(k) ?: "", desnoUNastavku = false)
+                        }
+                    }
                     dline(p)
 
                     // Karta za pratnju (MOSI: pratnja putuje besplatno) — jasno
