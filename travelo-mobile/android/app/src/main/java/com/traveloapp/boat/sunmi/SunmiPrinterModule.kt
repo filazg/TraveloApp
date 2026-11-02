@@ -706,12 +706,12 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             dline(p)
 
             // ----- STAVKE -----
-            // Zaglavlje po polasku (relacija, linija, vrijeme), pa po vrsti
-            // karte 3 stupca (vrsta 13 | qty x cij 10 | iznos 8) = W.
-            // Zaglavlje tablice u istim stupcima kao stavke: prvi redak opisuje
-            // zaglavlje stavke (relacija, linija, polazak), drugi njene retke.
+            // Zaglavlje po polasku (relacija, vrijeme), pa po vrsti karte: naziv
+            // sam u retku, ispod količina | cijena | iznos (W-20 | 10 | 10).
+            // Zaglavlje tablice slijedi isti raspored.
             p.printText("Putovanje\n", null)
-            p.printText(padR("Kategorija", W - 18) + padL("Kol x cij.", 10) + padL("Iznos", 8) + "\n", null)
+            p.printText("Kategorija\n", null)
+            p.printText(padL("Kol", W - 20) + padL("Cijena", 10) + padL("Iznos", 10) + "\n", null)
             dline(p)
             if (items != null) {
                 for (i in 0 until items.size()) {
@@ -722,34 +722,25 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                     val total = unit * qty
                     val name = safeString(it, "ticket_type_name")
                     val route = if (it.hasKey("route")) it.getMap("route") else null
-                    val lineName = safeString(route, "line_name").ifEmpty { safeString(it, "line_name") }
                     val depHarbor = safeString(route, "departure_harbor_name").ifEmpty { safeString(it, "departure_harbor_name") }
                     val arrHarbor = safeString(route, "arrival_harbor_name").ifEmpty { safeString(it, "arrival_harbor_name") }
                     val depPlanned = safeString(route, "departure_planned").ifEmpty { safeString(it, "departure_planned") }
 
-                    // Zaglavlje stavke: relacija, linija i polazak svaki u svom
-                    // retku. Dosad su bili nanizani u jedan redak pa se lomio
-                    // gdje stigne i nije se dalo pročitati što je što. Polazak
-                    // ide desno, relacija i linija lijevo.
+                    // Zaglavlje stavke: relacija i polazak svaki u svom retku
+                    // (relacija lijevo, polazak desno). Linija se ne ispisuje.
                     p.setPrinterStyle(1000, 1)
                     val relacija = listOf(depHarbor, arrHarbor).filter { it.isNotEmpty() }.joinToString(" -- ")
                     if (relacija.isNotEmpty()) {
                         for (line in wrapLines(relacija, W)) p.printText("$line\n", null)
-                    }
-                    if (lineName.isNotEmpty()) {
-                        for (line in wrapLines(lineName, W)) p.printText("$line\n", null)
                     }
                     if (depPlanned.isNotEmpty()) {
                         p.printText(padL(trunc(depPlanned, W), W) + "\n", null)
                     }
                     // Heading je već bold (globalno) — ostavi ON.
 
-                    // 3-stupčana stavka: name(14) | "qty x cijena"(10) | iznos(8)
-                    val priceCol = "${qty}x${"%.2f".format(unit)}"
-                    val totalCol = "%.2f".format(total)
-                    val nameW = W - 18
-                    val nameCol = padR(trunc(name, nameW), nameW)
-                    p.printText("$nameCol${padL(priceCol, 10)}${padL(totalCol, 8)}\n", null)
+                    // Kategorija sama u retku, ispod količina | cijena | iznos.
+                    for (line in wrapLines(name, W)) p.printText("$line\n", null)
+                    p.printText(padL("$qty", W - 20) + padL("%.2f".format(unit), 10) + padL("%.2f".format(total), 10) + "\n", null)
                 }
             }
             dline(p)
