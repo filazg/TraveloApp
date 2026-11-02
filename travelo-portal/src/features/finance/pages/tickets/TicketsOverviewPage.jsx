@@ -46,6 +46,7 @@ import CancelTicketsModal from "./CancelTicketsModal";
 import TransferTicketsModal from "./TransferTicketsModal";
 import TransferResultDialog from "./TransferResultDialog";
 import StornoResultDialog from "./StornoResultDialog";
+import PageTitle from "../../../../helpers/PageTitle";
 
 // Kanali prodaje odgovaraju tipovima poslovnog prostora. Karta sama ne nosi
 // kanal — cita se s racuna s kojeg je prodana.
@@ -542,6 +543,7 @@ export default function TicketsOverviewPage() {
 
     return (
         <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
+            <PageTitle sx={{ mb: 1 }}>Pregled karata</PageTitle>
             {/* Tražilica: polja su grupirana po tome što opisuju — kada i kamo
                 se putuje, pa tko je i čime prodao. Prije su svi filtri stajali u
                 jednom redu koji se lomio, pa se nije vidjelo što ide s čim. */}

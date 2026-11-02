@@ -29,6 +29,7 @@ import { setAuthData } from "../../../auth/authSlice";
 import { useLoading } from "../../../loading/useLoading";
 import PaymentOrderDetailsDialog from "./PaymentOrderDetailsDialog";
 import { PROVIDERI, jeSepa } from "./providers";
+import PageTitle from "../../../../helpers/PageTitle";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 // Datumi dolaze iz baze u ISO obliku; prikazuje se lokalno, bez sekundi.
@@ -112,8 +113,8 @@ export default function PaymentOrdersPage() {
 
     return (
         <Box sx={{ mt: 2, ml: 2, width: "98%" }}>
+            <PageTitle sx={{ mb: 1 }}>Platni nalozi</PageTitle>
             <Paper variant="outlined" sx={{ p: 1.5, my: 1, borderRadius: 2 }}>
-                <Typography variant="h6">Platni nalozi</Typography>
                 <Tabs
                     value={tab}
                     onChange={(_e, v) => { setTab(v); setOdabrani(null); }}

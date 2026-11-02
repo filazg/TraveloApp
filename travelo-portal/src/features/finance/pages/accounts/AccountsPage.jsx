@@ -21,6 +21,7 @@ import {
 import { setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 // Predefinirani organisation-level mapping ključevi.
 const ORG_MAPPINGS = [
@@ -132,6 +133,7 @@ export default function AccountsPage() {
 
     return (
         <Box sx={{ width: "98%", ml: 2, mt: 2 }}>
+            <PageTitle>Konta</PageTitle>
             <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
                 <Tab value="accounts" label="Šifarnik konta" />
                 <Tab value="mappings" label="Mapiranja" />

@@ -9,6 +9,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { resolveBackendUrl } from "../../../../helpers/backendUrl";
 import { setAuthData } from "../../../auth/authSlice";
+import PageTitle from "../../../../helpers/PageTitle";
 
 const backendURL = resolveBackendUrl("/app");
 const api = axios.create({ baseURL: backendURL, withCredentials: true });
@@ -96,9 +97,7 @@ export default function TicketTemplatesPage() {
 
     return (
         <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
-            <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
-                Predlošci PDF karte
-            </Typography>
+            <PageTitle>Predlošci PDF karte</PageTitle>
 
             {poruka && (
                 <Alert severity={poruka.severity} sx={{ mb: 2 }} onClose={() => setPoruka(null)}>

@@ -24,6 +24,7 @@ import { setAuthData } from "../../../auth/authSlice";
 import PartnerInvoicePreviewDrawer from "./PartnerInvoicePreviewDrawer";
 import { naplataInfo } from "../NaplataPanel";
 import TabIzvjestajiZaProvizije from "./CommissionReportsTab";
+import PageTitle from "../../../../helpers/PageTitle";
 
 const fmtEUR = (n) => `${Number(n || 0).toFixed(2)} €`;
 const fmtDateTime = (s) => {
@@ -207,6 +208,7 @@ function TabRacuniZaProvizije() {
 
     return (
         <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
+            <PageTitle sx={{ mb: 0 }}>Partner računi</PageTitle>
             <Stack direction="row" spacing={2} sx={{ my: 2, flexWrap: "wrap" }} alignItems="center">
                 <TextField
                     select
