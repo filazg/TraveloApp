@@ -1982,6 +1982,8 @@ function CountryPicker({ value, onChange }) {
 }
 
 // Modal za izdavanje računa: izbor plaćanja + F2 flag + opcionalni R1 podaci kupca.
+const PM_STUPACA = 3;
+
 function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizing, userTypingRef, onCancel, onSubmit }) {
     const [pmUuid, setPmUuid] = useState(initialPaymentUuid || paymentMethods[0]?.uuid);
     const [f2Required, setF2Required] = useState(false);
@@ -2090,6 +2092,13 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
         onSubmit(pm, buyer);
     };
 
+    // Jednake širine: najviše PM_STUPACA u redu, razmak 3 % između stupaca.
+    const stupaca = Math.max(1, Math.min(PM_STUPACA, paymentMethods.length));
+    const pmSirina = (i) => ({
+        width: `${(100 - (stupaca - 1) * 3) / stupaca}%`,
+        marginRight: i % stupaca === stupaca - 1 ? 0 : '3%',
+    });
+
     return (
         <View style={issueStyles.backdrop}>
             <ScrollView
@@ -2102,12 +2111,12 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
 
                 <Text style={[issueStyles.sectionLabel, issueStyles.pmLabel]}>NAČIN PLAĆANJA</Text>
                 <View style={issueStyles.pmGrid}>
-                    {paymentMethods.map((p) => {
+                    {paymentMethods.map((p, i) => {
                         const sel = p.uuid === pmUuid;
                         return (
                             <TouchableOpacity
                                 key={p.uuid}
-                                style={[issueStyles.pmBtn, sel && issueStyles.pmBtnActive]}
+                                style={[issueStyles.pmBtn, pmSirina(i), sel && issueStyles.pmBtnActive]}
                                 onPress={() => setPmUuid(p.uuid)}
                             >
                                 <Text style={[issueStyles.pmBtnText, sel && issueStyles.pmBtnTextActive]}>
@@ -2292,10 +2301,10 @@ const issueStyles = StyleSheet.create({
     total: { color: colors.primary, fontSize: 44, fontWeight: '900', textAlign: 'center', marginTop: 4, marginBottom: 16 },
     sectionLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 6 },
     pmLabel: { textAlign: 'center' },
-    // Gumbi načina plaćanja dijele cijelu širinu reda (flexGrow), i kad se prelome.
-    pmGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 8 },
+    // Gumbi načina plaćanja jednake su širine (pmSirina), najviše PM_STUPACA u redu.
+    pmGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 8, marginTop: 8, marginBottom: 8 },
     pmBtn: {
-        flexGrow: 1, alignItems: 'center',
+        alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
         backgroundColor: colors.surface, borderRadius: 8,
         borderWidth: 2, borderColor: colors.border,
