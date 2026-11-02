@@ -2115,6 +2115,74 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
         marginRight: i % stupaca === stupaca - 1 ? 0 : '3%',
     });
 
+    // Novi kupac: prazan obrazac (adresar se zatvara, R1 ostaje uključen).
+    const noviKupac = () => {
+        setBuyerName('');
+        setBuyerOib('');
+        setBuyerAddress('');
+        setBuyerPostal('');
+        setBuyerTown('');
+        setBuyerCountry('HR');
+        setBuyerEmail('');
+        setSudregMsg('');
+        setAddrOpen(false);
+        setAddrQuery('');
+    };
+
+    // Natrag bez odabira: ako kupac još nije upisan, R1 se gasi.
+    const zatvoriAdresar = () => {
+        setAddrOpen(false);
+        setAddrQuery('');
+        if (!buyerName.trim() && !buyerOib.trim()) setR1Open(false);
+    };
+
+    if (addrOpen) {
+        return (
+            <View style={issueStyles.backdrop}>
+                <View style={[issueStyles.modalScroll, issueStyles.adresarEkran]}>
+                    <Text style={issueStyles.title}>Adresar kupaca</Text>
+                    <TextInput
+                        value={addrQuery}
+                        onChangeText={setAddrQuery}
+                        onFocus={markTyping} onBlur={endTyping}
+                        autoCorrect={false}
+                        style={[issueStyles.input, { marginTop: 12 }]}
+                        placeholder="Traži po nazivu, OIB-u ili mjestu"
+                        placeholderTextColor={colors.textMuted}
+                    />
+                    <Text style={issueStyles.adresarBroj}>
+                        {addrQuery.trim() ? `Pronađeno: ${pronadeniKupci.length}${pronadeniKupci.length >= ADRESAR_PRIKAZ ? '+' : ''}` : `Kupaca u adresaru: ${recentBuyers.length}`}
+                    </Text>
+                    <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+                        {!pronadeniKupci.length && (
+                            <Text style={issueStyles.addrItemMeta}>Nema kupca za taj upit.</Text>
+                        )}
+                        {pronadeniKupci.map((b) => (
+                            <TouchableOpacity
+                                key={b.oib}
+                                style={issueStyles.addrItem}
+                                onPress={() => applyBuyer(b)}
+                            >
+                                <Text style={issueStyles.addrItemName}>{b.name || '(bez imena)'}</Text>
+                                <Text style={issueStyles.addrItemMeta}>
+                                    OIB: {b.oib}{b.town ? ` · ${b.town}` : ''}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                    <View style={issueStyles.actionsRow}>
+                        <TouchableOpacity style={[issueStyles.actionBtn, issueStyles.actionBtnNeutral]} onPress={zatvoriAdresar}>
+                            <Text style={[issueStyles.actionBtnText, issueStyles.actionBtnTextNeutral]}>Natrag</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[issueStyles.actionBtn, { backgroundColor: colors.primary }]} onPress={noviKupac}>
+                            <Text style={issueStyles.actionBtnText}>+ Novi kupac</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={issueStyles.backdrop}>
             <ScrollView
@@ -2146,7 +2214,12 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <TouchableOpacity
                         style={[issueStyles.r1Toggle, { flex: 1 }]}
-                        onPress={() => setR1Open((v) => !v)}
+                        onPress={() => {
+                            // R1 počinje izborom kupca iz adresara; novi kupac je gumb ondje.
+                            const ukljuci = !r1Open;
+                            setR1Open(ukljuci);
+                            setAddrOpen(ukljuci);
+                        }}
                     >
                         <View style={[issueStyles.checkbox, r1Open && issueStyles.checkboxChecked]}>
                             {r1Open ? <Text style={issueStyles.checkmark}>✓</Text> : null}
@@ -2156,49 +2229,14 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                     {r1Open ? (
                         <TouchableOpacity
                             style={issueStyles.addrBtn}
-                            onPress={() => setAddrOpen((v) => !v)}
+                            onPress={() => setAddrOpen(true)}
                         >
-                            <Text style={issueStyles.addrBtnText}>
-                                {addrOpen ? '✎ Unos kupca' : `📖 Adresar (${recentBuyers.length})`}
-                            </Text>
+                            <Text style={issueStyles.addrBtnText}>📖 Adresar</Text>
                         </TouchableOpacity>
                     ) : null}
                 </View>
 
-                {/* Adresar i obrazac kupca se izmjenjuju: dok se traži u adresaru
-                    obrazac je skriven, a odabirom kupca vraća se popunjen. */}
-                {r1Open && addrOpen && (
-                    <View style={issueStyles.addrBox}>
-                        <TextInput
-                            value={addrQuery}
-                            onChangeText={setAddrQuery}
-                            onFocus={markTyping} onBlur={endTyping}
-                            autoCorrect={false}
-                            style={issueStyles.input}
-                            placeholder="Traži po nazivu, OIB-u ili mjestu"
-                            placeholderTextColor={colors.textMuted}
-                        />
-                        <ScrollView style={{ maxHeight: 200, marginTop: 6 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                            {!pronadeniKupci.length && (
-                                <Text style={issueStyles.addrItemMeta}>Nema kupca za taj upit.</Text>
-                            )}
-                            {pronadeniKupci.map((b) => (
-                                <TouchableOpacity
-                                    key={b.oib}
-                                    style={issueStyles.addrItem}
-                                    onPress={() => applyBuyer(b)}
-                                >
-                                    <Text style={issueStyles.addrItemName}>{b.name || '(bez imena)'}</Text>
-                                    <Text style={issueStyles.addrItemMeta}>
-                                        OIB: {b.oib}{b.town ? ` · ${b.town}` : ''}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                )}
-
-                {r1Open && !addrOpen && (
+                {r1Open && (
                     <View style={issueStyles.r1Box}>
                         <Text style={issueStyles.fieldLabel}>Naziv / Ime kupca</Text>
                         <TextInput
@@ -2385,6 +2423,9 @@ const issueStyles = StyleSheet.create({
     },
     addrItemName: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
     addrItemMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+    // Adresar kao zaseban ekran preko prozora računa.
+    adresarEkran: { flex: 1, flexGrow: 1, maxHeight: '95%', marginVertical: '4%', padding: 18 },
+    adresarBroj: { color: colors.textSecondary, fontSize: 12, marginTop: 8, marginBottom: 6 },
     countryList: {
         backgroundColor: colors.surface, borderRadius: 6, marginTop: 4,
         borderWidth: 1, borderColor: colors.border,
