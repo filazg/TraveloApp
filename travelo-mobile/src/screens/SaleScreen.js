@@ -1346,7 +1346,9 @@ export default function SaleScreen() {
                                     onPress={() => setExtrasZa([p.ticket_type_uuid])}
                                 >
                                     <Text style={styles.catName}>
-                                        {p.ticket_type_name}{imaDodatne(p.ticket_type_uuid) && q ? '  ＋' : ''}
+                                        {p.ticket_type_name}
+                                        {/* Dodir na naziv otvara dodatne karte (npr. dojenče) uz ovu kartu. */}
+                                        {imaDodatne(p.ticket_type_uuid) && q ? <Text style={styles.catDodatno}>  + Dodatno</Text> : null}
                                     </Text>
                                     <Text style={styles.catPrice}>{fmtEUR(p.price)}</Text>
                                     {dodatneZaProdaju.filter((d) => d.roditelj === p.ticket_type_uuid).map((d) => (
@@ -3353,6 +3355,7 @@ const styles = StyleSheet.create({
     emptyCat: { padding: 24, alignItems: 'center' },
     emptyCatText: { color: colors.textSecondary },
 
+    catDodatno: { color: colors.primary, fontWeight: '800' },
     catRow: {
         flexDirection: 'row', alignItems: 'center',
         marginHorizontal: 12, marginTop: 8,
