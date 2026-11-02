@@ -1983,6 +1983,9 @@ function CountryPicker({ value, onChange }) {
 
 // Modal za izdavanje računa: izbor plaćanja + F2 flag + opcionalni R1 podaci kupca.
 const PM_STUPACA = 3;
+const ADRESAR_PRIKAZ = 50;
+const KVACICE = { č: 'c', ć: 'c', š: 's', ž: 'z', đ: 'd' };
+const bezKvacica = (t) => String(t).toLowerCase().replace(/[čćšžđ]/g, (c) => KVACICE[c]);
 
 function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizing, userTypingRef, onCancel, onSubmit }) {
     const [pmUuid, setPmUuid] = useState(initialPaymentUuid || paymentMethods[0]?.uuid);
@@ -1997,6 +2000,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
     const [buyerEmail, setBuyerEmail] = useState('');
     const [addrOpen, setAddrOpen] = useState(false);
     const [recentBuyers, setRecentBuyers] = useState([]);
+    const [addrQuery, setAddrQuery] = useState('');
     // Provjera OIB-a u Sudskom registru — loading dok traje poziv + poruka ispod
     // gumba. Offline-tolerantno: greška u pozivu daje samo poruku, ne ruši formu.
     const [sudregLoading, setSudregLoading] = useState(false);
@@ -2050,6 +2054,16 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
         }
     };
 
+    // Pretraga adresara po nazivu, OIB-u i mjestu; velika/mala slova i kvačice
+    // se zanemaruju. Prikazuje se najviše ADRESAR_PRIKAZ pogodaka.
+    const pronadeniKupci = useMemo(() => {
+        const q = bezKvacica(addrQuery.trim());
+        const lista = q
+            ? recentBuyers.filter((b) => bezKvacica(`${b.name || ''} ${b.oib || ''} ${b.town || ''}`).includes(q))
+            : recentBuyers;
+        return lista.slice(0, ADRESAR_PRIKAZ);
+    }, [recentBuyers, addrQuery]);
+
     const applyBuyer = (b) => {
         setBuyerName(b.name || '');
         setBuyerOib(b.oib || '');
@@ -2060,6 +2074,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
         setR1Open(true);
         setF2Required(true);
         setAddrOpen(false);
+        setAddrQuery('');
     };
 
     const markTyping = () => { if (userTypingRef) userTypingRef.current = true; };
@@ -2149,9 +2164,20 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
 
                 {addrOpen && (
                     <View style={issueStyles.addrBox}>
-                        <Text style={issueStyles.fieldLabel}>Odaberi iz adresara:</Text>
-                        <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                            {recentBuyers.map((b) => (
+                        <TextInput
+                            value={addrQuery}
+                            onChangeText={setAddrQuery}
+                            onFocus={markTyping} onBlur={endTyping}
+                            autoCorrect={false}
+                            style={issueStyles.input}
+                            placeholder="Traži po nazivu, OIB-u ili mjestu"
+                            placeholderTextColor={colors.textMuted}
+                        />
+                        <ScrollView style={{ maxHeight: 200, marginTop: 6 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                            {!pronadeniKupci.length && (
+                                <Text style={issueStyles.addrItemMeta}>Nema kupca za taj upit.</Text>
+                            )}
+                            {pronadeniKupci.map((b) => (
                                 <TouchableOpacity
                                     key={b.oib}
                                     style={issueStyles.addrItem}
