@@ -57,7 +57,7 @@ export default function ExtraTicketsModal({ visible, roditelji, vrijednosti, onS
                             <Text style={styles.ghostText}>Odustani</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.primary} onPress={() => onSave(kol)}>
-                            <Text style={styles.primaryText}>Spremi</Text>
+                            <Text style={styles.primaryText}>Dodaj</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
