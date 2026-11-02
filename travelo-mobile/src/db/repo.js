@@ -496,6 +496,12 @@ export async function saveBuyer(buyer) {
     return true;
 }
 
+// Cijeli adresar (zadnje korišteni prvi) — za pretragu pri R1 računu.
+export async function loadAllBuyers() {
+    const rows = await queryAll(`SELECT payload FROM buyers ORDER BY last_used_at DESC;`);
+    return rows.map((r) => JSON.parse(r.payload));
+}
+
 export async function loadRecentBuyers(limit = 50) {
     const rows = await queryAll(
         `SELECT payload FROM buyers ORDER BY last_used_at DESC LIMIT ?;`,
