@@ -13,6 +13,7 @@ import {
     View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import useNatrag from '../components/useNatrag';
 import { syncData, syncBuyersThunk } from '../store/slices/syncSlice';
 import { voyageData, clearVoyage } from '../store/slices/voyageSlice';
 import { authData } from '../store/slices/authSlice';
@@ -2006,6 +2007,14 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
     const [sudregLoading, setSudregLoading] = useState(false);
     const [sudregMsg, setSudregMsg] = useState('');
 
+    // Strelica natrag: zatvara adresar, inače prozor računa; dok se račun
+    // izdaje ne radi ništa.
+    useNatrag(() => {
+        if (finalizing) return;
+        if (addrOpen) zatvoriAdresar();
+        else onCancel();
+    });
+
     useEffect(() => {
         // Prvo prikaži lokalni adresar bez čekanja mreže (offline-first). Učitava
         // se cijeli adresar jer pretraga radi nad učitanim popisom.
@@ -2473,6 +2482,7 @@ function ScanLoadingOverlay() {
 // Full-screen overlay koji pokrije sav ekran u boji statusa.
 // Tap bilo gdje → onDismiss (osim na confirm gdje user mora tapnuti neki gumb).
 function ScanResultOverlay({ result, onDismiss, onValidateOnlyOne, onValidateAll }) {
+    useNatrag(onDismiss);
     // Confirm overlay — karta je valjana, user mora tapnuti za validaciju.
     // Background: žuto ako harborMismatch, plavo inače.
     // Gumbe: "VALIDIRAJ SAMO OVU" + "VALIDIRAJ SVE (N+1)" ako ima povezanih, inače samo "VALIDIRAJ".

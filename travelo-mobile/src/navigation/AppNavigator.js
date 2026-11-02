@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, AppState, StatusBar, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, StatusBar, StyleSheet, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
 import { authData, autoPairThunk, logoutOperator, restoreTokenThunk, setSessionExpired } from '../store/slices/authSlice';
@@ -14,8 +14,8 @@ import { posaljiPokusajeStorna } from '../services/stornoRok';
 import { pruneValidationLog } from '../db/repo';
 import { refreshOpenVoyageTicketsThunk, syncPendingValidationsThunk } from '../store/slices/validationSlice';
 import { openDb } from '../db/db';
-import { voyageData } from '../store/slices/voyageSlice';
-import { navData } from '../store/slices/navSlice';
+import { voyageData, clearVoyage, clearLine } from '../store/slices/voyageSlice';
+import { navData, resetSection } from '../store/slices/navSlice';
 import PairingScreen from '../screens/PairingScreen';
 import OperatorLoginScreen from '../screens/OperatorLoginScreen';
 import MainMenuScreen from '../screens/MainMenuScreen';
@@ -210,6 +210,25 @@ export default function AppNavigator() {
         });
         return () => { clearInterval(timer); sub.remove(); };
     }, [sync.hydrated, auth.token, sync.basicData, dispatch]);
+
+    // Android strelica natrag: korak natrag unutar aplikacije (kao gumb ‹), a
+    // na glavnom izborniku i prijavi ne radi ništa — aplikacija se ne gasi.
+    // Prozori iznad ekrana (račun, rezultat skeniranja) registriraju svoj
+    // handler kasnije pa dobivaju strelicu prije ovoga. Registrira se jednom,
+    // a stanje čita iz refa: ponovna registracija stavila bi ga ispred njih.
+    const natragStanje = useRef({});
+    natragStanje.current = { auth, nav, voyage };
+    useEffect(() => {
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+            const { auth: a, nav: n, voyage: v } = natragStanje.current;
+            if (!a.token || !a.operator || !n.section) return true;
+            if (n.section === 'voyage' && v.selected) dispatch(clearVoyage());
+            else if (n.section === 'voyage' && v.selectedLine) dispatch(clearLine());
+            else dispatch(resetSection());
+            return true;
+        });
+        return () => sub.remove();
+    }, [dispatch]);
 
     // Dok traje provjera zero-touch uparivanja držimo spinner, da ekran za ručno
     // uparivanje ne bljesne na trenutak prije nego uređaj sam dobije token.
