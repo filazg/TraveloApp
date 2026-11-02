@@ -97,7 +97,7 @@ export default function TicketTemplatesPage() {
 
     return (
         <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
-            <PageTitle>Predlošci PDF karte</PageTitle>
+            <PageTitle>Predlošci karata</PageTitle>
 
             {poruka && (
                 <Alert severity={poruka.severity} sx={{ mb: 2 }} onClose={() => setPoruka(null)}>

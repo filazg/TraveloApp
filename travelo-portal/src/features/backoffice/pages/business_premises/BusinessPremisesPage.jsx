@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 export default function BusinessPremisesPage (){
@@ -127,6 +128,7 @@ export default function BusinessPremisesPage (){
             width: "98%", 
             overflowX: "auto"
         }}>
+            <PageTitle>Poslovni prostori</PageTitle>
             <>
                 <GridHint />
                 <Box

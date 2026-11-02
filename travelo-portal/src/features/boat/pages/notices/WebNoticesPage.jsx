@@ -6,6 +6,7 @@ import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../.
 import { setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 // Obavijesti koje web stranica prikazuje posjetiteljima — prekid plovidbe,
 // izmjena plovidbenog reda, radno vrijeme blagajne. Stranica ih povlaci kroz
@@ -169,6 +170,7 @@ export default function WebNoticesPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
+                <PageTitle>Obavijesti</PageTitle>
                 <GridHint text="Klik na redak — uredi obavijest. Dupli klik — upali/ugasi je. Obavijest se prikazuje na web stranici dok traje razdoblje prikaza." />
                 <Box sx={{ height: "78vh", minWidth: 900 }}>
                     <DataGrid

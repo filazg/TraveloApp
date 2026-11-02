@@ -14,6 +14,7 @@ import TransferList from "../../../../helpers/TransferList";
 import { boatSliceData, getBoatThunk } from "../../../boat/boatSlice";
 import LogoUpload from "./LogoUpload";
 import SaopSifraPicker from "../../../../helpers/SaopSifraPicker";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 export default function BillingDevicesPage (){
@@ -502,6 +503,7 @@ export default function BillingDevicesPage (){
             width: "98%", 
             overflowX: "auto"
         }}>
+            <PageTitle>Naplatni uređaji</PageTitle>
             <>
                 <GridHint />
                 <Box

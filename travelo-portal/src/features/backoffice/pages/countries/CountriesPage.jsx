@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 export default function CountriesPage() {
     const dispatch = useDispatch();
@@ -82,6 +83,7 @@ export default function CountriesPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
+                <PageTitle>Šifarnik država</PageTitle>
                 <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center">
                     <GridHint />
                     <Chip label={`${rows.length} zemalja`} size="small" />

@@ -28,6 +28,7 @@ import { setAuthData } from "../../../auth/authSlice";
 import React, { useEffect, useRef, useState } from "react";
 import { useT } from "../../../../i18n/useT";
 import { DataGrid } from "@mui/x-data-grid";
+import PageTitle from "../../../../helpers/PageTitle";
 import AddTimetablesRoutesDrawer from "./AddTimetableRoutesDrawer";
 import AddTimetablesPricesDrawer from "./AddTimetablePricesDrawer";
 import AddTimetableRoutesSummaryDrawer from "./AddTimetableRoutesSummaryDrawer";
@@ -615,6 +616,7 @@ export default function TimetablesPage() {
           overflowX: "auto",
         }}
       >
+        <PageTitle>Plovidbeni redovi</PageTitle>
         <>
           <TextField
             select

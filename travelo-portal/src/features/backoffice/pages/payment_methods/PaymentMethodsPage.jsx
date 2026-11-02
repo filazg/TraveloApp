@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 // Tko provodi karticnu transakciju. Prodajni kanal po ovome zna smije li
@@ -93,6 +94,7 @@ export default function PaymentMethodsPage (){
             width: "98%", 
             overflowX: "auto"
         }}>            
+            <PageTitle>Načini plaćanja</PageTitle>
             <>
                 <GridHint withToggle={false} />
                 <Box

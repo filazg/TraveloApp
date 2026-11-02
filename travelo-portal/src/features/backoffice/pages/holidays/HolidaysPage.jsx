@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 export default function HolidaysPage (){
@@ -114,6 +115,7 @@ export default function HolidaysPage (){
             width: "98%", 
             overflowX: "auto"
         }}>            
+            <PageTitle>Praznici</PageTitle>
             <>
                 <GridHint text="Klik na redak — uredi praznik. Dupli klik — aktiviraj/deaktiviraj. Neaktivni se ne primjenjuju u voznom redu." />
                 <Box

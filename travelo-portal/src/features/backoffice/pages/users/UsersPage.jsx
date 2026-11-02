@@ -10,6 +10,7 @@ import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
 import TransferList from "../../../../helpers/TransferList";
 import SaopSifraPicker from "../../../../helpers/SaopSifraPicker";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 export default function UsersPage (){
@@ -233,6 +234,7 @@ export default function UsersPage (){
             width: "98%", 
             overflowX: "auto"
         }}>            
+            <PageTitle>Korisnici sustava</PageTitle>
             <>
                 <GridHint />
                 <Box

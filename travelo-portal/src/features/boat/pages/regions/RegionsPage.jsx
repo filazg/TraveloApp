@@ -7,6 +7,7 @@ import { setAuthData } from "../../../auth/authSlice";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../../boatSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 export default function RegionsPage() {
     const dispatch = useDispatch();
@@ -59,6 +60,7 @@ export default function RegionsPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
+                <PageTitle>Šifarnik lučkih uprava</PageTitle>
                 <Stack direction="row" spacing={2} sx={{ mb: 1 }} alignItems="center">
                     <GridHint withToggle={false} />
                     <Chip label={`${rows.length}`} size="small" />

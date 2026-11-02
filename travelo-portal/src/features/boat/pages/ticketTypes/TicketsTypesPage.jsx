@@ -15,6 +15,7 @@ import {
 } from "../../../booking/bookingSlice";
 import { SEOP_TYPES, SEOP_TYPE_LABEL } from "./seopTypes";
 import ExtraTicketsEditor from "./ExtraTicketsEditor";
+import PageTitle from "../../../../helpers/PageTitle";
 
 // Dropdown za SEOP namjena — grupirano po kategoriji. MUI Select renderira
 // ListSubheader kao neinteraktivan header red.
@@ -198,6 +199,7 @@ export default function TicketsTypesPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
+                <PageTitle>Tipovi karata</PageTitle>
                 <GridHint />
                 <Box sx={{ height: "80vh", minWidth: 1200 }}>
                     <DataGrid

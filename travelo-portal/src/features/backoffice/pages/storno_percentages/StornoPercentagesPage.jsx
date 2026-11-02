@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 // Šifarnik postotaka storniranja. Blagajnik na terminalu bira jednu od ovih
 // vrijednosti umjesto da postotak upisuje slobodno.
@@ -104,6 +105,7 @@ export default function StornoPercentagesPage() {
     return (
         <>
             <Box sx={{ mt: 2, ml: 2, width: "98%", overflowX: "auto" }}>
+                <PageTitle>Postotci storniranja</PageTitle>
                 <GridHint text="Klik na redak — uredi postotak. Dupli klik — aktiviraj/deaktiviraj. Neaktivni se ne nude blagajniku." />
                 <Box sx={{ height: "80vh", minWidth: 800 }}>
                     <DataGrid

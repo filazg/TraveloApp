@@ -7,6 +7,7 @@ import { setAuthData } from "../../../auth/authSlice";
 import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../../boatSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 export default function HarborsPage (){
@@ -108,6 +109,7 @@ export default function HarborsPage (){
             width: "98%", 
             overflowX: "auto"
         }}>            
+            <PageTitle>Popis luka</PageTitle>
             <>
                 <GridHint />
                 <Box

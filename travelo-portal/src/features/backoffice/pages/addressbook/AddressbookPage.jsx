@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { inactiveRowClass } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 export default function AddressbookPage (){
@@ -209,6 +210,7 @@ export default function AddressbookPage (){
             width: "98%", 
             overflowX: "auto"
         }}>            
+            <PageTitle>Adresar kupaca</PageTitle>
             <>
                 <GridHint />
                 <Box

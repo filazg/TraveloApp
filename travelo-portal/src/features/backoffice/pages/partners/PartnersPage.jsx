@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { resetAuthData, setAuthData } from "../../../auth/authSlice";
 import GridHint from "../../../../helpers/GridHint";
 import { inactiveRowClass } from "../../../../helpers/gridRowActions";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 // Dan obračuna za tjednu dinamiku. 1 = ponedjeljak, kao u ISO tjednu, da se
@@ -384,6 +385,7 @@ export default function PartnersPage (){
             width: "98%", 
             overflowX: "auto"
         }}>            
+            <PageTitle>Partneri</PageTitle>
             <>
                 <GridHint />
                 <Box

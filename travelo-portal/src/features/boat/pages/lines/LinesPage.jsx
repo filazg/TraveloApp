@@ -8,6 +8,7 @@ import { boatSliceData, getBoatThunk, patchBoatThunk, postBoatThunk } from "../.
 import GridHint from "../../../../helpers/GridHint";
 import { useRowClickActions } from "../../../../helpers/gridRowActions";
 import SaopSifraPicker from "../../../../helpers/SaopSifraPicker";
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 export default function LinesPage (){
@@ -93,6 +94,7 @@ export default function LinesPage (){
             width: "98%", 
             overflowX: "auto"
         }}>
+            <PageTitle>Popis linija</PageTitle>
             <>
                 <GridHint />
                 <Box

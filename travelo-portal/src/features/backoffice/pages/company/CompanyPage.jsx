@@ -5,6 +5,7 @@ import { Box, Button, Divider, TextField, Typography, useMediaQuery } from "@mui
 import { useT } from "../../../../i18n/useT"
 import { setAuthData } from "../../../auth/authSlice"
 import { provjeriIban } from "../../../../helpers/iban"
+import PageTitle from "../../../../helpers/PageTitle";
 
 
 export default function CompanyPage (){
@@ -65,6 +66,7 @@ export default function CompanyPage (){
 
     return(
         <Box sx={{ mt:2, ml:2 }}>
+                <PageTitle>Podaci tvrtke</PageTitle>
                 <Box direction="row" justifyContent="center" sx={{ width: 1 }}>
                     <form onSubmit={handleSubmit}>
                         <Box
