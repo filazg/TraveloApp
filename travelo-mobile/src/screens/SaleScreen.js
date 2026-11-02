@@ -2100,7 +2100,7 @@ function IssueReceiptModal({ total, paymentMethods, initialPaymentUuid, finalizi
                 <Text style={issueStyles.title}>Izdavanje računa</Text>
                 <Text style={issueStyles.total}>{(Number(total) || 0).toFixed(2)} €</Text>
 
-                <Text style={issueStyles.sectionLabel}>NAČIN PLAĆANJA</Text>
+                <Text style={[issueStyles.sectionLabel, issueStyles.pmLabel]}>NAČIN PLAĆANJA</Text>
                 <View style={issueStyles.pmGrid}>
                     {paymentMethods.map((p) => {
                         const sel = p.uuid === pmUuid;
@@ -2291,11 +2291,13 @@ const issueStyles = StyleSheet.create({
     title: { color: colors.textPrimary, fontSize: 18, fontWeight: '800', textAlign: 'center' },
     total: { color: colors.primary, fontSize: 44, fontWeight: '900', textAlign: 'center', marginTop: 4, marginBottom: 16 },
     sectionLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 6 },
-    pmGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+    pmLabel: { textAlign: 'center' },
+    // Gumbi načina plaćanja dijele cijelu širinu reda (flexGrow), i kad se prelome.
+    pmGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 8 },
     pmBtn: {
+        flexGrow: 1, alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
         backgroundColor: colors.surface, borderRadius: 8,
-        marginRight: 8, marginBottom: 8,
         borderWidth: 2, borderColor: colors.border,
     },
     pmBtnActive: { borderColor: colors.primary, backgroundColor: colors.primaryAlpha },
