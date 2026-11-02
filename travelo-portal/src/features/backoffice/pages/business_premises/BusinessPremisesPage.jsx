@@ -102,7 +102,18 @@ export default function BusinessPremisesPage (){
      const columns = [
         { field: 'name', headerName:t('backoffice.business_premises.name'), flex: 2},
         { field: 'mark', headerName:t('backoffice.business_premises.mark'), flex: 2},
-        { field: 'type', headerName:t('backoffice.business_premises.type') , flex: 2},
+        // U popisu isti naziv tipa kao u odabiru pri dodavanju, ne interna oznaka
+        // (POSL, WEB_OFFICE…); nepoznata oznaka ostaje kakva jest.
+        { field: 'type', headerName:t('backoffice.business_premises.type') , flex: 2,
+            valueGetter: (value) => {
+                const naziv = {
+                    POSL: 'type_physically',
+                    MOBIL: 'type_movable',
+                    WEB_OFFICE: 'type_web_office',
+                    URED: 'type_office',
+                }[value];
+                return naziv ? t(`backoffice.business_premises.${naziv}`) : value;
+            } },
         // Partnersko prodajno mjesto se mora vidjeti iz popisa — po njemu ide
         // obračun provizije, pa nije svejedno je li mjesto naše ili partnerovo.
         { field: 'partner_name', headerName: t('backoffice.business_premises.partners'), flex: 2,
