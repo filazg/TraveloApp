@@ -153,8 +153,17 @@ export default function AddressbookPage (){
      },[selectedRow])
 
      const columns = [
-        { field: 'buyer_name', headerName:t('backoffice.addressbook.buyer_name'), flex: 2, editable: true },
-        { field: 'buyer_company_name', headerName: t('backoffice.addressbook.buyer_company_name'), flex: 2, editable: true},
+        // Ime kupca i naziv tvrtke u jednom stupcu: kod velike većine zapisa su
+        // isti, pa se ponavljaju. Kad se razlikuju, uz tvrtku stoji i ime osobe.
+        // Polja se i dalje uređuju zasebno (naziv tvrtke određuje pravnu osobu).
+        { field: 'buyer_name', headerName: 'Kupac', flex: 3,
+            valueGetter: (_v, row) => {
+                const ime = String(row?.buyer_name || '').trim();
+                const tvrtka = String(row?.buyer_company_name || '').trim();
+                if (!tvrtka) return ime;
+                if (!ime || ime === tvrtka) return tvrtka;
+                return `${tvrtka} (${ime})`;
+            } },
         { field: 'buyer_legal_id', headerName:t('backoffice.addressbook.buyer_legal_id'), flex: 2},
         { field: 'buyer_vat_id', headerName: t('backoffice.addressbook.buyer_vat_id'), flex: 2},
         { field: 'saop_customer_code', headerName: 'SAOP šifra', flex: 1},
