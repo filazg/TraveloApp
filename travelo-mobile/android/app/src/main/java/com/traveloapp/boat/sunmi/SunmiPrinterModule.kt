@@ -708,6 +708,9 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             // ----- STAVKE -----
             // Zaglavlje po polasku (relacija, linija, vrijeme), pa po vrsti
             // karte 3 stupca (vrsta 13 | qty x cij 10 | iznos 8) = W.
+            // Zaglavlje tablice u istim stupcima kao stavke.
+            p.printText(padR("Kategorija", W - 18) + padL("Kol x cij.", 10) + padL("Iznos", 8) + "\n", null)
+            dline(p)
             if (items != null) {
                 for (i in 0 until items.size()) {
                     val it = items.getMap(i) ?: continue
