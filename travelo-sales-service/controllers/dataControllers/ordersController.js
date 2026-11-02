@@ -15,6 +15,7 @@ const { bezPdv, saljeBezPdva } = require("../../helpers/cijene");
 const axios = require("axios");
 const { getCoreServiceConfigData } = require("../configSyncController");
 const { isSaleOpen, saleClosedMessage, isSailingCanceled, sailingCanceledMessage } = require("../../helpers/departureCutoff");
+const { PARTNER_CHANNEL, partnerSmijeProdati } = require("../../helpers/partnerTicketTypes");
 
 const createOrderController = async (req, res) => {
     const { OrdersModel, RoutesModel, TimetablePricesModel } = req.app.locals.models;
@@ -74,6 +75,17 @@ const createOrderController = async (req, res) => {
         const priceByTicketType = Object.fromEntries(
             prices.map(p => [p.ticket_type_uuid, p])
         );
+
+        // Partnerska prodaja ne nudi otočne karte ni karte samo za desk
+        // (Djelatna); ovo je brana ako ih netko ipak pošalje.
+        if ((body.channel || PARTNER_CHANNEL) === PARTNER_CHANNEL) {
+            const smije = await partnerSmijeProdati();
+            const zabranjena = items.find(it => (parseInt(it.qty, 10) || 0) > 0
+                && priceByTicketType[it.ticket_type_uuid] && !smije(priceByTicketType[it.ticket_type_uuid]));
+            if (zabranjena) {
+                return res.status(409).json({ status: 409, data: { message: `${priceByTicketType[zabranjena.ticket_type_uuid].ticket_type_name} nije dostupna u partnerskoj prodaji.` } });
+            }
+        }
 
         let total = 0;
         const pricedItems = items.map(it => {
