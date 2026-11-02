@@ -2,6 +2,9 @@ package com.traveloapp.boat
 
 import android.content.Intent
 import android.view.KeyEvent
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -14,6 +17,22 @@ class MainActivity : ReactActivity() {
 
     override fun createReactActivityDelegate(): ReactActivityDelegate =
         DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+    // Traka s Android tipkama (natrag, početna, nedavne) skrivena je dok je
+    // aplikacija na ekranu; povlačenjem od donjeg ruba pojavi se privremeno.
+    // Vrijedi samo za ovaj prozor — u drugim aplikacijama traka je normalna.
+    // Postavlja se pri svakom dobivanju fokusa jer je sustav vraća nakon
+    // dijaloga, tipkovnice i povratka u aplikaciju.
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) sakrijTipke()
+    }
+
+    private fun sakrijTipke() {
+        val ctrl = WindowCompat.getInsetsController(window, window.decorView)
+        ctrl.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        ctrl.hide(WindowInsetsCompat.Type.navigationBars())
+    }
 
     // NFC tag intent stiže ovdje — proslijedi modulu da pročita karticu i emit-a JS event.
     override fun onNewIntent(intent: Intent) {
