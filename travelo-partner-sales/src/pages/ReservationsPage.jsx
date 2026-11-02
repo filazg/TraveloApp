@@ -150,8 +150,8 @@ export default function ReservationsPage() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Napomena</TableCell>
                 <TableCell>Rezervacija</TableCell>
+                <TableCell>ID</TableCell>
                 <TableCell>Rezervirano</TableCell>
                 <TableCell>Polazak</TableCell>
                 <TableCell>Relacija</TableCell>
