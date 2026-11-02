@@ -3,7 +3,7 @@ const { getHarborsDataController } = require('../controllers/dataControllers/har
 const { getLinesDataController } = require('../controllers/dataControllers/linesController');
 const { getRoutesDataController, cancelRoutesBatchController, rescheduleRoutesBatchController } = require('../controllers/dataControllers/routesController');
 const { getPricesDataController } = require('../controllers/dataControllers/pricesController');
-const { createOrderController, listOrdersController, listOrderTicketsController } = require('../controllers/dataControllers/ordersController');
+const { createOrderController, listOrdersController, listOrderTicketsController, sendOrderTicketsController } = require('../controllers/dataControllers/ordersController');
 const { updateOrdersStatusController } = require('../controllers/dataControllers/ordersStatusController');
 const { provjeriPartnersku, traziUlogu } = require('../middlewares/partnerSession');
 const {
@@ -50,6 +50,11 @@ router
 router
     .route('/order_tickets')
     .get(listOrderTicketsController)
+
+// Slanje karata rezervacije putniku e-mailom (partner iz prijave).
+router
+    .route('/order_tickets/send')
+    .post(provjeriPartnersku, sendOrderTicketsController)
 
 router
     .route('/orders_status')

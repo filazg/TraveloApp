@@ -24,7 +24,10 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
 import dayjs from 'dayjs'
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { fetchOrderTickets, fetchReservations } from '../features/sales/salesSlice'
+import SendTicketsButton from '../features/sales/SendTicketsButton'
+import { backendURL } from '../config/config'
 
 const fmtPrice = (n) => `${Number(n || 0).toFixed(2)} €`
 const fmtDateTime = (s) => {
@@ -236,6 +239,23 @@ export default function ReservationsPage() {
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{otvorena.note}</Typography>
             </Box>
           )}
+
+          <Stack direction="row" spacing={1.5} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+            <Button
+              variant="contained"
+              startIcon={<PictureAsPdfIcon />}
+              onClick={() => window.open(`${backendURL}/transactions/tickets_pdf/${otvorena.uuid}?channel=PARTNER`, '_blank')}
+              disabled={!otvorena || !orderTickets.length}
+              sx={{ fontWeight: 800 }}
+            >
+              Preuzmi karte (PDF)
+            </Button>
+            <SendTicketsButton
+              orderUuid={otvorena?.uuid}
+              defaultEmail={otvorena?.customer_email || ''}
+              sx={{ fontWeight: 800 }}
+            />
+          </Stack>
 
           {orderTicketsLoading ? (
             <Stack alignItems="center" sx={{ py: 3 }}><CircularProgress size={22} /></Stack>

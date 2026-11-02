@@ -32,6 +32,7 @@ const { finalizeTerminalSaleController } = require('../controllers/dataControlle
 const { cancelSailingController, restoreSailingController, rescheduleSailingController, sendSailingMessageController } = require('../controllers/dataControllers/dispatcherController');
 const { transferTicketsController } = require('../controllers/dataControllers/ticketTransferControllers');
 const { emailInvoiceTicketsController } = require('../controllers/dataControllers/emailInvoiceTicketsController');
+const { emailOrderTicketsController } = require('../controllers/dataControllers/emailOrderTicketsController');
 const { managementReportController } = require('../controllers/dataControllers/managementReportController');
 const { validateTicketController } = require('../controllers/dataControllers/validateTicketController');
 const { validationCountsController } = require('../controllers/dataControllers/validationCountsController');
@@ -278,6 +279,11 @@ router
 router
     .route('/email_invoice_tickets')
     .post(emailInvoiceTicketsController)
+
+// Karte narudzbe e-mailom putniku (partnerska prodaja, bez racuna).
+router
+    .route('/email_order_tickets')
+    .post(emailOrderTicketsController)
 
 router
     .route('/management_report')

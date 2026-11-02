@@ -311,7 +311,36 @@ const listOrderTicketsController = async (req, res) => {
     }
 };
 
+// Partner salje karte svoje rezervacije putniku e-mailom. Partner dolazi iz
+// prijave (provjeriPartnersku), pa se tude karte ne mogu poslati.
+const sendOrderTicketsController = async (req, res) => {
+    const { OrdersModel } = req.app.locals.models;
+    try {
+        const { order_uuid, email, lang } = req.body || {};
+        if (!order_uuid) return res.status(400).json({ status: 400, data: { message: "order_uuid required" } });
+        const order = await OrdersModel.findOne({ where: { uuid: order_uuid } });
+        if (!order || order.partner_uuid !== req.partner.partner_uuid) {
+            return res.status(404).json({ status: 404, data: { message: "order not found" } });
+        }
+        const coreConfig = await getCoreServiceConfigData();
+        const txUrl = coreConfig?.services?.transactions?.url;
+        if (!txUrl) return res.status(500).json({ status: 500, data: { message: "transactions service unavailable" } });
+
+        const resp = await axios.post(`${txUrl}/email_order_tickets`, {
+            order_uuid,
+            to: email,
+            channel: "PARTNER",
+            lang: lang === "en" ? "en" : "hr",
+        }, { timeout: 30000, validateStatus: () => true });
+        return res.status(resp.status).json(resp.data);
+    } catch (error) {
+        console.log("sendOrderTicketsController error:", error?.message || error);
+        res.status(500).json({ status: 500, data: { message: error.message } });
+    }
+};
+
 module.exports = {
+    sendOrderTicketsController,
     listOrderTicketsController,
     createOrderController,
     listOrdersController,

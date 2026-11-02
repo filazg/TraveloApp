@@ -26,6 +26,7 @@ import DirectionsBoatIcon from '@mui/icons-material/DirectionsBoat'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { clearLastOrder, createOrder, fetchPrices } from './salesSlice'
 import { backendURL } from '../../config/config'
+import SendTicketsButton from './SendTicketsButton'
 
 const fmtPrice = (n) => `${Number(n).toFixed(2)} €`
 
@@ -155,16 +156,24 @@ export default function ReservationDialog({ open, route, onClose }) {
               </Box>
             )}
 
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<PictureAsPdfIcon />}
-              onClick={() => window.open(`${backendURL}${lastOrder.tickets_pdf_url}`, '_blank')}
-              disabled={!lastOrder.tickets_pdf_url}
-              sx={{ alignSelf: 'flex-start', fontWeight: 800 }}
-            >
-              Otvori karte (PDF)
-            </Button>
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<PictureAsPdfIcon />}
+                onClick={() => window.open(`${backendURL}${lastOrder.tickets_pdf_url}`, '_blank')}
+                disabled={!lastOrder.tickets_pdf_url}
+                sx={{ fontWeight: 800 }}
+              >
+                Otvori karte (PDF)
+              </Button>
+              <SendTicketsButton
+                orderUuid={lastOrder.uuid}
+                defaultEmail={customerEmail}
+                size="large"
+                sx={{ fontWeight: 800 }}
+              />
+            </Stack>
           </Stack>
         ) : (
           <>
