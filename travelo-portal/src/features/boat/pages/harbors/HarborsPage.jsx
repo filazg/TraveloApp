@@ -147,9 +147,9 @@ export default function HarborsPage (){
                         variant="h5"
                         fontWeight="bold"
                         >
-                        {t('boat.lines.add_new_title')}
+                        {t('boat.harbors.addnewtitle')}
                     </Typography>
-                    <Button onClick={()=>setOpenAdd(false)}>{t('boat.lines.close')}</Button>
+                    <Button onClick={()=>setOpenAdd(false)}>{t('boat.harbors.close')}</Button>
                 </Stack>
                     <TextField
                         type="text"
@@ -300,7 +300,7 @@ export default function HarborsPage (){
                         sx={{ height: 60, mt: 2, width: "100%" }}
                         variant="contained"
                         >
-                            {t('boat.lines.add_button')}
+                            {t('boat.harbors.addnewbutton')}
                     </Button>
                 </Box>
             </Drawer>
