@@ -160,7 +160,6 @@ export default function SearchPage() {
                   <TableCell>Od</TableCell>
                   <TableCell>Do</TableCell>
                   <TableCell>Linija</TableCell>
-                  <TableCell>Raspored</TableCell>
                   <TableCell align="right">Akcija</TableCell>
                 </TableRow>
               </TableHead>
@@ -179,7 +178,6 @@ export default function SearchPage() {
                     <TableCell>{r.departure_harbor_name}</TableCell>
                     <TableCell>{r.arrival_harbor_name}</TableCell>
                     <TableCell><Chip size="small" label={r.line_name} /></TableCell>
-                    <TableCell>{r.timetable_name}</TableCell>
                     <TableCell align="right">
                       <Button
                         size="small"
@@ -193,7 +191,7 @@ export default function SearchPage() {
                 ))}
                 {!results.length && (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                       Nema polazaka za odabrane kriterije. Prodaja se zatvara{' '}
                       {SALE_CUTOFF_MINUTES} min prije polaska, pa se polasci koji su
                       krenuli više ne prikazuju.
