@@ -97,7 +97,7 @@ export default function SearchPage() {
             <MenuItem value="">— sve —</MenuItem>
             {lukeAbecedno.map((h) => (
               <MenuItem key={h.uuid} value={h.code}>
-                {h.name} ({h.code})
+                {h.name}
               </MenuItem>
             ))}
           </TextField>
@@ -111,7 +111,7 @@ export default function SearchPage() {
             <MenuItem value="">— sve —</MenuItem>
             {lukeAbecedno.map((h) => (
               <MenuItem key={h.uuid} value={h.code}>
-                {h.name} ({h.code})
+                {h.name}
               </MenuItem>
             ))}
           </TextField>
