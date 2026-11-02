@@ -147,12 +147,12 @@ export default function ReservationsPage() {
           <Table size="small">
             <TableHead>
               <TableRow>
+                <TableCell>Napomena</TableCell>
                 <TableCell>Rezervacija</TableCell>
                 <TableCell>Rezervirano</TableCell>
                 <TableCell>Polazak</TableCell>
                 <TableCell>Relacija</TableCell>
                 <TableCell>Karte</TableCell>
-                <TableCell>Napomena</TableCell>
                 <TableCell align="right">Iznos</TableCell>
                 <TableCell>Status</TableCell>
               </TableRow>
@@ -162,6 +162,7 @@ export default function ReservationsPage() {
                 const status = STATUSI[o.status] || { label: o.status || '—', color: 'default' }
                 return (
                   <TableRow key={o.uuid} hover sx={{ cursor: 'pointer' }} onClick={() => otvori(o)}>
+                    <TableCell sx={{ maxWidth: 260 }}>{o.note}</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>PW-{o.id}</TableCell>
                     <TableCell>{fmtDateTime(o.createdAt)}</TableCell>
                     <TableCell>{o.departure_date} {o.departure_time}</TableCell>
@@ -177,7 +178,6 @@ export default function ReservationsPage() {
                         {sastav(o)}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ maxWidth: 260 }}>{o.note}</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 700 }}>{fmtPrice(o.total_amount)}</TableCell>
                     <TableCell>
                       <Chip size="small" color={status.color} label={status.label} />
