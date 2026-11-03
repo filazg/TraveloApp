@@ -63,6 +63,7 @@ export default function ReservationsPage() {
 
   const [od, setOd] = useState(dayjs().startOf('month'))
   const [doo, setDoo] = useState(dayjs())
+  const [kalendar, setKalendar] = useState(null)
   const [trazilica, setTrazilica] = useState('')
   const [otvorena, setOtvorena] = useState(null)
 
@@ -108,19 +109,26 @@ export default function ReservationsPage() {
 
       <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
+          {/* Klik bilo gdje u polju otvara kalendar, ne samo ikona. */}
           <DatePicker
             label="Od"
             value={od}
             onChange={setOd}
             format="DD/MM/YYYY"
-            slotProps={{ textField: { sx: { minWidth: 180 } } }}
+            open={kalendar === 'od'}
+            onOpen={() => setKalendar('od')}
+            onClose={() => setKalendar(null)}
+            slotProps={{ textField: { sx: { minWidth: 180 }, onClick: () => setKalendar('od') } }}
           />
           <DatePicker
             label="Do"
             value={doo}
             onChange={setDoo}
             format="DD/MM/YYYY"
-            slotProps={{ textField: { sx: { minWidth: 180 } } }}
+            open={kalendar === 'do'}
+            onOpen={() => setKalendar('do')}
+            onClose={() => setKalendar(null)}
+            slotProps={{ textField: { sx: { minWidth: 180 }, onClick: () => setKalendar('do') } }}
           />
           <TextField
             label="Pretraži (broj, napomena, kupac, linija)"
