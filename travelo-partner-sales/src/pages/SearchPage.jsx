@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
-  MenuItem,
   Paper,
   Stack,
   Table,
@@ -23,6 +23,25 @@ import dayjs from 'dayjs'
 import { fetchHarbors, fetchRoutes } from '../features/sales/salesSlice'
 import ReservationDialog from '../features/sales/ReservationDialog'
 import { isSaleOpen, SALE_CUTOFF_MINUTES } from '../features/sales/departureCutoff'
+
+// Luka se traži tipkanjem: popis se sužava dok se piše (bez obzira na kvačice
+// i velika slova), bez otvaranja padajućeg izbornika. Prazno polje = sve luke.
+function LukaPolje({ label, luke, value, onChange }) {
+  return (
+    <Autocomplete
+      options={luke}
+      value={luke.find((h) => h.code === value) || null}
+      onChange={(_, h) => onChange(h?.code || '')}
+      getOptionLabel={(h) => h?.name || ''}
+      isOptionEqualToValue={(a, b) => a.code === b.code}
+      renderOption={(props, h) => <li {...props} key={h.uuid}>{h.name}</li>}
+      autoHighlight
+      noOptionsText="Nema luke"
+      sx={{ minWidth: 260, flex: 1 }}
+      renderInput={(params) => <TextField {...params} label={label} placeholder="— sve —" />}
+    />
+  )
+}
 
 // Pomaknut polazak: vozni red ostaje u departure, stvarno vrijeme je u
 // actual_departure. Partner prodaje po stvarnom vremenu, pa se ono prikazuje.
@@ -88,34 +107,8 @@ export default function SearchPage() {
 
       <Paper variant="outlined" sx={{ p: 3, mb: 3 }} component="form" onSubmit={onSearch}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap">
-          <TextField
-            select
-            label="Od (polazna luka)"
-            value={fromCode}
-            onChange={(e) => setFromCode(e.target.value)}
-            sx={{ minWidth: 260, flex: 1 }}
-          >
-            <MenuItem value="">— sve —</MenuItem>
-            {lukeAbecedno.map((h) => (
-              <MenuItem key={h.uuid} value={h.code}>
-                {h.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            label="Do (dolazna luka)"
-            value={toCode}
-            onChange={(e) => setToCode(e.target.value)}
-            sx={{ minWidth: 260, flex: 1 }}
-          >
-            <MenuItem value="">— sve —</MenuItem>
-            {lukeAbecedno.map((h) => (
-              <MenuItem key={h.uuid} value={h.code}>
-                {h.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <LukaPolje label="Od (polazna luka)" luke={lukeAbecedno} value={fromCode} onChange={setFromCode} />
+          <LukaPolje label="Do (dolazna luka)" luke={lukeAbecedno} value={toCode} onChange={setToCode} />
           <DatePicker
             label="Datum"
             value={date}
