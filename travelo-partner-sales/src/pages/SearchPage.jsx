@@ -59,6 +59,7 @@ export default function SearchPage() {
   const [fromCode, setFromCode] = useState('')
   const [toCode, setToCode] = useState('')
   const [date, setDate] = useState(dayjs())
+  const [kalendar, setKalendar] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [selectedRoute, setSelectedRoute] = useState(null)
 
@@ -114,7 +115,11 @@ export default function SearchPage() {
             value={date}
             onChange={(v) => setDate(v)}
             format="DD/MM/YYYY"
-            slotProps={{ textField: { sx: { minWidth: 200 } } }}
+            // Klik bilo gdje u polju otvara kalendar, ne samo ikona.
+            open={kalendar}
+            onOpen={() => setKalendar(true)}
+            onClose={() => setKalendar(false)}
+            slotProps={{ textField: { sx: { minWidth: 200 }, onClick: () => setKalendar(true) } }}
           />
           <Button
             type="submit"
