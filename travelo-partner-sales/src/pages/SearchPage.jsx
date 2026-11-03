@@ -71,7 +71,8 @@ export default function SearchPage() {
   // voznog reda, pa se svoja luka tražila po popisu. Hrvatska pravila
   // usporedbe, da č, ć, š, ž ne odu iza z.
   const lukeAbecedno = useMemo(
-    () => [...(harbors || [])].sort((a, b) =>
+    // Samo aktivne luke; neaktivne se u portalu isključuju iz prodaje.
+    () => (harbors || []).filter((h) => h?.is_active !== false).sort((a, b) =>
       String(a?.name || '').localeCompare(String(b?.name || ''), 'hr', { sensitivity: 'base' })
     ),
     [harbors]
