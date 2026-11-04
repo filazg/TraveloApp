@@ -174,6 +174,17 @@ const createOrderConfirmationController = async (req, res) => {
                 });
             } catch (err) {
                 console.log('order_confirmation Monri init failed:', err?.message || err);
+                // Narudžbe ostaju zapisane kao neuspjele (s razlogom), ali bez
+                // karata i računa; mjesto ionako zauzimaju tek karte iz finalizacije.
+                await axios.post(
+                    `${salesUrl}/orders_status`,
+                    {
+                        payment_reference: order_number,
+                        status: 'payment_failed',
+                        meta: { reason: 'monri_init_failed', error: String(err?.message || err).slice(0, 500), at: new Date().toISOString() },
+                    },
+                    { timeout: 8000, validateStatus: () => true }
+                ).catch((e) => console.log('order_confirmation payment_failed status update failed:', e?.message || e));
                 return res.status(502).json({
                     status: 502,
                     data: { message: language === 'hr' ? 'Plaćanje trenutno nije dostupno. Pokušajte ponovno.' : 'Payment is currently unavailable. Please try again.' },

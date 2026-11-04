@@ -132,7 +132,9 @@ const runFinalizationOnce = async ({ paymentRef, approved, meta }) => {
         params: { payment_reference: paymentRef },
         validateStatus: () => true,
     });
-    const rawOrders = ordersResp.data?.data?.orders || ordersResp.data?.orders || [];
+    // Narudžba kojoj se plaćanje nije ni pokrenulo ne smije dobiti karte.
+    const rawOrders = (ordersResp.data?.data?.orders || ordersResp.data?.orders || [])
+        .filter((o) => o.status !== 'payment_failed');
     if (!rawOrders.length) return { ok: false, reason: 'no_orders_for_reference' };
 
     if (rawOrders.every((o) => o.status === 'paid' && o.invoice_uuid)) {
