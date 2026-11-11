@@ -1769,10 +1769,9 @@ export default function SaleScreen() {
 
                         </ScrollView>
 
+                        {/* Gumbi jedan ispod drugog preko cijele širine — u redu ih
+                            zna biti tri pa ne stanu i „Zatvori" ispadne s ekrana. */}
                         <View style={islandStyles.actions}>
-                            <TouchableOpacity style={islandStyles.btnGhost} onPress={closeIslandModal}>
-                                <Text style={islandStyles.btnGhostText}>Zatvori</Text>
-                            </TouchableOpacity>
                             {!islandResult && (
                                 <TouchableOpacity
                                     style={[islandStyles.btnPrimary, (!islandCardNo || islandChecking) && { opacity: 0.5 }]}
@@ -1803,6 +1802,9 @@ export default function SaleScreen() {
                                     </Text>
                                 </TouchableOpacity>
                             )}
+                            <TouchableOpacity style={islandStyles.btnGhost} onPress={closeIslandModal}>
+                                <Text style={islandStyles.btnGhostText}>Zatvori</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </View>
@@ -1864,8 +1866,8 @@ const islandStyles = StyleSheet.create({
     pratnjaText: { fontWeight: '700', color: colors.textSecondary },
     pratnjaTextAktivan: { color: colors.primary },
     btnPuna: {
-        paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10,
-        backgroundColor: colors.warning || '#B26A00', marginLeft: 8,
+        paddingVertical: 14, borderRadius: 10, alignItems: 'center',
+        backgroundColor: colors.warning || '#B26A00',
     },
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 12 },
     card: {
@@ -1902,10 +1904,13 @@ const islandStyles = StyleSheet.create({
     b: { fontWeight: 'bold' },
     priceOld: { fontSize: 16, color: colors.textMuted, marginRight: 8 },
     priceNew: { fontSize: 18, fontWeight: 'bold', color: colors.success },
-    actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10, gap: 8 },
-    btnGhost: { paddingVertical: 10, paddingHorizontal: 16 },
-    btnGhostText: { color: colors.textSecondary, fontSize: 16 },
-    btnPrimary: { backgroundColor: colors.success, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 8 },
+    actions: { flexDirection: 'column', marginTop: 10, gap: 8 },
+    btnGhost: {
+        paddingVertical: 14, borderRadius: 10, alignItems: 'center',
+        borderWidth: 1, borderColor: colors.border,
+    },
+    btnGhostText: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+    btnPrimary: { backgroundColor: colors.success, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
     btnPrimaryText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: 'bold' },
 });
 
