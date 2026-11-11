@@ -157,15 +157,28 @@ const getTerminalBasicDataHandler = async(data)=>{
                 // OIB klijenta: 7pay ga vezuje uz registriranog trgovca, pa ide
                 // iz konfiguracije. Prazno -> mobilna pada na client_legal_id.
                 merchant_tax_id: sevenPayConfig.merchant_tax_id || null,
-                version: sevenPayConfig.version || '2.1',
+                version: sevenPayConfig.version || '1.2',
                 ecr_id: sevenPayConfig.ecr_id || 1234,
             } : null
+
+            // AKD otocne iskaznice: kljucevi za SEOP iskaznice na DESFire EV3 cipu.
+            // Mobilni cita testnim kljucem, a ovima pokusa kad prijava na cip ne
+            // prode. Salje se samo ispravan kljuc (32 heks znaka) — krivi bi na
+            // uredaju samo produzio citanje i dao istu gresku.
+            const akdKeysConfig = getIntegrationsConfigData()?.akd_card_keys || {}
+            const heksKljuc = (v) => (/^[0-9A-Fa-f]{32}$/.test(String(v || '').trim()) ? String(v).trim().toUpperCase() : null)
+            const akdCardKeys = {
+                seop_f2_ev3: heksKljuc(akdKeysConfig.seop_f2_ev3),
+                seop_f3_ev3: heksKljuc(akdKeysConfig.seop_f3_ev3),
+            }
+            console.log('[akd] EV3 kljucevi postavljeni: F2', !!akdCardKeys.seop_f2_ev3, '| F3', !!akdCardKeys.seop_f3_ev3)
 
             dataToSend = {
                 basic_data:basicData,
                 users:usersForTerminal,
                 payment_method:paymentsForTerminal,
                 payment_7pay:payment7pay,
+                akd_card_keys: (akdCardKeys.seop_f2_ev3 || akdCardKeys.seop_f3_ev3) ? akdCardKeys : null,
                 // Sifarnik postotaka storniranja — terminal ih nudi kao izbor
                 // umjesto slobodnog upisa. Ako backoffice ne odgovori, ide prazna
                 // lista pa uredaj zadrzi zadnje sinkronizirane.

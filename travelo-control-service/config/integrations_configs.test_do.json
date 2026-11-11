@@ -38,6 +38,11 @@
         "version": "1.2",
         "ecr_id": 1234
     },
+    "akd_card_keys": {
+        "_comment": "AKD otocne iskaznice - kljucevi za SEOP iskaznice na DESFire EV3 cipu (32 heks znaka). Mobilni ih koristi kad testni kljuc ne prode. Ne idu u repo - postaviti kroz env AKD_EV3_SEOP_F2 / AKD_EV3_SEOP_F3.",
+        "seop_f2_ev3": "",
+        "seop_f3_ev3": ""
+    },
     "seyfor": {
         "_comment": "SAOP (Seyfor iCenter) — knjizenje temeljnica i sifarnici analitike. Lozinka NIJE u repou: postavi SEYFOR_PASSWORD u okolini posluzitelja (isti obrazac kao 7pay).",
         "base_url": "https://seyfor.krilo.hr:8383/iCenterApi",

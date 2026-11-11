@@ -40,6 +40,9 @@ export const syncBasicDataThunk = createAsyncThunk(
                 ? {
                     ...payload.basic_data,
                     payment_7pay: payload.payment_7pay || null,
+                    // AKD ključevi za EV3 otočne iskaznice — uz basic_data da budu u
+                    // lokalnoj bazi i čitanje radi i bez mreže.
+                    akd_card_keys: payload.akd_card_keys || null,
                     storno_percentages: payload.storno_percentages || [],
                     seop_right_discounts: payload.seop_right_discounts || [],
                     // Dodatne karte uz vrstu karte (npr. Redovna → dojenče).

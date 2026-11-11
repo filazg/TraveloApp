@@ -125,18 +125,56 @@ class AkdCardModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         }
     }
 
+    // Ključevi za SEOP iskaznice na DESFire EV3 čipu (s poslužitelja, vidi
+    // basicData.akd_card_keys). Testni ključ otvara samo testne iskaznice; desk
+    // (TesseraCli) ima oba skupa i sam bira — ovdje se EV3 pokuša kad prijava
+    // testnim ključem padne. Null = nema ih, čita se samo testnim.
+    private var ev3SeopF2: ByteArray? = null
+    private var ev3SeopF3: ByteArray? = null
+
+    private fun heksUBajtove(hex: String?): ByteArray? {
+        val h = hex?.trim() ?: return null
+        if (!Regex("^[0-9A-Fa-f]{32}$").matches(h)) return null
+        return ByteArray(16) { i -> h.substring(i * 2, i * 2 + 2).toInt(16).toByte() }
+    }
+
+    @ReactMethod
+    fun setEv3Keys(seopF2Hex: String?, seopF3Hex: String?, promise: Promise) {
+        ev3SeopF2 = heksUBajtove(seopF2Hex)
+        ev3SeopF3 = heksUBajtove(seopF3Hex)
+        Log.d(TAG, "setEv3Keys: F2=${ev3SeopF2 != null} F3=${ev3SeopF3 != null}")
+        promise.resolve(ev3SeopF2 != null || ev3SeopF3 != null)
+    }
+
+    private fun testniKljucevi() = CardKeys().apply {
+        MosiKeyF2 = CardKeys.TEST_MOSI_F2_BASIC_DATA_KEY
+        SeopKeyF2 = CardKeys.TEST_SEOP_F2_BASIC_DATA_KEY
+        SeopKeyF3 = CardKeys.TEST_SEOP_F3_ADDON_DATA_KEY
+        JL2GoKey  = CardKeys.TEST_JL2GO_KEY
+    }
+
+    // Čita testnim ključevima; ako prijava na čip padne a EV3 ključevi postoje,
+    // odmah ponovi EV3 skupom dok je kartica još prislonjena.
+    private fun procitaj(intent: Intent): Card? {
+        try {
+            return CardController.cardLogic(intent, NxpNfcLib.getInstance(), testniKljucevi())
+        } catch (e: Exception) {
+            if (ev3SeopF2 == null && ev3SeopF3 == null) throw e
+            Log.w(TAG, "testni kljuc nije prosao (${e.javaClass.simpleName}: ${e.message}) — pokusavam EV3")
+            val ev3 = testniKljucevi().apply {
+                ev3SeopF2?.let { SeopKeyF2 = it }
+                ev3SeopF3?.let { SeopKeyF3 = it }
+            }
+            return CardController.cardLogic(intent, NxpNfcLib.getInstance(), ev3)
+        }
+    }
+
     // Pozvano iz MainActivity.onNewIntent kada stigne NFC tag intent dok je scanning aktivan.
     fun handleNfcIntent(intent: Intent) {
         Log.d(TAG, "onNewIntent action=${intent.action} scanning=$scanning")
         if (!scanning) return
-        val keys = CardKeys().apply {
-            MosiKeyF2 = CardKeys.TEST_MOSI_F2_BASIC_DATA_KEY
-            SeopKeyF2 = CardKeys.TEST_SEOP_F2_BASIC_DATA_KEY
-            SeopKeyF3 = CardKeys.TEST_SEOP_F3_ADDON_DATA_KEY
-            JL2GoKey  = CardKeys.TEST_JL2GO_KEY
-        }
         try {
-            val card: Card? = CardController.cardLogic(intent, NxpNfcLib.getInstance(), keys)
+            val card: Card? = procitaj(intent)
             if (card == null) {
                 Log.w(TAG, "cardLogic returned null")
                 playFeedback(false)

@@ -615,7 +615,7 @@ export default function SaleScreen() {
         setScanBuffer('');
         if (!akdCardAvailable) return;
         let unsub = () => {};
-        akdStartScan()
+        akdStartScan(sync.basicData?.akd_card_keys)
             .then((r) => console.log('[island] akdStartScan resolved:', r))
             .catch((err) => console.warn('[island] akdStartScan err', err?.message, err?.code));
         unsub = akdOnCardRead((payload) => {

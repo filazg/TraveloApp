@@ -29,6 +29,7 @@ const SEYFOR_ENV = {
 const applySeyforEnv = (cfg) => primijeniEnv(cfg, "seyfor", SEYFOR_ENV);
 const applyYescorEnv = (cfg) => primijeniEnv(cfg, "yescor", YESCOR_ENV);
 const applySudregEnv = (cfg) => primijeniEnv(cfg, "sudreg", SUDREG_ENV);
+const applyAkdKeysEnv = (cfg) => primijeniEnv(cfg, "akd_card_keys", AKD_KEYS_ENV);
 
 // YesCor (F2 e-racun) i Sudski registar — isti razlog: kljucevi i tajne ne
 // pripadaju repou, a URL-ovi i okolina nisu tajna pa smiju ostati u configu.
@@ -41,6 +42,15 @@ const YESCOR_ENV = {
     client_id: "YESCOR_CLIENT_ID",
     client_secret: "YESCOR_CLIENT_SECRET",
     app_secret: "YESCOR_APP_SECRET",
+};
+
+// AKD otočne iskaznice: ključevi za SEOP iskaznice na DESFire EV3 čipu. Mobilni
+// ih koristi kad testni ključ ne prođe (desk ih ima ugrađene u TesseraCli).
+// Kriptografski ključevi ne pripadaju repou — 32 heks znaka, postavljaju se
+// kroz env na poslužitelju.
+const AKD_KEYS_ENV = {
+    seop_f2_ev3: "AKD_EV3_SEOP_F2",
+    seop_f3_ev3: "AKD_EV3_SEOP_F3",
 };
 
 const SUDREG_ENV = {
@@ -76,7 +86,7 @@ const applySevenPayEnv = (cfg) =>
 const getIntegrationsConfigController = async (req, res) => {
     try {
         const cfg = await readConfig("integrations_configs");
-        const sOkolinom = [applySevenPayEnv, applySeyforEnv, applyYescorEnv, applySudregEnv]
+        const sOkolinom = [applySevenPayEnv, applySeyforEnv, applyYescorEnv, applySudregEnv, applyAkdKeysEnv]
             .reduce((k, primijeni) => primijeni(k), cfg);
         res.send({ status: 200, data: sOkolinom });
     } catch (error) {

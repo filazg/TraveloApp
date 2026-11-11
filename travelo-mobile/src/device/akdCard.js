@@ -9,8 +9,18 @@ export const akdCardAvailable = Platform.OS === 'android' && !!AkdCard;
 console.log('[AkdCard] module loaded — available =', akdCardAvailable, 'native =', !!AkdCard);
 
 // Uključi NFC foreground dispatch — pozovi prilikom ulaska u modal za skeniranje.
-export async function startScan() {
+// `ev3Keys` (basicData.akd_card_keys, s poslužitelja) — ključevi za SEOP
+// iskaznice na DESFire EV3 čipu; native njima pokuša kad testni ključ ne prođe.
+// Bez njih se čita samo testnim ključevima.
+export async function startScan(ev3Keys = null) {
     if (!akdCardAvailable) throw new Error('AKD NFC modul nije dostupan');
+    if (AkdCard.setEv3Keys) {
+        try {
+            await AkdCard.setEv3Keys(ev3Keys?.seop_f2_ev3 || null, ev3Keys?.seop_f3_ev3 || null);
+        } catch (e) {
+            console.warn('[AkdCard] setEv3Keys', e?.message || e);
+        }
+    }
     return AkdCard.startScan();
 }
 
