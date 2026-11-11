@@ -34,6 +34,7 @@ import { scanOnce, onScan } from '../device/scanner';
 import { startScan as akdStartScan, stopScan as akdStopScan, onCardRead as akdOnCardRead, hideKeyboard as akdHideKeyboard, akdCardAvailable } from '../device/akdCard';
 import { printReceipt as printReceiptFn, printTickets as printTicketsFn, printMerchantSlip as printMerchantSlipFn } from '../device/printSale';
 import { ucitajIspisZaTrgovca } from '../services/softposProvider';
+import { predvidiOznakuRacuna } from '../store/localSale';
 import { playSuccess as soundSuccess, playPrompt as soundPrompt, playError as soundError } from '../device/sound';
 
 // Razlozi izdavanja otočne bez provjere (Kontrola → Greške s povlaštenim
@@ -1062,16 +1063,23 @@ export default function SaleScreen() {
         // ostao izdan račun bez naplate.
         const cardProvider = pm?.is_card_payment ? (pm.card_provider || '') : '';
         let cardPaymentDetails = null;
+        let f2Code = null;
         if (cardProvider === 'SEVENPAY') {
             setIssueModalOpen(false);
             setPrinting(true);
             setPrintingLabel('Kartično plaćanje…');
             const amount = items.reduce((sum, i) => sum + Number(i.unit_price) * Number(i.qty), 0);
+            // Referenca prema 7pay-u je oznaka računa koji će se izdati iza
+            // plaćanja (predvidiOznakuRacuna samo čita brojač). F2 kod se ovdje
+            // generira i predaje dalje, da račun nosi isti.
+            const oznaka = await predvidiOznakuRacuna({ buyer, basicData: sync.basicData }).catch(() => null);
+            f2Code = oznaka?.f2_code || null;
             const payRes = await payByCard({
                 amount,
                 paymentCfg: sync.basicData?.payment_7pay,
                 merchantTaxID: sync.basicData?.client_legal_id,
                 transactionType: TX_SALE,
+                reference: oznaka?.invoice_code || '',
             });
             if (!payRes.ok) {
                 setPrinting(false);
@@ -1099,6 +1107,7 @@ export default function SaleScreen() {
             },
             buyer: buyer || {},
             payment_data: cardPaymentDetails,
+            f2_code: f2Code,
             _voyageKey: v ? `${v.timetable_uuid}|${v.sequence}|${v.departure_date}` : null,
         };
 

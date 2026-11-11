@@ -119,6 +119,7 @@ export async function payByCard({
     transactionType = TX_SALE,
     sequenceNumber = Date.now() % 100000,
     guid = '',
+    reference = '',
 }) {
     if (!SevenPay?.startPayment) {
         return { ok: false, code: null, message: 'Kartično plaćanje nije dostupno u ovoj verziji aplikacije.' };
@@ -152,7 +153,9 @@ export async function payByCard({
         amountCurrency: 978,
         timestamp: softposTimestamp(),
         idToken,
-        additionalData: { guid: guid || '' },
+        // externalTrxReference — oznaka našeg računa, da se transakcija u 7pay
+        // izvještajima poveže s računom (App2App v1.2, 4.1; polje je RFU).
+        additionalData: { guid: guid || '', externalTrxReference: reference || '' },
     };
 
     let result;

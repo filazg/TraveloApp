@@ -111,7 +111,28 @@ async function nextF2No() {
     return nextSeq(KEY_F2_SEQ, year, observed);
 }
 
-export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid, operator, basicData, paymentMethods, buyer, payment_data = null }) {
+// Oznaka računa koji će SLJEDEĆI biti izdan — za referencu prema 7pay-u, jer
+// kartično plaćanje ide prije izrade računa. Brojač se samo čita, ne troši:
+// buildLocalSale odmah iza plaćanja dodijeli upravo taj broj (između nema
+// druge prodaje na uređaju). F2 kod je nasumičan, pa se generira ovdje i
+// preda buildLocalSale-u kao `f2_code`, da račun dobije isti.
+export async function predvidiOznakuRacuna({ buyer, basicData }) {
+    const isF2 = !!(buyer && buyer.f2_required);
+    if (isF2) {
+        const f2_code = randomInvoiceCodeF2();
+        return { invoice_code: f2_code, f2_code };
+    }
+    const year = await ensureCurrentYear();
+    const observed = await maxLocalInvoiceNoByType(year, false);
+    const stored = parseInt((await getSetting(KEY_F1_SEQ)) || '0', 10);
+    const sljedeci = Math.max(stored, observed || 0) + 1;
+    const invoice_code = basicData?.business_premise_fiscal_mark && basicData?.billing_device_fiscal_mark
+        ? `${sljedeci}/${basicData.business_premise_fiscal_mark}/${basicData.billing_device_fiscal_mark}`
+        : String(sljedeci);
+    return { invoice_code, f2_code: null };
+}
+
+export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid, operator, basicData, paymentMethods, buyer, payment_data = null, f2_code = null }) {
     const year = new Date().getFullYear();
     // F2 ide u F2 brojač ISKLJUČIVO kad operator eksplicitno označi `f2_required` u R1 modalu.
     // R1 bez tog flag-a (npr. samo zbog OIB-a kupca) ostaje F1 — vidi project_invoice_numbering_rules.md.
@@ -216,7 +237,7 @@ export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid
     // F1: fiskalna oznaka NO/PP/NU.
     // F2: 8-znamenkasti random kod (vidljivi "Račun br" na ispisu i u pregledu).
     const invoice_code = isF2
-        ? randomInvoiceCodeF2()
+        ? (f2_code || randomInvoiceCodeF2())
         : (basicData?.business_premise_fiscal_mark && basicData?.billing_device_fiscal_mark
             ? `${fiskal_no}/${basicData.business_premise_fiscal_mark}/${basicData.billing_device_fiscal_mark}`
             : null);
