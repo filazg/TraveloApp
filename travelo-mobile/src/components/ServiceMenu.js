@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-    Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Switch,
+    Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Switch, NativeModules,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { authData, unpairTerminalThunk } from '../store/slices/authSlice';
@@ -10,7 +10,10 @@ import { syncPendingValidationsThunk } from '../store/slices/validationSlice';
 import { storage } from '../api/client';
 import { getDeviceSerialNumber } from '../device/printer';
 import { ucitajSlobodnoStorniranje, spremiSlobodnoStorniranje, ROK_NAKON_POLASKA_MIN } from '../services/stornoRok';
+import { SOFTPOS_PROVIDERS, ucitajSoftposProvider, spremiSoftposProvider, providerPoPaketu } from '../services/softposProvider';
 import { colors } from '../theme/colors';
+
+const { SevenPay } = NativeModules;
 
 // Servisni izbornik za podršku — isti pristupni kod kao na desku: mijenja se
 // svaki sat i zna ga samo podrška, pa je ovo brana, ne prijava. Formula mora
@@ -27,6 +30,23 @@ export default function ServiceMenu({ visible, onClose }) {
     const [info, setInfo] = useState({ serial: null, tid: null, gateway: null });
     const [radi, setRadi] = useState(false);
     const [slobodnoStorniranje, setSlobodnoStorniranje] = useState(false);
+    const [softpos, setSoftpos] = useState(null); // key odabranog providera ili null
+    const [instalirano, setInstalirano] = useState({}); // paket → bool
+    const paketIzKonfiguracije = useSelector((s) => s.sync?.basicData?.payment_7pay?.package_name) || 'com.sevenpay.tnp_test';
+
+    const ucitajSoftpos = async () => {
+        setSoftpos((await ucitajSoftposProvider())?.key || null);
+        if (!SevenPay?.isAvailable) return;
+        const parovi = await Promise.all(SOFTPOS_PROVIDERS.map(async (p) => {
+            try { return [p.paket, await SevenPay.isAvailable(p.paket)]; } catch { return [p.paket, false]; }
+        }));
+        setInstalirano(Object.fromEntries(parovi));
+    };
+
+    const odaberiSoftpos = async (key) => {
+        setSoftpos(key);
+        await spremiSoftposProvider(key);
+    };
 
     const zatvori = () => {
         setOtkljucano(false); setKod(''); setGreska(false); setRadi(false);
@@ -38,6 +58,7 @@ export default function ServiceMenu({ visible, onClose }) {
         setGreska(false);
         setOtkljucano(true);
         setSlobodnoStorniranje(await ucitajSlobodnoStorniranje());
+        ucitajSoftpos().catch(() => {});
         // Info se dohvaća tek nakon otključavanja — serijski i gateway mogu biti
         // iz auth stanja ili iz lokalne baze ako auth još nema.
         try {
@@ -137,6 +158,30 @@ export default function ServiceMenu({ visible, onClose }) {
                                 <Switch value={slobodnoStorniranje} onValueChange={promijeniSlobodnoStorniranje} />
                             </View>
 
+                            <View style={styles.softposBlok}>
+                                <Text style={styles.prekidacNaziv}>SoftPOS aplikacija</Text>
+                                <Text style={styles.prekidacOpis}>
+                                    Aplikacija banke koja se poziva za kartično plaćanje. Kredencijali su isti za sve.
+                                </Text>
+                                <SoftposOpcija
+                                    naziv="Prema konfiguraciji"
+                                    opis={`${providerPoPaketu(paketIzKonfiguracije)?.naziv || paketIzKonfiguracije}`}
+                                    odabrano={!softpos}
+                                    instalirano={instalirano[paketIzKonfiguracije]}
+                                    onPress={() => odaberiSoftpos(null)}
+                                />
+                                {SOFTPOS_PROVIDERS.map((p) => (
+                                    <SoftposOpcija
+                                        key={p.key}
+                                        naziv={p.naziv}
+                                        opis={p.merchantTaxId ? `${p.paket} · OIB ${p.merchantTaxId}` : p.paket}
+                                        odabrano={softpos === p.key}
+                                        instalirano={instalirano[p.paket]}
+                                        onPress={() => odaberiSoftpos(p.key)}
+                                    />
+                                ))}
+                            </View>
+
                             <TouchableOpacity style={[styles.action, radi && styles.btnDisabled]} disabled={radi} onPress={posaljiNespremljeno}>
                                 {radi ? <ActivityIndicator color={colors.textOnPrimary} /> : <Text style={styles.actionText}>Pošalji nespremljeno</Text>}
                             </TouchableOpacity>
@@ -152,6 +197,23 @@ export default function ServiceMenu({ visible, onClose }) {
                 </View>
             </View>
         </Modal>
+    );
+}
+
+function SoftposOpcija({ naziv, opis, odabrano, instalirano, onPress }) {
+    return (
+        <TouchableOpacity style={[styles.opcija, odabrano && styles.opcijaOdabrana]} onPress={onPress}>
+            <View style={[styles.radio, odabrano && styles.radioOdabran]} />
+            <View style={{ flex: 1 }}>
+                <Text style={styles.opcijaNaziv}>{naziv}</Text>
+                <Text style={styles.opcijaOpis} numberOfLines={1}>{opis}</Text>
+            </View>
+            {instalirano === undefined ? null : (
+                <Text style={[styles.oznaka, instalirano ? styles.oznakaOk : styles.oznakaNema]}>
+                    {instalirano ? 'instalirana' : 'nije instalirana'}
+                </Text>
+            )}
+        </TouchableOpacity>
     );
 }
 
@@ -191,4 +253,17 @@ const styles = StyleSheet.create({
     prekidacNaziv: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
     prekidacOpis: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
     actionText: { color: colors.textOnPrimary, fontWeight: '800', fontSize: 15 },
+    softposBlok: { paddingVertical: 10 },
+    opcija: {
+        flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border,
+        borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginTop: 8,
+    },
+    opcijaOdabrana: { borderColor: colors.primary, backgroundColor: colors.surfaceAlt },
+    radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: colors.border },
+    radioOdabran: { borderColor: colors.primary, backgroundColor: colors.primary },
+    opcijaNaziv: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
+    opcijaOpis: { color: colors.textSecondary, fontSize: 11, marginTop: 2 },
+    oznaka: { fontSize: 11, fontWeight: '700' },
+    oznakaOk: { color: colors.success || colors.primary },
+    oznakaNema: { color: colors.textMuted },
 });

@@ -8,6 +8,7 @@
  */
 import axios from 'axios';
 import { NativeModules } from 'react-native';
+import { ucitajSoftposProvider, providerPoPaketu } from './softposProvider';
 
 const { SevenPay } = NativeModules;
 
@@ -48,6 +49,16 @@ export const TX_REFUND = 3;
 
 const softPosPackage = (cfg) => cfg?.package_name || DEFAULT_PACKAGE;
 
+// Aplikacija koja se poziva: provider odabran u servisnom izborniku ima
+// prednost, inače paket iz konfiguracije. Testna aplikacija nosi i vlastiti
+// (testni) OIB trgovca.
+async function softPosTarget(cfg) {
+    const odabran = await ucitajSoftposProvider().catch(() => null);
+    if (odabran) return odabran;
+    const paket = softPosPackage(cfg);
+    return providerPoPaketu(paket) || { paket };
+}
+
 // Oznaka pod kojom se predstavljamo 7pay-u. Salje se na dva mjesta — u JSON
 // zahtjevu i u intent extri — pa mora biti ista; stara terminalska aplikacija je
 // tu slala svoj package i to je bilo usklađeno.
@@ -86,7 +97,7 @@ function softposTimestamp(date) {
 export async function isCardPaymentAvailable(paymentCfg) {
     if (!SevenPay?.isAvailable) return false;
     try {
-        return await SevenPay.isAvailable(softPosPackage(paymentCfg));
+        return await SevenPay.isAvailable((await softPosTarget(paymentCfg)).paket);
     } catch (e) {
         return false;
     }
@@ -126,9 +137,11 @@ export async function payByCard({
         return { ok: false, code: 905, message: 'Nije dobiven 7pay token.' };
     }
 
+    const target = await softPosTarget(paymentCfg);
+
     const request = {
         partnerID: paymentCfg.partner_id || paymentCfg.partenr_id,
-        merchantTaxID: merchantTax(paymentCfg, merchantTaxID),
+        merchantTaxID: target.merchantTaxId || merchantTax(paymentCfg, merchantTaxID),
         senderAppID: senderAppId(paymentCfg),
         version: paymentCfg.version || '2.1',
         ecrID: paymentCfg.ecr_id || 1234,
@@ -145,7 +158,7 @@ export async function payByCard({
     let result;
     try {
         const raw = await SevenPay.startPayment(
-            softPosPackage(paymentCfg),
+            target.paket,
             JSON.stringify(request),
             senderAppId(paymentCfg),
         );

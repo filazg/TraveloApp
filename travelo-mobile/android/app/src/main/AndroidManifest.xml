@@ -10,10 +10,15 @@
     <queries>
         <package android:name="woyou.aidlservice.jiuiv5" />
         <package android:name="com.sunmi.sunmiqrcodescanner" />
-        <!-- 7pay SoftPOS (testna i produkcijska). Bez ovoga Android 11+ ne vidi
+        <!-- 7pay SoftPOS — testna i aplikacije banaka (isti kredencijali, drugi
+             paket; bira se u servisnom izborniku). Bez ovoga Android 11+ ne vidi
              pakete pa getLaunchIntentForPackage vraća null. -->
         <package android:name="com.sevenpay.tnp_test" />
         <package android:name="com.sevenpay.tnp_prod" />
+        <package android:name="com.sevenpay.ecc.tnp" />
+        <package android:name="com.sevenpay.nexi.tnp" />
+        <package android:name="com.sevenpay.nexice.tnp" />
+        <package android:name="com.sevenpay.otp.tnp" />
         <intent>
             <action android:name="woyou.aidlservice.jiuiv5.IWoyouService" />
         </intent>
