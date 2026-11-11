@@ -40,6 +40,7 @@ class SevenPayModule(reactContext: ReactApplicationContext) :
             if (requestCode != SOFTPOS_REQUEST) return
             val promise = paymentPromise ?: return
             paymentPromise = null
+            sakrijTipkovnicu(activity)
 
             if (data == null) {
                 // Korisnik je izašao iz 7pay-a bez dovršetka.
@@ -59,6 +60,24 @@ class SevenPayModule(reactContext: ReactApplicationContext) :
 
     init {
         ctx.addActivityEventListener(activityListener)
+    }
+
+    // Po povratku iz 7pay-a Android vrati fokus skrivenom polju za skener
+    // (SaleScreen) i podigne tipkovnicu, iako polje ima showSoftInputOnFocus
+    // =false. Prozor fokus dobiva tek malo nakon onActivityResult, pa se
+    // tipkovnica skriva odmah i još nekoliko puta dok se prozor ne smiri.
+    private fun sakrijTipkovnicu(activity: Activity?) {
+        val act = activity ?: currentActivity ?: return
+        val imm = act.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+            as? android.view.inputmethod.InputMethodManager ?: return
+        val decor = act.window?.decorView ?: return
+        val sakrij = Runnable {
+            try {
+                val view = act.currentFocus ?: decor
+                imm.hideSoftInputFromWindow(view.windowToken, 0)
+            } catch (_: Exception) {}
+        }
+        for (ms in longArrayOf(0, 150, 400, 800)) decor.postDelayed(sakrij, ms)
     }
 
     override fun getName(): String = "SevenPay"
