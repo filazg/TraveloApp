@@ -111,7 +111,7 @@ async function nextF2No() {
     return nextSeq(KEY_F2_SEQ, year, observed);
 }
 
-export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid, operator, basicData, paymentMethods, buyer }) {
+export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid, operator, basicData, paymentMethods, buyer, payment_data = null }) {
     const year = new Date().getFullYear();
     // F2 ide u F2 brojač ISKLJUČIVO kad operator eksplicitno označi `f2_required` u R1 modalu.
     // R1 bez tog flag-a (npr. samo zbog OIB-a kupca) ostaje F1 — vidi project_invoice_numbering_rules.md.
@@ -247,6 +247,9 @@ export async function buildLocalSale({ items, terminal_uuid, payment_method_uuid
         _local: true,
         _localPayload: {
             items, terminal_uuid, payment_method_uuid, operator, buyer,
+            // 7pay odgovor — ispis kartičnog bloka na računu i ponovno slanje
+            // prodaje izdane bez mreže (inače backend ne dobije podatke naplate).
+            payment_data: payment_data || null,
         },
     };
 }

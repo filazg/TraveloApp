@@ -66,6 +66,7 @@ export const finalizeSaleThunk = createAsyncThunk(
                 buyer: payload.buyer,
                 basicData: sync.basicData,
                 paymentMethods: sync.paymentMethods,
+                payment_data: payload.payment_data || null,
             });
         } catch (e) {
             console.log('Local sale build failed:', e?.message || e, e?.stack);
@@ -189,6 +190,7 @@ export const syncPendingSalesThunk = createAsyncThunk(
                     payment_method_uuid,
                     operator,
                     buyer,
+                    payment_data: raw._localPayload?.payment_data || null,
                     invoice_uuid: inv.invoice_uuid,
                     invoice_no: inv.invoice_no,
                     invoice_year: raw.invoice_year,

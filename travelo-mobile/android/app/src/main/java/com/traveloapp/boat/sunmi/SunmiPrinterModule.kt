@@ -777,6 +777,41 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
                 dline(p)
             }
 
+            // ----- KARTIČNO TEREĆENJE (7pay) -----
+            // Isti blok kao na blagajni (boat-desk invoicePrintHelper): podaci
+            // o odobrenju ispod kupca, iznad napomene. Stiže samo za odobreno
+            // kartično plaćanje (vidi printSale.js karticnoTerecenje).
+            val card = if (data.hasKey("cardPayment") && !data.isNull("cardPayment")) data.getMap("cardPayment") else null
+            if (card != null) {
+                // Oznaka dobiva točno svoju širinu, vrijednost ostatak retka — lrLine
+                // (16+16) bi odrezao datum i naziv kartice.
+                val red = { oznaka: String, kljuc: String ->
+                    val vrijednost = safeString(card, kljuc)
+                    if (vrijednost.isNotEmpty()) {
+                        p.printText(lrLine(oznaka, vrijednost, oznaka.length + 1, W - oznaka.length - 1) + "\n", null)
+                    }
+                }
+                p.printText(center("KARTIČNO TEREĆENJE") + "\n", null)
+                p.printText(center("CARD PAYMENT") + "\n", null)
+                dline(p)
+                red("TID:", "tid")
+                red("MID:", "mid")
+                red("AID:", "aid")
+                red("Datum:", "datum")
+                red("Kartica:", "kartica")
+                red("Br. kartice:", "brojKartice")
+                red("Broj odobrenja:", "odobrenje")
+                red("RRN:", "rrn")
+                val iznos = if (safeDouble(card, "iznos") != 0.0) safeDouble(card, "iznos") else totalAmount
+                p.printText(lrLine("IZNOS:", "%.2f EUR".format(iznos)) + "\n", null)
+                p.setFontSize(34f, null)
+                p.setAlignment(1, null)
+                p.printText("ODOBRENO\n", null)
+                p.setFontSize(24f, null)
+                p.setAlignment(0, null)
+                dline(p)
+            }
+
             // Napomena s naplatnog uređaja. Definira se u administraciji, po
             // uređaju i odvojeno za račun i za kartu — račun ide kupcu, karta
             // putniku. Prazno polje ne ostavlja ni crtu ni prazan redak.
