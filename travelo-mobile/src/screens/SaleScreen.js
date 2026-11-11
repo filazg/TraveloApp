@@ -32,7 +32,8 @@ import { ENDPOINTS } from '../api/config';
 import { loadAllBuyers, saveBuyer, syncAddressbook, findTicketByUuidOrCode, loadValidationLogForRoutes } from '../db/repo';
 import { scanOnce, onScan } from '../device/scanner';
 import { startScan as akdStartScan, stopScan as akdStopScan, onCardRead as akdOnCardRead, hideKeyboard as akdHideKeyboard, akdCardAvailable } from '../device/akdCard';
-import { printReceipt as printReceiptFn, printTickets as printTicketsFn } from '../device/printSale';
+import { printReceipt as printReceiptFn, printTickets as printTicketsFn, printMerchantSlip as printMerchantSlipFn } from '../device/printSale';
+import { ucitajIspisZaTrgovca } from '../services/softposProvider';
 import { playSuccess as soundSuccess, playPrompt as soundPrompt, playError as soundError } from '../device/sound';
 
 // Razlozi izdavanja otočne bez provjere (Kontrola → Greške s povlaštenim
@@ -960,6 +961,7 @@ export default function SaleScreen() {
             fromHarbor,
             toHarbor,
             isReprint: false,
+            slijedeKarte: (r?.tickets || []).length > 0,
         });
     };
     const printTickets = async (tickets) => {
@@ -1113,9 +1115,18 @@ export default function SaleScreen() {
                 // F2 račun se kupcu dostavlja kao e-račun (HRFISK20), pa se na
                 // blagajni ne ispisuje — na papir idu samo karte.
                 let ispisano = true;
+                // Listić za trgovca ide PRVI: uvijek je jedan i jednako dug, pa
+                // se pauza za otkidanje iza njega dade točno odmjeriti (radi je
+                // nativni ispis — razriješi se tek nakon ispisa + 1 s). Iza računa
+                // i karata bi ovisila o broju karata, a V2s ne javlja kad je papir stao.
+                // Uključuje se u servisnom izborniku; ide samo uz kartičnu naplatu.
+                if (cardPaymentDetails && await ucitajIspisZaTrgovca()) {
+                    setPrintingLabel('Ispis za trgovca — otkinite listić…');
+                    if (!(await printMerchantSlipFn({ r }))) { ispisano = false; }
+                }
                 if (!r.is_f2) {
                     setPrintingLabel('Ispis računa…');
-                    ispisano = await printReceipt(r, items, pm.name);
+                    if (!(await printReceipt(r, items, pm.name))) { ispisano = false; }
                 }
                 setPrintingLabel(`Ispis karata… (${(r.tickets || []).length})`);
                 if (!(await printTickets(r.tickets || []))) { ispisano = false; }

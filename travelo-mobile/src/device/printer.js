@@ -189,6 +189,10 @@ export async function nativePrintReceipt(data) {
     await bindPrinter();
     return ispisi(SunmiPrinter.printReceipt(data), 45000, 'Ispis računa');
 }
+export async function nativePrintMerchantSlip(data) {
+    await bindPrinter();
+    return ispisi(SunmiPrinter.printMerchantSlip(data), 30000, 'Ispis za trgovca');
+}
 export async function nativePrintShiftReport(data) {
     await bindPrinter();
     return ispisi(SunmiPrinter.printShiftReport(data), 45000, 'Ispis zaključka');

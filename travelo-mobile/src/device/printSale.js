@@ -5,6 +5,7 @@
 
 import {
     nativePrintReceipt,
+    nativePrintMerchantSlip,
     nativePrintShiftReport,
     nativePrintTickets,
     sunmiPrinterAvailable,
@@ -39,6 +40,21 @@ function karticnoTerecenje(r) {
     };
 }
 
+// Listić za trgovca — samo za odobreno kartično plaćanje; inače ne radi ništa.
+// Vraća false samo kad ispis stvarno ne uspije.
+export async function printMerchantSlip({ r }) {
+    if (!sunmiPrinterAvailable) return true;
+    const cardPayment = karticnoTerecenje(r || {});
+    if (!cardPayment) return true;
+    try {
+        await nativePrintMerchantSlip({ cardPayment, invoiceCode: String(r?.invoice_code || '') });
+        return true;
+    } catch (e) {
+        console.warn('[printMerchantSlip] ERROR:', e?.message || e);
+        return false;
+    }
+}
+
 // Strukturirani POS račun.
 // args:
 //   r            — invoice response (invoice_no, invoice_year, invoice_code, totals…)
@@ -50,7 +66,8 @@ function karticnoTerecenje(r) {
 //   fromHarbor   — { name }
 //   toHarbor     — { name }
 //   isReprint    — true → "*** KOPIJA ***" header
-export async function printReceipt({ r, items, paymentName, basicData, operator, voyage, fromHarbor, toHarbor, isReprint }) {
+//   slijedeKarte — true kad odmah iza računa idu karte (kraći razmak na kraju)
+export async function printReceipt({ r, items, paymentName, basicData, operator, voyage, fromHarbor, toHarbor, isReprint, slijedeKarte = false }) {
     if (!sunmiPrinterAvailable) return true;
     try {
         // Backend response može imati alternativne ključeve (vat_base, vat,
@@ -81,6 +98,8 @@ export async function printReceipt({ r, items, paymentName, basicData, operator,
             fromHarbor: fromHarbor || {},
             toHarbor: toHarbor || {},
             isReprint: !!isReprint,
+            // Odmah iza računa idu karte — native skraćuje prazan prostor na kraju računa.
+            slijedeKarte: !!slijedeKarte,
         });
         return true;
     } catch (e) {

@@ -782,35 +782,7 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             // o odobrenju ispod kupca, iznad napomene. Stiže samo za odobreno
             // kartično plaćanje (vidi printSale.js karticnoTerecenje).
             val card = if (data.hasKey("cardPayment") && !data.isNull("cardPayment")) data.getMap("cardPayment") else null
-            if (card != null) {
-                // Oznaka dobiva točno svoju širinu, vrijednost ostatak retka — lrLine
-                // (16+16) bi odrezao datum i naziv kartice.
-                val red = { oznaka: String, kljuc: String ->
-                    val vrijednost = safeString(card, kljuc)
-                    if (vrijednost.isNotEmpty()) {
-                        p.printText(lrLine(oznaka, vrijednost, oznaka.length + 1, W - oznaka.length - 1) + "\n", null)
-                    }
-                }
-                p.printText(center("KARTIČNO TEREĆENJE") + "\n", null)
-                p.printText(center("CARD PAYMENT") + "\n", null)
-                dline(p)
-                red("TID:", "tid")
-                red("MID:", "mid")
-                red("AID:", "aid")
-                red("Datum:", "datum")
-                red("Kartica:", "kartica")
-                red("Br. kartice:", "brojKartice")
-                red("Broj odobrenja:", "odobrenje")
-                red("RRN:", "rrn")
-                val iznos = if (safeDouble(card, "iznos") != 0.0) safeDouble(card, "iznos") else totalAmount
-                p.printText(lrLine("IZNOS:", "%.2f EUR".format(iznos)) + "\n", null)
-                p.setFontSize(34f, null)
-                p.setAlignment(1, null)
-                p.printText("ODOBRENO\n", null)
-                p.setFontSize(24f, null)
-                p.setAlignment(0, null)
-                dline(p)
-            }
+            if (card != null) printCardBlock(p, card, totalAmount)
 
             // Napomena s naplatnog uređaja. Definira se u administraciji, po
             // uređaju i odvojeno za račun i za kartu — račun ide kupcu, karta
@@ -818,8 +790,10 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             printNapomena(p, safeString(bd, "billing_device_footer"), W)
 
             // Tri prazna retka više nego prije — zadnji redak je inače sjedao
-            // pretijesno uz rub odrezanog papira.
-            p.lineWrap(6, null)
+            // pretijesno uz rub odrezanog papira. Kad odmah slijede karte
+            // (`slijedeKarte`), papir se ne otkida iza računa nego iza karata,
+            // pa je dovoljan kratki razmak.
+            p.lineWrap(if (safeBool(data, "slijedeKarte")) 2 else 6, null)
             try { p.cutPaper(null) } catch (_: Exception) {}
             Log.d("SunmiPrint", "printReceipt: exit buffer (commit)")
             p.exitPrinterBuffer(true)
@@ -830,6 +804,95 @@ class SunmiPrinterModule(reactContext: ReactApplicationContext) :
             try { p.cutPaper(null) } catch (_: Exception) {}
             try { p.exitPrinterBuffer(true) } catch (_: Exception) {}
             promise.reject("PRINT_RECEIPT_ERR", e.message)
+        }
+    }
+
+    // Kartični blok — isti na računu i na listiću za trgovca.
+    private fun printCardBlock(p: IWoyouService, card: ReadableMap, fallbackAmount: Double) {
+        // Oznaka dobiva točno svoju širinu, vrijednost ostatak retka — lrLine
+        // (16+16) bi odrezao datum i naziv kartice.
+        val red = { oznaka: String, kljuc: String ->
+            val vrijednost = safeString(card, kljuc)
+            if (vrijednost.isNotEmpty()) {
+                p.printText(lrLine(oznaka, vrijednost, oznaka.length + 1, W - oznaka.length - 1) + "\n", null)
+            }
+        }
+        p.printText(center("KARTIČNO TEREĆENJE") + "\n", null)
+        p.printText(center("CARD PAYMENT") + "\n", null)
+        dline(p)
+        red("TID:", "tid")
+        red("MID:", "mid")
+        red("AID:", "aid")
+        red("Datum:", "datum")
+        red("Kartica:", "kartica")
+        red("Br. kartice:", "brojKartice")
+        red("Broj odobrenja:", "odobrenje")
+        red("RRN:", "rrn")
+        val iznos = if (safeDouble(card, "iznos") != 0.0) safeDouble(card, "iznos") else fallbackAmount
+        p.printText(lrLine("IZNOS:", "%.2f EUR".format(iznos)) + "\n", null)
+        p.setFontSize(34f, null)
+        p.setAlignment(1, null)
+        p.printText("ODOBRENO\n", null)
+        p.setFontSize(24f, null)
+        p.setAlignment(0, null)
+        dline(p)
+    }
+
+    // Listić za trgovca (boat-desk „ISPIS ZA TRGOVCA") — zaseban papir s istim
+    // kartičnim blokom kao na računu, uključuje se u servisnom izborniku.
+    @ReactMethod
+    fun printMerchantSlip(data: ReadableMap, promise: Promise) {
+        val p = requirePrinter() ?: return promise.reject("NO_PRINTER", "not bound")
+        val card = if (data.hasKey("cardPayment") && !data.isNull("cardPayment")) data.getMap("cardPayment") else null
+        if (card == null) { promise.resolve(false); return }
+        // Listić ide PRVI, a pauza je iza njega: njegovo trajanje je uvijek
+        // isto (jedan papir, ne ovisi o broju karata), pa se dade točno
+        // procijeniti. V2s ne javlja kad je papir stao — getPrintedLength
+        // stalno vraća istu vrijednost, a povratni poziv izvan buffera ne
+        // stiže (provjereno 2026-11-11). Promise se razriješi tek nakon pauze,
+        // pa JS tek tada šalje račun i karte. Čeka se u zasebnoj niti da ne
+        // blokira ostale nativne pozive.
+        Thread {
+            if (ispisiListicZaTrgovca(p, data, card)) {
+                // Procijenjeni ispis listića + sekunda da ga operater otkine.
+                try { Thread.sleep(ISPIS_LISTICA_MS + 1000L) } catch (_: InterruptedException) {}
+                promise.resolve(true)
+            } else {
+                promise.reject("PRINT_SLIP_ERR", "Ispis za trgovca nije uspio")
+            }
+        }.start()
+    }
+
+    // Procijenjeno trajanje fizičkog ispisa listića za trgovca.
+    private val ISPIS_LISTICA_MS = 3000L
+
+    private fun ispisiListicZaTrgovca(p: IWoyouService, data: ReadableMap, card: ReadableMap): Boolean {
+        try {
+            try { p.exitPrinterBuffer(false) } catch (_: Exception) {}
+            p.enterPrinterBuffer(true)
+            try { p.sendRAWData(byteArrayOf(0x1B, 0x45, 0x01), null) } catch (_: Exception) {}
+            p.setPrinterStyle(1000, 1)
+            p.setAlignment(0, null)
+            p.setFontSize(24f, null)
+
+            dline(p)
+            p.printText(center("ISPIS ZA TRGOVCA") + "\n", null)
+            dline(p)
+            val racun = safeString(data, "invoiceCode")
+            if (racun.isNotEmpty()) p.printText(lrLine("Račun:", racun, 7, W - 7) + "\n", null)
+            printCardBlock(p, card, 0.0)
+            p.printText(center("ISPIS ZA TRGOVCA") + "\n", null)
+            dline(p)
+
+            p.lineWrap(6, null)
+            try { p.cutPaper(null) } catch (_: Exception) {}
+            p.exitPrinterBuffer(true)
+            return true
+        } catch (e: Exception) {
+            Log.e("SunmiPrint", "printMerchantSlip FAILED", e)
+            try { p.cutPaper(null) } catch (_: Exception) {}
+            try { p.exitPrinterBuffer(true) } catch (_: Exception) {}
+            return false
         }
     }
 

@@ -28,3 +28,11 @@ export const providerPoPaketu = (paket) => SOFTPOS_PROVIDERS.find((p) => p.paket
 export const ucitajSoftposProvider = async () => providerPoKljucu(await getSetting(KLJUC));
 
 export const spremiSoftposProvider = (key) => setSetting(KLJUC, key || '');
+
+// „Ispis za trgovca" — zaseban listić s podacima kartične naplate, nakon
+// računa i karata. Po uređaju, zadano isključeno (kao na blagajni).
+const KLJUC_LISTIC = 'merchant_slip';
+
+export const ucitajIspisZaTrgovca = async () => (await getSetting(KLJUC_LISTIC)) === '1';
+
+export const spremiIspisZaTrgovca = (ukljuceno) => setSetting(KLJUC_LISTIC, ukljuceno ? '1' : '0');

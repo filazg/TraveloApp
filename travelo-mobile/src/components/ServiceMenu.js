@@ -10,7 +10,7 @@ import { syncPendingValidationsThunk } from '../store/slices/validationSlice';
 import { storage } from '../api/client';
 import { getDeviceSerialNumber } from '../device/printer';
 import { ucitajSlobodnoStorniranje, spremiSlobodnoStorniranje, ROK_NAKON_POLASKA_MIN } from '../services/stornoRok';
-import { SOFTPOS_PROVIDERS, ucitajSoftposProvider, spremiSoftposProvider, providerPoPaketu } from '../services/softposProvider';
+import { SOFTPOS_PROVIDERS, ucitajSoftposProvider, spremiSoftposProvider, providerPoPaketu, ucitajIspisZaTrgovca, spremiIspisZaTrgovca } from '../services/softposProvider';
 import { colors } from '../theme/colors';
 
 const { SevenPay } = NativeModules;
@@ -33,6 +33,7 @@ export default function ServiceMenu({ visible, onClose }) {
     const [softpos, setSoftpos] = useState(null); // key odabranog providera ili null
     const [instalirano, setInstalirano] = useState({}); // paket → bool
     const [softposOtvoren, setSoftposOtvoren] = useState(false);
+    const [ispisZaTrgovca, setIspisZaTrgovca] = useState(false);
     const paketIzKonfiguracije = useSelector((s) => s.sync?.basicData?.payment_7pay?.package_name) || 'com.sevenpay.tnp_test';
 
     const ucitajSoftpos = async () => {
@@ -60,6 +61,7 @@ export default function ServiceMenu({ visible, onClose }) {
         setOtkljucano(true);
         setSlobodnoStorniranje(await ucitajSlobodnoStorniranje());
         ucitajSoftpos().catch(() => {});
+        setIspisZaTrgovca(await ucitajIspisZaTrgovca());
         // Info se dohvaća tek nakon otključavanja — serijski i gateway mogu biti
         // iz auth stanja ili iz lokalne baze ako auth još nema.
         try {
@@ -88,6 +90,11 @@ export default function ServiceMenu({ visible, onClose }) {
 
     // Sprema se odmah, bez zasebnog gumba — izbornik nema spremanje, a
     // prekidač koji se vrati na staro kad se izbornik zatvori bi zavaravao.
+    const promijeniIspisZaTrgovca = async (ukljuceno) => {
+        setIspisZaTrgovca(ukljuceno);
+        await spremiIspisZaTrgovca(ukljuceno);
+    };
+
     const promijeniSlobodnoStorniranje = async (ukljuceno) => {
         setSlobodnoStorniranje(ukljuceno);
         await spremiSlobodnoStorniranje(ukljuceno);
@@ -206,6 +213,18 @@ export default function ServiceMenu({ visible, onClose }) {
                                         </View>
                                     );
                                 })()}
+                            </View>
+
+                            <View style={styles.prekidacRed}>
+                                <View style={{ flex: 1, marginRight: 12 }}>
+                                    <Text style={styles.prekidacNaziv}>Ispis za trgovca</Text>
+                                    <Text style={styles.prekidacOpis}>
+                                        {ispisZaTrgovca
+                                            ? 'Nakon računa i karata izlazi listić s podacima kartične naplate.'
+                                            : 'Listić za trgovca se ne ispisuje.'}
+                                    </Text>
+                                </View>
+                                <Switch value={ispisZaTrgovca} onValueChange={promijeniIspisZaTrgovca} />
                             </View>
 
                             <TouchableOpacity style={[styles.action, radi && styles.btnDisabled]} disabled={radi} onPress={posaljiNespremljeno}>
