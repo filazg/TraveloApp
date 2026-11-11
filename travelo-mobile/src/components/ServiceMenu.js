@@ -32,6 +32,7 @@ export default function ServiceMenu({ visible, onClose }) {
     const [slobodnoStorniranje, setSlobodnoStorniranje] = useState(false);
     const [softpos, setSoftpos] = useState(null); // key odabranog providera ili null
     const [instalirano, setInstalirano] = useState({}); // paket → bool
+    const [softposOtvoren, setSoftposOtvoren] = useState(false);
     const paketIzKonfiguracije = useSelector((s) => s.sync?.basicData?.payment_7pay?.package_name) || 'com.sevenpay.tnp_test';
 
     const ucitajSoftpos = async () => {
@@ -49,7 +50,7 @@ export default function ServiceMenu({ visible, onClose }) {
     };
 
     const zatvori = () => {
-        setOtkljucano(false); setKod(''); setGreska(false); setRadi(false);
+        setOtkljucano(false); setKod(''); setGreska(false); setRadi(false); setSoftposOtvoren(false);
         onClose();
     };
 
@@ -163,23 +164,52 @@ export default function ServiceMenu({ visible, onClose }) {
                                 <Text style={styles.prekidacOpis}>
                                     Aplikacija banke koja se poziva za kartično plaćanje. Kredencijali su isti za sve.
                                 </Text>
-                                <SoftposOpcija
-                                    naziv="Prema konfiguraciji"
-                                    opis={`${providerPoPaketu(paketIzKonfiguracije)?.naziv || paketIzKonfiguracije}`}
-                                    odabrano={!softpos}
-                                    instalirano={instalirano[paketIzKonfiguracije]}
-                                    onPress={() => odaberiSoftpos(null)}
-                                />
-                                {SOFTPOS_PROVIDERS.map((p) => (
-                                    <SoftposOpcija
-                                        key={p.key}
-                                        naziv={p.naziv}
-                                        opis={p.merchantTaxId ? `${p.paket} · OIB ${p.merchantTaxId}` : p.paket}
-                                        odabrano={softpos === p.key}
-                                        instalirano={instalirano[p.paket]}
-                                        onPress={() => odaberiSoftpos(p.key)}
-                                    />
-                                ))}
+                                {(() => {
+                                    const opcije = [
+                                        {
+                                            key: null,
+                                            naziv: 'Prema konfiguraciji',
+                                            opis: providerPoPaketu(paketIzKonfiguracije)?.naziv || paketIzKonfiguracije,
+                                            paket: paketIzKonfiguracije,
+                                        },
+                                        ...SOFTPOS_PROVIDERS.map((p) => ({
+                                            key: p.key,
+                                            naziv: p.naziv,
+                                            opis: p.merchantTaxId ? `${p.paket} · OIB ${p.merchantTaxId}` : p.paket,
+                                            paket: p.paket,
+                                        })),
+                                    ];
+                                    const trenutna = opcije.find((o) => o.key === softpos) || opcije[0];
+                                    return (
+                                        <View>
+                                            <TouchableOpacity style={styles.dropdown} onPress={() => setSoftposOtvoren((v) => !v)}>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={styles.opcijaNaziv}>{trenutna.naziv}</Text>
+                                                    <Text style={styles.opcijaOpis} numberOfLines={1}>{trenutna.opis}</Text>
+                                                </View>
+                                                <OznakaInstalacije instalirano={instalirano[trenutna.paket]} />
+                                                <Text style={styles.strelica}>{softposOtvoren ? '▲' : '▼'}</Text>
+                                            </TouchableOpacity>
+                                            {softposOtvoren ? (
+                                                <View style={styles.dropdownLista}>
+                                                    {opcije.map((o) => (
+                                                        <TouchableOpacity
+                                                            key={o.key || 'cfg'}
+                                                            style={[styles.dropdownStavka, o.key === softpos && styles.dropdownStavkaOdabrana]}
+                                                            onPress={() => { odaberiSoftpos(o.key); setSoftposOtvoren(false); }}
+                                                        >
+                                                            <View style={{ flex: 1 }}>
+                                                                <Text style={styles.opcijaNaziv}>{o.naziv}</Text>
+                                                                <Text style={styles.opcijaOpis} numberOfLines={1}>{o.opis}</Text>
+                                                            </View>
+                                                            <OznakaInstalacije instalirano={instalirano[o.paket]} />
+                                                        </TouchableOpacity>
+                                                    ))}
+                                                </View>
+                                            ) : null}
+                                        </View>
+                                    );
+                                })()}
                             </View>
 
                             <TouchableOpacity style={[styles.action, radi && styles.btnDisabled]} disabled={radi} onPress={posaljiNespremljeno}>
@@ -200,20 +230,12 @@ export default function ServiceMenu({ visible, onClose }) {
     );
 }
 
-function SoftposOpcija({ naziv, opis, odabrano, instalirano, onPress }) {
+function OznakaInstalacije({ instalirano }) {
+    if (instalirano === undefined) return null;
     return (
-        <TouchableOpacity style={[styles.opcija, odabrano && styles.opcijaOdabrana]} onPress={onPress}>
-            <View style={[styles.radio, odabrano && styles.radioOdabran]} />
-            <View style={{ flex: 1 }}>
-                <Text style={styles.opcijaNaziv}>{naziv}</Text>
-                <Text style={styles.opcijaOpis} numberOfLines={1}>{opis}</Text>
-            </View>
-            {instalirano === undefined ? null : (
-                <Text style={[styles.oznaka, instalirano ? styles.oznakaOk : styles.oznakaNema]}>
-                    {instalirano ? 'instalirana' : 'nije instalirana'}
-                </Text>
-            )}
-        </TouchableOpacity>
+        <Text style={[styles.oznaka, instalirano ? styles.oznakaOk : styles.oznakaNema]}>
+            {instalirano ? 'instalirana' : 'nije instalirana'}
+        </Text>
     );
 }
 
@@ -254,13 +276,17 @@ const styles = StyleSheet.create({
     prekidacOpis: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
     actionText: { color: colors.textOnPrimary, fontWeight: '800', fontSize: 15 },
     softposBlok: { paddingVertical: 10 },
-    opcija: {
+    dropdown: {
         flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border,
-        borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginTop: 8,
+        borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginTop: 8, backgroundColor: colors.surfaceAlt,
     },
-    opcijaOdabrana: { borderColor: colors.primary, backgroundColor: colors.surfaceAlt },
-    radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: colors.border },
-    radioOdabran: { borderColor: colors.primary, backgroundColor: colors.primary },
+    strelica: { color: colors.textSecondary, fontSize: 12 },
+    dropdownLista: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginTop: 4, overflow: 'hidden' },
+    dropdownStavka: {
+        flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+    },
+    dropdownStavkaOdabrana: { backgroundColor: colors.surfaceAlt },
     opcijaNaziv: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
     opcijaOpis: { color: colors.textSecondary, fontSize: 11, marginTop: 2 },
     oznaka: { fontSize: 11, fontWeight: '700' },
