@@ -110,6 +110,21 @@ class AkdCardModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         }
     }
 
+    // Foreground dispatch Android gasi pri svakoj pauzi aktivnosti — a pauza
+    // nastaje i kad stigne NFC intent. Bez ponovnog uključivanja čita se samo
+    // prva iskaznica. (Manifest TECH_DISCOVERED filter je namjerno uklonjen
+    // jer je izbacivao aplikaciju ispred 7pay-a tijekom kartičnog plaćanja.)
+    fun resumeIfScanning(activity: Activity) {
+        if (!scanning) return
+        try {
+            val lib = NxpNfcLib.getInstance()
+            lib.registerActivity(activity, TAP_LINX_KEY)
+            lib.startForeGroundDispatch()
+        } catch (e: Exception) {
+            Log.w(TAG, "resumeIfScanning FAIL", e)
+        }
+    }
+
     // Pozvano iz MainActivity.onNewIntent kada stigne NFC tag intent dok je scanning aktivan.
     fun handleNfcIntent(intent: Intent) {
         Log.d(TAG, "onNewIntent action=${intent.action} scanning=$scanning")

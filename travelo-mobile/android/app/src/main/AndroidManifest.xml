@@ -49,13 +49,11 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
-        <!-- AKD otočne iskaznice — MIFARE DESFire čip detektira se preko TECH_DISCOVERED -->
-        <intent-filter>
-            <action android:name="android.nfc.action.TECH_DISCOVERED" />
-        </intent-filter>
-        <meta-data
-            android:name="android.nfc.action.TECH_DISCOVERED"
-            android:resource="@xml/akd_nfc_tech_filter" />
+        <!-- AKD otočne iskaznice se čitaju samo foreground dispatchom dok je
+             čitanje uključeno (AkdCardModule.startScan). Namjerno BEZ
+             TECH_DISCOVERED filtera: s njim Android pokreće aplikaciju na svaki
+             prinos kartice, pa i bankovne tijekom 7pay plaćanja — aplikacija
+             izađe ispred 7pay-a i rezultat plaćanja se izgubi (SOFTPOS_CANCELED). -->
       </activity>
 
       <!-- Tessera AAR isporučuje vlastitu hr.akd.tesserademo.MainActivity s LAUNCHER

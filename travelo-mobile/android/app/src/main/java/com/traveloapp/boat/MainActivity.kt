@@ -34,6 +34,11 @@ class MainActivity : ReactActivity() {
         ctrl.hide(WindowInsetsCompat.Type.navigationBars())
     }
 
+    override fun onResume() {
+        super.onResume()
+        AkdCardModule.getInstance()?.resumeIfScanning(this)
+    }
+
     // NFC tag intent stiže ovdje — proslijedi modulu da pročita karticu i emit-a JS event.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

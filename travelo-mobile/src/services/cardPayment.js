@@ -162,8 +162,10 @@ export async function payByCard({
             JSON.stringify(request),
             senderAppId(paymentCfg),
         );
+        console.log('[7pay] odgovor', target.paket, raw);
         result = JSON.parse(raw);
     } catch (e) {
+        console.log('[7pay] greska', target.paket, e?.code, e?.message);
         // Nativni reject nosi JSON string u messageu kad ga 7pay vrati.
         let parsed = null;
         try {
