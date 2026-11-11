@@ -165,21 +165,17 @@ export default function ServiceMenu({ visible, onClose }) {
                                     Aplikacija banke koja se poziva za kartično plaćanje. Kredencijali su isti za sve.
                                 </Text>
                                 {(() => {
-                                    const opcije = [
-                                        {
-                                            key: null,
-                                            naziv: 'Prema konfiguraciji',
-                                            opis: providerPoPaketu(paketIzKonfiguracije)?.naziv || paketIzKonfiguracije,
-                                            paket: paketIzKonfiguracije,
-                                        },
-                                        ...SOFTPOS_PROVIDERS.map((p) => ({
-                                            key: p.key,
-                                            naziv: p.naziv,
-                                            opis: p.merchantTaxId ? `${p.paket} · OIB ${p.merchantTaxId}` : p.paket,
-                                            paket: p.paket,
-                                        })),
-                                    ];
-                                    const trenutna = opcije.find((o) => o.key === softpos) || opcije[0];
+                                    const opcije = SOFTPOS_PROVIDERS.map((p) => ({
+                                        key: p.key,
+                                        naziv: p.naziv,
+                                        opis: p.merchantTaxId ? `${p.paket} · OIB ${p.merchantTaxId}` : p.paket,
+                                        paket: p.paket,
+                                    }));
+                                    // Dok na uređaju nije ništa odabrano, plaćanje ide na paket
+                                    // iz konfiguracije (zadano testna) — to se i prikazuje.
+                                    const zadanaKey = providerPoPaketu(paketIzKonfiguracije)?.key || 'test';
+                                    const aktivnaKey = softpos || zadanaKey;
+                                    const trenutna = opcije.find((o) => o.key === aktivnaKey) || opcije[0];
                                     return (
                                         <View>
                                             <TouchableOpacity style={styles.dropdown} onPress={() => setSoftposOtvoren((v) => !v)}>
@@ -194,8 +190,8 @@ export default function ServiceMenu({ visible, onClose }) {
                                                 <View style={styles.dropdownLista}>
                                                     {opcije.map((o) => (
                                                         <TouchableOpacity
-                                                            key={o.key || 'cfg'}
-                                                            style={[styles.dropdownStavka, o.key === softpos && styles.dropdownStavkaOdabrana]}
+                                                            key={o.key}
+                                                            style={[styles.dropdownStavka, o.key === aktivnaKey && styles.dropdownStavkaOdabrana]}
                                                             onPress={() => { odaberiSoftpos(o.key); setSoftposOtvoren(false); }}
                                                         >
                                                             <View style={{ flex: 1 }}>
