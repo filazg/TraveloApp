@@ -144,7 +144,8 @@ export async function payByCard({
         partnerID: paymentCfg.partner_id || paymentCfg.partenr_id,
         merchantTaxID: target.merchantTaxId || merchantTax(paymentCfg, merchantTaxID),
         senderAppID: senderAppId(paymentCfg),
-        version: paymentCfg.version || '2.1',
+        // Verzija formata poruke — App2App specifikacija v1.2 (4.1): fiksno "1.2".
+        version: paymentCfg.version || '1.2',
         ecrID: paymentCfg.ecr_id || 1234,
         sequenceNumber,
         transactionType,

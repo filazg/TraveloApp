@@ -40,7 +40,7 @@
         "password": "",
         "partner_id": "",
         "sender_app_id": "",
-        "version": "2.1",
+        "version": "1.2",
         "ecr_id": 1234
     }
 }
